@@ -4,8 +4,6 @@ name: Publish Python Package
 
 on:
   push:
-    # only pushes to main trigger
-    branches: [main]
     tags:
     - v[0-9]+.[0-9]+.[0-9]+*
 
