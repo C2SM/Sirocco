@@ -85,8 +85,12 @@ tasks:
       nodes: 40
       walltime: 23:59:59
       namelists:
-        master: path/to/mater_nml
-        model: path/to/model_nml
+        - ./ICON/icon_master.namelist:
+            master_model_nml:
+              model_namelist_filename: "NAMELIST_exclaim_ape_R02B04"
+        - ./ICON/NAMELIST_exclaim_ape_R02B04:
+            parallel_nml:
+              nproma: 96
       uenv:
         squashfs: path/to/squashfs
         mount_point: runtime/mount/point

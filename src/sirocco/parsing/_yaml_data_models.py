@@ -122,7 +122,7 @@ class TargetNodesBaseModel(_NamedBaseModel):
 
     @field_validator("parameters", mode="before")
     @classmethod
-    def check_dict_single_item(cls, params: dict) -> dict:
+    def check_parameters_spec(cls, params: dict) -> dict:
         if not params:
             return {}
         for k, v in params.items():
@@ -376,13 +376,41 @@ class ConfigShellTask(ConfigBaseTask, ConfigShellTaskSpecs):
 
 
 @dataclass
+class ConfigNamelist:
+    """Class for namelist specifications"""
+    path: str | None = None
+    specs: dict | None = None
+
+
+@dataclass
 class ConfigIconTaskSpecs:
     plugin: ClassVar[Literal["icon"]] = "icon"
-    namelists: dict[str, str] | None = None
+    namelists: list[ConfigNamelist] | None = None
 
 
 class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
-    pass
+    # validation done here and not in ConfigNamelist so that we can still
+    # import ConfigIconTaskSpecs in core._tasks.IconTask. Hence the iteration
+    # over the namelists that could be avoided with a more raw pydantic design
+    @field_validator("namelists", mode="before")
+    @classmethod
+    def check_nml(cls, nml_list: list[Any]) -> ConfigNamelist:
+        if not isinstance(nml_list, list):
+            msg = f"expected a list got a {type(nml_list).__name__}"
+            raise TypeError(msg)
+        namelists = []
+        for nml in nml_list:
+            msg = f"was expecting a dict of length 1 or a string, got {nml}"
+            if not isinstance(nml, (str, dict)):
+                raise TypeError(msg)
+            if isinstance(nml, dict) and len(nml) > 1:
+                raise TypeError(msg)
+            if isinstance(nml, str):
+                namelists.append(ConfigNamelist(path=nml, specs=None))
+            else:
+                path, specs = next(iter(nml.items()))
+                namelists.append(ConfigNamelist(path=path, specs=specs))
+        return namelists
 
 
 @dataclass
