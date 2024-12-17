@@ -378,6 +378,7 @@ class ConfigShellTask(ConfigBaseTask, ConfigShellTaskSpecs):
 @dataclass
 class ConfigNamelist:
     """Class for namelist specifications"""
+
     path: str | None = None
     specs: dict | None = None
 

@@ -8,6 +8,5 @@ from sirocco.parsing._yaml_data_models import ConfigIconTaskSpecs
 
 @dataclass
 class IconTask(ConfigIconTaskSpecs, Task):
-
     def update_nml_from_config(self):
         pass
