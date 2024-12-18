@@ -379,14 +379,14 @@ class ConfigShellTask(ConfigBaseTask, ConfigShellTaskSpecs):
 class ConfigNamelist:
     """Class for namelist specifications"""
 
-    path: str | None = None
+    path: Path | None = None
     specs: dict | None = None
 
 
 @dataclass
 class ConfigIconTaskSpecs:
     plugin: ClassVar[Literal["icon"]] = "icon"
-    namelists: list[ConfigNamelist] | None = None
+    namelists: dict[str, ConfigNamelist] | None = None
 
 
 class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
@@ -396,10 +396,12 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
     @field_validator("namelists", mode="before")
     @classmethod
     def check_nml(cls, nml_list: list[Any]) -> ConfigNamelist:
+        # TODO: cfg_namelists not allowed to be None
+        # TODO: must contain an icon_master.namelist
         if not isinstance(nml_list, list):
-            msg = f"expected a list got a {type(nml_list).__name__}"
+            msg = f"expected a list got type {type(nml_list).__name__}"
             raise TypeError(msg)
-        namelists = []
+        namelists = {}
         for nml in nml_list:
             msg = f"was expecting a dict of length 1 or a string, got {nml}"
             if not isinstance(nml, (str, dict)):
@@ -410,7 +412,8 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
                 namelists.append(ConfigNamelist(path=nml, specs=None))
             else:
                 path, specs = next(iter(nml.items()))
-                namelists.append(ConfigNamelist(path=path, specs=specs))
+                path = Path(path)
+                namelists[path.name] = ConfigNamelist(path=path, specs=specs)
         return namelists
 
 
@@ -436,8 +439,9 @@ class ConfigBaseData(_NamedBaseModel, ConfigBaseDataSpecs):
     @classmethod
     def is_file_or_dir(cls, value: str) -> str:
         """."""
-        if value not in ["file", "dir"]:
-            msg = "Must be one of 'file' or 'dir'."
+        valid_types = ("file", "dir", "icon_restart")
+        if value not in valid_types:
+            msg = f"Must be one of {valid_types}"
             raise ValueError(msg)
         return value
 

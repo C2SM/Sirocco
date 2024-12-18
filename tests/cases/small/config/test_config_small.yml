@@ -49,5 +49,5 @@ data:
          type: file
          src: icon_output
      - icon_restart:
-         type: file
+         type: icon_restart
          src: restart

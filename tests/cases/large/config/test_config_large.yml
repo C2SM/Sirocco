@@ -144,7 +144,7 @@ data:
         type: file
         src: output
     - icon_restart:
-        type: file
+        type: icon_restart
         format: ncdf
         src: restart
     - stream_1:

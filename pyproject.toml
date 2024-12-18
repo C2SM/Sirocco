@@ -34,7 +34,8 @@ dependencies = [
   "aiida-workgraph==0.4.10",
   "termcolor",
   "pygraphviz",
-  "lxml"
+  "lxml",
+  "f90nml"
 ]
 license = {file = "LICENSE"}
 
