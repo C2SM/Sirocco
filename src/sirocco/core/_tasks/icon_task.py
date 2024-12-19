@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from dataclasses import dataclass, field
 
 import f90nml
@@ -54,18 +55,24 @@ class IconTask(ConfigIconTaskSpecs, Task):
             in_data.type == "icon_restart" for in_data in self.inputs
         )
 
-    def dump_core_namelists(self):
+    def dump_core_namelists(self, folder=None):
+        if folder is not None:
+            folder = Path(folder)
+            folder.mkdir(parents=True, exist_ok=True)
         for name, cfg_nml in self.namelists.items():
-            nml_path = self.config_root / cfg_nml.path
-            suffix = ("_".join([str(p) for p in self.coordinates.values()])).replace(" ", "_")
-            dump_path = nml_path.parent / (nml_path.name + "_" + suffix)
-            self.core_namelists[name].write(dump_path)
+            if folder is None:
+                nml_path = self.config_root / cfg_nml.path
+                suffix = ("_".join([str(p) for p in self.coordinates.values()])).replace(" ", "_")
+                dump_path = nml_path.parent / (nml_path.name + "_" + suffix)
+            else:
+                dump_path = folder / name
+            self.core_namelists[name].write(dump_path, force=True)
 
-    def create_workflow_namelists(self):
+    def create_workflow_namelists(self, folder=None):
         self.init_core_namelists()
         self.update_core_namelists_from_config()
         self.update_core_namelists_from_workflow()
-        self.dump_core_namelists()
+        self.dump_core_namelists(folder=folder)
 
     @staticmethod
     def section_index(section_name):
