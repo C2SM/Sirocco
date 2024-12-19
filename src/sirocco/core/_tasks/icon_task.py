@@ -25,12 +25,14 @@ class IconTask(ConfigIconTaskSpecs, Task):
     def update_nml_from_config(self):
         """Update namelists from user input"""
 
-        # TODO: implement format for users to reference parameters in their specs
+        # TODO: implement format for users to reference parameters and date in their specs
         for name, cfg_nml in self.namelists.items():
             core_nml = self.core_namelists[name]
             for section, params in cfg_nml.specs.items():
                 section_name, k = self.section_index(section)
                 # Create section if non existant
+                # NOTE: f90nml will automatially create the corresponding nested f90nml.Namelist
+                #       objects, no need to explicitly use the f90nml.Namelist class constructor
                 if section_name not in core_nml:
                     core_nml[section_name] = {} if k is None else [{}]
                 # Update namelist with user input
@@ -52,5 +54,5 @@ class IconTask(ConfigIconTaskSpecs, Task):
     def section_index(section_name):
         multi_section_pattern = re.compile(r"(.*)\[([0-9]+)\]$")
         if m := multi_section_pattern.match(section_name):
-            return m.group(2), int(m.group(2)) - 1
+            return m.group(1), int(m.group(2)) - 1
         return section_name, None
