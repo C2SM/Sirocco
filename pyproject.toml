@@ -31,6 +31,8 @@ dependencies = [
   "pydantic",
   "pydantic-yaml",
   "aiida-core>=2.5",
+  "aiida-workgraph==0.3.14",
+  "node_graph==0.0.11",
   "termcolor",
   "pygraphviz",
   "lxml"

@@ -61,7 +61,7 @@ tasks:
       account: g110
   - extpar:
       plugin: shell  # no extpar plugin available yet
-      command: $PWD/examples/files/scripts/extpar
+      command: scripts/extpar
       cli_arguments: "--verbose {--input obs_data}"
       uenv:
         squashfs: path/to/squashfs
@@ -70,17 +70,17 @@ tasks:
       walltime: 00:02:00
   - preproc:
       plugin: shell
-      command: $PWD/examples/files/scripts/cleanup.sh
+      command: scripts/cleanup.sh
       cli_arguments: "{-p extpar_file} {-e ERA5} {grid_file}"
-      env_source_files: $PWD/examples/files/data/dummy_source_file.sh
+      env_source_files: data/dummy_source_file.sh
       nodes: 4
       walltime: 00:02:00
       uenv:
         squashfs: path/to/squashfs
         mount_point: runtime/mount/point
   - icon:
-      plugin: icon
-      command: $PWD/examples/files/scripts/icon
+      plugin: shell 
+      command: scripts/icon
       cli_arguments: "{-g grid_file} {--input icon_input}"
       nodes: 40
       walltime: 23:59:59
@@ -92,7 +92,7 @@ tasks:
         mount_point: runtime/mount/point
   - postproc_1:
       plugin: shell
-      command: $PWD/examples/files/scripts/main_script_ocn.sh
+      command: scripts/main_script_ocn.sh
       cli_arguments: "{--input stream_1}"
       nodes: 2
       walltime: 00:05:00
@@ -101,7 +101,7 @@ tasks:
         mount_point: runtime/mount/point
   - postproc_2:
       plugin: shell
-      command: $PWD/examples/files/scripts/main_script_atm.sh
+      command: scripts/main_script_atm.sh
       cli_arguments: "{--input stream_2}"
       nodes: 2
       walltime: 00:05:00
@@ -111,13 +111,13 @@ tasks:
         mount_point: runtime/mount/point
   - store_and_clean_1:
       plugin: shell
-      command: $PWD/examples/files/scripts/post_clean.sh
+      command: scripts/post_clean.sh
       cli_arguments: "{--input postout_1} {--stream stream_1} {--icon_input icon_input}"
       nodes: 1
       walltime: 00:01:00
   - store_and_clean_2:
       plugin: shell
-      command: $PWD/examples/files/scripts/post_clean.sh
+      command: scripts/post_clean.sh
       cli_arguments: "{--input postout_2}"
       nodes: 1
       walltime: 00:01:00
@@ -125,13 +125,13 @@ data:
   available:
     - grid_file:
         type: file
-        src: $PWD/examples/files/data/grid
+        src: data/grid
     - obs_data:
         type: file
-        src: $PWD/examples/files/data/obs_data
+        src: data/obs_data
     - ERA5:
         type: file
-        src: $PWD/examples/files/data/era5
+        src: data/era5
   generated:
     - extpar_file:
         type: file

@@ -6,6 +6,7 @@ from sirocco.core import Workflow
 from sirocco.parsing._yaml_data_models import ConfigShellTask, ShellCliArgument
 from sirocco.pretty_print import PrettyPrinter
 from sirocco.vizgraph import VizGraph
+from sirocco.workgraph import AiidaWorkGraph
 
 
 # configs that are tested for parsing
@@ -29,6 +30,7 @@ def pprinter():
     return PrettyPrinter()
 
 
+# configs that are tested for parsing
 config_test_files = [
     "tests/cases/small/config/test_config_small.yml",
     "tests/cases/large/config/test_config_large.yml",
@@ -64,3 +66,23 @@ def test_serialize_workflow(config_paths, pprinter):
 
 def test_vizgraph(config_paths):
     VizGraph.from_yaml(config_paths["yml"]).draw(file_path=config_paths["svg"])
+
+
+# configs that are tested for running workgraph
+@pytest.mark.parametrize(
+    "config_path",
+    [
+        "tests/cases/small/config/test_config_small.yml",
+        "tests/cases/parameters/config/test_config_parameters.yml",
+    ],
+)
+def test_run_workgraph(config_path):
+    """Tests end-to-end the parsing from file up to running the workgraph.
+
+    Automatically uses the aiida_profile fixture to create a new profile. Note to debug the test with your profile
+    please run this in a separate file as the profile is deleted after test finishes.
+    """
+    core_workflow = Workflow.from_yaml(config_path)
+    aiida_workflow = AiidaWorkGraph(core_workflow)
+    out = aiida_workflow.run()
+    assert out.get("execution_count", None).value == 0  # TODO: should be 1 but we need to update workgraph for this

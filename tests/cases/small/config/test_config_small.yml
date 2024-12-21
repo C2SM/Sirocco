@@ -9,6 +9,10 @@ cycles:
       tasks:
         - icon:
             inputs:
+              - icon_namelist
+              - initial_conditions:
+                  when:
+                    at: *root_start_date
               - icon_restart:
                   when:
                     after: *root_start_date
@@ -23,20 +27,24 @@ cycles:
 tasks:
   - icon:
       plugin: shell
-      command: $PWD/tests/files/scripts/icon.py
+      command: scripts/icon.py
       cli_arguments: "{--restart icon_restart} {--init initial_conditions}"
+      env_source_files: data/dummy_source_file.sh
   - cleanup:
       plugin: shell
-      command: $PWD/tests/files/scripts/cleanup.py
+      command: scripts/cleanup.py
 data:
   available:
-     - icon_input:
+     - icon_namelist:
          type: file
-         src: $PWD/tests/files/data/input
+         src: data/input
+     - initial_conditions:
+         type: file
+         src: data/initial_conditions
   generated:
      - icon_output:
          type: file
-         src: output
+         src: icon_output
      - icon_restart:
          type: file
          src: restart

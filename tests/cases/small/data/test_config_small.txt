@@ -2,6 +2,9 @@ cycles:
   - bimonthly_tasks [date: 2026-01-01 00:00:00]:
       tasks:
         - icon [date: 2026-01-01 00:00:00]:
+            input:
+              - icon_namelist
+              - initial_conditions
             output:
               - icon_output [date: 2026-01-01 00:00:00]
               - icon_restart [date: 2026-01-01 00:00:00]
@@ -10,13 +13,14 @@ cycles:
             start date: 2026-01-01 00:00:00
             end date: 2026-06-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/tests/files/scripts/icon.py'
+            command: 'scripts/icon.py'
             cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init')]
-            env source files: []
+            env source files: ['data/dummy_source_file.sh']
   - bimonthly_tasks [date: 2026-03-01 00:00:00]:
       tasks:
         - icon [date: 2026-03-01 00:00:00]:
             input:
+              - icon_namelist
               - icon_restart [date: 2026-01-01 00:00:00]
             output:
               - icon_output [date: 2026-03-01 00:00:00]
@@ -26,13 +30,14 @@ cycles:
             start date: 2026-01-01 00:00:00
             end date: 2026-06-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/tests/files/scripts/icon.py'
+            command: 'scripts/icon.py'
             cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init')]
-            env source files: []
+            env source files: ['data/dummy_source_file.sh']
   - bimonthly_tasks [date: 2026-05-01 00:00:00]:
       tasks:
         - icon [date: 2026-05-01 00:00:00]:
             input:
+              - icon_namelist
               - icon_restart [date: 2026-03-01 00:00:00]
             output:
               - icon_output [date: 2026-05-01 00:00:00]
@@ -42,9 +47,9 @@ cycles:
             start date: 2026-01-01 00:00:00
             end date: 2026-06-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/tests/files/scripts/icon.py'
+            command: 'scripts/icon.py'
             cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init')]
-            env source files: []
+            env source files: ['data/dummy_source_file.sh']
   - lastly:
       tasks:
         - cleanup:
@@ -53,6 +58,6 @@ cycles:
             name: 'cleanup'
             coordinates: {}
             plugin: 'shell'
-            command: '$PWD/tests/files/scripts/cleanup.py'
+            command: 'scripts/cleanup.py'
             cli arguments: []
             env source files: []

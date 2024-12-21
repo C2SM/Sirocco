@@ -12,7 +12,7 @@ cycles:
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/extpar'
+            command: 'scripts/extpar'
             cli arguments: [ShellCliArgument(name='--verbose', references_data_item=False, cli_option_of_data_item=None), ShellCliArgument(name='obs_data', references_data_item=True, cli_option_of_data_item='--input')]
             env source files: []
   - icon_bimonthly [date: 2025-01-01 00:00:00]:
@@ -32,9 +32,9 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/cleanup.sh'
+            command: 'scripts/cleanup.sh'
             cli arguments: [ShellCliArgument(name='extpar_file', references_data_item=True, cli_option_of_data_item='-p'), ShellCliArgument(name='ERA5', references_data_item=True, cli_option_of_data_item='-e'), ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item=None)]
-            env source files: ['$PWD/examples/files/data/dummy_source_file.sh']
+            env source files: ['data/dummy_source_file.sh']
         - icon [date: 2025-01-01 00:00:00]:
             input:
               - grid_file
@@ -50,8 +50,10 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
-            plugin: 'icon'
-            namelists: {'master': 'path/to/mater_nml', 'model': 'path/to/model_nml'}
+            plugin: 'shell'
+            command: 'scripts/icon'
+            cli arguments: [ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item='-g'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--input')]
+            env source files: []
         - postproc_1 [date: 2025-01-01 00:00:00]:
             input:
               - stream_1 [date: 2025-01-01 00:00:00]
@@ -65,7 +67,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/main_script_ocn.sh'
+            command: 'scripts/main_script_ocn.sh'
             cli arguments: [ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--input')]
             env source files: []
         - store_and_clean_1 [date: 2025-01-01 00:00:00]:
@@ -82,7 +84,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/post_clean.sh'
+            command: 'scripts/post_clean.sh'
             cli arguments: [ShellCliArgument(name='postout_1', references_data_item=True, cli_option_of_data_item='--input'), ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--stream'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--icon_input')]
             env source files: []
   - icon_bimonthly [date: 2025-03-01 00:00:00]:
@@ -102,9 +104,9 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/cleanup.sh'
+            command: 'scripts/cleanup.sh'
             cli arguments: [ShellCliArgument(name='extpar_file', references_data_item=True, cli_option_of_data_item='-p'), ShellCliArgument(name='ERA5', references_data_item=True, cli_option_of_data_item='-e'), ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item=None)]
-            env source files: ['$PWD/examples/files/data/dummy_source_file.sh']
+            env source files: ['data/dummy_source_file.sh']
         - icon [date: 2025-03-01 00:00:00]:
             input:
               - grid_file
@@ -121,8 +123,10 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
-            plugin: 'icon'
-            namelists: {'master': 'path/to/mater_nml', 'model': 'path/to/model_nml'}
+            plugin: 'shell'
+            command: 'scripts/icon'
+            cli arguments: [ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item='-g'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--input')]
+            env source files: []
         - postproc_1 [date: 2025-03-01 00:00:00]:
             input:
               - stream_1 [date: 2025-03-01 00:00:00]
@@ -136,7 +140,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/main_script_ocn.sh'
+            command: 'scripts/main_script_ocn.sh'
             cli arguments: [ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--input')]
             env source files: []
         - store_and_clean_1 [date: 2025-03-01 00:00:00]:
@@ -153,7 +157,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/post_clean.sh'
+            command: 'scripts/post_clean.sh'
             cli arguments: [ShellCliArgument(name='postout_1', references_data_item=True, cli_option_of_data_item='--input'), ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--stream'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--icon_input')]
             env source files: []
   - icon_bimonthly [date: 2025-05-01 00:00:00]:
@@ -175,9 +179,9 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/cleanup.sh'
+            command: 'scripts/cleanup.sh'
             cli arguments: [ShellCliArgument(name='extpar_file', references_data_item=True, cli_option_of_data_item='-p'), ShellCliArgument(name='ERA5', references_data_item=True, cli_option_of_data_item='-e'), ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item=None)]
-            env source files: ['$PWD/examples/files/data/dummy_source_file.sh']
+            env source files: ['data/dummy_source_file.sh']
         - icon [date: 2025-05-01 00:00:00]:
             input:
               - grid_file
@@ -194,8 +198,10 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
-            plugin: 'icon'
-            namelists: {'master': 'path/to/mater_nml', 'model': 'path/to/model_nml'}
+            plugin: 'shell'
+            command: 'scripts/icon'
+            cli arguments: [ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item='-g'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--input')]
+            env source files: []
         - postproc_1 [date: 2025-05-01 00:00:00]:
             input:
               - stream_1 [date: 2025-05-01 00:00:00]
@@ -209,7 +215,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/main_script_ocn.sh'
+            command: 'scripts/main_script_ocn.sh'
             cli arguments: [ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--input')]
             env source files: []
         - store_and_clean_1 [date: 2025-05-01 00:00:00]:
@@ -226,7 +232,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/post_clean.sh'
+            command: 'scripts/post_clean.sh'
             cli arguments: [ShellCliArgument(name='postout_1', references_data_item=True, cli_option_of_data_item='--input'), ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--stream'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--icon_input')]
             env source files: []
   - icon_bimonthly [date: 2025-07-01 00:00:00]:
@@ -248,9 +254,9 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/cleanup.sh'
+            command: 'scripts/cleanup.sh'
             cli arguments: [ShellCliArgument(name='extpar_file', references_data_item=True, cli_option_of_data_item='-p'), ShellCliArgument(name='ERA5', references_data_item=True, cli_option_of_data_item='-e'), ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item=None)]
-            env source files: ['$PWD/examples/files/data/dummy_source_file.sh']
+            env source files: ['data/dummy_source_file.sh']
         - icon [date: 2025-07-01 00:00:00]:
             input:
               - grid_file
@@ -267,8 +273,10 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
-            plugin: 'icon'
-            namelists: {'master': 'path/to/mater_nml', 'model': 'path/to/model_nml'}
+            plugin: 'shell'
+            command: 'scripts/icon'
+            cli arguments: [ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item='-g'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--input')]
+            env source files: []
         - postproc_1 [date: 2025-07-01 00:00:00]:
             input:
               - stream_1 [date: 2025-07-01 00:00:00]
@@ -282,7 +290,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/main_script_ocn.sh'
+            command: 'scripts/main_script_ocn.sh'
             cli arguments: [ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--input')]
             env source files: []
         - store_and_clean_1 [date: 2025-07-01 00:00:00]:
@@ -299,7 +307,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/post_clean.sh'
+            command: 'scripts/post_clean.sh'
             cli arguments: [ShellCliArgument(name='postout_1', references_data_item=True, cli_option_of_data_item='--input'), ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--stream'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--icon_input')]
             env source files: []
   - icon_bimonthly [date: 2025-09-01 00:00:00]:
@@ -321,9 +329,9 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/cleanup.sh'
+            command: 'scripts/cleanup.sh'
             cli arguments: [ShellCliArgument(name='extpar_file', references_data_item=True, cli_option_of_data_item='-p'), ShellCliArgument(name='ERA5', references_data_item=True, cli_option_of_data_item='-e'), ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item=None)]
-            env source files: ['$PWD/examples/files/data/dummy_source_file.sh']
+            env source files: ['data/dummy_source_file.sh']
         - icon [date: 2025-09-01 00:00:00]:
             input:
               - grid_file
@@ -340,8 +348,10 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
-            plugin: 'icon'
-            namelists: {'master': 'path/to/mater_nml', 'model': 'path/to/model_nml'}
+            plugin: 'shell'
+            command: 'scripts/icon'
+            cli arguments: [ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item='-g'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--input')]
+            env source files: []
         - postproc_1 [date: 2025-09-01 00:00:00]:
             input:
               - stream_1 [date: 2025-09-01 00:00:00]
@@ -355,7 +365,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/main_script_ocn.sh'
+            command: 'scripts/main_script_ocn.sh'
             cli arguments: [ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--input')]
             env source files: []
         - store_and_clean_1 [date: 2025-09-01 00:00:00]:
@@ -372,7 +382,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/post_clean.sh'
+            command: 'scripts/post_clean.sh'
             cli arguments: [ShellCliArgument(name='postout_1', references_data_item=True, cli_option_of_data_item='--input'), ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--stream'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--icon_input')]
             env source files: []
   - icon_bimonthly [date: 2025-11-01 00:00:00]:
@@ -394,9 +404,9 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/cleanup.sh'
+            command: 'scripts/cleanup.sh'
             cli arguments: [ShellCliArgument(name='extpar_file', references_data_item=True, cli_option_of_data_item='-p'), ShellCliArgument(name='ERA5', references_data_item=True, cli_option_of_data_item='-e'), ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item=None)]
-            env source files: ['$PWD/examples/files/data/dummy_source_file.sh']
+            env source files: ['data/dummy_source_file.sh']
         - icon [date: 2025-11-01 00:00:00]:
             input:
               - grid_file
@@ -413,8 +423,10 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
-            plugin: 'icon'
-            namelists: {'master': 'path/to/mater_nml', 'model': 'path/to/model_nml'}
+            plugin: 'shell'
+            command: 'scripts/icon'
+            cli arguments: [ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item='-g'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--input')]
+            env source files: []
         - postproc_1 [date: 2025-11-01 00:00:00]:
             input:
               - stream_1 [date: 2025-11-01 00:00:00]
@@ -428,7 +440,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/main_script_ocn.sh'
+            command: 'scripts/main_script_ocn.sh'
             cli arguments: [ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--input')]
             env source files: []
         - store_and_clean_1 [date: 2025-11-01 00:00:00]:
@@ -445,7 +457,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/post_clean.sh'
+            command: 'scripts/post_clean.sh'
             cli arguments: [ShellCliArgument(name='postout_1', references_data_item=True, cli_option_of_data_item='--input'), ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--stream'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--icon_input')]
             env source files: []
   - icon_bimonthly [date: 2026-01-01 00:00:00]:
@@ -467,9 +479,9 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/cleanup.sh'
+            command: 'scripts/cleanup.sh'
             cli arguments: [ShellCliArgument(name='extpar_file', references_data_item=True, cli_option_of_data_item='-p'), ShellCliArgument(name='ERA5', references_data_item=True, cli_option_of_data_item='-e'), ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item=None)]
-            env source files: ['$PWD/examples/files/data/dummy_source_file.sh']
+            env source files: ['data/dummy_source_file.sh']
         - icon [date: 2026-01-01 00:00:00]:
             input:
               - grid_file
@@ -486,8 +498,10 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
-            plugin: 'icon'
-            namelists: {'master': 'path/to/mater_nml', 'model': 'path/to/model_nml'}
+            plugin: 'shell'
+            command: 'scripts/icon'
+            cli arguments: [ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item='-g'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--input')]
+            env source files: []
         - postproc_1 [date: 2026-01-01 00:00:00]:
             input:
               - stream_1 [date: 2026-01-01 00:00:00]
@@ -501,7 +515,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/main_script_ocn.sh'
+            command: 'scripts/main_script_ocn.sh'
             cli arguments: [ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--input')]
             env source files: []
         - store_and_clean_1 [date: 2026-01-01 00:00:00]:
@@ -518,7 +532,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/post_clean.sh'
+            command: 'scripts/post_clean.sh'
             cli arguments: [ShellCliArgument(name='postout_1', references_data_item=True, cli_option_of_data_item='--input'), ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--stream'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--icon_input')]
             env source files: []
   - icon_bimonthly [date: 2026-03-01 00:00:00]:
@@ -540,9 +554,9 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/cleanup.sh'
+            command: 'scripts/cleanup.sh'
             cli arguments: [ShellCliArgument(name='extpar_file', references_data_item=True, cli_option_of_data_item='-p'), ShellCliArgument(name='ERA5', references_data_item=True, cli_option_of_data_item='-e'), ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item=None)]
-            env source files: ['$PWD/examples/files/data/dummy_source_file.sh']
+            env source files: ['data/dummy_source_file.sh']
         - icon [date: 2026-03-01 00:00:00]:
             input:
               - grid_file
@@ -559,8 +573,10 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
-            plugin: 'icon'
-            namelists: {'master': 'path/to/mater_nml', 'model': 'path/to/model_nml'}
+            plugin: 'shell'
+            command: 'scripts/icon'
+            cli arguments: [ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item='-g'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--input')]
+            env source files: []
         - postproc_1 [date: 2026-03-01 00:00:00]:
             input:
               - stream_1 [date: 2026-03-01 00:00:00]
@@ -574,7 +590,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/main_script_ocn.sh'
+            command: 'scripts/main_script_ocn.sh'
             cli arguments: [ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--input')]
             env source files: []
         - store_and_clean_1 [date: 2026-03-01 00:00:00]:
@@ -591,7 +607,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/post_clean.sh'
+            command: 'scripts/post_clean.sh'
             cli arguments: [ShellCliArgument(name='postout_1', references_data_item=True, cli_option_of_data_item='--input'), ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--stream'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--icon_input')]
             env source files: []
   - icon_bimonthly [date: 2026-05-01 00:00:00]:
@@ -613,9 +629,9 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/cleanup.sh'
+            command: 'scripts/cleanup.sh'
             cli arguments: [ShellCliArgument(name='extpar_file', references_data_item=True, cli_option_of_data_item='-p'), ShellCliArgument(name='ERA5', references_data_item=True, cli_option_of_data_item='-e'), ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item=None)]
-            env source files: ['$PWD/examples/files/data/dummy_source_file.sh']
+            env source files: ['data/dummy_source_file.sh']
         - icon [date: 2026-05-01 00:00:00]:
             input:
               - grid_file
@@ -632,8 +648,10 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
-            plugin: 'icon'
-            namelists: {'master': 'path/to/mater_nml', 'model': 'path/to/model_nml'}
+            plugin: 'shell'
+            command: 'scripts/icon'
+            cli arguments: [ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item='-g'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--input')]
+            env source files: []
         - postproc_1 [date: 2026-05-01 00:00:00]:
             input:
               - stream_1 [date: 2026-05-01 00:00:00]
@@ -647,7 +665,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/main_script_ocn.sh'
+            command: 'scripts/main_script_ocn.sh'
             cli arguments: [ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--input')]
             env source files: []
         - store_and_clean_1 [date: 2026-05-01 00:00:00]:
@@ -664,7 +682,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/post_clean.sh'
+            command: 'scripts/post_clean.sh'
             cli arguments: [ShellCliArgument(name='postout_1', references_data_item=True, cli_option_of_data_item='--input'), ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--stream'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--icon_input')]
             env source files: []
   - icon_bimonthly [date: 2026-07-01 00:00:00]:
@@ -686,9 +704,9 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/cleanup.sh'
+            command: 'scripts/cleanup.sh'
             cli arguments: [ShellCliArgument(name='extpar_file', references_data_item=True, cli_option_of_data_item='-p'), ShellCliArgument(name='ERA5', references_data_item=True, cli_option_of_data_item='-e'), ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item=None)]
-            env source files: ['$PWD/examples/files/data/dummy_source_file.sh']
+            env source files: ['data/dummy_source_file.sh']
         - icon [date: 2026-07-01 00:00:00]:
             input:
               - grid_file
@@ -705,8 +723,10 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
-            plugin: 'icon'
-            namelists: {'master': 'path/to/mater_nml', 'model': 'path/to/model_nml'}
+            plugin: 'shell'
+            command: 'scripts/icon'
+            cli arguments: [ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item='-g'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--input')]
+            env source files: []
         - postproc_1 [date: 2026-07-01 00:00:00]:
             input:
               - stream_1 [date: 2026-07-01 00:00:00]
@@ -720,7 +740,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/main_script_ocn.sh'
+            command: 'scripts/main_script_ocn.sh'
             cli arguments: [ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--input')]
             env source files: []
         - store_and_clean_1 [date: 2026-07-01 00:00:00]:
@@ -737,7 +757,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/post_clean.sh'
+            command: 'scripts/post_clean.sh'
             cli arguments: [ShellCliArgument(name='postout_1', references_data_item=True, cli_option_of_data_item='--input'), ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--stream'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--icon_input')]
             env source files: []
   - icon_bimonthly [date: 2026-09-01 00:00:00]:
@@ -759,9 +779,9 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/cleanup.sh'
+            command: 'scripts/cleanup.sh'
             cli arguments: [ShellCliArgument(name='extpar_file', references_data_item=True, cli_option_of_data_item='-p'), ShellCliArgument(name='ERA5', references_data_item=True, cli_option_of_data_item='-e'), ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item=None)]
-            env source files: ['$PWD/examples/files/data/dummy_source_file.sh']
+            env source files: ['data/dummy_source_file.sh']
         - icon [date: 2026-09-01 00:00:00]:
             input:
               - grid_file
@@ -778,8 +798,10 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
-            plugin: 'icon'
-            namelists: {'master': 'path/to/mater_nml', 'model': 'path/to/model_nml'}
+            plugin: 'shell'
+            command: 'scripts/icon'
+            cli arguments: [ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item='-g'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--input')]
+            env source files: []
         - postproc_1 [date: 2026-09-01 00:00:00]:
             input:
               - stream_1 [date: 2026-09-01 00:00:00]
@@ -793,7 +815,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/main_script_ocn.sh'
+            command: 'scripts/main_script_ocn.sh'
             cli arguments: [ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--input')]
             env source files: []
         - store_and_clean_1 [date: 2026-09-01 00:00:00]:
@@ -810,7 +832,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/post_clean.sh'
+            command: 'scripts/post_clean.sh'
             cli arguments: [ShellCliArgument(name='postout_1', references_data_item=True, cli_option_of_data_item='--input'), ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--stream'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--icon_input')]
             env source files: []
   - icon_bimonthly [date: 2026-11-01 00:00:00]:
@@ -832,9 +854,9 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/cleanup.sh'
+            command: 'scripts/cleanup.sh'
             cli arguments: [ShellCliArgument(name='extpar_file', references_data_item=True, cli_option_of_data_item='-p'), ShellCliArgument(name='ERA5', references_data_item=True, cli_option_of_data_item='-e'), ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item=None)]
-            env source files: ['$PWD/examples/files/data/dummy_source_file.sh']
+            env source files: ['data/dummy_source_file.sh']
         - icon [date: 2026-11-01 00:00:00]:
             input:
               - grid_file
@@ -851,8 +873,10 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
-            plugin: 'icon'
-            namelists: {'master': 'path/to/mater_nml', 'model': 'path/to/model_nml'}
+            plugin: 'shell'
+            command: 'scripts/icon'
+            cli arguments: [ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item='-g'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--input')]
+            env source files: []
         - postproc_1 [date: 2026-11-01 00:00:00]:
             input:
               - stream_1 [date: 2026-11-01 00:00:00]
@@ -866,7 +890,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/main_script_ocn.sh'
+            command: 'scripts/main_script_ocn.sh'
             cli arguments: [ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--input')]
             env source files: []
         - store_and_clean_1 [date: 2026-11-01 00:00:00]:
@@ -883,7 +907,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/post_clean.sh'
+            command: 'scripts/post_clean.sh'
             cli arguments: [ShellCliArgument(name='postout_1', references_data_item=True, cli_option_of_data_item='--input'), ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--stream'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--icon_input')]
             env source files: []
   - yearly [date: 2025-01-01 00:00:00]:
@@ -906,7 +930,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/main_script_atm.sh'
+            command: 'scripts/main_script_atm.sh'
             cli arguments: [ShellCliArgument(name='stream_2', references_data_item=True, cli_option_of_data_item='--input')]
             env source files: []
             src: 'path/to/src/dir'
@@ -928,7 +952,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/post_clean.sh'
+            command: 'scripts/post_clean.sh'
             cli arguments: [ShellCliArgument(name='postout_2', references_data_item=True, cli_option_of_data_item='--input')]
             env source files: []
   - yearly [date: 2026-01-01 00:00:00]:
@@ -951,7 +975,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/main_script_atm.sh'
+            command: 'scripts/main_script_atm.sh'
             cli arguments: [ShellCliArgument(name='stream_2', references_data_item=True, cli_option_of_data_item='--input')]
             env source files: []
             src: 'path/to/src/dir'
@@ -973,6 +997,6 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'shell'
-            command: '$PWD/examples/files/scripts/post_clean.sh'
+            command: 'scripts/post_clean.sh'
             cli arguments: [ShellCliArgument(name='postout_2', references_data_item=True, cli_option_of_data_item='--input')]
             env source files: []
