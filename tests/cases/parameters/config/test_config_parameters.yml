@@ -6,7 +6,7 @@ cycles:
   - bimonthly_tasks:
       start_date: *root_start_date
       end_date: *root_end_date
-      period: P2M
+      period: P6M
       tasks:
         - icon:
             inputs:
@@ -16,7 +16,7 @@ cycles:
               - icon_restart:
                   when:
                     after: *root_start_date
-                  lag: -P2M
+                  lag: -P6M
                   parameters:
                     foo: single
                     bar: single
@@ -39,7 +39,7 @@ cycles:
         - merge:
             inputs:
               - analysis_foo_bar:
-                  lag: ['P0M', 'P2M', 'P4M', 'P6M', 'P8M', 'P10M']
+                  lag: ['P0M', 'P6M']
             outputs: [yearly_analysis]
 
 tasks:
@@ -90,5 +90,5 @@ data:
         src: yearly_analysis
 
 parameters:
-  foo: [0, 1, 2]
-  bar: [3.0, 3.5]
+  foo: [0, 1]
+  bar: [3.0]
