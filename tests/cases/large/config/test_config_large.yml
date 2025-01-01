@@ -62,11 +62,7 @@ tasks:
   - extpar:
       plugin: shell  # no extpar plugin available yet
       command: $PWD/examples/files/scripts/extpar
-      cli_arguments:
-        keyword:
-          --input: obs_data
-        flags:
-          - --verbose
+      cli_arguments: "--verbose {--input obs_data}"
       uenv:
         squashfs: path/to/squashfs
         mount_point: runtime/mount/point
@@ -75,13 +71,8 @@ tasks:
   - preproc:
       plugin: shell
       command: $PWD/examples/files/scripts/cleanup.sh
-      cli_arguments:
-        positional:
-          - grid_file
-        keyword:
-          -p: extpar_file
-          -e: ERA5
-        source_file: dummy_source_file
+      cli_arguments: "{-p extpar_file} {-e ERA5} {grid_file}"
+      env_source_files: $PWD/examples/files/data/dummy_source_file.sh
       nodes: 4
       walltime: 00:02:00
       uenv:
@@ -90,10 +81,7 @@ tasks:
   - icon:
       plugin: icon
       command: $PWD/examples/files/scripts/icon
-      cli_arguments:
-        keyword:
-          -g: grid_file
-          --input: icon_input
+      cli_arguments: "{-g grid_file} {--input icon_input}"
       nodes: 40
       walltime: 23:59:59
       namelists:
@@ -105,9 +93,7 @@ tasks:
   - postproc_1:
       plugin: shell
       command: $PWD/examples/files/scripts/main_script_ocn.sh
-      cli_arguments:
-        keyword:
-          --input: stream_1
+      cli_arguments: "{--input stream_1}"
       nodes: 2
       walltime: 00:05:00
       uenv:
@@ -116,12 +102,7 @@ tasks:
   - postproc_2:
       plugin: shell
       command: $PWD/examples/files/scripts/main_script_atm.sh
-      cli_arguments:
-        keyword:
-          --input: stream_2
-          # `arg_option` should be in `tasks` section instead
-          # How to implement this? Even needed with keyword-arguments?
-          # arg_option: --input
+      cli_arguments: "{--input stream_2}"
       nodes: 2
       walltime: 00:05:00
       src: path/to/src/dir
@@ -131,19 +112,13 @@ tasks:
   - store_and_clean_1:
       plugin: shell
       command: $PWD/examples/files/scripts/post_clean.sh
-      cli_arguments:
-        keyword:
-          --input: postout_1
-          --stream: stream_1
-          --icon_input: icon_input
+      cli_arguments: "{--input postout_1} {--stream stream_1} {--icon_input icon_input}"
       nodes: 1
       walltime: 00:01:00
   - store_and_clean_2:
       plugin: shell
       command: $PWD/examples/files/scripts/post_clean.sh
-      cli_arguments:
-        keyword:
-          --input: postout_2
+      cli_arguments: "{--input postout_2}"
       nodes: 1
       walltime: 00:01:00
 data:
@@ -157,9 +132,6 @@ data:
     - ERA5:
         type: file
         src: $PWD/examples/files/data/era5
-    - dummy_source_file:
-        type: file
-        src: $PWD/examples/files/data/dummy_source_file.sh
   generated:
     - extpar_file:
         type: file

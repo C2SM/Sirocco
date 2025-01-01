@@ -11,7 +11,8 @@ cycles:
             end date: 2026-06-01 00:00:00
             plugin: 'shell'
             command: '$PWD/tests/files/scripts/icon.py'
-            cli arguments: positional=None keyword={'--restart': 'icon_restart'} flags=None source_file=None
+            cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init')]
+            env source files: []
   - bimonthly_tasks [date: 2026-03-01 00:00:00]:
       tasks:
         - icon [date: 2026-03-01 00:00:00]:
@@ -26,7 +27,8 @@ cycles:
             end date: 2026-06-01 00:00:00
             plugin: 'shell'
             command: '$PWD/tests/files/scripts/icon.py'
-            cli arguments: positional=None keyword={'--restart': 'icon_restart'} flags=None source_file=None
+            cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init')]
+            env source files: []
   - bimonthly_tasks [date: 2026-05-01 00:00:00]:
       tasks:
         - icon [date: 2026-05-01 00:00:00]:
@@ -41,7 +43,8 @@ cycles:
             end date: 2026-06-01 00:00:00
             plugin: 'shell'
             command: '$PWD/tests/files/scripts/icon.py'
-            cli arguments: positional=None keyword={'--restart': 'icon_restart'} flags=None source_file=None
+            cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init')]
+            env source files: []
   - lastly:
       tasks:
         - cleanup:
@@ -51,3 +54,5 @@ cycles:
             coordinates: {}
             plugin: 'shell'
             command: '$PWD/tests/files/scripts/cleanup.py'
+            cli arguments: []
+            env source files: []

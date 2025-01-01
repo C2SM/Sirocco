@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Any, ClassVar, Literal
@@ -80,43 +80,6 @@ class _WhenBaseModel(BaseModel):
         if value is None:
             return None
         return datetime.fromisoformat(value)
-
-
-class _CliArgsBaseModel(BaseModel):
-    """Base class for cli_arguments specifications"""
-
-    # TODO: Even allow for `str`, or always require list?
-    positional: str | list[str] | None = None
-    # Field needed for child class doing pydantic parsing
-    keyword: dict[str, str] | None = Field(default_factory=dict)
-    flags: str | list[str] | None = None
-    source_file: str | list[str] | None = None
-
-    # TODO: Should we allow users to pass it without the hyphen(s), and prepend them automatically?
-    # TODO: While convenient, it could be a bad idea, if users put in wrong things. Better to be explicit.
-    @field_validator("keyword", mode="before")
-    @classmethod
-    def validate_keyword_args(cls, value):
-        """Ensure keyword arguments start with '-' or '--'."""
-        if value is not None:
-            invalid_keys = [key for key in value if not key.startswith(("-", "--"))]
-            if invalid_keys:
-                invalid_kwarg_exc = f"Invalid keyword arguments: {', '.join(invalid_keys)}"
-                raise ValueError(invalid_kwarg_exc)
-        return value
-
-    @field_validator("flags", mode="before")
-    @classmethod
-    def validate_flag_args(cls, value):
-        """Ensure positional arguments start with '-' or '--'."""
-        if value is not None:
-            if isinstance(value, str):
-                value = [value]
-            invalid_flags = [arg for arg in value if not arg.startswith(("-", "--"))]
-            if invalid_flags:
-                invalid_flags_exc = f"Invalid positional arguments: {', '.join(invalid_flags)}"
-                raise ValueError(invalid_flags_exc)
-        return value
 
 
 class TargetNodesBaseModel(_NamedBaseModel):
@@ -306,16 +269,109 @@ class ConfigRootTask(ConfigBaseTask):
     plugin: ClassVar[Literal["_root"]] = "_root"
 
 
+# By using a frozen class we only need to validate on initialization
+@dataclass(frozen=True)
+class ShellCliArgument:
+    """A holder for a CLI argument to simplify access.
+
+    Stores CLI arguments of the form "file", "--init", "{file}" or "{--init file}". These examples translate into
+    ShellCliArguments ShellCliArgument(name="file", references_data_item=False, cli_option_of_data_item=None),
+    ShellCliArgument(name="--init", references_data_item=False, cli_option_of_data_item=None),
+    ShellCliArgument(name="file", references_data_item=True, cli_option_of_data_item=None),
+    ShellCliArgument(name="file", references_data_item=True, cli_option_of_data_item="--init")
+
+    Attributes:
+        name: Name of the argument. For the examples it is "file", "--init", "file" and "file"
+        references_data_item: Specifies if the argument references a data item signified by enclosing it by curly
+            brackets.
+        cli_option_of_data_item: The CLI option associated to the data item.
+    """
+
+    name: str
+    references_data_item: bool
+    cli_option_of_data_item: str | None = None
+
+    def __post_init__(self):
+        if self.cli_option_of_data_item is not None and not self.references_data_item:
+            msg = "data_item_option cannot be not None if cli_option_of_data_item is False"
+            raise ValueError(msg)
+
+    @classmethod
+    def from_cli_argument(cls, arg: str) -> ShellCliArgument:
+        len_arg_with_option = 2
+        len_arg_no_option = 1
+        references_data_item = arg.startswith("{") and arg.endswith("}")
+        # remove curly brackets "{--init file}" -> "--init file"
+        arg_unwrapped = arg[1:-1] if arg.startswith("{") and arg.endswith("}") else arg
+
+        # "--init file" -> ["--init", "file"]
+        input_arg = arg_unwrapped.split()
+        if len(input_arg) != len_arg_with_option and len(input_arg) != len_arg_no_option:
+            msg = f"Expected argument of format {{data}} or {{option data}} but found {arg}"
+            raise ValueError(msg)
+        name = input_arg[0] if len(input_arg) == len_arg_no_option else input_arg[1]
+        cli_option_of_data_item = input_arg[0] if len(input_arg) == len_arg_with_option else None
+        return cls(name, references_data_item, cli_option_of_data_item)
+
+
 @dataclass
 class ConfigShellTaskSpecs:
     plugin: ClassVar[Literal["shell"]] = "shell"
     command: str = ""
-    cli_arguments: _CliArgsBaseModel | None = None
+    cli_arguments: list[ShellCliArgument] = field(default_factory=list)
+    env_source_files: list[str] = field(default_factory=list)
     src: str | None = None
 
 
 class ConfigShellTask(ConfigBaseTask, ConfigShellTaskSpecs):
-    pass
+    command: str = ""
+    cli_arguments: list[ShellCliArgument] = Field(default_factory=list)
+    env_source_files: list[str] = Field(default_factory=list)
+
+    @field_validator("cli_arguments", mode="before")
+    @classmethod
+    def validate_cli_arguments(cls, value: str) -> list[ShellCliArgument]:
+        return cls.parse_cli_arguments(value)
+
+    @field_validator("env_source_files", mode="before")
+    @classmethod
+    def validate_env_source_files(cls, value: str | list[str]) -> list[str]:
+        return [value] if isinstance(value, str) else value
+
+    @staticmethod
+    def split_cli_arguments(cli_arguments: str) -> list[str]:
+        """Splits the CLI arguments into a list of separate entities.
+
+        Splits the CLI arguments by whitespaces except if the whitespace is contained within curly brackets. For example
+        the string
+        "-D --CMAKE_CXX_COMPILER=${CXX_COMPILER} {--init file}"
+        will be splitted into the list
+        ["-D", "--CMAKE_CXX_COMPILER=${CXX_COMPILER}", "{--init file}"]
+        """
+
+        nb_open_curly_brackets = 0
+        last_split_idx = 0
+        splits = []
+        for i, char in enumerate(cli_arguments):
+            if char == " " and not nb_open_curly_brackets:
+                # we ommit the space in the splitting therefore we only store up to i but move the last_split_idx to i+1
+                splits.append(cli_arguments[last_split_idx:i])
+                last_split_idx = i + 1
+            elif char == "{":
+                nb_open_curly_brackets += 1
+            elif char == "}":
+                if nb_open_curly_brackets == 0:
+                    msg = "Invalid input for cli_arguments. Found a closing curly bracket before an opening in {cli_argumentss!r}"
+                    raise ValueError(msg)
+                nb_open_curly_brackets -= 1
+
+        if last_split_idx != len(cli_arguments):
+            splits.append(cli_arguments[last_split_idx : len(cli_arguments)])
+        return splits
+
+    @staticmethod
+    def parse_cli_arguments(cli_arguments: str) -> list[ShellCliArgument]:
+        return [ShellCliArgument.from_cli_argument(arg) for arg in ConfigShellTask.split_cli_arguments(cli_arguments)]
 
 
 @dataclass
@@ -341,6 +397,9 @@ class ConfigBaseData(_NamedBaseModel, ConfigBaseDataSpecs):
     """
 
     parameters: list[str] = []
+    type: str | None = None
+    src: str | None = None
+    format: str | None = None
 
     @field_validator("type")
     @classmethod

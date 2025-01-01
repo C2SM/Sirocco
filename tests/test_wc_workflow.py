@@ -3,8 +3,25 @@ from pathlib import Path
 import pytest
 
 from sirocco.core import Workflow
+from sirocco.parsing._yaml_data_models import ConfigShellTask, ShellCliArgument
 from sirocco.pretty_print import PrettyPrinter
 from sirocco.vizgraph import VizGraph
+
+
+# configs that are tested for parsing
+def test_parsing_cli_parameters():
+    cli_arguments = "-D --CMAKE_CXX_COMPILER=${CXX_COMPILER} {--init file}"
+    assert ConfigShellTask.split_cli_arguments(cli_arguments) == [
+        "-D",
+        "--CMAKE_CXX_COMPILER=${CXX_COMPILER}",
+        "{--init file}",
+    ]
+
+    assert ConfigShellTask.parse_cli_arguments(cli_arguments) == [
+        ShellCliArgument("-D", False, None),
+        ShellCliArgument("--CMAKE_CXX_COMPILER=${CXX_COMPILER}", False, None),
+        ShellCliArgument("file", True, "--init"),
+    ]
 
 
 @pytest.fixture
@@ -35,8 +52,9 @@ def test_parse_config_file(config_paths, pprinter):
     if test_str != reference_str:
         new_path = Path(config_paths["txt"]).with_suffix(".new.txt")
         new_path.write_text(test_str)
-        msg = f"Workflow graph doesn't match serialized data. New graph string dumped to {new_path}."
-        raise ValueError(msg)
+        assert (
+            reference_str == test_str
+        ), f"Workflow graph doesn't match serialized data. New graph string dumped to {new_path}."
 
 
 @pytest.mark.skip(reason="don't run it each time, uncomment to regenerate serilaized data")

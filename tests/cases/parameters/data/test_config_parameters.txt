@@ -14,7 +14,8 @@ cycles:
             end date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: '$PWD/tests/files/scripts/icon.py'
-            cli arguments: positional=None keyword={'--restart': 'icon_restart'} flags=None source_file=None
+            cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing')]
+            env source files: []
         - icon [date: 2026-01-01 00:00:00, foo: 1, bar: 3.0]:
             input:
               - initial conditions
@@ -28,7 +29,8 @@ cycles:
             end date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: '$PWD/tests/files/scripts/icon.py'
-            cli arguments: positional=None keyword={'--restart': 'icon_restart'} flags=None source_file=None
+            cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing')]
+            env source files: []
         - statistics_foo [date: 2026-01-01 00:00:00, bar: 3.0]:
             input:
               - icon_output [date: 2026-01-01 00:00:00, foo: 0, bar: 3.0]
@@ -41,6 +43,8 @@ cycles:
             end date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: '$PWD/tests/files/scripts/statistics.py'
+            cli arguments: []
+            env source files: []
         - statistics_foo_bar [date: 2026-01-01 00:00:00]:
             input:
               - analysis_foo [date: 2026-01-01 00:00:00, bar: 3.0]
@@ -52,6 +56,8 @@ cycles:
             end date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: '$PWD/tests/files/scripts/statistics.py'
+            cli arguments: []
+            env source files: []
   - bimonthly_tasks [date: 2026-07-01 00:00:00]:
       tasks:
         - icon [date: 2026-07-01 00:00:00, foo: 0, bar: 3.0]:
@@ -67,7 +73,8 @@ cycles:
             end date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: '$PWD/tests/files/scripts/icon.py'
-            cli arguments: positional=None keyword={'--restart': 'icon_restart'} flags=None source_file=None
+            cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing')]
+            env source files: []
         - icon [date: 2026-07-01 00:00:00, foo: 1, bar: 3.0]:
             input:
               - icon_restart [date: 2026-01-01 00:00:00, foo: 1, bar: 3.0]
@@ -81,7 +88,8 @@ cycles:
             end date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: '$PWD/tests/files/scripts/icon.py'
-            cli arguments: positional=None keyword={'--restart': 'icon_restart'} flags=None source_file=None
+            cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing')]
+            env source files: []
         - statistics_foo [date: 2026-07-01 00:00:00, bar: 3.0]:
             input:
               - icon_output [date: 2026-07-01 00:00:00, foo: 0, bar: 3.0]
@@ -94,6 +102,8 @@ cycles:
             end date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: '$PWD/tests/files/scripts/statistics.py'
+            cli arguments: []
+            env source files: []
         - statistics_foo_bar [date: 2026-07-01 00:00:00]:
             input:
               - analysis_foo [date: 2026-07-01 00:00:00, bar: 3.0]
@@ -105,6 +115,8 @@ cycles:
             end date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: '$PWD/tests/files/scripts/statistics.py'
+            cli arguments: []
+            env source files: []
   - bimonthly_tasks [date: 2027-01-01 00:00:00]:
       tasks:
         - icon [date: 2027-01-01 00:00:00, foo: 0, bar: 3.0]:
@@ -120,7 +132,8 @@ cycles:
             end date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: '$PWD/tests/files/scripts/icon.py'
-            cli arguments: positional=None keyword={'--restart': 'icon_restart'} flags=None source_file=None
+            cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing')]
+            env source files: []
         - icon [date: 2027-01-01 00:00:00, foo: 1, bar: 3.0]:
             input:
               - icon_restart [date: 2026-07-01 00:00:00, foo: 1, bar: 3.0]
@@ -134,7 +147,8 @@ cycles:
             end date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: '$PWD/tests/files/scripts/icon.py'
-            cli arguments: positional=None keyword={'--restart': 'icon_restart'} flags=None source_file=None
+            cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing')]
+            env source files: []
         - statistics_foo [date: 2027-01-01 00:00:00, bar: 3.0]:
             input:
               - icon_output [date: 2027-01-01 00:00:00, foo: 0, bar: 3.0]
@@ -147,6 +161,8 @@ cycles:
             end date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: '$PWD/tests/files/scripts/statistics.py'
+            cli arguments: []
+            env source files: []
         - statistics_foo_bar [date: 2027-01-01 00:00:00]:
             input:
               - analysis_foo [date: 2027-01-01 00:00:00, bar: 3.0]
@@ -158,6 +174,8 @@ cycles:
             end date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: '$PWD/tests/files/scripts/statistics.py'
+            cli arguments: []
+            env source files: []
   - bimonthly_tasks [date: 2027-07-01 00:00:00]:
       tasks:
         - icon [date: 2027-07-01 00:00:00, foo: 0, bar: 3.0]:
@@ -173,7 +191,8 @@ cycles:
             end date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: '$PWD/tests/files/scripts/icon.py'
-            cli arguments: positional=None keyword={'--restart': 'icon_restart'} flags=None source_file=None
+            cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing')]
+            env source files: []
         - icon [date: 2027-07-01 00:00:00, foo: 1, bar: 3.0]:
             input:
               - icon_restart [date: 2027-01-01 00:00:00, foo: 1, bar: 3.0]
@@ -187,7 +206,8 @@ cycles:
             end date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: '$PWD/tests/files/scripts/icon.py'
-            cli arguments: positional=None keyword={'--restart': 'icon_restart'} flags=None source_file=None
+            cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing')]
+            env source files: []
         - statistics_foo [date: 2027-07-01 00:00:00, bar: 3.0]:
             input:
               - icon_output [date: 2027-07-01 00:00:00, foo: 0, bar: 3.0]
@@ -200,6 +220,8 @@ cycles:
             end date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: '$PWD/tests/files/scripts/statistics.py'
+            cli arguments: []
+            env source files: []
         - statistics_foo_bar [date: 2027-07-01 00:00:00]:
             input:
               - analysis_foo [date: 2027-07-01 00:00:00, bar: 3.0]
@@ -211,6 +233,8 @@ cycles:
             end date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: '$PWD/tests/files/scripts/statistics.py'
+            cli arguments: []
+            env source files: []
   - yearly [date: 2026-01-01 00:00:00]:
       tasks:
         - merge [date: 2026-01-01 00:00:00]:
@@ -225,6 +249,8 @@ cycles:
             end date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: '$PWD/tests/files/scripts/merge.py'
+            cli arguments: []
+            env source files: []
   - yearly [date: 2027-01-01 00:00:00]:
       tasks:
         - merge [date: 2027-01-01 00:00:00]:
@@ -239,3 +265,5 @@ cycles:
             end date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: '$PWD/tests/files/scripts/merge.py'
+            cli arguments: []
+            env source files: []

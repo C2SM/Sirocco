@@ -46,9 +46,7 @@ tasks:
   - icon:
       plugin: shell
       command: $PWD/tests/files/scripts/icon.py
-      cli_arguments:
-        keyword:
-          --restart: icon_restart
+      cli_arguments: "{--restart icon_restart} {--init initial_conditions} {--forcing forcing}"
       parameters: [foo, bar]
   - statistics_foo:
       plugin: shell
