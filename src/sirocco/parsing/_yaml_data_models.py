@@ -390,6 +390,7 @@ class ConfigBaseDataSpecs:
     type: str | None = None
     src: str | None = None
     format: str | None = None
+    computer: str | None = None
 
 
 class ConfigBaseData(_NamedBaseModel, ConfigBaseDataSpecs):
@@ -417,7 +418,13 @@ class ConfigAvailableData(ConfigBaseData):
 
 
 class ConfigGeneratedData(ConfigBaseData):
-    pass
+    @field_validator("computer")
+    @classmethod
+    def invalid_field(cls, value: str | None) -> str | None:
+        if value is not None:
+            msg = "The field 'computer' can only be specified for available data."
+            raise ValueError(msg)
+        return value
 
 
 class ConfigData(BaseModel):

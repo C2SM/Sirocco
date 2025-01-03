@@ -42,6 +42,7 @@ data:
          src: data/input
      - initial_conditions:
          type: file
+         computer: localhost
          src: data/initial_conditions
   generated:
      - icon_output:
