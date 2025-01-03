@@ -26,11 +26,13 @@ cycles:
                   date: 2026-05-01T00:00
 tasks:
   - icon:
+      computer: localhost
       plugin: shell
       command: scripts/icon.py
       cli_arguments: "{--restart icon_restart} {--init initial_conditions}"
       env_source_files: data/dummy_source_file.sh
   - cleanup:
+      computer: localhost
       plugin: shell
       command: scripts/cleanup.py
 data:

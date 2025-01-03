@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 import aiida.common
 import aiida.orm
 import aiida_workgraph.engine.utils  # type: ignore[import-untyped]
+from aiida.common.exceptions import NotExistent
 from aiida_workgraph import WorkGraph
 
 from sirocco.core._tasks.icon_task import IconTask
@@ -179,7 +180,9 @@ class AiidaWorkGraph:
             command_full_path = task.command if command_path.is_absolute() else task.config_rootdir / command_path
             command = str(command_full_path)
 
-            # Source file
+            # metadata
+            metadata = {}
+            ## Source file
             env_source_paths = [
                 env_source_path
                 if (env_source_path := Path(env_source_file)).is_absolute()
@@ -187,6 +190,15 @@ class AiidaWorkGraph:
                 for env_source_file in task.env_source_files
             ]
             prepend_text = "\n".join([f"source {env_source_path}" for env_source_path in env_source_paths])
+            metadata["options"] = {"prepend_text": prepend_text}
+
+            ## computer
+            if task.computer is not None:
+                try:
+                    metadata["computer"] = aiida.orm.load_computer(task.computer)
+                except NotExistent as err:
+                    msg = f"Could not find computer {task.computer} for task {task}."
+                    raise ValueError(msg) from err
 
             # NOTE: We don't pass the `nodes` dictionary here, as then we would need to have the sockets available when
             # we create the task. Instead, they are being updated via the WG internals when linking inputs/outputs to
@@ -197,7 +209,7 @@ class AiidaWorkGraph:
                 command=command,
                 arguments=[],
                 outputs=[],
-                metadata={"options": {"prepend_text": prepend_text}},
+                metadata=metadata,
             )
 
             self._aiida_task_nodes[label] = workgraph_task

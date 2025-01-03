@@ -244,6 +244,7 @@ class ConfigCycle(_NamedBaseModel):
 
 @dataclass
 class ConfigBaseTaskSpecs:
+    computer: str | None = None
     host: str | None = None
     account: str | None = None
     uenv: dict | None = None
