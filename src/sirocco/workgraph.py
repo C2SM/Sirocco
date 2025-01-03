@@ -145,7 +145,14 @@ class AiidaWorkGraph:
         input_path = Path(input_.src)
         input_full_path = input_.src if input_path.is_absolute() else task.config_rootdir / input_path
 
-        if input_.type == "file":
+        if input_.computer is not None:
+            try:
+                computer = aiida.orm.load_computer(input_.computer)
+            except NotExistent as err:
+                msg = f"Could not find computer {input_.computer!r} for input {input_}."
+                raise ValueError(msg) from err
+            self._aiida_data_nodes[label] = aiida.orm.RemoteData(remote_path=input_.src, label=label, computer=computer)
+        elif input_.type == "file":
             self._aiida_data_nodes[label] = aiida.orm.SinglefileData(label=label, file=input_full_path)
         elif input_.type == "dir":
             self._aiida_data_nodes[label] = aiida.orm.FolderData(label=label, tree=input_full_path)
