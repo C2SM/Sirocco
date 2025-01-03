@@ -76,12 +76,15 @@ def test_vizgraph(config_paths):
         "tests/cases/parameters/config/test_config_parameters.yml",
     ],
 )
-def test_run_workgraph(config_path):
+def test_run_workgraph(config_path, aiida_computer):
     """Tests end-to-end the parsing from file up to running the workgraph.
 
     Automatically uses the aiida_profile fixture to create a new profile. Note to debug the test with your profile
     please run this in a separate file as the profile is deleted after test finishes.
     """
+    # some configs reference computer "localhost" which we need to create beforehand
+    aiida_computer("localhost").store()
+
     core_workflow = Workflow.from_yaml(config_path)
     aiida_workflow = AiidaWorkGraph(core_workflow)
     out = aiida_workflow.run()
