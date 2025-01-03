@@ -85,4 +85,4 @@ def test_run_workgraph(config_path):
     core_workflow = Workflow.from_yaml(config_path)
     aiida_workflow = AiidaWorkGraph(core_workflow)
     out = aiida_workflow.run()
-    assert out.get("execution_count", None).value == 0  # TODO: should be 1 but we need to update workgraph for this
+    assert out.get("execution_count", None).value == 1
