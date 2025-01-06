@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import re
-from pathlib import Path
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import f90nml
 
