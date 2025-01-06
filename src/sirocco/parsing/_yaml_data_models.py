@@ -396,7 +396,7 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
     @field_validator("namelists", mode="before")
     @classmethod
     def check_nml(cls, nml_list: list[Any]) -> ConfigNamelist:
-        # TODO: cfg_namelists not allowed to be None
+        # TODO: namelists not allowed to be None
         # TODO: must contain an icon_master.namelist
         if not isinstance(nml_list, list):
             msg = f"expected a list got type {type(nml_list).__name__}"
