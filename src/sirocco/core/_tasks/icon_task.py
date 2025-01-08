@@ -25,7 +25,7 @@ class IconTask(ConfigIconTaskSpecs, Task):
                 self.core_namelists[name] = f90nml.Namelist()
 
     def update_core_namelists_from_config(self):
-        """Update namelists from user input"""
+        """Update the core namelists from namelists provided by the user in the config yaml file."""   
 
         # TODO: implement format for users to reference parameters and date in their specs
         for name, cfg_nml in self.namelists.items():
