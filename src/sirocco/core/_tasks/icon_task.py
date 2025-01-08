@@ -32,7 +32,7 @@ class IconTask(ConfigIconTaskSpecs, Task):
             core_nml = self.core_namelists[name]
             for section, params in cfg_nml.specs.items():
                 section_name, k = self.section_index(section)
-                # Create section if non existant
+                # Create section if non-existent
                 if section_name not in core_nml:
                     # NOTE: f90nml will automatially create the corresponding nested f90nml.Namelist
                     #       objects, no need to explicitly use the f90nml.Namelist class constructor
@@ -40,7 +40,8 @@ class IconTask(ConfigIconTaskSpecs, Task):
                 # Update namelist with user input
                 # NOTE: unlike FORTRAN convention, user index starts at 0 as in Python
                 if k == len(core_nml[section_name]) + 1:
-                    core_nml[section_name][k] = f90nml.Namelist
+                    # Create additional section if required
+                    core_nml[section_name][k] = f90nml.Namelist()
                 nml_section = core_nml[section_name] if k is None else core_nml[section_name][k]
                 nml_section.update(params)
 
@@ -75,7 +76,13 @@ class IconTask(ConfigIconTaskSpecs, Task):
         self.dump_core_namelists(folder=folder)
 
     @staticmethod
-    def section_index(section_name):
+    def section_index(section_name) -> tuple[str, int | None]:
+        """Check for single vs multiple namelist section
+
+        Check if the user specified a section name that ends with digits
+        between brackets. This is the convention chosen to indicate multiple
+        sections with the same name, typically `output_nml` for multiple
+        output streams"""
         multi_section_pattern = re.compile(r"(.*)\[([0-9]+)\]$")
         if m := multi_section_pattern.match(section_name):
             return m.group(1), int(m.group(2)) - 1
