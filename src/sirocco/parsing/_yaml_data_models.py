@@ -8,7 +8,15 @@ from typing import Annotated, Any, ClassVar, Literal
 
 from isoduration import parse_duration
 from isoduration.types import Duration  # pydantic needs type # noqa: TCH002
-from pydantic import BaseModel, ConfigDict, Discriminator, Field, Tag, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Discriminator,
+    Field,
+    Tag,
+    field_validator,
+    model_validator,
+)
 
 from sirocco.parsing._utils import TimeUtils
 
@@ -76,9 +84,11 @@ class _WhenBaseModel(BaseModel):
 
     @field_validator("before", "after", "at", mode="before")
     @classmethod
-    def convert_datetime(cls, value) -> datetime:
+    def convert_datetime(cls, value: str | datetime | None) -> datetime | None:
         if value is None:
             return None
+        if isinstance(value, datetime):
+            return value
         return datetime.fromisoformat(value)
 
 
@@ -88,7 +98,7 @@ class _CliArgsBaseModel(BaseModel):
     # TODO: Even allow for `str`, or always require list?
     positional: str | list[str] | None = None
     # Field needed for child class doing pydantic parsing
-    keyword: dict[str, str] | None = Field(default_factory=dict)
+    keyword: dict[str, str] = Field(default_factory=dict)
     flags: str | list[str] | None = None
     source_file: str | list[str] | None = None
 
@@ -96,7 +106,7 @@ class _CliArgsBaseModel(BaseModel):
     # TODO: While convenient, it could be a bad idea, if users put in wrong things. Better to be explicit.
     @field_validator("keyword", mode="before")
     @classmethod
-    def validate_keyword_args(cls, value):
+    def validate_keyword_args(cls, value: dict[str, str] | None) -> dict[str, str] | None:
         """Ensure keyword arguments start with '-' or '--'."""
         if value is not None:
             invalid_keys = [key for key in value if not key.startswith(("-", "--"))]
@@ -188,14 +198,14 @@ class ConfigCycleTask(_NamedBaseModel):
     To create an instance of a task in a cycle defined in a workflow file.
     """
 
-    inputs: list[ConfigCycleTaskInput | str] | None = Field(default_factory=list)
-    outputs: list[ConfigCycleTaskOutput | str] | None = Field(default_factory=list)
-    wait_on: list[ConfigCycleTaskWaitOn | str] | None = Field(default_factory=list)
+    inputs: list[ConfigCycleTaskInput] = Field(default_factory=list)
+    outputs: list[ConfigCycleTaskOutput] = Field(default_factory=list)
+    wait_on: list[ConfigCycleTaskWaitOn] = Field(default_factory=list)
 
     @field_validator("inputs", mode="before")
     @classmethod
-    def convert_cycle_task_inputs(cls, values) -> list[ConfigCycleTaskInput]:
-        inputs = []
+    def convert_cycle_task_inputs(cls, values: list[ConfigCycleTaskInput | str] | None) -> list[dict]:
+        inputs: list[dict] = []
         if values is None:
             return inputs
         for value in values:
@@ -207,8 +217,8 @@ class ConfigCycleTask(_NamedBaseModel):
 
     @field_validator("outputs", mode="before")
     @classmethod
-    def convert_cycle_task_outputs(cls, values) -> list[ConfigCycleTaskOutput]:
-        outputs = []
+    def convert_cycle_task_outputs(cls, values: list[dict | str] | None) -> list[dict]:
+        outputs: list[dict] = []
         if values is None:
             return outputs
         for value in values:
@@ -220,8 +230,8 @@ class ConfigCycleTask(_NamedBaseModel):
 
     @field_validator("wait_on", mode="before")
     @classmethod
-    def convert_cycle_task_wait_on(cls, values) -> list[ConfigCycleTaskWaitOn]:
-        wait_on = []
+    def convert_cycle_task_wait_on(cls, values: list[dict | str] | None) -> list[dict]:
+        wait_on: list[dict] = []
         if values is None:
             return wait_on
         for value in values:
@@ -419,7 +429,7 @@ class ConfigWorkflow(BaseModel):
 
     @model_validator(mode="after")
     def check_parameters(self) -> ConfigWorkflow:
-        task_data_list = self.tasks + self.data.generated
+        task_data_list: list[Any] = self.tasks + self.data.generated
         if self.data.available:
             task_data_list.extend(self.data.available)
         for item in task_data_list:

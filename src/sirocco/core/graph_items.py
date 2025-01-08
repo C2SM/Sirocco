@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import typing
 from dataclasses import dataclass, field
 from itertools import chain, product
-from typing import TYPE_CHECKING, Any, ClassVar, Self
+from typing import TYPE_CHECKING, Any, ClassVar, Self, TypeVar
 
 from sirocco.parsing._yaml_data_models import (
     ConfigAvailableData,
@@ -15,14 +16,24 @@ if TYPE_CHECKING:
     from datetime import datetime
     from pathlib import Path
 
-    from sirocco.parsing._yaml_data_models import ConfigBaseData, ConfigCycleTask, ConfigTask, TargetNodesBaseModel
+    from termcolor import termcolor
+
+    from sirocco.parsing._yaml_data_models import (
+        ConfigBaseData,
+        ConfigCycleTask,
+        ConfigTask,
+        TargetNodesBaseModel,
+    )
+
+
+GRAPH_ITEM_T = TypeVar("GRAPH_ITEM_T", bound="GraphItem")
 
 
 @dataclass
 class GraphItem:
     """base class for Data Tasks and Cycles"""
 
-    color: ClassVar[str]
+    color: ClassVar[termcolor.Color]
 
     name: str
     coordinates: dict
@@ -33,7 +44,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     """Internal representation of a task node"""
 
     plugin_classes: ClassVar[dict[str, type]] = field(default={}, repr=False)
-    color: ClassVar[str] = field(default="light_red", repr=False)
+    color: ClassVar[termcolor.Color] = field(default="light_red", repr=False)
 
     inputs: list[Data] = field(default_factory=list)
     outputs: list[Data] = field(default_factory=list)
@@ -88,22 +99,23 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
 
         return new
 
-    def link_wait_on_tasks(self, taskstore: Store):
-        self.wait_on = list(
-            chain(
-                *(
-                    taskstore.iter_from_cycle_spec(wait_on_spec, self.coordinates)
-                    for wait_on_spec in self._wait_on_specs
+    def link_wait_on_tasks(self, taskstore: Store[Task]):
+        if hasattr(self, "_wait_on_specs"):
+            self.wait_on = list(
+                chain(
+                    *(
+                        taskstore.iter_from_cycle_spec(wait_on_spec, self.coordinates)
+                        for wait_on_spec in self._wait_on_specs
+                    )
                 )
             )
-        )
 
 
 @dataclass
 class Data(ConfigBaseDataSpecs, GraphItem):
     """Internal representation of a data node"""
 
-    color: ClassVar[str] = field(default="light_blue", repr=False)
+    color: ClassVar[termcolor.Color] = field(default="light_blue", repr=False)
 
     available: bool | None = None  # must get a default value because of dataclass inheritence
 
@@ -122,21 +134,21 @@ class Data(ConfigBaseDataSpecs, GraphItem):
 class Cycle(GraphItem):
     """Internal reprenstation of a cycle"""
 
-    color: ClassVar[str] = field(default="light_green", repr=False)
+    color: ClassVar[termcolor.Color] = field(default="light_green", repr=False)
 
     tasks: list[Task]
 
 
-class Array:
+class Array[GRAPH_ITEM_T]:
     """Dictionnary of GraphItem objects accessed by arbitrary dimensions"""
 
     def __init__(self, name: str) -> None:
         self._name = name
         self._dims: tuple[str] | None = None
-        self._axes: dict | None = None
-        self._dict: dict[tuple, GraphItem] | None = None
+        self._axes: dict = {}
+        self._dict: dict[tuple, GRAPH_ITEM_T] = {}
 
-    def __setitem__(self, coordinates: dict, value: GraphItem) -> None:
+    def __setitem__(self, coordinates: dict, value: GRAPH_ITEM_T) -> None:
         # First access: set axes and initialize dictionnary
         input_dims = tuple(coordinates.keys())
         if self._dims is None:
@@ -160,7 +172,7 @@ class Array:
         # Set item
         self._dict[key] = value
 
-    def __getitem__(self, coordinates: dict) -> GraphItem:
+    def __getitem__(self, coordinates: dict) -> GRAPH_ITEM_T:
         if self._dims != (input_dims := tuple(coordinates.keys())):
             msg = f"Array {self._name}: coordinate names {input_dims} don't match Array dimensions {self._dims}"
             raise KeyError(msg)
@@ -168,17 +180,18 @@ class Array:
         key = tuple(coordinates[dim] for dim in self._dims)
         return self._dict[key]
 
-    def iter_from_cycle_spec(self, spec: TargetNodesBaseModel, reference: dict) -> Iterator[GraphItem]:
+    def iter_from_cycle_spec(self, spec: TargetNodesBaseModel, reference: dict) -> Iterator[GRAPH_ITEM_T]:
         # Check date references
-        if "date" not in self._dims and (spec.lag or spec.date):
+        if self._dims is not None and "date" not in self._dims and (spec.lag or spec.date):
             msg = f"Array {self._name} has no date dimension, cannot be referenced by dates"
             raise ValueError(msg)
-        if "date" in self._dims and reference.get("date") is None and len(spec.date) == 0:
+        if self._dims is not None and "date" in self._dims and reference.get("date") is None and len(spec.date) == 0:
             msg = f"Array {self._name} has a date dimension, must be referenced by dates"
             raise ValueError(msg)
 
-        for key in product(*(self._resolve_target_dim(spec, dim, reference) for dim in self._dims)):
-            yield self._dict[key]
+        if self._dims is not None:
+            for key in product(*(self._resolve_target_dim(spec, dim, reference) for dim in self._dims)):
+                yield self._dict[key]
 
     def _resolve_target_dim(self, spec: TargetNodesBaseModel, dim: str, reference: Any) -> Iterator[Any]:
         if dim == "date":
@@ -194,26 +207,26 @@ class Array:
         else:
             yield from self._axes[dim]
 
-    def __iter__(self) -> Iterator[GraphItem]:
+    def __iter__(self) -> Iterator[tuple | GRAPH_ITEM_T]:
         yield from self._dict.values()
 
 
-class Store:
+class Store[GRAPH_ITEM_T]:
     """Container for GraphItem Arrays"""
 
-    def __init__(self):
-        self._dict: dict[str, Array] = {}
+    def __init__(self: Self):
+        self._dict: dict[str, Array[GRAPH_ITEM_T]] = {}
 
-    def add(self, item) -> None:
+    def add(self, item: GRAPH_ITEM_T) -> None:
         if not isinstance(item, GraphItem):
-            msg = "items in a Store must be of instance GraphItem"
+            msg = "items in a Store must be instances of GraphItem or a subclass."
             raise TypeError(msg)
         name, coordinates = item.name, item.coordinates
         if name not in self._dict:
-            self._dict[name] = Array(name)
-        self._dict[name][coordinates] = item
+            self._dict[name] = Array[GRAPH_ITEM_T](name)
+        self._dict[name][coordinates] = typing.cast(GRAPH_ITEM_T, item)
 
-    def __getitem__(self, key: tuple[str, dict]) -> GraphItem:
+    def __getitem__(self, key: tuple[str, dict]) -> GRAPH_ITEM_T:
         name, coordinates = key
         if "date" in coordinates and coordinates["date"] is None:
             del coordinates["date"]
@@ -222,7 +235,7 @@ class Store:
             raise KeyError(msg)
         return self._dict[name][coordinates]
 
-    def iter_from_cycle_spec(self, spec: TargetNodesBaseModel, reference: dict) -> Iterator[GraphItem]:
+    def iter_from_cycle_spec(self, spec: TargetNodesBaseModel, reference: dict) -> Iterator[GRAPH_ITEM_T]:
         # Check if target items should be querried at all
         if (when := spec.when) is not None:
             if (ref_date := reference.get("date")) is None:
@@ -237,5 +250,5 @@ class Store:
         # Yield items
         yield from self._dict[spec.name].iter_from_cycle_spec(spec, reference)
 
-    def __iter__(self) -> Iterator[GraphItem]:
+    def __iter__(self) -> Iterator[GRAPH_ITEM_T]:
         yield from chain(*(self._dict.values()))

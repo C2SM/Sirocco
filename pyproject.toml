@@ -61,6 +61,14 @@ ignore = [
   "TRY003", # write custom error messages for formatting
 ]
 
+[[tool.mypy.overrides]]
+module = ["isoduration", "isoduration.*"]
+follow_untyped_imports = true
+
+[[tool.mypy.overrides]]
+module = ["pygraphviz"]
+ignore_missing_imports = true
+
 ## Hatch configurations
 
 [tool.hatch.build.targets.sdist]
@@ -97,3 +105,12 @@ serve = [
 deploy = [
   "mkdocs gh-deploy --no-history -f docs/mkdocs.yml"
 ]
+
+[tool.hatch.envs.types]
+extra-dependencies = [
+  "mypy>=1.0.0",
+  "pytest"
+]
+
+[tool.hatch.envs.types.scripts]
+check = "mypy --install-types --non-interactive {args:.}"

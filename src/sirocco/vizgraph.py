@@ -9,7 +9,7 @@ from lxml import etree
 from pygraphviz import AGraph
 
 if TYPE_CHECKING:
-    from sirocco.core import Store
+    from sirocco.core.graph_items import Cycle, Store
 from sirocco.core import Workflow
 
 
@@ -18,7 +18,7 @@ def hsv_to_hex(h: float, s: float, v: float) -> str:
     return "#{:02x}{:02x}{:02x}".format(*map(round, (255 * r, 255 * g, 255 * b)))
 
 
-def node_colors(h: float) -> dict[str:str]:
+def node_colors(h: float) -> dict[str, str]:
     fill = hsv_to_hex(h / 365, 0.15, 1)
     border = hsv_to_hex(h / 365, 1, 0.20)
     font = hsv_to_hex(h / 365, 1, 0.15)
@@ -28,23 +28,37 @@ def node_colors(h: float) -> dict[str:str]:
 class VizGraph:
     """Class for visualizing a Sirocco workflow"""
 
-    node_base_kw: ClassVar[dict[str:Any]] = {"style": "filled", "fontname": "Fira Sans", "fontsize": 14, "penwidth": 2}
-    edge_base_kw: ClassVar[dict[str:Any]] = {"color": "#77767B", "penwidth": 1.5}
-    data_node_base_kw: ClassVar[dict[str:Any]] = node_base_kw | {"shape": "ellipse"}
+    node_base_kw: ClassVar[dict[str, Any]] = {
+        "style": "filled",
+        "fontname": "Fira Sans",
+        "fontsize": 14,
+        "penwidth": 2,
+    }
+    edge_base_kw: ClassVar[dict[str, Any]] = {"color": "#77767B", "penwidth": 1.5}
+    data_node_base_kw: ClassVar[dict[str, Any]] = node_base_kw | {"shape": "ellipse"}
 
-    data_av_node_kw: ClassVar[dict[str:Any]] = data_node_base_kw | node_colors(116)
-    data_gen_node_kw: ClassVar[dict[str:Any]] = data_node_base_kw | node_colors(214)
-    task_node_kw: ClassVar[dict[str:Any]] = node_base_kw | {"shape": "box"} | node_colors(354)
-    io_edge_kw: ClassVar[dict[str:Any]] = edge_base_kw
-    wait_on_edge_kw: ClassVar[dict[str:Any]] = edge_base_kw | {"style": "dashed"}
-    cluster_kw: ClassVar[dict[str:Any]] = {"bgcolor": "#F6F5F4", "color": None, "fontsize": 16}
+    data_av_node_kw: ClassVar[dict[str, Any]] = data_node_base_kw | node_colors(116)
+    data_gen_node_kw: ClassVar[dict[str, Any]] = data_node_base_kw | node_colors(214)
+    task_node_kw: ClassVar[dict[str, Any]] = node_base_kw | {"shape": "box"} | node_colors(354)
+    io_edge_kw: ClassVar[dict[str, Any]] = edge_base_kw
+    wait_on_edge_kw: ClassVar[dict[str, Any]] = edge_base_kw | {"style": "dashed"}
+    cluster_kw: ClassVar[dict[str, Any]] = {
+        "bgcolor": "#F6F5F4",
+        "color": None,
+        "fontsize": 16,
+    }
 
-    def __init__(self, name: str, cycles: Store, data: Store) -> None:
+    def __init__(self, name: str, cycles: Store[Cycle], data: Store) -> None:
         self.name = name
         self.agraph = AGraph(name=name, fontname="Fira Sans", newrank=True)
         for data_node in data:
             gv_kw = self.data_av_node_kw if data_node.available else self.data_gen_node_kw
-            self.agraph.add_node(data_node, tooltip=self.tooltip(data_node), label=data_node.name, **gv_kw)
+            self.agraph.add_node(
+                data_node,
+                tooltip=self.tooltip(data_node),
+                label=data_node.name,
+                **gv_kw,
+            )
 
         k = 1
         for cycle in cycles:
@@ -54,7 +68,10 @@ class VizGraph:
             for task_node in cycle.tasks:
                 cluster_nodes.append(task_node)
                 self.agraph.add_node(
-                    task_node, label=task_node.name, tooltip=self.tooltip(task_node), **self.task_node_kw
+                    task_node,
+                    label=task_node.name,
+                    tooltip=self.tooltip(task_node),
+                    **self.task_node_kw,
                 )
                 for data_node in task_node.inputs:
                     self.agraph.add_edge(data_node, task_node, **self.io_edge_kw)
@@ -110,6 +127,9 @@ class VizGraph:
 
     @classmethod
     def from_core_workflow(cls, workflow: Workflow):
+        if workflow.name is None:
+            message = "'Workflow.name' attribute is mandatory when creating a visualization graph."
+            raise ValueError(message)
         return cls(workflow.name, workflow.cycles, workflow.data)
 
     @classmethod

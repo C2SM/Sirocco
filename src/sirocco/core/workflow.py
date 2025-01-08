@@ -20,7 +20,15 @@ if TYPE_CHECKING:
 class Workflow:
     """Internal representation of a workflow"""
 
+    name: str | None
+    tasks: Store[Task]
+    data: Store[Data]
+    cycles: Store[Cycle]
+
     def __init__(self, workflow_config: ConfigWorkflow) -> None:
+        if workflow_config.rootdir is None:
+            message = "'ConfigWorkflow.rootdir' is mandatory for 'Workflow' creation."
+            raise ValueError(message)
         self.name = workflow_config.name
         self.tasks = Store()
         self.data = Store()
@@ -68,7 +76,11 @@ class Workflow:
                         self.tasks.add(task)
                         cycle_tasks.append(task)
                 self.cycles.add(
-                    Cycle(name=cycle_name, tasks=cycle_tasks, coordinates={} if date is None else {"date": date})
+                    Cycle(
+                        name=cycle_name,
+                        tasks=cycle_tasks,
+                        coordinates={} if date is None else {"date": date},
+                    )
                 )
 
         # 4 - Link wait on tasks
@@ -77,10 +89,11 @@ class Workflow:
 
     @staticmethod
     def cycle_dates(cycle_config: ConfigCycle) -> Iterator[datetime]:
-        yield (date := cycle_config.start_date)
-        if cycle_config.period is not None:
-            while (date := date + cycle_config.period) < cycle_config.end_date:
-                yield date
+        if cycle_config.start_date is not None:
+            yield (date := cycle_config.start_date)
+            if cycle_config.period is not None and cycle_config.end_date is not None:
+                while (date := date + cycle_config.period) < cycle_config.end_date:
+                    yield date
 
     @classmethod
     def from_yaml(cls, config_path: str):
