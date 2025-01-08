@@ -379,7 +379,7 @@ class ConfigShellTask(ConfigBaseTask, ConfigShellTaskSpecs):
 class ConfigNamelist:
     """Class for namelist specifications"""
 
-    path: Path | None = None
+    path: Path
     specs: dict | None = None
 
 
@@ -409,11 +409,11 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
             if isinstance(nml, dict) and len(nml) > 1:
                 raise TypeError(msg)
             if isinstance(nml, str):
-                namelists.append(ConfigNamelist(path=nml, specs=None))
+                path, specs = Path(nml), None
             else:
                 path, specs = next(iter(nml.items()))
                 path = Path(path)
-                namelists[path.name] = ConfigNamelist(path=path, specs=specs)
+            namelists[path.name] = ConfigNamelist(path=path, specs=specs)
         return namelists
 
 
