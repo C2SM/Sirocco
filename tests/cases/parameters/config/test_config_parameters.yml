@@ -46,7 +46,7 @@ tasks:
   - icon:
       plugin: shell
       command: scripts/icon.py
-      cli_arguments: "{--restart icon_restart} {--init initial_conditions} {--forcing forcing}"
+      cli_arguments: "{--restart icon_restart} {--init initial_conditions} {--forcing forcing} {analysis_foo_bar}"
       parameters: [foo, bar]
   - statistics_foo:
       plugin: shell
