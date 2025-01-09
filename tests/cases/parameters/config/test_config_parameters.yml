@@ -73,7 +73,7 @@ data:
         src: icon_output
         parameters: [foo, bar]
     - icon_restart:
-        type: icon_restart
+        type: file
         src: restart
         parameters: [foo, bar]
     - analysis_foo:

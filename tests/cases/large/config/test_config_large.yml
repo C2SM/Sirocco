@@ -28,6 +28,7 @@ cycles:
                   when:
                     after: *root_start_date
                   lag: '-P2M'
+                  port: restart
             outputs: [stream_1, stream_2, icon_restart]
         - postproc_1:
             inputs: [stream_1]
@@ -144,7 +145,7 @@ data:
         type: file
         src: output
     - icon_restart:
-        type: icon_restart
+        type: file
         format: ncdf
         src: restart
     - stream_1:

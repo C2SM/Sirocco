@@ -124,7 +124,7 @@ class PrettyPrinter:
             sections.append(
                 self.as_block(
                     "input",
-                    "\n".join(self.as_item(self.format_basic(inp)) for inp in obj.inputs),
+                    "\n".join(self.as_item(self.format_basic(inp[0])) for inp in obj.inputs),
                 )
             )
         if obj.outputs:

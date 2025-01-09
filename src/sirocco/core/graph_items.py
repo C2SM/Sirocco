@@ -35,7 +35,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     plugin_classes: ClassVar[dict[str, type]] = field(default={}, repr=False)
     color: ClassVar[str] = field(default="light_red", repr=False)
 
-    inputs: list[Data] = field(default_factory=list)
+    inputs: list[tuple[Data, str | None]] = field(default_factory=list)
     outputs: list[Data] = field(default_factory=list)
     wait_on: list[Task] = field(default_factory=list)
     config_rootdir: Path | None = None
@@ -60,9 +60,11 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
         datastore: Store,
         graph_spec: ConfigCycleTask,
     ) -> Task:
-        inputs = list(
-            chain(*(datastore.iter_from_cycle_spec(input_spec, coordinates) for input_spec in graph_spec.inputs))
-        )
+        inputs = [
+            (data_node, input_spec.port)
+            for input_spec in graph_spec.inputs
+            for data_node in datastore.iter_from_cycle_spec(input_spec, coordinates)
+        ]
         outputs = [datastore[output_spec.name, coordinates] for output_spec in graph_spec.outputs]
         # use the fact that pydantic models can be turned into dicts easily
         cls_config = dict(config)

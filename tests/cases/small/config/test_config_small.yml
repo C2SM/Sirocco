@@ -17,6 +17,7 @@ cycles:
                   when:
                     after: *root_start_date
                   lag: -P2M
+                  port: restart
             outputs: [icon_output, icon_restart]
   - lastly:
       tasks:
@@ -49,5 +50,5 @@ data:
          type: file
          src: icon_output
      - icon_restart:
-         type: icon_restart
+         type: file
          src: restart

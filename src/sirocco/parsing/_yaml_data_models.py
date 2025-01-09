@@ -133,7 +133,7 @@ class TargetNodesBaseModel(_NamedBaseModel):
 
 
 class ConfigCycleTaskInput(TargetNodesBaseModel):
-    pass
+    port: str | None = None
 
 
 class ConfigCycleTaskWaitOn(TargetNodesBaseModel):
@@ -439,7 +439,7 @@ class ConfigBaseData(_NamedBaseModel, ConfigBaseDataSpecs):
     @classmethod
     def is_file_or_dir(cls, value: str) -> str:
         """."""
-        valid_types = ("file", "dir", "icon_restart")
+        valid_types = ("file", "dir")
         if value not in valid_types:
             msg = f"Must be one of {valid_types}"
             raise ValueError(msg)
