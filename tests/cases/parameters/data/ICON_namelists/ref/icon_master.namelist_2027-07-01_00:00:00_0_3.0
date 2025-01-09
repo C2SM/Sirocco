@@ -1,5 +1,5 @@
 &master_nml
-    lrestart = .true.
+    lrestart = .false.
     read_restart_namelists = .true.
 /
 
