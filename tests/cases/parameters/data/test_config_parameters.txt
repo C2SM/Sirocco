@@ -14,7 +14,7 @@ cycles:
             end date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: 'scripts/icon.py'
-            cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing')]
+            cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing'), ShellCliArgument(name='analysis_foo_bar', references_data_item=True, cli_option_of_data_item=None)]
             env source files: []
         - icon [date: 2026-01-01 00:00:00, foo: 1, bar: 3.0]:
             input:
@@ -29,7 +29,7 @@ cycles:
             end date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: 'scripts/icon.py'
-            cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing')]
+            cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing'), ShellCliArgument(name='analysis_foo_bar', references_data_item=True, cli_option_of_data_item=None)]
             env source files: []
         - statistics_foo [date: 2026-01-01 00:00:00, bar: 3.0]:
             input:
@@ -73,7 +73,7 @@ cycles:
             end date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: 'scripts/icon.py'
-            cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing')]
+            cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing'), ShellCliArgument(name='analysis_foo_bar', references_data_item=True, cli_option_of_data_item=None)]
             env source files: []
         - icon [date: 2026-07-01 00:00:00, foo: 1, bar: 3.0]:
             input:
@@ -88,7 +88,7 @@ cycles:
             end date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: 'scripts/icon.py'
-            cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing')]
+            cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing'), ShellCliArgument(name='analysis_foo_bar', references_data_item=True, cli_option_of_data_item=None)]
             env source files: []
         - statistics_foo [date: 2026-07-01 00:00:00, bar: 3.0]:
             input:
@@ -132,7 +132,7 @@ cycles:
             end date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: 'scripts/icon.py'
-            cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing')]
+            cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing'), ShellCliArgument(name='analysis_foo_bar', references_data_item=True, cli_option_of_data_item=None)]
             env source files: []
         - icon [date: 2027-01-01 00:00:00, foo: 1, bar: 3.0]:
             input:
@@ -147,7 +147,7 @@ cycles:
             end date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: 'scripts/icon.py'
-            cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing')]
+            cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing'), ShellCliArgument(name='analysis_foo_bar', references_data_item=True, cli_option_of_data_item=None)]
             env source files: []
         - statistics_foo [date: 2027-01-01 00:00:00, bar: 3.0]:
             input:
@@ -191,7 +191,7 @@ cycles:
             end date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: 'scripts/icon.py'
-            cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing')]
+            cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing'), ShellCliArgument(name='analysis_foo_bar', references_data_item=True, cli_option_of_data_item=None)]
             env source files: []
         - icon [date: 2027-07-01 00:00:00, foo: 1, bar: 3.0]:
             input:
@@ -206,7 +206,7 @@ cycles:
             end date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: 'scripts/icon.py'
-            cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing')]
+            cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing'), ShellCliArgument(name='analysis_foo_bar', references_data_item=True, cli_option_of_data_item=None)]
             env source files: []
         - statistics_foo [date: 2027-07-01 00:00:00, bar: 3.0]:
             input:

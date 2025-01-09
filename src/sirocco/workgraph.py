@@ -275,6 +275,7 @@ class AiidaWorkGraph:
             )
             raise ValueError(msg)
 
+        # TODO this does not make sense it only keeps one reference per input for multiple lags, this should result in an error!!!
         name_to_input_map = {input_.name: input_ for input_ in task.inputs}
         # we track the linked input arguments, to ensure that all linked input nodes got linked arguments
         linked_input_args = []
@@ -290,6 +291,8 @@ class AiidaWorkGraph:
                         workgraph_task_arguments.value.append(f"{arg.cli_option_of_data_item}")
                     workgraph_task_arguments.value.append(f"{{{input_label}}}")
                     linked_input_args.append(input_.name)
+                    if input_.name == "analysis_foo_bar":
+                        breakpoint()
             else:
                 workgraph_task_arguments.value.append(f"{arg.name}")
         # Adding remaining input nodes as positional arguments
@@ -297,6 +300,8 @@ class AiidaWorkGraph:
             if input_name not in linked_input_args:
                 input_ = name_to_input_map[input_name]
                 input_label = AiidaWorkGraph.get_aiida_label_from_graph_item(input_)
+                if input_.name == "analysis_foo_bar":
+                    breakpoint()
                 workgraph_task_arguments.value.append(f"{{{input_label}}}")
 
     def _link_output_nodes_to_task(self, task: graph_items.Task, output: graph_items.Data):
