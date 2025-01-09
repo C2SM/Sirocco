@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -275,8 +276,10 @@ class AiidaWorkGraph:
             )
             raise ValueError(msg)
 
-        # TODO this does not make sense it only keeps one reference per input for multiple lags, this should result in an error!!!
-        name_to_input_map = {input_.name: input_ for input_ in task.inputs}
+        name_to_input_map = defaultdict(list)
+        for input_ in task.inputs:
+            name_to_input_map[input_.name].append(input_)
+
         # we track the linked input arguments, to ensure that all linked input nodes got linked arguments
         linked_input_args = []
         for arg in task.cli_arguments:
@@ -284,25 +287,24 @@ class AiidaWorkGraph:
                 # We only add an input argument to the args if it has been added to the nodes
                 # This ensures that inputs and their arguments are only added
                 # when the time conditions are fulfilled
-                if (input_ := name_to_input_map.get(arg.name)) is not None:
-                    input_label = AiidaWorkGraph.get_aiida_label_from_graph_item(input_)
+                if (inputs := name_to_input_map.get(arg.name)) is not None:
+                    for input_ in inputs:
+                        input_label = AiidaWorkGraph.get_aiida_label_from_graph_item(input_)
 
-                    if arg.cli_option_of_data_item is not None:
-                        workgraph_task_arguments.value.append(f"{arg.cli_option_of_data_item}")
-                    workgraph_task_arguments.value.append(f"{{{input_label}}}")
+                        if arg.cli_option_of_data_item is not None:
+                            workgraph_task_arguments.value.append(f"{arg.cli_option_of_data_item}")
+                        workgraph_task_arguments.value.append(f"{{{input_label}}}")
                     linked_input_args.append(input_.name)
-                    if input_.name == "analysis_foo_bar":
-                        breakpoint()
             else:
                 workgraph_task_arguments.value.append(f"{arg.name}")
+
         # Adding remaining input nodes as positional arguments
         for input_name in name_to_input_map:
             if input_name not in linked_input_args:
-                input_ = name_to_input_map[input_name]
-                input_label = AiidaWorkGraph.get_aiida_label_from_graph_item(input_)
-                if input_.name == "analysis_foo_bar":
-                    breakpoint()
-                workgraph_task_arguments.value.append(f"{{{input_label}}}")
+                inputs = name_to_input_map[input_name]
+                for input_ in inputs:
+                    input_label = AiidaWorkGraph.get_aiida_label_from_graph_item(input_)
+                    workgraph_task_arguments.value.append(f"{{{input_label}}}")
 
     def _link_output_nodes_to_task(self, task: graph_items.Task, output: graph_items.Data):
         """Links the output to the workgraph task."""
