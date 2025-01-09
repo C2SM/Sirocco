@@ -3,8 +3,8 @@ from pathlib import Path
 import pytest
 
 from sirocco.core import Workflow
-from sirocco.parsing._yaml_data_models import ConfigShellTask, ShellCliArgument
 from sirocco.core._tasks.icon_task import IconTask
+from sirocco.parsing._yaml_data_models import ConfigShellTask, ShellCliArgument
 from sirocco.pretty_print import PrettyPrinter
 from sirocco.vizgraph import VizGraph
 from sirocco.workgraph import AiidaWorkGraph
