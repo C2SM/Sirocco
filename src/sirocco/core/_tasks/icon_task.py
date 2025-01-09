@@ -18,7 +18,7 @@ class IconTask(ConfigIconTaskSpecs, Task):
         """Read in or create namelists"""
         self.core_namelists = {}
         for name, cfg_nml in self.namelists.items():
-            if (nml_path := self.config_root / cfg_nml.path).exists():
+            if (nml_path := self.config_rootdir / cfg_nml.path).exists():
                 self.core_namelists[name] = f90nml.read(nml_path)
             else:
                 # If namelist does not exist, build it from the users given specs
@@ -30,6 +30,8 @@ class IconTask(ConfigIconTaskSpecs, Task):
         # TODO: implement format for users to reference parameters and date in their specs
         for name, cfg_nml in self.namelists.items():
             core_nml = self.core_namelists[name]
+            if cfg_nml.specs is None:
+                continue
             for section, params in cfg_nml.specs.items():
                 section_name, k = self.section_index(section)
                 # Create section if non-existent
@@ -62,12 +64,9 @@ class IconTask(ConfigIconTaskSpecs, Task):
             folder.mkdir(parents=True, exist_ok=True)
         for name, cfg_nml in self.namelists.items():
             if folder is None:
-                nml_path = self.config_root / cfg_nml.path
-                suffix = ("_".join([str(p) for p in self.coordinates.values()])).replace(" ", "_")
-                dump_path = nml_path.parent / (nml_path.name + "_" + suffix)
-            else:
-                dump_path = folder / name
-            self.core_namelists[name].write(dump_path, force=True)
+                folder = (self.config_rootdir / cfg_nml.path).parent
+            suffix = ("_".join([str(p) for p in self.coordinates.values()])).replace(" ", "_")
+            self.core_namelists[name].write(folder / (name + "_" + suffix), force=True)
 
     def create_workflow_namelists(self, folder=None):
         self.init_core_namelists()

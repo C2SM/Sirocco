@@ -7,6 +7,7 @@ from sirocco.parsing._yaml_data_models import ConfigShellTask, ShellCliArgument
 from sirocco.pretty_print import PrettyPrinter
 from sirocco.vizgraph import VizGraph
 from sirocco.workgraph import AiidaWorkGraph
+from sirocco.core._tasks.icon_task import IconTask
 
 
 # configs that are tested for parsing
@@ -89,3 +90,22 @@ def test_run_workgraph(config_path, aiida_computer):
     aiida_workflow = AiidaWorkGraph(core_workflow)
     out = aiida_workflow.run()
     assert out.get("execution_count", None).value == 1
+
+
+def test_nml_mod(config_paths):
+    do_test = False
+    nml_refdir = config_paths["txt"].parent / "ICON_namelists" / "ref"
+    nml_testdir = config_paths["txt"].parent / "ICON_namelists" / "test"
+    wf = Workflow.from_yaml(config_paths["yml"])
+    for task in wf.tasks:
+        if isinstance(task, IconTask):
+            do_test = True
+            task.create_workflow_namelists(folder=nml_testdir)
+    if not do_test:
+        return
+    for nml in nml_refdir.glob("*"):
+        ref_nml = nml.read_text()
+        test_nml = (nml_testdir / nml.name).read_text()
+        if ref_nml != test_nml:
+            msg = f"Namelist {nml.name} differs between ref and test"
+            raise ValueError(msg)
