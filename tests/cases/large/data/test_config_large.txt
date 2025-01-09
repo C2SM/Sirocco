@@ -50,10 +50,9 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
-            plugin: 'shell'
-            command: 'scripts/icon'
-            cli arguments: [ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item='-g'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--input')]
-            env source files: []
+            plugin: 'icon'
+            namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs={'master_model_nml': {'model_namelist_filename': 'NAMELIST_exclaim_ape_R02B04', 'restartTimeIntval': 'P2M', 'checkpointTimeIntval': 'P2M'}}), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs=None)}
+            core namelists: {}
         - postproc_1 [date: 2025-01-01 00:00:00]:
             input:
               - stream_1 [date: 2025-01-01 00:00:00]
@@ -123,10 +122,9 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
-            plugin: 'shell'
-            command: 'scripts/icon'
-            cli arguments: [ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item='-g'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--input')]
-            env source files: []
+            plugin: 'icon'
+            namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs={'master_model_nml': {'model_namelist_filename': 'NAMELIST_exclaim_ape_R02B04', 'restartTimeIntval': 'P2M', 'checkpointTimeIntval': 'P2M'}}), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs=None)}
+            core namelists: {}
         - postproc_1 [date: 2025-03-01 00:00:00]:
             input:
               - stream_1 [date: 2025-03-01 00:00:00]
@@ -198,10 +196,9 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
-            plugin: 'shell'
-            command: 'scripts/icon'
-            cli arguments: [ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item='-g'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--input')]
-            env source files: []
+            plugin: 'icon'
+            namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs={'master_model_nml': {'model_namelist_filename': 'NAMELIST_exclaim_ape_R02B04', 'restartTimeIntval': 'P2M', 'checkpointTimeIntval': 'P2M'}}), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs=None)}
+            core namelists: {}
         - postproc_1 [date: 2025-05-01 00:00:00]:
             input:
               - stream_1 [date: 2025-05-01 00:00:00]
@@ -273,10 +270,9 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
-            plugin: 'shell'
-            command: 'scripts/icon'
-            cli arguments: [ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item='-g'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--input')]
-            env source files: []
+            plugin: 'icon'
+            namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs={'master_model_nml': {'model_namelist_filename': 'NAMELIST_exclaim_ape_R02B04', 'restartTimeIntval': 'P2M', 'checkpointTimeIntval': 'P2M'}}), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs=None)}
+            core namelists: {}
         - postproc_1 [date: 2025-07-01 00:00:00]:
             input:
               - stream_1 [date: 2025-07-01 00:00:00]
@@ -348,10 +344,9 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
-            plugin: 'shell'
-            command: 'scripts/icon'
-            cli arguments: [ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item='-g'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--input')]
-            env source files: []
+            plugin: 'icon'
+            namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs={'master_model_nml': {'model_namelist_filename': 'NAMELIST_exclaim_ape_R02B04', 'restartTimeIntval': 'P2M', 'checkpointTimeIntval': 'P2M'}}), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs=None)}
+            core namelists: {}
         - postproc_1 [date: 2025-09-01 00:00:00]:
             input:
               - stream_1 [date: 2025-09-01 00:00:00]
@@ -423,10 +418,9 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
-            plugin: 'shell'
-            command: 'scripts/icon'
-            cli arguments: [ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item='-g'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--input')]
-            env source files: []
+            plugin: 'icon'
+            namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs={'master_model_nml': {'model_namelist_filename': 'NAMELIST_exclaim_ape_R02B04', 'restartTimeIntval': 'P2M', 'checkpointTimeIntval': 'P2M'}}), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs=None)}
+            core namelists: {}
         - postproc_1 [date: 2025-11-01 00:00:00]:
             input:
               - stream_1 [date: 2025-11-01 00:00:00]
@@ -498,10 +492,9 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
-            plugin: 'shell'
-            command: 'scripts/icon'
-            cli arguments: [ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item='-g'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--input')]
-            env source files: []
+            plugin: 'icon'
+            namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs={'master_model_nml': {'model_namelist_filename': 'NAMELIST_exclaim_ape_R02B04', 'restartTimeIntval': 'P2M', 'checkpointTimeIntval': 'P2M'}}), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs=None)}
+            core namelists: {}
         - postproc_1 [date: 2026-01-01 00:00:00]:
             input:
               - stream_1 [date: 2026-01-01 00:00:00]
@@ -573,10 +566,9 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
-            plugin: 'shell'
-            command: 'scripts/icon'
-            cli arguments: [ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item='-g'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--input')]
-            env source files: []
+            plugin: 'icon'
+            namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs={'master_model_nml': {'model_namelist_filename': 'NAMELIST_exclaim_ape_R02B04', 'restartTimeIntval': 'P2M', 'checkpointTimeIntval': 'P2M'}}), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs=None)}
+            core namelists: {}
         - postproc_1 [date: 2026-03-01 00:00:00]:
             input:
               - stream_1 [date: 2026-03-01 00:00:00]
@@ -648,10 +640,9 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
-            plugin: 'shell'
-            command: 'scripts/icon'
-            cli arguments: [ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item='-g'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--input')]
-            env source files: []
+            plugin: 'icon'
+            namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs={'master_model_nml': {'model_namelist_filename': 'NAMELIST_exclaim_ape_R02B04', 'restartTimeIntval': 'P2M', 'checkpointTimeIntval': 'P2M'}}), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs=None)}
+            core namelists: {}
         - postproc_1 [date: 2026-05-01 00:00:00]:
             input:
               - stream_1 [date: 2026-05-01 00:00:00]
@@ -723,10 +714,9 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
-            plugin: 'shell'
-            command: 'scripts/icon'
-            cli arguments: [ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item='-g'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--input')]
-            env source files: []
+            plugin: 'icon'
+            namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs={'master_model_nml': {'model_namelist_filename': 'NAMELIST_exclaim_ape_R02B04', 'restartTimeIntval': 'P2M', 'checkpointTimeIntval': 'P2M'}}), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs=None)}
+            core namelists: {}
         - postproc_1 [date: 2026-07-01 00:00:00]:
             input:
               - stream_1 [date: 2026-07-01 00:00:00]
@@ -798,10 +788,9 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
-            plugin: 'shell'
-            command: 'scripts/icon'
-            cli arguments: [ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item='-g'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--input')]
-            env source files: []
+            plugin: 'icon'
+            namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs={'master_model_nml': {'model_namelist_filename': 'NAMELIST_exclaim_ape_R02B04', 'restartTimeIntval': 'P2M', 'checkpointTimeIntval': 'P2M'}}), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs=None)}
+            core namelists: {}
         - postproc_1 [date: 2026-09-01 00:00:00]:
             input:
               - stream_1 [date: 2026-09-01 00:00:00]
@@ -873,10 +862,9 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
-            plugin: 'shell'
-            command: 'scripts/icon'
-            cli arguments: [ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item='-g'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--input')]
-            env source files: []
+            plugin: 'icon'
+            namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs={'master_model_nml': {'model_namelist_filename': 'NAMELIST_exclaim_ape_R02B04', 'restartTimeIntval': 'P2M', 'checkpointTimeIntval': 'P2M'}}), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs=None)}
+            core namelists: {}
         - postproc_1 [date: 2026-11-01 00:00:00]:
             input:
               - stream_1 [date: 2026-11-01 00:00:00]

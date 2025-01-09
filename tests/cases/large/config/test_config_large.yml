@@ -80,9 +80,7 @@ tasks:
         squashfs: path/to/squashfs
         mount_point: runtime/mount/point
   - icon:
-      plugin: shell
-      command: scripts/icon
-      cli_arguments: "{-g grid_file} {--input icon_input}"
+      plugin: icon
       nodes: 40
       walltime: 23:59:59
       namelists:

@@ -95,7 +95,7 @@ class AiidaWorkGraph:
             except ValueError as exception:
                 msg = f"Raised error when validating task name '{task.name}': {exception.args[0]}"
                 raise ValueError(msg) from exception
-            for input_ in task.inputs:
+            for input_, _ in task.inputs:
                 try:
                     aiida.common.validate_link_label(input_.name)
                 except ValueError as exception:
@@ -111,7 +111,7 @@ class AiidaWorkGraph:
     def _add_available_data(self):
         """Adds the available data on initialization to the workgraph"""
         for task in self._core_workflow.tasks:
-            for input_ in task.inputs:
+            for input_, _ in task.inputs:
                 if input_.available:
                     self._add_aiida_input_data_node(task, input_)
 
@@ -176,7 +176,7 @@ class AiidaWorkGraph:
         for task in self._core_workflow.tasks:
             for output in task.outputs:
                 self._link_output_nodes_to_task(task, output)
-            for input_ in task.inputs:
+            for input_, _ in task.inputs:
                 self._link_input_nodes_to_task(task, input_)
             self._link_arguments_to_task(task)
 
@@ -275,7 +275,7 @@ class AiidaWorkGraph:
             )
             raise ValueError(msg)
 
-        name_to_input_map = {input_.name: input_ for input_ in task.inputs}
+        name_to_input_map = {input_.name: input_ for input_, _ in task.inputs}
         # we track the linked input arguments, to ensure that all linked input nodes got linked arguments
         linked_input_args = []
         for arg in task.cli_arguments:
