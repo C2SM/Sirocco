@@ -8,7 +8,6 @@ from sirocco.parsing._yaml_data_models import ConfigShellTask, ShellCliArgument
 from sirocco.pretty_print import PrettyPrinter
 from sirocco.vizgraph import VizGraph
 from sirocco.workgraph import AiidaWorkGraph
-from sirocco.core._tasks.icon_task import IconTask
 
 
 # configs that are tested for parsing
