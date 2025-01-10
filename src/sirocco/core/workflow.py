@@ -12,6 +12,7 @@ from sirocco.parsing._yaml_data_models import (
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+    from pathlib import Path
     from datetime import datetime
 
     from sirocco.parsing._yaml_data_models import ConfigCycle
@@ -21,10 +22,11 @@ class Workflow:
     """Internal representation of a workflow"""
 
     def __init__(self, workflow_config: ConfigWorkflow) -> None:
-        self.name = workflow_config.name
-        self.tasks = Store()
-        self.data = Store()
-        self.cycles = Store()
+        self.name: str = workflow_config.name
+        self.config_rootdir: Path = workflow_config.rootdir
+        self.tasks: Store = Store()
+        self.data: Store = Store()
+        self.cycles: Store = Store()
 
         # Function to iterate over date and parameter combinations
         def iter_coordinates(param_refs: list, date: datetime | None = None) -> Iterator[dict]:
@@ -58,7 +60,7 @@ class Workflow:
                     for coordinates in iter_coordinates(param_refs=task_config.parameters, date=date):
                         task = Task.from_config(
                             config=task_config,
-                            config_rootdir=workflow_config.rootdir,
+                            config_rootdir=self.config_rootdir,
                             start_date=cycle_config.start_date,
                             end_date=cycle_config.end_date,
                             coordinates=coordinates,
