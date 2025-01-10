@@ -100,7 +100,7 @@ def test_run_workgraph(config_path, aiida_computer):
             "yml": Path("tests/cases/large/config/test_config_large.yml"),
             "txt": Path("tests/cases/large/data/test_config_large.txt"),
             "svg": Path("tests/cases/large/svg/test_config_large.svg"),
-         }
+        }
     ],
 )
 def test_nml_mod(config_paths, tmp_path):
