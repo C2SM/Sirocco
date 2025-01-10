@@ -12,8 +12,8 @@ from sirocco.parsing._yaml_data_models import (
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from pathlib import Path
     from datetime import datetime
+    from pathlib import Path
 
     from sirocco.parsing._yaml_data_models import ConfigCycle
 
