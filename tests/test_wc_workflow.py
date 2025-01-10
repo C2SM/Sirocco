@@ -92,20 +92,25 @@ def test_run_workgraph(config_path, aiida_computer):
     assert out.get("execution_count", None).value == 1
 
 
-def test_nml_mod(config_paths):
-    do_test = False
+# configs containing task using icon plugin
+@pytest.mark.parametrize(
+    "config_paths",
+    [
+        {
+            "yml": Path("tests/cases/large/config/test_config_large.yml"),
+            "txt": Path("tests/cases/large/data/test_config_large.txt"),
+            "svg": Path("tests/cases/large/svg/test_config_large.svg"),
+         }
+    ],
+)
+def test_nml_mod(config_paths, tmp_path):
     nml_refdir = config_paths["txt"].parent / "ICON_namelists" / "ref"
-    nml_testdir = config_paths["txt"].parent / "ICON_namelists" / "test"
     wf = Workflow.from_yaml(config_paths["yml"])
+
     for task in wf.tasks:
         if isinstance(task, IconTask):
-            do_test = True
-            task.create_workflow_namelists(folder=nml_testdir)
-    if not do_test:
-        return
+            task.create_workflow_namelists(folder=tmp_path)
     for nml in nml_refdir.glob("*"):
         ref_nml = nml.read_text()
-        test_nml = (nml_testdir / nml.name).read_text()
-        if ref_nml != test_nml:
-            msg = f"Namelist {nml.name} differs between ref and test"
-            raise ValueError(msg)
+        test_nml = (tmp_path / nml.name).read_text()
+        assert ref_nml == test_nml, f"Namelist {nml.name} differs between ref and test"
