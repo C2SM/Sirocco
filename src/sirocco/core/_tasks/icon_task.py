@@ -81,9 +81,14 @@ class IconTask(ConfigIconTaskSpecs, Task):
         """Check for single vs multiple namelist section
 
         Check if the user specified a section name that ends with digits
-        between brackets. This is the convention chosen to indicate multiple
+        between brackets, for example:
+        
+        section_index("section[123]") -> ("section", 123)
+        section_index("section123") -> ("section123", None)
+        
+        This is the convention chosen to indicate multiple
         sections with the same name, typically `output_nml` for multiple
-        output streams"""
+        output streams."""
         multi_section_pattern = re.compile(r"(.*)\[([0-9]+)\]$")
         if m := multi_section_pattern.match(section_name):
             return m.group(1), int(m.group(2)) - 1
