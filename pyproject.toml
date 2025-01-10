@@ -109,8 +109,13 @@ deploy = [
 [tool.hatch.envs.types]
 extra-dependencies = [
   "mypy>=1.0.0",
-  "pytest"
+  "pytest",
+  "lxml-stubs",
+  "types-setuptools",
+  "types-docutils",
+  "types-colorama",
+  "types-Pygments"
 ]
 
 [tool.hatch.envs.types.scripts]
-check = "mypy --install-types --non-interactive {args:.}"
+check = "mypy --no-incremental {args:.}"
