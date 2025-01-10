@@ -2,8 +2,6 @@
 tests/cases/*/data/*.new.txt
 tests/cases/*/svg/*
 !tests/cases/*/svg/.gitkeep
-tests/cases/*/data/ICON_namelists/test/*
-!tests/cases/*/data/ICON_namelists/test/.gitkeep
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

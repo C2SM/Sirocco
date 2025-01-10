@@ -104,7 +104,7 @@ def test_run_workgraph(config_path, aiida_computer):
     ],
 )
 def test_nml_mod(config_paths, tmp_path):
-    nml_refdir = config_paths["txt"].parent / "ICON_namelists" / "ref"
+    nml_refdir = config_paths["txt"].parent / "ICON_namelists"
     wf = Workflow.from_yaml(config_paths["yml"])
 
     for task in wf.tasks:
