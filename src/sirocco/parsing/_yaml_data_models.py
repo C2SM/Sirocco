@@ -396,12 +396,14 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
     @field_validator("namelists", mode="before")
     @classmethod
     def check_nml(cls, nml_list: list[Any]) -> ConfigNamelist:
-        # TODO: namelists not allowed to be None
-        # TODO: must contain an icon_master.namelist
+        if nml_list is None:
+            msg = "ICON tasks need namelists, got none"
+            raise ValueError(msg)
         if not isinstance(nml_list, list):
             msg = f"expected a list got type {type(nml_list).__name__}"
             raise TypeError(msg)
         namelists = {}
+        master_found = False
         for nml in nml_list:
             msg = f"was expecting a dict of length 1 or a string, got {nml}"
             if not isinstance(nml, (str, dict)):
@@ -414,6 +416,10 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
                 path, specs = next(iter(nml.items()))
                 path = Path(path)
             namelists[path.name] = ConfigNamelist(path=path, specs=specs)
+            master_found = master_found or (path.name == "icon_master.namelist")
+        if not master_found:
+            msg = "icon_master.namelist not found"
+            raise ValueError(msg)
         return namelists
 
 
