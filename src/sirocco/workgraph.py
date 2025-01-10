@@ -88,7 +88,7 @@ class AiidaWorkGraph:
         self._add_tasks()
 
     def _validate_workflow(self):
-        """Checks if the core workflow uses for its tasks and data valid names for AiiDA."""
+        """Checks if the core workflow uses valid AiiDA names for its tasks and data."""
         for task in self._core_workflow.tasks:
             try:
                 aiida.common.validate_link_label(task.name)
@@ -167,8 +167,8 @@ class AiidaWorkGraph:
         for task in self._core_workflow.tasks:
             self._create_task_node(task)
 
-        # NOTE: The wait on tasks has to be added after the creation of the tasks because it might reference tasks from
-        # the future
+        # NOTE: The wait on tasks has to be added after the creation of the tasks
+        #       because it might reference tasks defined after the current one
         for task in self._core_workflow.tasks:
             self._link_wait_on_to_task(task)
 
