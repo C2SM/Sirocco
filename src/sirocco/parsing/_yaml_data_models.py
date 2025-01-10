@@ -8,7 +8,15 @@ from typing import Annotated, Any, ClassVar, Literal
 
 from isoduration import parse_duration
 from isoduration.types import Duration  # pydantic needs type # noqa: TCH002
-from pydantic import BaseModel, ConfigDict, Discriminator, Field, Tag, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Discriminator,
+    Field,
+    Tag,
+    field_validator,
+    model_validator,
+)
 
 from sirocco.parsing._utils import TimeUtils
 
@@ -262,6 +270,7 @@ class ConfigCycle(_NamedBaseModel):
             raise ValueError(msg)
         if "period" in data and "start_date" not in data:
             msg = f"in cycle {data['name']}: period provided without start and end dates."
+            raise ValueError(msg)
         return data
 
     @model_validator(mode="after")
