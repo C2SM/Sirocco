@@ -23,6 +23,4 @@
     model_max_rank = 65535
     model_inc_rank = 1
     model_rank_group_size = 1
-    restarttimeintval = 'P2M'
-    checkpointtimeintval = 'P2M'
 /

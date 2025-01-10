@@ -82,10 +82,10 @@ class IconTask(ConfigIconTaskSpecs, Task):
 
         Check if the user specified a section name that ends with digits
         between brackets, for example:
-        
+
         section_index("section[123]") -> ("section", 123)
         section_index("section123") -> ("section123", None)
-        
+
         This is the convention chosen to indicate multiple
         sections with the same name, typically `output_nml` for multiple
         output streams."""
