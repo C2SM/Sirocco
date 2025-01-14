@@ -6,13 +6,54 @@ from pathlib import Path
 
 import f90nml
 
-from sirocco.core.graph_items import Task
-from sirocco.parsing._yaml_data_models import ConfigIconTaskSpecs
+from sirocco.core.graph_items import Task, Data
+from sirocco.parsing._yaml_data_models import ConfigIconTaskSpecs, ConfigNamelist
 
 
 @dataclass
 class IconTask(ConfigIconTaskSpecs, Task):
+    # To avoid non-default argument is followed after default one we overwrite
+    # here the code attribute with a default one, since it required on the level
+    # of the yaml file it does not limit the checks on user config input
+    code: str = ""
     core_namelists: dict[str, f90nml.Namelist] = field(default_factory=dict)
+
+    # TODO cannot do just super, because inputs are split between the two classes
+    #      but why doies this work without any init constructor, need to think through
+    #      this __init_subclass__ magic.
+    #      We move the check to the temporary for now the draft of the PR
+    #def __init__(self, *args, **kwargs):
+    #    #super().__init__(*args, **kwargs)
+    #    dict_keys(['config_rootdir', 'coordinates', 'start_date', 'end_date', 'inputs', 'outputs', 'namelists', 'computer', 'host', 'account', 'uenv', 'nodes', 'walltime', 'name'])
+    # 
+    #    if len(self.outputs) > 1:
+    #        raise ValueError("Icon task received more than one but only one (icon restart file) is valid.")
+
+    @property
+    def master_namelist(self) -> ConfigNamelist:
+        return self.namelists["icon_master.namelist"]
+
+    @property
+    def core_master_namelist(self) -> f90nml.Namelist:
+        return self.core_namelists["icon_master.namelist"]
+
+    @property
+    def model_namelist(self) -> ConfigNamelist:
+        model_namelist_name = self.core_master_namelist['master_model_nml']['model_namelist_filename']
+        return self.namelists[model_namelist_name]
+
+    @property
+    def core_model_namelist(self) -> f90nml.Namelist:
+        model_namelist_name = self.core_master_namelist['master_model_nml']['model_namelist_filename']
+        return self.core_namelists[model_namelist_name]
+
+    @property
+    def restart_file(self) -> Data | None:
+        # TODO move out of property
+        if len(self.outputs) > 1:
+            raise ValueError("Icon task received more than one but only one (icon restart file) is valid.")
+        return self.outputs[0] if len(self.outputs) > 0 else None
+
 
     def init_core_namelists(self):
         """Read in or create namelists"""

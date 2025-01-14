@@ -84,6 +84,7 @@ tasks:
       nodes: 40
       walltime: 23:59:59
       namelists:
+        # TODO a model namelist is missing to use it ask matthieu if it should be required
         - ./ICON/icon_master.namelist
         - ./ICON/NAMELIST_exclaim_ape_R02B04:
             parallel_nml:

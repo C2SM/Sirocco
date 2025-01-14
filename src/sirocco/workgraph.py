@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 
 import aiida.common
 import aiida.orm
+import aiida.plugins
 import aiida_workgraph.engine.utils  # type: ignore[import-untyped]
 from aiida.common.exceptions import NotExistent
 from aiida_workgraph import WorkGraph
@@ -136,6 +137,10 @@ class AiidaWorkGraph:
             f"{obj.name}" + "__".join(f"_{key}_{value}" for key, value in obj.coordinates.items())
         )
 
+    def get_data_full_path(self, path : str | Path) -> Path:
+        data_path = path if isinstance(path, str) else Path(path)
+        return data_path if data_path.is_absolute() else self._core_workflow.config_rootdir / data_path
+
     def _add_aiida_input_data_node(self, data: graph_items.Data):
         """
         Create an `aiida.orm.Data` instance from the provided graph item.
@@ -174,12 +179,99 @@ class AiidaWorkGraph:
 
         for task in self._core_workflow.tasks:
             for output in task.outputs:
-                self._link_output_nodes_to_task(task, output)
-            for input_, _ in task.inputs:
-                self._link_input_nodes_to_task(task, input_)
-            self._link_arguments_to_task(task)
+                if isinstance(task, ShellTask):
+                    # TODO naming, it is not really linking but rather creating
+                    self._link_output_nodes_to_shell_task(task, output)
+                elif isinstance(task, IconTask):
+                    # TODO naming, this just adding the output to the storage timestamping it  
+                    self._link_restart_file_to_icon_task(task)
+                else:
+                   raise ValueError(f"Provided task {task} is not supported. This should not happen. Please contact a developer.")
+            for bound_data in task.inputs:
+                self._link_input_nodes_to_task(task, bound_data)
+            if isinstance(task, ShellTask):
+                self._link_arguments_to_task(task)
 
     def _create_task_node(self, task: graph_items.Task):
+        if isinstance(task, ShellTask):
+            return self._create_shell_task_node(task) 
+        elif isinstance(task, IconTask):
+            return self._create_icon_task_node(task) 
+        else:
+            raise ValueError(f"Task type {type(task)} is not supported.")
+
+    def _create_icon_task_node(self, task: IconTask):
+        IconCalculation = aiida.plugins.CalculationFactory('icon.icon')
+        task_label = AiidaWorkGraph.get_aiida_label_from_graph_item(task)
+
+        try:
+            icon_code = aiida.orm.load_code(task.code)
+        except NotExistent as exc:
+            raise ValueError(f"Could not find the code {task.code} in AiiDA. Did you create it beforehand?") from exc
+
+        icon_task = self._workgraph.add_task(IconCalculation, code=icon_code)
+
+        task.init_core_namelists()
+        task.update_core_namelists_from_config()
+        task.update_core_namelists_from_workflow()
+
+        self._aiida_task_nodes[task_label] = icon_task
+        # TODO remove
+        #input_ = task.inputs[0][0]
+        #input_label = AiidaWorkGraph.get_aiida_label_from_graph_item(input_)
+        #icon_task.add_input("workgraph.Any", f"{input_label}")
+        
+
+        icon_task.inputs.master_namelist.value = aiida.orm.SinglefileData(self.get_data_full_path(task.master_namelist.path))
+        icon_task.inputs.model_namelist.value = aiida.orm.SinglefileData(self.get_data_full_path(task.model_namelist.path))
+
+
+        # TODO remove
+        #builder = IconCalculation.get_builder()
+
+
+        #builder.master_namelist = aiida.orm.SinglefileData(self.get_data_full_path(task.master_namelist.path))
+        #builder.model_namelist = aiida.orm.SinglefileData(self.get_data_full_path(task.model_namelist.path))
+        #for input_, port in task.inputs:
+        #    if port == "restart_file":
+        #        workgraph_task = self._aiida_task_nodes[task_label]
+        #        workgraph_task.add_input("workgraph.any", f"nodes.{input_label}")
+
+        #        ## resolve data
+        #        #if (data_node := self._aiida_data_nodes.get(input_label)) is not None:
+        #        #    if not hasattr(workgraph_task.inputs.nodes, f"{input_label}"):
+        #        #        msg = f"Socket {input_label!r} was not found in workgraph. Please contact a developer."
+        #        #        raise ValueError(msg)
+        #        #    socket = getattr(workgraph_task.inputs.nodes, f"{input_label}")
+        #        #    socket.value = data_node
+        #        #elif (output_socket := self._aiida_socket_nodes.get(input_label)) is not None:
+        #        #    self._workgraph.add_link(output_socket, workgraph_task.inputs[f"nodes.{input_label}"])
+        #        #else:
+        #        #    msg = (
+        #        #        f"Input data node {input_label!r} was neither found in socket nodes nor in data nodes. The task "
+        #        #        f"{task_label!r} must have dependencies on inputs before they are created."
+        #        #    )
+        #        #    raise ValueError(msg)
+
+        #        builder.restart_file
+        #        spec.input("restart_file", valid_type=orm.RemoteData, required=False)
+        #    elif port == "wrapper_script":
+        #        #spec.input("wrapper_script", valid_type=orm.SinglefileData, required=False)
+        #        pass
+        #    elif port == "dynamics_grid_file":
+        #        spec.input( "dynamics_grid_file", valid_type=orm.RemoteData)
+        #spec.input("ecrad_data", valid_type=orm.RemoteData)
+        #spec.input("cloud_opt_props", valid_type=orm.RemoteData)
+        #spec.input("dmin_wetgrowth_lookup", valid_type=orm.RemoteData)
+        #spec.input("rrtmg_sw", valid_type=orm.RemoteData)
+        #spec.output("latest_restart_file")
+        #spec.output_namespace("all_restart_files", dynamic=True)
+        #spec.output("finish_status")
+
+        #node = submit(builder)
+
+
+    def _create_shell_task_node(self, task: ShellTask):
         label = AiidaWorkGraph.get_aiida_label_from_graph_item(task)
         if isinstance(task, ShellTask):
             command_path = Path(task.command)
@@ -236,28 +328,65 @@ class AiidaWorkGraph:
             wait_on_tasks.append(self._aiida_task_nodes[wait_on_task_label])
         workgraph_task.wait = wait_on_tasks
 
-    def _link_input_nodes_to_task(self, task: graph_items.Task, input_: graph_items.Data):
+    def _link_input_nodes_to_task(self, task: graph_items.Task, bound_data: graph_items.BoundData):
         """Links the input to the workgraph task."""
+        input_, port = bound_data
         task_label = AiidaWorkGraph.get_aiida_label_from_graph_item(task)
         input_label = AiidaWorkGraph.get_aiida_label_from_graph_item(input_)
         workgraph_task = self._aiida_task_nodes[task_label]
-        workgraph_task.add_input("workgraph.any", f"nodes.{input_label}")
+
+        if isinstance(task, ShellTask):
+            input_namespace = f"nodes.{input_label}"
+            workgraph_task.add_input("workgraph.any", f"nodes.{input_label}")
+        elif isinstance(task, IconTask):
+            input_namespace = f"{port}"
+        else:
+           raise ValueError(f"Provided task {task} is not supported. This should not happen. Please contact a developer.")
+
 
         # resolve data
         if (data_node := self._aiida_data_nodes.get(input_label)) is not None:
-            if not hasattr(workgraph_task.inputs.nodes, f"{input_label}"):
+            if not AiidaWorkGraph.iterative_hasattr(workgraph_task.inputs, input_namespace):
                 msg = f"Socket {input_label!r} was not found in workgraph. Please contact a developer."
                 raise ValueError(msg)
-            socket = getattr(workgraph_task.inputs.nodes, f"{input_label}")
+            socket = AiidaWorkGraph.iterative_getattr(workgraph_task.inputs, input_namespace)
             socket.value = data_node
         elif (output_socket := self._aiida_socket_nodes.get(input_label)) is not None:
-            self._workgraph.add_link(output_socket, workgraph_task.inputs[f"nodes.{input_label}"])
+            self._workgraph.add_link(output_socket, workgraph_task.inputs[input_namespace])
         else:
             msg = (
                 f"Input data node {input_label!r} was neither found in socket nodes nor in data nodes. The task "
                 f"{task_label!r} must have dependencies on inputs before they are created."
             )
             raise ValueError(msg)
+
+    @staticmethod
+    def iterative_hasattr(obj: Any, attrs: str) -> bool:
+        """
+        Utility to use hasattr on AiiDA namespace strings as "namespace.input".
+
+        For example:
+        iterative_hasattr(obj, "integer.sum") --> checks if exists obj.integer.sum
+        """
+        for attr in attrs.split("."):
+            if hasattr(obj, attr):
+                obj = getattr(obj, attr)
+            else:
+                return False
+        return True
+    @staticmethod
+    def iterative_getattr(obj: Any, attrs: str) -> Any:
+        """
+        Utility to use getattr on AiiDA namespace strings as "namespace.input".
+
+        For example:
+        iterative_getattr(obj, "integer.sum") --> return obj.integer.sum
+        """
+        for attr in attrs.split("."):
+            if hasattr(obj, attr):
+                obj = getattr(obj, attr)
+        return obj
+
 
     def _link_arguments_to_task(self, task: graph_items.Task):
         """Links the arguments to the workgraph task.
@@ -298,13 +427,21 @@ class AiidaWorkGraph:
                 input_label = AiidaWorkGraph.get_aiida_label_from_graph_item(input_)
                 workgraph_task_arguments.value.append(f"{{{input_label}}}")
 
-    def _link_output_nodes_to_task(self, task: graph_items.Task, output: graph_items.Data):
-        """Links the output to the workgraph task."""
+    def _link_output_nodes_to_shell_task(self, task: ShellTask, output: graph_items.Data):
+        """Links the output to the workgraph shell task."""
 
         workgraph_task = self._aiida_task_nodes[AiidaWorkGraph.get_aiida_label_from_graph_item(task)]
         output_label = AiidaWorkGraph.get_aiida_label_from_graph_item(output)
         output_socket = workgraph_task.add_output("workgraph.any", output.src)
         self._aiida_socket_nodes[output_label] = output_socket
+
+    def _link_restart_file_to_icon_task(self, task: IconTask):
+        if (output := task.restart_file) is not None:
+            output_label = AiidaWorkGraph.get_aiida_label_from_graph_item(output)
+            workgraph_task = self._aiida_task_nodes[AiidaWorkGraph.get_aiida_label_from_graph_item(task)]
+            self._aiida_socket_nodes[output_label] = workgraph_task.outputs.latest_restart_file
+
+
 
     def run(
         self,
