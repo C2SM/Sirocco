@@ -8,7 +8,15 @@ from typing import Annotated, Any, ClassVar, Literal
 
 from isoduration import parse_duration
 from isoduration.types import Duration  # pydantic needs type # noqa: TCH002
-from pydantic import BaseModel, ConfigDict, Discriminator, Field, Tag, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Discriminator,
+    Field,
+    Tag,
+    field_validator,
+    model_validator,
+)
 
 from sirocco.parsing._utils import TimeUtils
 
@@ -387,6 +395,39 @@ ConfigTask = Annotated[
 
 
 class ConfigWorkflow(BaseModel):
+    """
+    The root of the configuration tree.
+
+    Examples:
+
+        minimal yaml to generate:
+
+            >>> import textwrap
+            >>> import pydantic_yaml
+            >>> config = textwrap.dedent(
+            ...     '''
+            ...     cycles:
+            ...       - minimal_cycle:
+            ...           tasks:
+            ...             - task_a:
+            ...     tasks:
+            ...       - task_b:
+            ...           plugin: shell
+            ...     data:
+            ...       available:
+            ...         - foo:
+            ...       generated:
+            ...         - bar:
+            ...     '''
+            ... )
+            >>> wf = pydantic_yaml.parse_yaml_raw_as(ConfigWorkflow, config)
+
+        minimum programmatically created instance
+
+            >>> empty_wf = ConfigWorkflow(cycles=[], tasks=[], data={})
+
+    """
+
     name: str | None = None
     rootdir: Path | None = None
     cycles: list[ConfigCycle]

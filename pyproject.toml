@@ -75,6 +75,8 @@ path = "src/sirocco/__init__.py"
 extra-dependencies = [
     "ipdb"
 ]
+default-args = []
+extra-args = ["--doctest-modules"]
 
 [[tool.hatch.envs.hatch-test.matrix]]
 python = ["3.12"]

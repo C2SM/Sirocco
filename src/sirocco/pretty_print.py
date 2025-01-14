@@ -31,7 +31,7 @@ class PrettyPrinter:
 
         Example:
 
-        >>> print(PrettyPrinter().as_block("header", "foo\nbar"))
+        >>> print(PrettyPrinter().as_block("header", "foo\\nbar"))
         header:
           foo
           bar
@@ -50,7 +50,7 @@ class PrettyPrinter:
         - foo
 
         >>> pp = PrettyPrinter()
-        >>> print(pp.as_item(pp.as_block("header", "multiple\nlines\nof text")))
+        >>> print(pp.as_item(pp.as_block("header", "multiple\\nlines\\nof text")))
         - header:
             multiple
             lines
@@ -87,14 +87,13 @@ class PrettyPrinter:
         >>> from datetime import datetime
         >>> print(
         ...     PrettyPrinter().format_basic(
-        ...         Task(
-        ...             name=foo,
+        ...         core.Task(
+        ...             name="foo",
         ...             coordinates={"date": datetime(1000, 1, 1).date()},
-        ...             workflow=None,
         ...         )
         ...     )
         ... )
-        foo [1000-01-01]
+        foo [date: 1000-01-01]
         """
         name = obj.name
         if obj.coordinates:
