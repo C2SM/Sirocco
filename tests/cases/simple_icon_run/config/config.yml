@@ -1,11 +1,11 @@
 ---
 start_date: &root_start_date '2026-01-01T00:00'
-end_date: &root_end_date '2026-06-01T00:00'
+end_date: &root_end_date '2026-01-01T00:00'
 cycles:
   - bimonthly_tasks:
       start_date: *root_start_date
       end_date: *root_end_date
-      period: P2M
+      period: P2M # TODO might be needed
       tasks:
         - icon:
             inputs:
@@ -19,18 +19,10 @@ cycles:
                   port: rrtmg_sw
               - ecrad_data:
                   port: ecrad_data
-              - icon_restart:
-                  when:
-                    after: *root_start_date
-                  lag: -P2M
-                  port: restart_file
-            outputs: [icon_restart]
+            outputs: []
   - lastly:
       tasks:
         - cleanup:
-            wait_on:
-              - icon:
-                  date: 2026-05-01T00:00
 tasks:
   - icon:
       computer: localhost
@@ -65,7 +57,3 @@ data:
          computer: localhost
          type: file
          src: ICON/ecrad_data 
-  generated:
-     - icon_restart:
-         type: file
-         src: restart # TODO not needed but might crash programm atm

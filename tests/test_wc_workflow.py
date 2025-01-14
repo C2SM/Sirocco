@@ -13,7 +13,7 @@ from sirocco.workgraph import AiidaWorkGraph
 @pytest.mark.parametrize(
     "config_path",
     [
-        "tests/cases/small-icon/config/config.yml",
+        "tests/cases/simple_icon_run/config/config.yml",
     ],
 )
 def test_run_workgraph_tmp(config_path, aiida_computer):
@@ -27,7 +27,7 @@ def test_run_workgraph_tmp(config_path, aiida_computer):
     from aiida.orm import load_computer, InstalledCode 
     InstalledCode(
         computer=load_computer("localhost"),
-        filepath_executable=str(Path("./tests/cases/small-icon/config/scripts/icon.py").absolute()),
+        filepath_executable=str(config_path.parent / Path("./scripts/icon.py").absolute()),
         label="icon-code",
         default_calc_job_plugin="icon.icon",
     ).store()

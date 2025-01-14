@@ -20,26 +20,20 @@ def log(text: str):
 
 
 def main():
-    # TODO add some checks if file are present
+    # TODO add some checks if file are present for tests
     
-    #paths = ["simple_icon_run_atm_2d", "simple_icon_run_atm_3d_pl"]
-    #for path in paths:
-    #    Path(path).mkdir()
-
-    files = ["NAMELIST_ICON_output_atm", "finish.status",
+    files = ["NAMELIST_ICON_output_atm",
              "simple_icon_run_atm_2d/placeholder.nc",
              "simple_icon_run_atm_3d_pl/placeholder.nc"]
     for file in files:
-        output = Path(file)
+        output = Path(file).absolute()
         output.write_text("")
-    #├── _aiidasubmit.sh
-    #├── _scheduler-stderr.txt
-    #├── _scheduler-stdout.txt
-    #├── output_schedule.txt
-    #├── simple_icon_run_atm_2d
-    #│   └── placeholder.nc
-    #└── simple_icon_run_atm_3d_pl
-    #    └── placeholder.nc
+        log(f"Written {file}\n")
+
+    file = "finish.status"
+    output = Path(f"{file}")
+    output.write_text("OK") 
+    log(f"Written {file}\n")
 
 if __name__ == "__main__":
     main()
