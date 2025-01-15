@@ -21,6 +21,9 @@ def log(text: str):
 
 def main():
     # TODO add some checks if file are present for tests
+    dirs = ["simple_icon_run_atm_2d", "simple_icon_run_atm_3d_pl"]
+    for dir_ in dirs:
+        Path(dir_).mkdir(exist_ok=True)
     
     files = ["NAMELIST_ICON_output_atm",
              "simple_icon_run_atm_2d/placeholder.nc",
