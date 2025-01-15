@@ -217,60 +217,8 @@ class AiidaWorkGraph:
         task.update_core_namelists_from_workflow()
 
         self._aiida_task_nodes[task_label] = icon_task
-        # TODO remove
-        #input_ = task.inputs[0][0]
-        #input_label = AiidaWorkGraph.get_aiida_label_from_graph_item(input_)
-        #icon_task.add_input("workgraph.Any", f"{input_label}")
-        
-
         icon_task.inputs.master_namelist.value = aiida.orm.SinglefileData(self.get_data_full_path(task.master_namelist.path))
         icon_task.inputs.model_namelist.value = aiida.orm.SinglefileData(self.get_data_full_path(task.model_namelist.path))
-
-
-        # TODO remove
-        #builder = IconCalculation.get_builder()
-
-
-        #builder.master_namelist = aiida.orm.SinglefileData(self.get_data_full_path(task.master_namelist.path))
-        #builder.model_namelist = aiida.orm.SinglefileData(self.get_data_full_path(task.model_namelist.path))
-        #for input_, port in task.inputs:
-        #    if port == "restart_file":
-        #        workgraph_task = self._aiida_task_nodes[task_label]
-        #        workgraph_task.add_input("workgraph.any", f"nodes.{input_label}")
-
-        #        ## resolve data
-        #        #if (data_node := self._aiida_data_nodes.get(input_label)) is not None:
-        #        #    if not hasattr(workgraph_task.inputs.nodes, f"{input_label}"):
-        #        #        msg = f"Socket {input_label!r} was not found in workgraph. Please contact a developer."
-        #        #        raise ValueError(msg)
-        #        #    socket = getattr(workgraph_task.inputs.nodes, f"{input_label}")
-        #        #    socket.value = data_node
-        #        #elif (output_socket := self._aiida_socket_nodes.get(input_label)) is not None:
-        #        #    self._workgraph.add_link(output_socket, workgraph_task.inputs[f"nodes.{input_label}"])
-        #        #else:
-        #        #    msg = (
-        #        #        f"Input data node {input_label!r} was neither found in socket nodes nor in data nodes. The task "
-        #        #        f"{task_label!r} must have dependencies on inputs before they are created."
-        #        #    )
-        #        #    raise ValueError(msg)
-
-        #        builder.restart_file
-        #        spec.input("restart_file", valid_type=orm.RemoteData, required=False)
-        #    elif port == "wrapper_script":
-        #        #spec.input("wrapper_script", valid_type=orm.SinglefileData, required=False)
-        #        pass
-        #    elif port == "dynamics_grid_file":
-        #        spec.input( "dynamics_grid_file", valid_type=orm.RemoteData)
-        #spec.input("ecrad_data", valid_type=orm.RemoteData)
-        #spec.input("cloud_opt_props", valid_type=orm.RemoteData)
-        #spec.input("dmin_wetgrowth_lookup", valid_type=orm.RemoteData)
-        #spec.input("rrtmg_sw", valid_type=orm.RemoteData)
-        #spec.output("latest_restart_file")
-        #spec.output_namespace("all_restart_files", dynamic=True)
-        #spec.output("finish_status")
-
-        #node = submit(builder)
-
 
     def _create_shell_task_node(self, task: ShellTask):
         label = AiidaWorkGraph.get_aiida_label_from_graph_item(task)
