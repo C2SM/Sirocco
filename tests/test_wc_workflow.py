@@ -10,7 +10,6 @@ from sirocco.vizgraph import VizGraph
 from sirocco.workgraph import AiidaWorkGraph
 
 # configs that are tested for running workgraph
-@pytest.mark.noautofixt
 @pytest.mark.parametrize(
     "use_case",
     [

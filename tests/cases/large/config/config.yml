@@ -81,6 +81,7 @@ tasks:
         mount_point: runtime/mount/point
   - icon:
       plugin: icon
+      code: icon-large
       nodes: 40
       walltime: 23:59:59
       namelists:

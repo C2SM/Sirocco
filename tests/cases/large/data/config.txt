@@ -50,6 +50,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
+            code: 'icon-large'
             plugin: 'icon'
             namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
@@ -122,6 +123,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
+            code: 'icon-large'
             plugin: 'icon'
             namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
@@ -196,6 +198,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
+            code: 'icon-large'
             plugin: 'icon'
             namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
@@ -270,6 +273,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
+            code: 'icon-large'
             plugin: 'icon'
             namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
@@ -344,6 +348,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
+            code: 'icon-large'
             plugin: 'icon'
             namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
@@ -418,6 +423,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
+            code: 'icon-large'
             plugin: 'icon'
             namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
@@ -492,6 +498,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
+            code: 'icon-large'
             plugin: 'icon'
             namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
@@ -566,6 +573,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
+            code: 'icon-large'
             plugin: 'icon'
             namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
@@ -640,6 +648,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
+            code: 'icon-large'
             plugin: 'icon'
             namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
@@ -714,6 +723,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
+            code: 'icon-large'
             plugin: 'icon'
             namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
@@ -788,6 +798,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
+            code: 'icon-large'
             plugin: 'icon'
             namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
@@ -862,6 +873,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
+            code: 'icon-large'
             plugin: 'icon'
             namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
