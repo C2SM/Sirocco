@@ -155,7 +155,8 @@ class AiidaWorkGraph:
             except NotExistent as err:
                 msg = f"Could not find computer {data.computer!r} for input {data}."
                 raise ValueError(msg) from err
-            self._aiida_data_nodes[label] = aiida.orm.RemoteData(remote_path=data.src, label=label, computer=computer)
+            # TODO This only makes sense for localhost, maybe raise warning or error if relative path?
+            self._aiida_data_nodes[label] = aiida.orm.RemoteData(remote_path=str(data_full_path), label=label, computer=computer)
         elif data.type == "file":
             self._aiida_data_nodes[label] = aiida.orm.SinglefileData(label=label, file=data_full_path)
         elif data.type == "dir":

@@ -43,7 +43,7 @@ data:
          src: data/input
      - initial_conditions:
          type: file
-         computer: localhost # TODO there is a bug that prevents using RemoteData with shell task
+         computer: localhost
          src: data/initial_conditions
   generated:
      - icon_output:
