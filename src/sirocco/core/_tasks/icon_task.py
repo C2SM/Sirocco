@@ -96,14 +96,9 @@ class IconTask(ConfigIconTaskSpecs, Task):
                 "experimentStopDate": self.end_date.isoformat() + "Z",
             }
         )
-        self.core_namelists["icon_master.namelist"]["master_nml"].update(
-            {
-                "lrestart": True,
-            }
-        )
         self.core_namelists["icon_master.namelist"]["master_nml"]["lrestart"] = any(
             # NOTE: in_data[0] contains the actual data node and in_data[1] the port name
-            in_data[1] == "restart"
+            in_data[1] == "restart_file"
             for in_data in self.inputs
         )
 
