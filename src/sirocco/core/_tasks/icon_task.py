@@ -92,9 +92,13 @@ class IconTask(ConfigIconTaskSpecs, Task):
     def update_core_namelists_from_workflow(self):
         self.core_namelists["icon_master.namelist"]["master_time_control_nml"].update(
             {
-                "lrestart": True,
                 "experimentStartDate": self.start_date.isoformat() + "Z",
                 "experimentStopDate": self.end_date.isoformat() + "Z",
+            }
+        )
+        self.core_namelists["icon_master.namelist"]["master_nml"].update(
+            {
+                "lrestart": True,
             }
         )
         self.core_namelists["icon_master.namelist"]["master_nml"]["lrestart"] = any(
