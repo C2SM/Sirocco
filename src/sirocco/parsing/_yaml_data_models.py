@@ -5,10 +5,11 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Any, ClassVar, Literal
+from functools import cached_property
 
 from isoduration import parse_duration
 from isoduration.types import Duration  # pydantic needs type # noqa: TCH002
-from pydantic import BaseModel, ConfigDict, Discriminator, Field, Tag, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Discriminator, Field, Tag, field_validator, model_validator, computed_field
 
 from sirocco.parsing._utils import TimeUtils
 
@@ -385,11 +386,12 @@ class ConfigNamelist:
 
 @dataclass
 class ConfigIconTaskSpecs:
+    code: str 
     plugin: ClassVar[Literal["icon"]] = "icon"
     namelists: dict[str, ConfigNamelist] | None = None
 
-
 class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
+
     # validation done here and not in ConfigNamelist so that we can still
     # import ConfigIconTaskSpecs in core._tasks.IconTask. Hence the iteration
     # over the namelists that could be avoided with a more raw pydantic design
@@ -417,6 +419,7 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
                 path = Path(path)
             namelists[path.name] = ConfigNamelist(path=path, specs=specs)
             master_found = master_found or (path.name == "icon_master.namelist")
+        # TODO check for model namelist?
         if not master_found:
             msg = "icon_master.namelist not found"
             raise ValueError(msg)

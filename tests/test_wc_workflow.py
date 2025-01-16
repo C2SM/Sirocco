@@ -9,6 +9,36 @@ from sirocco.pretty_print import PrettyPrinter
 from sirocco.vizgraph import VizGraph
 from sirocco.workgraph import AiidaWorkGraph
 
+# configs that are tested for running workgraph
+@pytest.mark.parametrize(
+    "use_case",
+    [
+        "simple_icon_run",
+        "restarts_present"
+    ],
+)
+def test_run_workgraph_tmp(use_case, aiida_computer):
+    """Tests end-to-end the parsing from file up to running the workgraph.
+
+    Automatically uses the aiida_profile fixture to create a new profile. Note to debug the test with your profile
+    please run this in a separate file as the profile is deleted after test finishes.
+    """
+    config_path = generate_config_paths(use_case)['yml']
+    # some configs reference computer "localhost" which we need to create beforehand
+    aiida_computer("localhost").store()
+    from aiida.orm import load_computer, InstalledCode 
+    InstalledCode(
+        computer=load_computer("localhost"),
+        filepath_executable=str((config_path.parent / Path("./scripts/icon.py")).absolute()),
+        label=f"icon-{use_case}",
+        default_calc_job_plugin="icon.icon",
+        with_mpi=False,
+    ).store()
+
+    core_workflow = Workflow.from_yaml(config_path)
+    aiida_workflow = AiidaWorkGraph(core_workflow)
+    out = aiida_workflow.run()
+    assert out.get("execution_count", None).value == 1
 
 # configs that are tested for parsing
 def test_parsing_cli_parameters():

@@ -1,0 +1,24 @@
+! grid_nml: horizontal grid --------------------------------------------------
+&grid_nml
+ dynamics_grid_filename      =                   " icon_grid_simple.nc" ! array of the grid filenames for the dycore
+/
+
+! radiation_nml: radiation scheme ---------------------------------------------
+&radiation_nml
+ ecrad_data_path             =             './ecrad_data'        ! Optical property files path ecRad (link files as path is truncated inside ecrad)
+/
+
+! io_nml: general switches for model I/O -------------------------------------
+&io_nml
+ write_last_restart          =                    .TRUE.
+ restart_write_mode          =   "joint procs multifile"
+/
+
+! output namelist: specify output of 2D fields  ------------------------------
+&output_nml
+ output_filename             =              './simple_icon_atm_2d/'  ! file name base
+/
+
+&output_nml
+ output_filename             =             './simple_icon_atm_3d_pl/'! file name base
+/

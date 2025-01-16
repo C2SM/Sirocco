@@ -1,0 +1,63 @@
+---
+start_date: &root_start_date '2026-01-01T00:00'
+end_date: &root_end_date '2026-01-01T00:00'
+cycles:
+  - bimonthly_tasks:
+      start_date: *root_start_date
+      end_date: *root_end_date
+      period: P2M # TODO might be needed for not crashing but has no purpose
+      tasks:
+        - icon:
+            inputs:
+              - dynamics_grid_file:
+                  port: dynamics_grid_file
+              - cloud_opt_props:
+                  port: cloud_opt_props
+              - dmin_wetgrowth_lookup:
+                  port: dmin_wetgrowth_lookup
+              - rrtmg_sw:
+                  port: rrtmg_sw
+              - ecrad_data:
+                  port: ecrad_data
+            outputs: [restart]
+  - lastly:
+      tasks:
+        - cleanup:
+tasks:
+  - icon:
+      computer: localhost
+      plugin: icon
+      code: icon-restarts_present # created in tests
+      namelists:
+        - ./ICON/icon_master.namelist
+        - ./ICON/model.namelist #  TODO should be automatically read if not modified?
+  - cleanup:
+      computer: localhost
+      plugin: shell
+      command: scripts/cleanup.py
+data:
+  available:
+     - dynamics_grid_file: 
+         computer: localhost
+         type: file
+         src: ICON/icon_grid_simple.nc
+     - cloud_opt_props:
+         computer: localhost
+         type: file
+         src: ICON/ECHAM6_CldOptProps.nc
+     - dmin_wetgrowth_lookup:
+         computer: localhost
+         type: file
+         src: ICON/dmin_wetgrowth_lookup.nc
+     - rrtmg_sw:
+         computer: localhost
+         type: file
+         src: ICON/rrtmg_sw.nc
+     - ecrad_data:
+         computer: localhost
+         type: file
+         src: ICON/ecrad_data 
+  generated:
+     - restart:
+         type: file
+         src: restart
