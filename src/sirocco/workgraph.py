@@ -211,13 +211,25 @@ class AiidaWorkGraph:
             raise ValueError(f"Could not find the code {task.code} in AiiDA. Did you create it beforehand?") from exc
 
         icon_task = self._workgraph.add_task(IconCalculation, code=icon_code)
+        self._aiida_task_nodes[task_label] = icon_task
 
         task.init_core_namelists()
         task.update_core_namelists_from_config()
         task.update_core_namelists_from_workflow()
+        import io
 
-        self._aiida_task_nodes[task_label] = icon_task
-        icon_task.inputs.master_namelist.value = aiida.orm.SinglefileData(self.get_data_full_path(task.master_namelist.path))
+        output_stream = io.StringIO()
+        task.core_master_namelist.write(output_stream)
+        content = output_stream.getvalue()
+        icon_task.inputs.master_namelist.value = aiida.orm.SinglefileData.from_string(content, "icon_master.namelist")
+
+        # TODO do we update model namelist internally at some point?
+        #name = task.core_model_namelist.name
+        #output_stream = io.StringIO()
+        #suffix = ("_".join([str(p) for p in task.coordinates.values()])).replace(" ", "_")
+        #filename = name + "_" + suffix
+        #icon_task.inputs.model_namelist.value = aiida.orm.SinglefileData.from_string(task.core_model_namelist.write(output_stream).getvalue(), filename)
+
         icon_task.inputs.model_namelist.value = aiida.orm.SinglefileData(self.get_data_full_path(task.model_namelist.path))
 
     def _create_shell_task_node(self, task: ShellTask):

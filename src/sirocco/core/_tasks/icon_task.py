@@ -4,6 +4,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from aiida.orm import SinglefileData
 import f90nml
 
 from sirocco.core.graph_items import Task, Data
@@ -91,6 +92,7 @@ class IconTask(ConfigIconTaskSpecs, Task):
     def update_core_namelists_from_workflow(self):
         self.core_namelists["icon_master.namelist"]["master_time_control_nml"].update(
             {
+                "lrestart": True,
                 "experimentStartDate": self.start_date.isoformat() + "Z",
                 "experimentStopDate": self.end_date.isoformat() + "Z",
             }
