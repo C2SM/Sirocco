@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import functools
+import itertools
 import time
+import typing
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -9,6 +12,7 @@ from typing import Annotated, Any, ClassVar, Literal
 from isoduration import parse_duration
 from isoduration.types import Duration  # pydantic needs type # noqa: TCH002
 from pydantic import (
+    AfterValidator,
     BaseModel,
     ConfigDict,
     Discriminator,
@@ -376,6 +380,8 @@ class ConfigData(BaseModel):
 
 
 def get_plugin_from_named_base_model(data: dict) -> str:
+    if isinstance(data, (ConfigRootTask, ConfigShellTask, ConfigIconTask)):
+        return data.plugin
     name_and_specs = _NamedBaseModel.merge_name_and_specs(data)
     if name_and_specs.get("name", None) == "ROOT":
         return ConfigRootTask.plugin
@@ -434,8 +440,6 @@ class ConfigWorkflow(BaseModel):
     tasks: list[ConfigTask]
     data: ConfigData
     parameters: dict[str, list] = {}
-    data_dict: dict = {}
-    task_dict: dict = {}
 
     @field_validator("parameters", mode="before")
     @classmethod
@@ -451,18 +455,8 @@ class ConfigWorkflow(BaseModel):
         return data
 
     @model_validator(mode="after")
-    def build_internal_dicts(self) -> ConfigWorkflow:
-        self.data_dict = {data.name: data for data in self.data.available} | {
-            data.name: data for data in self.data.generated
-        }
-        self.task_dict = {task.name: task for task in self.tasks}
-        return self
-
-    @model_validator(mode="after")
     def check_parameters(self) -> ConfigWorkflow:
-        task_data_list = self.tasks + self.data.generated
-        if self.data.available:
-            task_data_list.extend(self.data.available)
+        task_data_list = itertools.chain(self.tasks, self.data.generated, self.data.available)
         for item in task_data_list:
             for param_name in item.parameters:
                 if param_name not in self.parameters:
@@ -471,7 +465,50 @@ class ConfigWorkflow(BaseModel):
         return self
 
 
-def load_workflow_config(workflow_config: str) -> ConfigWorkflow:
+ITEM_T = typing.TypeVar("ITEM_T")
+
+
+def list_not_empty(value: list[ITEM_T]) -> list[ITEM_T]:
+    if len(value) < 1:
+        msg = "At least one element is required."
+        raise ValueError(msg)
+    return value
+
+
+class CanonicalWorkflow(BaseModel):
+    name: str
+    rootdir: Path
+    cycles: Annotated[list[ConfigCycle], AfterValidator(list_not_empty)]
+    tasks: Annotated[list[ConfigTask], AfterValidator(list_not_empty)]
+    data: ConfigData
+    parameters: dict[str, list[Any]]
+    data_dict: dict[str, ConfigAvailableData | ConfigGeneratedData]
+    task_dict: dict[str, ConfigTask]
+
+
+@functools.singledispatch
+def canonicalize(value: Any) -> Any:  # noqa: ARG001 # value not accessed, as this is just a placeholder
+    raise NotImplementedError
+
+
+@canonicalize.register
+def canonicalize_workflow(value: ConfigWorkflow) -> CanonicalWorkflow:
+    if not value.name or not value.rootdir:
+        msg = "Workflow name and root dir required for canonicalization."
+        raise ValueError(msg)
+    return CanonicalWorkflow(
+        name=value.name,
+        rootdir=value.rootdir,
+        cycles=value.cycles,
+        tasks=value.tasks,
+        data=value.data,
+        parameters=value.parameters,
+        data_dict={data.name: data for data in value.data.available + value.data.generated},
+        task_dict={task.name: task for task in value.tasks},
+    )
+
+
+def load_workflow_config(workflow_config: str) -> CanonicalWorkflow:
     """
     Loads a python representation of a workflow config file.
 
@@ -491,4 +528,5 @@ def load_workflow_config(workflow_config: str) -> ConfigWorkflow:
 
     parsed_workflow.rootdir = config_path.resolve().parent
 
-    return parsed_workflow
+    return canonicalize_workflow(parsed_workflow)
+    # return parsed_workflow
