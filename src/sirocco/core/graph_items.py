@@ -5,7 +5,7 @@ from itertools import chain, product
 from typing import TYPE_CHECKING, Any, ClassVar, Self
 
 from sirocco.parsing._yaml_data_models import (
-    ConfigAvailableData,
+    CanonicalAvailableData,
     ConfigBaseDataSpecs,
     ConfigBaseTaskSpecs,
 )
@@ -15,7 +15,12 @@ if TYPE_CHECKING:
     from datetime import datetime
     from pathlib import Path
 
-    from sirocco.parsing._yaml_data_models import ConfigBaseData, ConfigCycleTask, ConfigTask, TargetNodesBaseModel
+    from sirocco.parsing._yaml_data_models import (
+        ConfigBaseData,
+        ConfigCycleTask,
+        ConfigTask,
+        TargetNodesBaseModel,
+    )
 
 
 @dataclass
@@ -113,7 +118,7 @@ class Data(ConfigBaseDataSpecs, GraphItem):
             name=config.name,
             type=config.type,
             src=config.src,
-            available=isinstance(config, ConfigAvailableData),
+            available=isinstance(config, CanonicalAvailableData),
             coordinates=coordinates,
         )
 

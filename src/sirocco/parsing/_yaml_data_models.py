@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import enum
 import functools
 import itertools
 import time
@@ -340,28 +341,46 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
     pass
 
 
+class DataType(enum.StrEnum):
+    FILE = enum.auto()
+    DIR = enum.auto()
+
+
 @dataclass
 class ConfigBaseDataSpecs:
-    type: str | None = None
-    src: str | None = None
+    type: DataType
+    src: str
     format: str | None = None
 
 
 class ConfigBaseData(_NamedBaseModel, ConfigBaseDataSpecs):
     """
     To create an instance of a data defined in a workflow file.
+
+    Examples:
+
+        yaml snippet:
+
+            >>> import textwrap
+            >>> import pydantic_yaml
+            >>> snippet = textwrap.dedent(
+            ...     '''
+            ...       foo:
+            ...         type: "file"
+            ...         src: "foo.txt"
+            ...     '''
+            ... )
+            >>> pydantic_yaml.parse_yaml_raw_as(ConfigBaseData, snippet)
+            ConfigBaseData(type=<DataType.FILE: 'file'>, src='foo.txt', format=None, name='foo', parameters=[])
+
+
+        from python:
+
+            >>> ConfigBaseData(foo={"type": "file", "src": "foo.txt"})
+            ConfigBaseData(type=<DataType.FILE: 'file'>, src='foo.txt', format=None, name='foo', parameters=[])
     """
 
     parameters: list[str] = []
-
-    @field_validator("type")
-    @classmethod
-    def is_file_or_dir(cls, value: str) -> str:
-        """."""
-        if value not in ["file", "dir"]:
-            msg = "Must be one of 'file' or 'dir'."
-            raise ValueError(msg)
-        return value
 
 
 class ConfigAvailableData(ConfigBaseData):
@@ -372,11 +391,102 @@ class ConfigGeneratedData(ConfigBaseData):
     pass
 
 
+@functools.singledispatch
+def canonicalize(value: Any) -> Any:  # noqa: ARG001 # value not accessed, as this is just a placeholder
+    raise NotImplementedError
+
+
+class CanonicalBaseData(BaseModel, ConfigBaseDataSpecs):
+    """
+    Canonical data model.
+
+    Examples:
+
+    >>> CanonicalBaseData(name="foo", type=DataType.FILE, src="foo.txt")
+    CanonicalBaseData(type=<DataType.FILE: 'file'>, src='foo.txt', format=None, name='foo', parameters=[])
+    """
+
+    name: str
+    parameters: list[str] = []
+
+
+class CanonicalAvailableData(CanonicalBaseData):
+    pass
+
+
+class CanonicalGeneratedData(CanonicalBaseData):
+    pass
+
+
+@canonicalize.register
+def canonicalize_available_data(value: ConfigAvailableData) -> CanonicalAvailableData:
+    return CanonicalAvailableData(
+        name=value.name,
+        type=value.type,
+        src=value.src,
+        format=value.format,
+        parameters=value.parameters,
+    )
+
+
+@canonicalize.register
+def canonicalize_generated_data(value: ConfigGeneratedData) -> CanonicalGeneratedData:
+    return CanonicalGeneratedData(
+        name=value.name,
+        type=value.type,
+        src=value.src,
+        format=value.format,
+        parameters=value.parameters,
+    )
+
+
 class ConfigData(BaseModel):
-    """To create the container of available and generated data"""
+    """
+    To create the container of available and generated data
+
+    Example:
+
+        yaml snippet:
+
+            >>> import textwrap
+            >>> import pydantic_yaml
+            >>> snippet = textwrap.dedent(
+            ...     '''
+            ...     available:
+            ...       - foo:
+            ...           type: "file"
+            ...           src: "foo.txt"
+            ...     generated:
+            ...       - bar:
+            ...           type: "file"
+            ...           src: "bar.txt"
+            ...     '''
+            ... )
+            >>> data = pydantic_yaml.parse_yaml_raw_as(ConfigData, snippet)
+            >>> assert data.available[0].name == "foo"
+            >>> assert data.generated[0].name == "bar"
+
+        from python:
+
+            >>> ConfigData()
+            ConfigData(available=[], generated=[])
+    """
 
     available: list[ConfigAvailableData] = []
     generated: list[ConfigGeneratedData] = []
+
+
+class CanonicalData(BaseModel):
+    available: list[CanonicalAvailableData] = []
+    generated: list[CanonicalGeneratedData] = []
+
+
+@canonicalize.register
+def canonicalize_data(value: ConfigData) -> CanonicalData:
+    return CanonicalData(
+        available=[canonicalize(i) for i in value.available],
+        generated=[canonicalize(i) for i in value.generated],
+    )
 
 
 def get_plugin_from_named_base_model(data: dict) -> str:
@@ -422,8 +532,12 @@ class ConfigWorkflow(BaseModel):
             ...     data:
             ...       available:
             ...         - foo:
+            ...             type: "file"
+            ...             src: "foo.txt"
             ...       generated:
             ...         - bar:
+            ...             type: "file"
+            ...             src: some_task_output
             ...     '''
             ... )
             >>> wf = pydantic_yaml.parse_yaml_raw_as(ConfigWorkflow, config)
@@ -480,15 +594,10 @@ class CanonicalWorkflow(BaseModel):
     rootdir: Path
     cycles: Annotated[list[ConfigCycle], AfterValidator(list_not_empty)]
     tasks: Annotated[list[ConfigTask], AfterValidator(list_not_empty)]
-    data: ConfigData
+    data: CanonicalData
     parameters: dict[str, list[Any]]
-    data_dict: dict[str, ConfigAvailableData | ConfigGeneratedData]
+    data_dict: dict[str, CanonicalAvailableData | CanonicalGeneratedData]
     task_dict: dict[str, ConfigTask]
-
-
-@functools.singledispatch
-def canonicalize(value: Any) -> Any:  # noqa: ARG001 # value not accessed, as this is just a placeholder
-    raise NotImplementedError
 
 
 @canonicalize.register
@@ -496,14 +605,15 @@ def canonicalize_workflow(value: ConfigWorkflow) -> CanonicalWorkflow:
     if not value.name or not value.rootdir:
         msg = "Workflow name and root dir required for canonicalization."
         raise ValueError(msg)
+    canon_data = canonicalize(value.data)
     return CanonicalWorkflow(
         name=value.name,
         rootdir=value.rootdir,
         cycles=value.cycles,
         tasks=value.tasks,
-        data=value.data,
+        data=canon_data,
         parameters=value.parameters,
-        data_dict={data.name: data for data in value.data.available + value.data.generated},
+        data_dict={data.name: data for data in canon_data.available + canon_data.generated},
         task_dict={task.name: task for task in value.tasks},
     )
 
