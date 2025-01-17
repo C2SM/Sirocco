@@ -588,8 +588,14 @@ class CanonicalWorkflow(BaseModel):
     tasks: Annotated[list[ConfigTask], AfterValidator(list_not_empty)]
     data: ConfigData
     parameters: dict[str, list[Any]]
-    data_dict: dict[str, ConfigAvailableData | ConfigGeneratedData]
-    task_dict: dict[str, ConfigTask]
+
+    @property
+    def data_dict(self) -> dict[str, ConfigAvailableData | ConfigGeneratedData]:
+        return {data.name: data for data in itertools.chain(self.data.available, self.data.generated)}
+
+    @property
+    def task_dict(self) -> dict[str, ConfigTask]:
+        return {task.name: task for task in self.tasks}
 
 
 def canonicalize_workflow(value: ConfigWorkflow, rootdir: Path) -> CanonicalWorkflow:
@@ -603,8 +609,6 @@ def canonicalize_workflow(value: ConfigWorkflow, rootdir: Path) -> CanonicalWork
         tasks=value.tasks,
         data=value.data,
         parameters=value.parameters,
-        data_dict={data.name: data for data in value.data.available + value.data.generated},
-        task_dict={task.name: task for task in value.tasks},
     )
 
 
