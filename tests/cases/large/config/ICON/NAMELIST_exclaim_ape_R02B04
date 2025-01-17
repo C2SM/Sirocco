@@ -1,0 +1,206 @@
+! parallel_nml: MPI parallelization ------------------------------------------
+&parallel_nml
+ nproma                      =                   48        ! loop chunk length
+ nblocks_c                   =                   0     ! loop number of cell blocks
+ nproma_sub                  =                  48     ! loop chunk length for radiation scheme
+ p_test_run                  =                     .FALSE.        ! .TRUE. means verification run for MPI parallelization
+ num_io_procs                =                  0   ! number of I/O processors
+ num_restart_procs           =                          0         ! number of restart processors
+ iorder_sendrecv             =                          3         ! sequence of MPI send/receive calls
+/
+
+! grid_nml: horizontal grid --------------------------------------------------
+&grid_nml
+ dynamics_grid_filename      =                   " ./icon_grid_0013_R02B04_R.nc" ! array of the grid filenames for the dycore
+ lredgrid_phys               =                      .FALSE.        ! .true.=radiation is calculated on a reduced grid
+/
+
+! run_nml: general switches ---------------------------------------------------
+&run_nml
+ num_lev                     =                         60         ! number of full levels of vertical grid
+ dtime                       =                   2   ! [s] timestep in seconds
+ ldynamics                   =                     .TRUE.         ! dynamics                     --> dynamics_ctl, diffusion_ctl
+ ltransport                  =                     .TRUE.         ! switch on tracer transport   --> transport_ctl
+ iforcing                    =                          3         ! 0: dynamical core only, 1: Held-Suarez, 2: ECHAM, 3: NWP
+ ltestcase                   =                     .TRUE.         ! run testcase                 --> testcase_ctl
+ ntracer                     =                          5         ! number of tracers
+ msg_level                   =                         12         ! detailed report during integration
+ ltimer                      =                     .TRUE.         ! timer for monitoring the runtime of specific routines
+ timers_level                =                         10         ! performance timer granularity
+ check_uuid_gracefully       =                     .TRUE.         ! give only warnings for non-matching uuids
+ output                      =                      "nml"         ! main switch for enabling/disabling components of the model output
+/
+
+! nwp_phy_nml: switches for the physics schemes ------------------------------
+&nwp_phy_nml
+ inwp_gscp                   =                          2         ! cloud microphysics and precipitation 0: none, 1: hydci, 2: hydci_gr
+ mu_rain                     =                        0.5         ! shap parameter in gamma distribution for rain
+ rain_n0_factor              =                        0.1         ! tuning factor for intercept parameter of raindrop size distr.
+ inwp_convection             =                          1         ! convection
+ lshallowconv_only           =                    .FALSE.         ! only shallow convection
+ inwp_radiation              =                          4         ! 1: RRTM, 2: Ritter-Geleyn  4: ecRad:
+ latm_above_top              =                      .TRUE.        ! take into account atmosphere above model top for radiation computation
+ inwp_cldcover               =                          1         ! cloud cover scheme for radiation 5: all or nothing
+ inwp_turb                   =                          1         ! 1: Raschendorfer, 5: Smagorinsky diffusion (Dipankar et al.)
+ inwp_satad                  =                          1         ! saturation adjustment
+ inwp_sso                    =                          0         ! subgrid scale orographic drag
+ inwp_gwd                    =                          1         ! non-orographic gravity wave drag
+ inwp_surface                =                          0         ! surface scheme (0: None, 1: TERRA)
+ dt_rad                      =                       12         ! time step for radiation in s
+ dt_ccov                     =                       4
+ dt_gwd                      =                       8
+ dt_conv                     =                       4
+/
+
+! turbdiff_nml: turbulent diffusion -------------------------------------------
+&turbdiff_nml
+ tkhmin                      =                       0.01         ! minimum limiter for Ks (needed for stability, but unphysical)
+ tkhmin_strat                =                       0.01
+ tkmmin                      =                       0.01
+ tkmmin_strat                =                       0.01
+ rlam_heat                   =                        1.0         ! Scaling factor of the laminar boundary layer for heat (scalars)
+ pat_len                     =                       100.         ! effective length scale of thermal surface patterns
+ rat_sea                     =                        9.0         ! Ratio of laminar scaling factors for scalars over sea and land.
+ q_crit                      =                        1.6         ! critical value for normalized super-saturation
+ tur_len                     =                        150         ! Asymptotic maximal turbulent distance
+/
+
+! radiation_nml: radiation scheme ---------------------------------------------
+&radiation_nml
+ecrad_isolver                =                          2
+izenith                     =                          3         ! zenith angle formula for the radiative transfer computation 3: perpetual equinox
+ albedo_type                 =                          3         ! type of surface albedo
+ albedo_fixed                =                        0.2         ! DL: Discuss value!
+ irad_o3                     =                         0         ! ozone climatology 7: GEMS ozone climatology !DL: Want 4 for Aquaplanet
+ irad_aero                   =                         2         ! aerosol climatology 0: no aerosols 2: global constant
+ irad_h2o                    =                         1
+ irad_co2                    =                         0
+ irad_ch4                    =                         0
+ irad_n2o                    =                         0
+ irad_o2                     =                         0
+ irad_cfc11                  =                         0
+ irad_cfc12                  =                         0
+ icld_overlap                =                         2         ! Generalized Random
+ ecrad_data_path             =             './ecrad_data'        ! Optical property files path ecRad (link files as path is truncated inside ecrad)
+/
+
+! nonhydrostatic_nml: nonhydrostatic model -----------------------------------
+&nonhydrostatic_nml
+ iadv_rhotheta               =                         2         ! advection method for rho and rhotheta 2: Miura 2nd order
+ ivctype                     =                         2         ! type of vertical coordinate 1: gal-chen hybrid 2:sleve
+ itime_scheme                =                         4         ! time integration scheme
+ ndyn_substeps               =                         5         ! number of dynamics steps per fast-physics step
+ damp_height                 =                   50000.0         ! height at which Rayleigh damping of vertical wind starts
+ rayleigh_coeff              =                       0.1         ! Rayleigh damping coefficient
+ divdamp_order               =                         4         ! order of divergence damping
+ divdamp_type                =                         3         ! type of divergence damping
+ divdamp_fac                 =                    0.0025         ! scaling factor for divergence damping
+ l_zdiffu_t                  =                   .FALSE.         ! specifies computation of Smagorinsky temperature diffusion
+ htop_moist_proc             =                   22500.0         ! max. height for moist physics
+ hbot_qvsubstep              =                   22500.0         ! height above which QV is advected with substepping scheme
+/
+
+! sleve_nml: vertical level specification -------------------------------------
+&sleve_nml                              ! vertical grid standard output for message level >= 15
+ min_lay_thckn               =                       50.         ! lowest level thickness (between half-levels)
+ top_height                  =                    75000.         ! Height of model Top
+ stretch_fac                 =                       0.9         ! stretching towards model top
+ decay_scale_1               =                     4000.         ! decay scales for topography
+ decay_scale_2               =                     2500.
+ decay_exp                   =                       1.2
+ flat_height                 = 16000.                            ! Height above which the coordinate surfaces are flat DL: set to 20, since no topo?
+/
+
+! dynamics_nml: dynamical core -----------------------------------------------
+&dynamics_nml
+ lcoriolis                   =                    .TRUE.         ! Coriolis Force
+/
+
+! nh_testcase_nml: testcase namelist ------------------------------------------
+&nh_testcase_nml
+ nh_test_name                =                 'APE_nwp'         ! test case identifier
+ ape_sst_case                =                'sst_qobs'         ! sst distribution
+ zp_ape                      =                    101325         ! surface pressure [Pa]
+ ztmc_ape                    =                    50.006         ! total moisture content [kg/m^2]
+/
+
+! transport_nml: tracer transport ---------------------------------------------
+&transport_nml
+ ihadv_tracer                =              52,2,2,2,2,2         ! gdm: 52 combination of hybrid FFSL/Miura3 with subcycling
+ itype_hlimit                =               3,4,4,4,4,4         ! type of limiter for horizontal transport
+ ivadv_tracer                =               3,3,3,3,3,3         ! tracer specific method to compute vertical advection
+ itype_vlimit                =               1,2,1,2,3,1         ! Type of limiter for vertical transport
+ llsq_svd                    =                     .TRUE.        ! use SV decomposition for least squares design matrix
+/
+
+! diffusion_nml: horizontal (numerical) diffusion ----------------------------
+&diffusion_nml
+ lhdiff_vn                   =                    .TRUE.         ! diffusion on the horizontal wind field
+ lhdiff_temp                 =                    .TRUE.         ! diffusion on the temperature field
+ lhdiff_w                    =                    .TRUE.         ! diffusion on the vertical wind field
+ hdiff_order                 =                         5         ! order of nabla operator for diffusion
+ itype_vn_diffu              =                         1         ! reconstruction method used for Smagorinsky diffusion
+ itype_t_diffu               =                         2         ! discretization of temperature diffusion
+ hdiff_efdt_ratio            =                      24.0         ! ratio of e-folding time to time step
+ hdiff_smag_fac              =                     0.025         ! scaling factor for Smagorinsky diffusion
+/
+
+! io_nml: general switches for model I/O -------------------------------------
+&io_nml
+ lnetcdf_flt64_output        =                    .TRUE.         ! Needed for probtest
+ write_last_restart          =                    .TRUE.
+ itype_pres_msl              =                         4         ! 4: IFS method
+ restart_file_type           =                         5         ! 5: NetCDF4
+ restart_write_mode          =   "joint procs multifile"
+ itype_rh                    =                         1         ! RH w.r.t. water
+/
+
+! initicon_nml: specify read-in of initial state ------------------------------
+! Needed for probtest
+&initicon_nml
+ pinit_seed                  =                               -1  ! seed for perturbation of initial model state. no perturbation by default
+ pinit_amplitude             =                               0.  ! amplitude of perturbation
+/
+
+! output namelist: specify output of 2D fields  ------------------------------
+&output_nml
+ output_filename             =              './atm_2d/'  ! file name base
+ filetype                    =                               5   ! output format 5:NetCDFv4
+ filename_format             = "<output_filename>exclaim_ape_R02B04_atm_2d_<datetime2>"   ! Output filename format
+ output_start                =          "2000-01-01T00:00:03Z"
+ output_end                  =                   "2000-01-01T00:00:30Z"
+ output_interval             =     "PT2S"
+ file_interval               =      "P1D"
+ include_last                =                          .TRUE.   ! flag whether to include the last time step
+ remap                       =                               0   ! 0: no remapping 1: lat-lon grid
+ reg_lat_def                 =                    -90,0.5,90.0
+ reg_lon_def                 =                  -180,0.5,179.5
+ output_grid                 =                          .TRUE.
+ ml_varlist                  = 'pres_sfc',
+                               'tqv'     , 'tqc'     , 'tqi'     ,
+                               'tqr'     , 'tqs'     ,
+                               'clch'    , 'clcm'    , 'clcl'    , 'clct'   ,
+                               'tot_prec','prec_gsp',
+                               't_2m'    , 'qv_2m'   , 'u_10m'  , 'v_10m'   ,
+                               't_g'     , 'rh_2m' , 'qv_s', 'tcm','tch',
+                               'lhfl_s'  , 'shfl_s' , 'umfl_s', 'vmfl_s'
+                               'sob_s'   , 'sob_t' , 'sod_t',  'sou_s',
+                               'thb_s'   , 'thb_t' ,'thu_s','pres_sfc'
+/
+
+&output_nml
+ output_filename             =             './atm_3d_pl/'! file name base
+ filetype                    =                               5   ! output format: 2=GRIB2, 4=NetCDFv2, 5=NetCDFv4
+ filename_format             = "<output_filename>exclaim_ape_R02B04_atm_3d_pl_<datetime2>"
+ output_start                =                 "2000-01-01T00:00:00Z"
+ output_end                  =                   "2000-01-01T00:00:30Z"
+ output_interval             =     "PT2S"
+ file_interval               =       "P1D"
+ include_last                =                         .TRUE.    ! flag whether to include the last time step
+ remap                       =                              0    ! 0: no remapping 1: lat-lon grid
+ reg_lat_def                 =                   -90,0.5,90.0
+ reg_lon_def                 =                 -180,0.5,179.5
+ output_grid                 =                          .TRUE.
+ p_levels                    = 10000,20000,25000,30000,50000,70000,85000,90000,95000,100000
+ pl_varlist                  = 'geopot', 'temp','u', 'v', 'w', 'qv', 'qc', 'qi'
+/

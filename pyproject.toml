@@ -31,9 +31,11 @@ dependencies = [
   "pydantic",
   "pydantic-yaml",
   "aiida-core>=2.5",
+  "aiida-workgraph==0.4.10",
   "termcolor",
   "pygraphviz",
-  "lxml"
+  "lxml",
+  "f90nml"
 ]
 license = {file = "LICENSE"}
 

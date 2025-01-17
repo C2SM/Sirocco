@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from itertools import chain, product
-from typing import TYPE_CHECKING, Any, ClassVar, Self
+from typing import TYPE_CHECKING, Any, ClassVar, Self, TypeAlias
 
 from sirocco.parsing._yaml_data_models import (
     ConfigAvailableData,
@@ -29,13 +29,36 @@ class GraphItem:
 
 
 @dataclass
+class Data(ConfigBaseDataSpecs, GraphItem):
+    """Internal representation of a data node"""
+
+    color: ClassVar[str] = field(default="light_blue", repr=False)
+
+    available: bool | None = None  # must get a default value because of dataclass inheritence
+
+    @classmethod
+    def from_config(cls, config: ConfigBaseData, coordinates: dict) -> Self:
+        return cls(
+            name=config.name,
+            type=config.type,
+            src=config.src,
+            available=isinstance(config, ConfigAvailableData),
+            coordinates=coordinates,
+        )
+
+
+# contains the input data and its potential associated port
+BoundData: TypeAlias = tuple[Data, str | None]
+
+
+@dataclass
 class Task(ConfigBaseTaskSpecs, GraphItem):
     """Internal representation of a task node"""
 
     plugin_classes: ClassVar[dict[str, type]] = field(default={}, repr=False)
     color: ClassVar[str] = field(default="light_red", repr=False)
 
-    inputs: list[Data] = field(default_factory=list)
+    inputs: list[BoundData] = field(default_factory=list)
     outputs: list[Data] = field(default_factory=list)
     wait_on: list[Task] = field(default_factory=list)
     config_rootdir: Path | None = None
@@ -60,9 +83,11 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
         datastore: Store,
         graph_spec: ConfigCycleTask,
     ) -> Task:
-        inputs = list(
-            chain(*(datastore.iter_from_cycle_spec(input_spec, coordinates) for input_spec in graph_spec.inputs))
-        )
+        inputs = [
+            (data_node, input_spec.port)
+            for input_spec in graph_spec.inputs
+            for data_node in datastore.iter_from_cycle_spec(input_spec, coordinates)
+        ]
         outputs = [datastore[output_spec.name, coordinates] for output_spec in graph_spec.outputs]
         # use the fact that pydantic models can be turned into dicts easily
         cls_config = dict(config)
@@ -96,25 +121,6 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
                     for wait_on_spec in self._wait_on_specs
                 )
             )
-        )
-
-
-@dataclass
-class Data(ConfigBaseDataSpecs, GraphItem):
-    """Internal representation of a data node"""
-
-    color: ClassVar[str] = field(default="light_blue", repr=False)
-
-    available: bool | None = None  # must get a default value because of dataclass inheritence
-
-    @classmethod
-    def from_config(cls, config: ConfigBaseData, coordinates: dict) -> Self:
-        return cls(
-            name=config.name,
-            type=config.type,
-            src=config.src,
-            available=isinstance(config, ConfigAvailableData),
-            coordinates=coordinates,
         )
 
 
