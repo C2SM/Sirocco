@@ -379,7 +379,9 @@ class ConfigData(BaseModel):
     generated: list[ConfigGeneratedData] = []
 
 
-def get_plugin_from_named_base_model(data: dict) -> str:
+def get_plugin_from_named_base_model(
+    data: dict | ConfigRootTask | ConfigShellTask | ConfigIconTask,
+) -> str:
     if isinstance(data, (ConfigRootTask, ConfigShellTask, ConfigIconTask)):
         return data.plugin
     name_and_specs = _NamedBaseModel.merge_name_and_specs(data)
