@@ -7,7 +7,6 @@ from sirocco.parsing import _yaml_data_models as models
 def test_workflow_canonicalization():
     config = models.ConfigWorkflow(
         name="testee",
-        rootdir=pathlib.Path("foo"),
         cycles=[models.ConfigCycle(minimal={"tasks": [models.ConfigCycleTask(a={})]})],
         tasks=[{"some_task": {"plugin": "shell"}}],
         data=models.ConfigData(
@@ -16,7 +15,7 @@ def test_workflow_canonicalization():
         ),
     )
 
-    testee = models.canonicalize(config)
+    testee = models.canonicalize_workflow(config, rootdir=pathlib.Path("foo"))
     assert testee.data_dict["foo"].name == "foo"
     assert testee.data_dict["bar"].name == "bar"
     assert testee.task_dict["some_task"].name == "some_task"

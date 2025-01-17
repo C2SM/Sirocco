@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import functools
 import itertools
 import time
 import typing
@@ -437,7 +436,6 @@ class ConfigWorkflow(BaseModel):
     """
 
     name: str | None = None
-    rootdir: Path | None = None
     cycles: list[ConfigCycle]
     tasks: list[ConfigTask]
     data: ConfigData
@@ -488,19 +486,13 @@ class CanonicalWorkflow(BaseModel):
     task_dict: dict[str, ConfigTask]
 
 
-@functools.singledispatch
-def canonicalize(value: Any) -> Any:  # noqa: ARG001 # value not accessed, as this is just a placeholder
-    raise NotImplementedError
-
-
-@canonicalize.register
-def canonicalize_workflow(value: ConfigWorkflow) -> CanonicalWorkflow:
-    if not value.name or not value.rootdir:
-        msg = "Workflow name and root dir required for canonicalization."
+def canonicalize_workflow(value: ConfigWorkflow, rootdir: Path) -> CanonicalWorkflow:
+    if not value.name:
+        msg = "Workflow name required for canonicalization."
         raise ValueError(msg)
     return CanonicalWorkflow(
         name=value.name,
-        rootdir=value.rootdir,
+        rootdir=rootdir,
         cycles=value.cycles,
         tasks=value.tasks,
         data=value.data,
@@ -528,7 +520,7 @@ def load_workflow_config(workflow_config: str) -> CanonicalWorkflow:
     if parsed_workflow.name is None:
         parsed_workflow.name = config_path.stem
 
-    parsed_workflow.rootdir = config_path.resolve().parent
+    rootdir = config_path.resolve().parent
 
-    return canonicalize_workflow(parsed_workflow)
+    return canonicalize_workflow(value=parsed_workflow, rootdir=rootdir)
     # return parsed_workflow
