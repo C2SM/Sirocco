@@ -56,7 +56,8 @@ class VizGraph:
                 self.agraph.add_node(
                     task_node, label=task_node.name, tooltip=self.tooltip(task_node), **self.task_node_kw
                 )
-                for data_node in task_node.inputs:
+                # NOTE: _ stands for the unsued port name
+                for data_node, _ in task_node.inputs:
                     self.agraph.add_edge(data_node, task_node, **self.io_edge_kw)
                 for data_node in task_node.outputs:
                     self.agraph.add_edge(task_node, data_node, **self.io_edge_kw)
