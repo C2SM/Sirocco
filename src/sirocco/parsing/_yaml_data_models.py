@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import enum
-import functools
 import itertools
 import time
 import typing
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Any, ClassVar, Literal
@@ -95,43 +94,6 @@ class _WhenBaseModel(BaseModel):
         return datetime.fromisoformat(value)
 
 
-class _CliArgsBaseModel(BaseModel):
-    """Base class for cli_arguments specifications"""
-
-    # TODO: Even allow for `str`, or always require list?
-    positional: str | list[str] | None = None
-    # Field needed for child class doing pydantic parsing
-    keyword: dict[str, str] | None = Field(default_factory=dict)
-    flags: str | list[str] | None = None
-    source_file: str | list[str] | None = None
-
-    # TODO: Should we allow users to pass it without the hyphen(s), and prepend them automatically?
-    # TODO: While convenient, it could be a bad idea, if users put in wrong things. Better to be explicit.
-    @field_validator("keyword", mode="before")
-    @classmethod
-    def validate_keyword_args(cls, value):
-        """Ensure keyword arguments start with '-' or '--'."""
-        if value is not None:
-            invalid_keys = [key for key in value if not key.startswith(("-", "--"))]
-            if invalid_keys:
-                invalid_kwarg_exc = f"Invalid keyword arguments: {', '.join(invalid_keys)}"
-                raise ValueError(invalid_kwarg_exc)
-        return value
-
-    @field_validator("flags", mode="before")
-    @classmethod
-    def validate_flag_args(cls, value):
-        """Ensure positional arguments start with '-' or '--'."""
-        if value is not None:
-            if isinstance(value, str):
-                value = [value]
-            invalid_flags = [arg for arg in value if not arg.startswith(("-", "--"))]
-            if invalid_flags:
-                invalid_flags_exc = f"Invalid positional arguments: {', '.join(invalid_flags)}"
-                raise ValueError(invalid_flags_exc)
-        return value
-
-
 class TargetNodesBaseModel(_NamedBaseModel):
     """class for targeting other task or data nodes in the graph
 
@@ -172,7 +134,7 @@ class TargetNodesBaseModel(_NamedBaseModel):
 
     @field_validator("parameters", mode="before")
     @classmethod
-    def check_dict_single_item(cls, params: dict) -> dict:
+    def check_parameters_spec(cls, params: dict) -> dict:
         if not params:
             return {}
         for k, v in params.items():
@@ -183,7 +145,7 @@ class TargetNodesBaseModel(_NamedBaseModel):
 
 
 class ConfigCycleTaskInput(TargetNodesBaseModel):
-    pass
+    port: str | None = None
 
 
 class ConfigCycleTaskWaitOn(TargetNodesBaseModel):
@@ -294,6 +256,7 @@ class ConfigCycle(_NamedBaseModel):
 
 @dataclass
 class ConfigBaseTaskSpecs:
+    computer: str | None = None
     host: str | None = None
     account: str | None = None
     uenv: dict | None = None
@@ -319,26 +282,157 @@ class ConfigRootTask(ConfigBaseTask):
     plugin: ClassVar[Literal["_root"]] = "_root"
 
 
+# By using a frozen class we only need to validate on initialization
+@dataclass(frozen=True)
+class ShellCliArgument:
+    """A holder for a CLI argument to simplify access.
+
+    Stores CLI arguments of the form "file", "--init", "{file}" or "{--init file}". These examples translate into
+    ShellCliArguments ShellCliArgument(name="file", references_data_item=False, cli_option_of_data_item=None),
+    ShellCliArgument(name="--init", references_data_item=False, cli_option_of_data_item=None),
+    ShellCliArgument(name="file", references_data_item=True, cli_option_of_data_item=None),
+    ShellCliArgument(name="file", references_data_item=True, cli_option_of_data_item="--init")
+
+    Attributes:
+        name: Name of the argument. For the examples it is "file", "--init", "file" and "file"
+        references_data_item: Specifies if the argument references a data item signified by enclosing it by curly
+            brackets.
+        cli_option_of_data_item: The CLI option associated to the data item.
+    """
+
+    name: str
+    references_data_item: bool
+    cli_option_of_data_item: str | None = None
+
+    def __post_init__(self):
+        if self.cli_option_of_data_item is not None and not self.references_data_item:
+            msg = "data_item_option cannot be not None if cli_option_of_data_item is False"
+            raise ValueError(msg)
+
+    @classmethod
+    def from_cli_argument(cls, arg: str) -> ShellCliArgument:
+        len_arg_with_option = 2
+        len_arg_no_option = 1
+        references_data_item = arg.startswith("{") and arg.endswith("}")
+        # remove curly brackets "{--init file}" -> "--init file"
+        arg_unwrapped = arg[1:-1] if arg.startswith("{") and arg.endswith("}") else arg
+
+        # "--init file" -> ["--init", "file"]
+        input_arg = arg_unwrapped.split()
+        if len(input_arg) != len_arg_with_option and len(input_arg) != len_arg_no_option:
+            msg = f"Expected argument of format {{data}} or {{option data}} but found {arg}"
+            raise ValueError(msg)
+        name = input_arg[0] if len(input_arg) == len_arg_no_option else input_arg[1]
+        cli_option_of_data_item = input_arg[0] if len(input_arg) == len_arg_with_option else None
+        return cls(name, references_data_item, cli_option_of_data_item)
+
+
 @dataclass
 class ConfigShellTaskSpecs:
     plugin: ClassVar[Literal["shell"]] = "shell"
     command: str = ""
-    cli_arguments: _CliArgsBaseModel | None = None
+    cli_arguments: list[ShellCliArgument] = field(default_factory=list)
+    env_source_files: list[str] = field(default_factory=list)
     src: str | None = None
 
 
 class ConfigShellTask(ConfigBaseTask, ConfigShellTaskSpecs):
-    pass
+    command: str = ""
+    cli_arguments: list[ShellCliArgument] = Field(default_factory=list)
+    env_source_files: list[str] = Field(default_factory=list)
+
+    @field_validator("cli_arguments", mode="before")
+    @classmethod
+    def validate_cli_arguments(cls, value: str) -> list[ShellCliArgument]:
+        return cls.parse_cli_arguments(value)
+
+    @field_validator("env_source_files", mode="before")
+    @classmethod
+    def validate_env_source_files(cls, value: str | list[str]) -> list[str]:
+        return [value] if isinstance(value, str) else value
+
+    @staticmethod
+    def split_cli_arguments(cli_arguments: str) -> list[str]:
+        """Splits the CLI arguments into a list of separate entities.
+
+        Splits the CLI arguments by whitespaces except if the whitespace is contained within curly brackets. For example
+        the string
+        "-D --CMAKE_CXX_COMPILER=${CXX_COMPILER} {--init file}"
+        will be splitted into the list
+        ["-D", "--CMAKE_CXX_COMPILER=${CXX_COMPILER}", "{--init file}"]
+        """
+
+        nb_open_curly_brackets = 0
+        last_split_idx = 0
+        splits = []
+        for i, char in enumerate(cli_arguments):
+            if char == " " and not nb_open_curly_brackets:
+                # we ommit the space in the splitting therefore we only store up to i but move the last_split_idx to i+1
+                splits.append(cli_arguments[last_split_idx:i])
+                last_split_idx = i + 1
+            elif char == "{":
+                nb_open_curly_brackets += 1
+            elif char == "}":
+                if nb_open_curly_brackets == 0:
+                    msg = "Invalid input for cli_arguments. Found a closing curly bracket before an opening in {cli_argumentss!r}"
+                    raise ValueError(msg)
+                nb_open_curly_brackets -= 1
+
+        if last_split_idx != len(cli_arguments):
+            splits.append(cli_arguments[last_split_idx : len(cli_arguments)])
+        return splits
+
+    @staticmethod
+    def parse_cli_arguments(cli_arguments: str) -> list[ShellCliArgument]:
+        return [ShellCliArgument.from_cli_argument(arg) for arg in ConfigShellTask.split_cli_arguments(cli_arguments)]
+
+
+@dataclass
+class ConfigNamelist:
+    """Class for namelist specifications"""
+
+    path: Path
+    specs: dict | None = None
 
 
 @dataclass
 class ConfigIconTaskSpecs:
     plugin: ClassVar[Literal["icon"]] = "icon"
-    namelists: dict[str, str] | None = None
+    namelists: dict[str, ConfigNamelist] | None = None
 
 
 class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
-    pass
+    # validation done here and not in ConfigNamelist so that we can still
+    # import ConfigIconTaskSpecs in core._tasks.IconTask. Hence the iteration
+    # over the namelists that could be avoided with a more raw pydantic design
+    @field_validator("namelists", mode="before")
+    @classmethod
+    def check_nml(cls, nml_list: list[Any]) -> ConfigNamelist:
+        if nml_list is None:
+            msg = "ICON tasks need namelists, got none"
+            raise ValueError(msg)
+        if not isinstance(nml_list, list):
+            msg = f"expected a list got type {type(nml_list).__name__}"
+            raise TypeError(msg)
+        namelists = {}
+        master_found = False
+        for nml in nml_list:
+            msg = f"was expecting a dict of length 1 or a string, got {nml}"
+            if not isinstance(nml, (str, dict)):
+                raise TypeError(msg)
+            if isinstance(nml, dict) and len(nml) > 1:
+                raise TypeError(msg)
+            if isinstance(nml, str):
+                path, specs = Path(nml), None
+            else:
+                path, specs = next(iter(nml.items()))
+                path = Path(path)
+            namelists[path.name] = ConfigNamelist(path=path, specs=specs)
+            master_found = master_found or (path.name == "icon_master.namelist")
+        if not master_found:
+            msg = "icon_master.namelist not found"
+            raise ValueError(msg)
+        return namelists
 
 
 class DataType(enum.StrEnum):
@@ -351,6 +445,7 @@ class ConfigBaseDataSpecs:
     type: DataType
     src: str
     format: str | None = None
+    computer: str | None = None
 
 
 class ConfigBaseData(_NamedBaseModel, ConfigBaseDataSpecs):
@@ -371,16 +466,26 @@ class ConfigBaseData(_NamedBaseModel, ConfigBaseDataSpecs):
             ...     '''
             ... )
             >>> pydantic_yaml.parse_yaml_raw_as(ConfigBaseData, snippet)
-            ConfigBaseData(type=<DataType.FILE: 'file'>, src='foo.txt', format=None, name='foo', parameters=[])
+            ConfigBaseData(type=<DataType.FILE: 'file'>, src='foo.txt', format=None, computer=None, name='foo', parameters=[])
 
 
         from python:
 
             >>> ConfigBaseData(foo={"type": "file", "src": "foo.txt"})
-            ConfigBaseData(type=<DataType.FILE: 'file'>, src='foo.txt', format=None, name='foo', parameters=[])
+            ConfigBaseData(type=<DataType.FILE: 'file'>, src='foo.txt', format=None, computer=None, name='foo', parameters=[])
     """
 
     parameters: list[str] = []
+
+    @field_validator("type")
+    @classmethod
+    def is_file_or_dir(cls, value: str) -> str:
+        """."""
+        valid_types = ("file", "dir")
+        if value not in valid_types:
+            msg = f"Must be one of {valid_types}"
+            raise ValueError(msg)
+        return value
 
 
 class ConfigAvailableData(ConfigBaseData):
@@ -388,12 +493,13 @@ class ConfigAvailableData(ConfigBaseData):
 
 
 class ConfigGeneratedData(ConfigBaseData):
-    pass
-
-
-@functools.singledispatch
-def canonicalize(value: Any) -> Any:  # noqa: ARG001 # value not accessed, as this is just a placeholder
-    raise NotImplementedError
+    @field_validator("computer")
+    @classmethod
+    def invalid_field(cls, value: str | None) -> str | None:
+        if value is not None:
+            msg = "The field 'computer' can only be specified for available data."
+            raise ValueError(msg)
+        return value
 
 
 class CanonicalBaseData(BaseModel, ConfigBaseDataSpecs):
@@ -403,7 +509,7 @@ class CanonicalBaseData(BaseModel, ConfigBaseDataSpecs):
     Examples:
 
     >>> CanonicalBaseData(name="foo", type=DataType.FILE, src="foo.txt")
-    CanonicalBaseData(type=<DataType.FILE: 'file'>, src='foo.txt', format=None, name='foo', parameters=[])
+    CanonicalBaseData(type=<DataType.FILE: 'file'>, src='foo.txt', format=None, computer=None, name='foo', parameters=[])
     """
 
     name: str
@@ -418,7 +524,6 @@ class CanonicalGeneratedData(CanonicalBaseData):
     pass
 
 
-@canonicalize.register
 def canonicalize_available_data(value: ConfigAvailableData) -> CanonicalAvailableData:
     return CanonicalAvailableData(
         name=value.name,
@@ -429,7 +534,6 @@ def canonicalize_available_data(value: ConfigAvailableData) -> CanonicalAvailabl
     )
 
 
-@canonicalize.register
 def canonicalize_generated_data(value: ConfigGeneratedData) -> CanonicalGeneratedData:
     return CanonicalGeneratedData(
         name=value.name,
@@ -481,15 +585,16 @@ class CanonicalData(BaseModel):
     generated: list[CanonicalGeneratedData] = []
 
 
-@canonicalize.register
 def canonicalize_data(value: ConfigData) -> CanonicalData:
     return CanonicalData(
-        available=[canonicalize(i) for i in value.available],
-        generated=[canonicalize(i) for i in value.generated],
+        available=[canonicalize_available_data(i) for i in value.available],
+        generated=[canonicalize_generated_data(i) for i in value.generated],
     )
 
 
-def get_plugin_from_named_base_model(data: dict) -> str:
+def get_plugin_from_named_base_model(
+    data: dict | ConfigRootTask | ConfigShellTask | ConfigIconTask,
+) -> str:
     if isinstance(data, (ConfigRootTask, ConfigShellTask, ConfigIconTask)):
         return data.plugin
     name_and_specs = _NamedBaseModel.merge_name_and_specs(data)
@@ -549,7 +654,6 @@ class ConfigWorkflow(BaseModel):
     """
 
     name: str | None = None
-    rootdir: Path | None = None
     cycles: list[ConfigCycle]
     tasks: list[ConfigTask]
     data: ConfigData
@@ -596,25 +700,28 @@ class CanonicalWorkflow(BaseModel):
     tasks: Annotated[list[ConfigTask], AfterValidator(list_not_empty)]
     data: CanonicalData
     parameters: dict[str, list[Any]]
-    data_dict: dict[str, CanonicalAvailableData | CanonicalGeneratedData]
-    task_dict: dict[str, ConfigTask]
+
+    @property
+    def data_dict(self) -> dict[str, CanonicalAvailableData | CanonicalGeneratedData]:
+        return {data.name: data for data in itertools.chain(self.data.available, self.data.generated)}
+
+    @property
+    def task_dict(self) -> dict[str, ConfigTask]:
+        return {task.name: task for task in self.tasks}
 
 
-@canonicalize.register
-def canonicalize_workflow(value: ConfigWorkflow) -> CanonicalWorkflow:
-    if not value.name or not value.rootdir:
-        msg = "Workflow name and root dir required for canonicalization."
+def canonicalize_workflow(value: ConfigWorkflow, rootdir: Path) -> CanonicalWorkflow:
+    if not value.name:
+        msg = "Workflow name required for canonicalization."
         raise ValueError(msg)
-    canon_data = canonicalize(value.data)
+    canon_data = canonicalize_data(value.data)
     return CanonicalWorkflow(
         name=value.name,
-        rootdir=value.rootdir,
+        rootdir=rootdir,
         cycles=value.cycles,
         tasks=value.tasks,
         data=canon_data,
         parameters=value.parameters,
-        data_dict={data.name: data for data in canon_data.available + canon_data.generated},
-        task_dict={task.name: task for task in value.tasks},
     )
 
 
@@ -636,7 +743,7 @@ def load_workflow_config(workflow_config: str) -> CanonicalWorkflow:
     if parsed_workflow.name is None:
         parsed_workflow.name = config_path.stem
 
-    parsed_workflow.rootdir = config_path.resolve().parent
+    rootdir = config_path.resolve().parent
 
-    return canonicalize_workflow(parsed_workflow)
+    return canonicalize_workflow(value=parsed_workflow, rootdir=rootdir)
     # return parsed_workflow

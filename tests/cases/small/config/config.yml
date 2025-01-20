@@ -9,10 +9,15 @@ cycles:
       tasks:
         - icon:
             inputs:
+              - icon_namelist
+              - initial_conditions:
+                  when:
+                    at: *root_start_date
               - icon_restart:
                   when:
                     after: *root_start_date
                   lag: -P2M
+                  port: restart
             outputs: [icon_output, icon_restart]
   - lastly:
       tasks:
@@ -22,23 +27,28 @@ cycles:
                   date: 2026-05-01T00:00
 tasks:
   - icon:
+      computer: localhost
       plugin: shell
-      command: $PWD/tests/files/scripts/icon.py
-      cli_arguments:
-        keyword:
-          --restart: icon_restart
+      command: scripts/icon.py
+      cli_arguments: "{--restart icon_restart} {--init initial_conditions}"
+      env_source_files: data/dummy_source_file.sh
   - cleanup:
+      computer: localhost
       plugin: shell
-      command: $PWD/tests/files/scripts/cleanup.py
+      command: scripts/cleanup.py
 data:
   available:
-     - icon_input:
+     - icon_namelist:
          type: file
-         src: $PWD/tests/files/data/input
+         src: data/input
+     - initial_conditions:
+         type: file
+         computer: localhost
+         src: data/initial_conditions
   generated:
      - icon_output:
          type: file
-         src: output
+         src: icon_output
      - icon_restart:
          type: file
          src: restart

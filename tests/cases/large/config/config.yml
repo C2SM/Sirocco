@@ -28,6 +28,7 @@ cycles:
                   when:
                     after: *root_start_date
                   lag: '-P2M'
+                  port: restart
             outputs: [stream_1, stream_2, icon_restart]
         - postproc_1:
             inputs: [stream_1]
@@ -61,12 +62,8 @@ tasks:
       account: g110
   - extpar:
       plugin: shell  # no extpar plugin available yet
-      command: $PWD/examples/files/scripts/extpar
-      cli_arguments:
-        keyword:
-          --input: obs_data
-        flags:
-          - --verbose
+      command: scripts/extpar
+      cli_arguments: "--verbose {--input obs_data}"
       uenv:
         squashfs: path/to/squashfs
         mount_point: runtime/mount/point
@@ -74,14 +71,9 @@ tasks:
       walltime: 00:02:00
   - preproc:
       plugin: shell
-      command: $PWD/examples/files/scripts/cleanup.sh
-      cli_arguments:
-        positional:
-          - grid_file
-        keyword:
-          -p: extpar_file
-          -e: ERA5
-        source_file: dummy_source_file
+      command: scripts/cleanup.sh
+      cli_arguments: "{-p extpar_file} {-e ERA5} {grid_file}"
+      env_source_files: data/dummy_source_file.sh
       nodes: 4
       walltime: 00:02:00
       uenv:
@@ -89,25 +81,22 @@ tasks:
         mount_point: runtime/mount/point
   - icon:
       plugin: icon
-      command: $PWD/examples/files/scripts/icon
-      cli_arguments:
-        keyword:
-          -g: grid_file
-          --input: icon_input
       nodes: 40
       walltime: 23:59:59
       namelists:
-        master: path/to/mater_nml
-        model: path/to/model_nml
+        - ./ICON/icon_master.namelist
+        - ./ICON/NAMELIST_exclaim_ape_R02B04:
+            parallel_nml:
+              nproma: 96
+            output_nml[1]:
+              output_filename: atm_2d
       uenv:
         squashfs: path/to/squashfs
         mount_point: runtime/mount/point
   - postproc_1:
       plugin: shell
-      command: $PWD/examples/files/scripts/main_script_ocn.sh
-      cli_arguments:
-        keyword:
-          --input: stream_1
+      command: scripts/main_script_ocn.sh
+      cli_arguments: "{--input stream_1}"
       nodes: 2
       walltime: 00:05:00
       uenv:
@@ -115,13 +104,8 @@ tasks:
         mount_point: runtime/mount/point
   - postproc_2:
       plugin: shell
-      command: $PWD/examples/files/scripts/main_script_atm.sh
-      cli_arguments:
-        keyword:
-          --input: stream_2
-          # `arg_option` should be in `tasks` section instead
-          # How to implement this? Even needed with keyword-arguments?
-          # arg_option: --input
+      command: scripts/main_script_atm.sh
+      cli_arguments: "{--input stream_2}"
       nodes: 2
       walltime: 00:05:00
       src: path/to/src/dir
@@ -130,36 +114,27 @@ tasks:
         mount_point: runtime/mount/point
   - store_and_clean_1:
       plugin: shell
-      command: $PWD/examples/files/scripts/post_clean.sh
-      cli_arguments:
-        keyword:
-          --input: postout_1
-          --stream: stream_1
-          --icon_input: icon_input
+      command: scripts/post_clean.sh
+      cli_arguments: "{--input postout_1} {--stream stream_1} {--icon_input icon_input}"
       nodes: 1
       walltime: 00:01:00
   - store_and_clean_2:
       plugin: shell
-      command: $PWD/examples/files/scripts/post_clean.sh
-      cli_arguments:
-        keyword:
-          --input: postout_2
+      command: scripts/post_clean.sh
+      cli_arguments: "{--input postout_2}"
       nodes: 1
       walltime: 00:01:00
 data:
   available:
     - grid_file:
         type: file
-        src: $PWD/examples/files/data/grid
+        src: data/grid
     - obs_data:
         type: file
-        src: $PWD/examples/files/data/obs_data
+        src: data/obs_data
     - ERA5:
         type: file
-        src: $PWD/examples/files/data/era5
-    - dummy_source_file:
-        type: file
-        src: $PWD/examples/files/data/dummy_source_file.sh
+        src: data/era5
   generated:
     - extpar_file:
         type: file

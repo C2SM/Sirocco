@@ -1,0 +1,26 @@
+&master_nml
+    lrestart = .false.
+    read_restart_namelists = .true.
+/
+
+&master_time_control_nml
+    calendar = 'proleptic gregorian'
+    experimentstartdate = '2025-01-01T00:00:00Z'
+    restarttimeintval = 'PT1M'
+    checkpointtimeintval = 'PT1M'
+    experimentstopdate = '2027-01-01T00:00:00Z'
+/
+
+&time_nml
+    is_relative_time = .false.
+/
+
+&master_model_nml
+    model_name = 'atm'
+    model_namelist_filename = 'NAMELIST_exclaim_ape_R02B04'
+    model_type = 1
+    model_min_rank = 0
+    model_max_rank = 65535
+    model_inc_rank = 1
+    model_rank_group_size = 1
+/

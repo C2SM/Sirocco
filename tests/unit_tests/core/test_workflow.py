@@ -8,15 +8,13 @@ from sirocco.parsing import _yaml_data_models as models
 def test_minimal_workflow():
     minimal_config = models.CanonicalWorkflow(
         name="minimal",
-        rootdir=pathlib.Path(),
-        cycles=[models.ConfigCycle(some_cyle={"tasks": []})],
-        tasks=[some_task := models.ConfigShellTask(some_task={"plugin": "shell"})],
+        rootdir=pathlib.Path("minimal"),
+        cycles=[models.ConfigCycle(some_cycle={"tasks": []})],
+        tasks=[models.ConfigShellTask(some_task={"plugin": "shell"})],
         data=models.CanonicalData(
-            available=[foo := models.CanonicalAvailableData(name="foo", type=models.DataType.FILE, src="foo.txt")],
-            generated=[bar := models.CanonicalGeneratedData(name="bar", type=models.DataType.DIR, src="bar")],
+            available=[models.CanonicalAvailableData(name="foo", type=models.DataType.FILE, src="foo.txt")],
+            generated=[models.CanonicalGeneratedData(name="bar", type=models.DataType.DIR, src="bar")],
         ),
-        data_dict={"foo": foo, "bar": bar},
-        task_dict={"some_task": some_task},
         parameters={},
     )
 
