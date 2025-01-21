@@ -31,28 +31,28 @@ class _NamedBaseModel(BaseModel):
 
     Examples:
 
-        >>> NeoNameBase(name="foo")
-        NeoNameBase(name='foo')
+        >>> _NamedBaseModel(name="foo")
+        _NamedBaseModel(name='foo')
 
-        >>> NeoNameBase(foo={})
-        NeoNameBase(name='foo')
+        >>> _NamedBaseModel(foo={})
+        _NamedBaseModel(name='foo')
 
         >>> import pydantic_yaml, textwrap
         >>> pydantic_yaml.parse_yaml_raw_as(
-        ...     NeoNameBase,
+        ...     _NamedBaseModel,
         ...     textwrap.dedent('''
         ...     foo:
         ... '''),
         ... )
-        NeoNameBase(name='foo')
+        _NamedBaseModel(name='foo')
 
         >>> pydantic_yaml.parse_yaml_raw_as(
-        ...     NeoNameBase,
+        ...     _NamedBaseModel,
         ...     textwrap.dedent('''
         ...     name: foo
         ... '''),
         ... )
-        NeoNameBase(name='foo')
+        _NamedBaseModel(name='foo')
     """
 
     name: str
