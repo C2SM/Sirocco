@@ -121,7 +121,7 @@ class AiidaWorkGraph:
 
         The invalid chars ["-", " ", ":", "."] are replaced with underscores.
         """
-        invalid_chars = ["-", " ", ":", "."]
+        invalid_chars = ["-", " ", ":", ".", "/"]
         for invalid_char in invalid_chars:
             label = label.replace(invalid_char, "_")
         return label
@@ -250,7 +250,6 @@ class AiidaWorkGraph:
             ]
             prepend_text = "\n".join([f"source {env_source_path}" for env_source_path in env_source_paths])
             metadata["options"] = {"prepend_text": prepend_text}
-
             ## computer
             if task.computer is not None:
                 try:
@@ -259,17 +258,23 @@ class AiidaWorkGraph:
                     msg = f"Could not find computer {task.computer} for task {task}."
                     raise ValueError(msg) from err
 
+
             # NOTE: We don't pass the `nodes` dictionary here, as then we would need to have the sockets available when
             # we create the task. Instead, they are being updated via the WG internals when linking inputs/outputs to
             # tasks
+            command_label = AiidaWorkGraph.replace_invalid_chars_in_label(f"{command}")
             workgraph_task = self._workgraph.add_task(
                 "ShellJob",
                 name=label,
-                command=command,
-                arguments=[],
+                command="bash",
+                arguments=[f"{{{command_label}}}"],
                 outputs=[],
                 metadata=metadata,
             )
+
+            workgraph_task.add_input("workgraph.any", f"nodes.{command_label}")
+            socket = getattr(workgraph_task.inputs.nodes, f"{command_label}")
+            socket.value = aiida.orm.SinglefileData(label=f"{command_label}", file=f"{command}") 
 
             self._aiida_task_nodes[label] = workgraph_task
 
