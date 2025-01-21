@@ -9,7 +9,7 @@ from sirocco.parsing import _yaml_data_models as models
 
 @pytest.mark.parametrize("data_type", ["file", "dir"])
 def test_base_data(data_type):
-    testee = models.ConfigBaseData(name={"type": data_type, "src": "foo.txt", "format": None})
+    testee = models.ConfigBaseData(name="name", type=data_type, src="foo.txt", format=None)
 
     assert testee.type == data_type
 
@@ -17,20 +17,20 @@ def test_base_data(data_type):
 @pytest.mark.parametrize("data_type", [None, "invalid", 1.42])
 def test_base_data_invalid_type(data_type):
     with pytest.raises(pydantic.ValidationError):
-        _ = models.ConfigBaseData(name={"src": "foo", "format": "nml"})
+        _ = models.ConfigBaseData(name="name", src="foo", format="nml")
 
     with pytest.raises(pydantic.ValidationError):
-        _ = models.ConfigBaseData(name={"type": data_type, "src": "foo", "format": "nml"})
+        _ = models.ConfigBaseData(name="name", type=data_type, src="foo", format="nml")
 
 
 def test_workflow_canonicalization():
     config = models.ConfigWorkflow(
         name="testee",
-        cycles=[models.ConfigCycle(minimal={"tasks": [models.ConfigCycleTask(a={})]})],
-        tasks=[{"some_task": {"plugin": "shell"}}],
+        cycles=[models.ConfigCycle(name="minimal", tasks=[models.ConfigCycleTask(name="a")])],
+        tasks=[models.ConfigShellTask(name="some_task")],
         data=models.ConfigData(
-            available=[models.ConfigAvailableData(foo={"type": "file", "src": "foo.txt"})],
-            generated=[models.ConfigGeneratedData(bar={"type": "dir", "src": "bar"})],
+            available=[models.ConfigAvailableData(name="foo", type=models.DataType.FILE, src="foo.txt")],
+            generated=[models.ConfigGeneratedData(name="bar", type=models.DataType.DIR, src="bar")],
         ),
     )
 

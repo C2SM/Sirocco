@@ -9,11 +9,11 @@ def test_minimal_workflow():
     minimal_config = models.CanonicalWorkflow(
         name="minimal",
         rootdir=pathlib.Path("minimal"),
-        cycles=[models.ConfigCycle(some_cycle={"tasks": []})],
-        tasks=[models.ConfigShellTask(some_task={"plugin": "shell"})],
-        data=models.CanonicalData(
-            available=[models.CanonicalAvailableData(name="foo", type=models.DataType.FILE, src="foo.txt")],
-            generated=[models.CanonicalGeneratedData(name="bar", type=models.DataType.DIR, src="bar")],
+        cycles=[models.ConfigCycle(name="some_cycle", tasks=[])],
+        tasks=[models.ConfigShellTask(name="some_task", plugin="shell")],
+        data=models.ConfigData(
+            available=[models.ConfigAvailableData(name="foo", type=models.DataType.FILE, src="foo.txt")],
+            generated=[models.ConfigGeneratedData(name="bar", type=models.DataType.DIR, src="bar")],
         ),
         parameters={},
     )

@@ -5,7 +5,7 @@ from itertools import chain, product
 from typing import TYPE_CHECKING, Any, ClassVar, Self, TypeAlias
 
 from sirocco.parsing._yaml_data_models import (
-    CanonicalAvailableData,
+    ConfigAvailableData,
     ConfigBaseDataSpecs,
     ConfigBaseTaskSpecs,
 )
@@ -47,7 +47,7 @@ class Data(ConfigBaseDataSpecs, GraphItem):
             name=config.name,
             type=config.type,
             src=config.src,
-            available=isinstance(config, CanonicalAvailableData),
+            available=isinstance(config, ConfigAvailableData),
             coordinates=coordinates,
         )
 
