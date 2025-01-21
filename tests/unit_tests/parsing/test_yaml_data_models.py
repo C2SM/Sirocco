@@ -1,24 +1,6 @@
-import pathlib
 import textwrap
 
 from sirocco.parsing import _yaml_data_models as models
-
-
-def test_workflow_canonicalization():
-    config = models.ConfigWorkflow(
-        name="testee",
-        cycles=[models.ConfigCycle(minimal={"tasks": [models.ConfigCycleTask(a={})]})],
-        tasks=[{"some_task": {"plugin": "shell"}}],
-        data=models.ConfigData(
-            available=[models.ConfigAvailableData(foo={})],
-            generated=[models.ConfigGeneratedData(bar={})],
-        ),
-    )
-
-    testee = models.canonicalize_workflow(config, rootdir=pathlib.Path("foo"))
-    assert testee.data_dict["foo"].name == "foo"
-    assert testee.data_dict["bar"].name == "bar"
-    assert testee.task_dict["some_task"].name == "some_task"
 
 
 def test_load_workflow_config(tmp_path):
@@ -40,6 +22,6 @@ def test_load_workflow_config(tmp_path):
     )
     minimal = tmp_path / "minimal.yml"
     minimal.write_text(minimal_config)
-    testee = models.load_workflow_config(str(minimal))
+    testee = models.ConfigWorkflow.from_config_file(str(minimal))
     assert testee.name == "minimal"
     assert testee.rootdir == tmp_path
