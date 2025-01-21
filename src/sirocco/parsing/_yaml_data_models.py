@@ -598,17 +598,17 @@ class CanonicalWorkflow(BaseModel):
         return {task.name: task for task in self.tasks}
 
 
-def canonicalize_workflow(value: ConfigWorkflow, rootdir: Path) -> CanonicalWorkflow:
-    if not value.name:
+def canonicalize_workflow(config_workflow: ConfigWorkflow, rootdir: Path) -> CanonicalWorkflow:
+    if not config_workflow.name:
         msg = "Workflow name required for canonicalization."
         raise ValueError(msg)
     return CanonicalWorkflow(
-        name=value.name,
+        name=config_workflow.name,
         rootdir=rootdir,
-        cycles=value.cycles,
-        tasks=value.tasks,
-        data=value.data,
-        parameters=value.parameters,
+        cycles=config_workflow.cycles,
+        tasks=config_workflow.tasks,
+        data=config_workflow.data,
+        parameters=config_workflow.parameters,
     )
 
 
@@ -632,5 +632,5 @@ def load_workflow_config(workflow_config: str) -> CanonicalWorkflow:
 
     rootdir = config_path.resolve().parent
 
-    return canonicalize_workflow(value=parsed_workflow, rootdir=rootdir)
+    return canonicalize_workflow(config_workflow=parsed_workflow, rootdir=rootdir)
     # return parsed_workflow
