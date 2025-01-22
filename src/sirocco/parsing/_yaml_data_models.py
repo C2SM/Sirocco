@@ -27,7 +27,10 @@ from sirocco.parsing._utils import TimeUtils
 
 class _NamedBaseModel(BaseModel):
     """
-    Noninvasive base model for reading names from yaml keys *or* attributes.
+    Base model for reading names from yaml keys *or* attributes.
+
+    Reading from attributes is allowed in order to enable the standard
+    constructor usage from Python, as demonstrated in the below examples.
 
     Examples:
 
@@ -537,9 +540,9 @@ class ConfigData(BaseModel):
             ...           type: "file"
             ...           src: "foo.txt"
             ...     generated:
-            ...       - name: "bar"
-            ...         type: "file"
-            ...         src: "bar.txt"
+            ...       - bar:
+                ...       type: "file"
+                ...       src: "bar.txt"
             ...     '''
             ... )
             >>> data = pydantic_yaml.parse_yaml_raw_as(ConfigData, snippet)
