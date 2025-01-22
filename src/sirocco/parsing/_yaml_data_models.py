@@ -564,7 +564,7 @@ def get_plugin_from_named_base_model(
 ) -> str:
     if isinstance(data, (ConfigRootTask, ConfigShellTask, ConfigIconTask)):
         return data.plugin
-    name_and_specs = _NamedBaseModel.extract_merge_name(data)
+    name_and_specs = ConfigBaseTask.extract_merge_name(data)
     if name_and_specs.get("name", None) == "ROOT":
         return ConfigRootTask.plugin
     plugin = name_and_specs.get("plugin", None)
