@@ -40,6 +40,7 @@ class Data(ConfigBaseDataSpecs, GraphItem):
     def from_config(cls, config: ConfigBaseData, coordinates: dict) -> Self:
         return cls(
             name=config.name,
+            computer=config.computer,
             type=config.type,
             src=config.src,
             available=isinstance(config, ConfigAvailableData),
