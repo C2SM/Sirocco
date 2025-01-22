@@ -15,6 +15,7 @@ theme:
 
 nav:
   - Home: index.md
+  - Acknowledgements: acknowledgements.md
 
 
 copyright: Copyright &copy; 2024 by the WcFlow developer team.

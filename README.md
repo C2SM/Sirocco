@@ -28,3 +28,6 @@ hatch run docs:serve # live preview of doc for development
 
 -   <https://aiida-workgraph.readthedocs.io/en/latest/>
 -   <https://github.com/aiidateam/aiida-workgraph>
+
+## Acknowledgements
+Sirocco acknowledges the support by [SwissTwins](https://www.cscs.ch/about/collaborations/swisstwins).
