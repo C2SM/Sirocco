@@ -541,8 +541,8 @@ class ConfigData(BaseModel):
             ...           src: "foo.txt"
             ...     generated:
             ...       - bar:
-                ...       type: "file"
-                ...       src: "bar.txt"
+            ...           type: "file"
+            ...           src: "bar.txt"
             ...     '''
             ... )
             >>> data = pydantic_yaml.parse_yaml_raw_as(ConfigData, snippet)
