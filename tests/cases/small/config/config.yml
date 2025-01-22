@@ -29,13 +29,13 @@ tasks:
   - icon:
       computer: localhost
       plugin: shell
-      command: scripts/icon.py
+      command: scripts/icon.sh
       cli_arguments: "{--restart icon_restart} {--init initial_conditions}"
-      env_source_files: data/dummy_source_file.sh
+      #env_source_files: data/dummy_source_file.sh # TODO does not yet work for remote execution
   - cleanup:
       computer: localhost
       plugin: shell
-      command: scripts/cleanup.py
+      command: scripts/cleanup.sh
 data:
   available:
      - icon_namelist:
