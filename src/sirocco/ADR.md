@@ -1,6 +1,8 @@
-# Sirocco.core.Store design
+# Architectural Decision Design
 
-## Understanding the intended usage
+## Sirocco.core.Store design
+
+### Understanding the intended usage
 
 In the current yaml format we specify all data nodes in the same way, whether they are
 
@@ -161,15 +163,15 @@ If we were not using `TimeSeries`, this would open up the following additional o
             - or the functionality would have to be implemented external to a standard mapping and would have to do even more checking
         - If not hosted in the `Workflow` class directly, a cumbersome logic will have to be reproduced each time we need to access the nodes, like generating the `WorkGraph` or the visualization graph. If hosted in `WorkFlow`, this is not less maintenance than the `Store` and `TimeSeries` classes but less clean.
 
-## Temporary Conclusion
+### Temporary Conclusion
 
 All-in-all we (Rico, Matthieu) think `Store` is a good enough design for now, as the maintenance burden is low, given that `Sirocco` is more of an app and less of a library. Therefore `Store` should not be confronted with expectations to support any `Mapping` functionality beyond what we need inside `Sirocco` itself.
 
-## Further developments potentially affecting this design
+### Further developments potentially affecting this design
 
 We will at some point introduce parameterized tasks (and thus data as well). This will add other dimensions to the `Store`. 
 
-## Reasons to change
+### Reasons to change
 
 - If we find ourselves implementing more and more standard container functionality on `Store` it is time to reconsider.
 - If the code for turning the IR into a WorkGraph suffers from additional complexity due to the design of `Store`, then it needs to be changed
