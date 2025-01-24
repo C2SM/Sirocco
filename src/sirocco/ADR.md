@@ -178,3 +178,10 @@ We will at some point introduce parameterized tasks (and thus data as well). Thi
 - Potentially, changes to the config schema might necessitate or unlock a different design here
 
 
+### UPDATE: Introduction of parameterized tasks
+
+Since the introduction of parameterized tasks, the `Store` and `Timeseries` design evolved.
+
+The `Timeseries` class became the more generic `Array` class. This makes the date part of the `Array` dimensions, along with the parameters.
+
+`Store` then becomes a container for `Array` objects.
