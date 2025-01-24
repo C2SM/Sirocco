@@ -1,4 +1,4 @@
-# Architectural Decision Design
+# Architectural Decision Record
 
 ## Sirocco.core.Store design
 
