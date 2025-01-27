@@ -438,18 +438,39 @@ class ConfigIconTaskSpecs:
 
 
 class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
+    """Class representing an ICON task configuration from a workflow file
+
+        Examples:
+
+        yaml snippet:
+
+            >>> import textwrap
+            >>> import pydantic_yaml
+            >>> snippet = textwrap.dedent(
+            ...     '''
+            ...       ICON:
+            ...         plugin: icon
+            ...         namelists:
+            ...           - path/to/icon_master.namelist
+            ...           - path/to/case_nml:
+            ...               block_1:
+            ...                 param_name: param_value
+            ...     '''
+            ... )
+            >>> icon_task_cfg = pydantic_yaml.parse_yaml_raw_as(ConfigIconTask, snippet)
+    """
     @field_validator("namelists", mode="before")
     @classmethod
-    def check_nml(cls, nml_list: list[Any]) -> dict[str, ConfigNamelist]:
-        if nml_list is None:
-            msg = "ICON tasks need namelists, got none"
-            raise ValueError(msg)
-        if not isinstance(nml_list, list):
-            msg = f"expected a list got type {type(nml_list).__name__}"
+    def check_nmls(cls, nmls: dict[str, ConfigNamelist] | list[Any]) -> dict[str, ConfigNamelist]:
+        # Make validator idempotent even if not used yet
+        if isinstance(nmls, dict):
+            return nmls
+        if not isinstance(nmls, list):
+            msg = f"expected a list got type {type(nmls).__name__}"
             raise TypeError(msg)
         namelists = {}
         master_found = False
-        for nml in nml_list:
+        for nml in nmls:
             msg = f"was expecting a dict of length 1 or a string, got {nml}"
             if not isinstance(nml, (str, dict)):
                 raise TypeError(msg)
