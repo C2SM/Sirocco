@@ -563,7 +563,7 @@ class ConfigWorkflow(BaseModel):
     cycles: Annotated[list[ConfigCycle], AfterValidator(list_not_empty)]
     tasks: Annotated[list[ConfigTask], AfterValidator(list_not_empty)]
     data: ConfigData
-    parameters: dict[str, list] = {} 
+    parameters: dict[str, list] = {}
 
     @field_validator("parameters", mode="before")
     @classmethod
