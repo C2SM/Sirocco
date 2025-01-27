@@ -411,7 +411,21 @@ class ConfigShellTask(ConfigBaseTask, ConfigShellTaskSpecs):
 
 @dataclass(kw_only=True)
 class ConfigNamelist:
-    """Class for namelist specifications"""
+    """Class for namelist specifications
+
+    - path is the path to the namelist file considered as template
+    - specs is a dictionnary containing the specifications of parameters
+      to change in the original namelist file
+
+    For example:
+
+    ... python
+
+        ConfigNamelist(path="/some/path/to/icon.nml",
+                       specs={"first_nml_block":{"first_param": first_value,
+                                                 "second_param": second_value},
+                              "second_nml_block":{"third_param": third_value}})
+    """
 
     path: Path
     specs: dict | None = None
@@ -424,12 +438,9 @@ class ConfigIconTaskSpecs:
 
 
 class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
-    # validation done here and not in ConfigNamelist so that we can still
-    # import ConfigIconTaskSpecs in core._tasks.IconTask. Hence the iteration
-    # over the namelists that could be avoided with a more raw pydantic design
     @field_validator("namelists", mode="before")
     @classmethod
-    def check_nml(cls, nml_list: list[Any]) -> ConfigNamelist:
+    def check_nml(cls, nml_list: list[Any]) -> dict[str, ConfigNamelist]:
         if nml_list is None:
             msg = "ICON tasks need namelists, got none"
             raise ValueError(msg)
