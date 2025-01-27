@@ -558,12 +558,24 @@ class ConfigWorkflow(BaseModel):
 
     """
 
-    rootdir: None | Path = None
+    rootdir: Path | None = Path.cwd()
     name: str | None = None
     cycles: Annotated[list[ConfigCycle], AfterValidator(list_not_empty)]
     tasks: Annotated[list[ConfigTask], AfterValidator(list_not_empty)]
     data: ConfigData
     parameters: dict[str, list] = {}
+
+    @field_validator("rootdir", mode="before")
+    @classmethod
+    def check_rootdir(cls, rootdir: Path | None) -> Path:
+        match rootdir:
+            case None:
+                return Path.cwd()
+            case Path():
+                return rootdir
+            case _:
+                msg = f"Need to provide path for rootdir but got {type(rootdir)}"
+                raise TypeError(msg)
 
     @field_validator("parameters", mode="before")
     @classmethod

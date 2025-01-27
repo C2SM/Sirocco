@@ -1,5 +1,3 @@
-import pytest
-
 from sirocco import pretty_print
 from sirocco.core import Workflow
 
@@ -16,9 +14,3 @@ def test_minimal_workflow(minimal_config):
     assert len(list(testee.cycles)) == 1
     assert testee.data[("foo", {})].available
     assert testee.config_rootdir == minimal_config.rootdir
-
-
-def test_no_rootdir_fail(minimal_config):
-    minimal_config.rootdir = None
-    with pytest.raises(TypeError, match=r".*Need to provide path for rootdir.*"):
-        Workflow.from_config_workflow(minimal_config)

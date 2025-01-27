@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from itertools import chain, product
-from pathlib import Path
 from typing import TYPE_CHECKING, Self
 
 from sirocco.core.graph_items import Cycle, Data, Store, Task
@@ -12,6 +11,7 @@ from sirocco.parsing._yaml_data_models import (
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from datetime import datetime
+    from pathlib import Path
 
     from sirocco.parsing._yaml_data_models import (
         ConfigAvailableData,
@@ -35,9 +35,6 @@ class Workflow:
         parameters: dict[str, list],
     ) -> None:
         self.name: str = name
-        if not isinstance(rootdir, Path):
-            msg = f"Need to provide path for rootdir but got {type(rootdir)}"
-            raise TypeError(msg)
         self.config_rootdir: Path = rootdir
 
         self.tasks: Store = Store()
