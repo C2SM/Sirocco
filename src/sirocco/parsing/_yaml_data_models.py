@@ -473,7 +473,6 @@ class DataType(enum.StrEnum):
     DIR = enum.auto()
 
 
-@dataclass
 @dataclass(kw_only=True)
 class ConfigBaseDataSpecs:
     type: DataType
