@@ -29,8 +29,9 @@ class _NamedBaseModel(BaseModel):
     """
     Base model for reading names from yaml keys *or* keyword args to the constructor.
 
-    Reading from attributes is allowed in order to enable the standard
-    constructor usage from Python, as demonstrated in the below examples.
+    Reading from key-value pairs in yaml is also supported in order to enable
+    the standard constructor usage from Python, as demonstrated in the below
+    examples. On it's own it is not considered desirable.
 
     Examples:
 
