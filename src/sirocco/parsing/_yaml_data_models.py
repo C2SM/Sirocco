@@ -525,9 +525,13 @@ class ConfigWorkflow(BaseModel):
         minimal yaml to generate:
 
             >>> import textwrap
-            >>> import pydantic_yaml
+            >>> from io import StringIO
+            >>> from pydantic import TypeAdapter
+            >>> from ruamel.yaml import YAML
             >>> config = textwrap.dedent(
             ...     '''
+            ...     name: minimal
+            ...     rootdir: /some/path
             ...     cycles:
             ...       - minimal_cycle:
             ...           tasks:
@@ -542,11 +546,15 @@ class ConfigWorkflow(BaseModel):
             ...         - bar:
             ...     '''
             ... )
-            >>> wf = pydantic_yaml.parse_yaml_raw_as(ConfigWorkflow, config)
+            >>> wf = TypeAdapter(ConfigWorkflow).validate_python(
+            ...     YAML(typ="safe", pure=True).load(StringIO(config))
+            ... )
 
         minimum programmatically created instance
 
             >>> wf = ConfigWorkflow(
+            ...     name="minimal",
+            ...     rootdir=Path("/some/path"),
             ...     cycles=[ConfigCycle(minimal_cycle={"tasks": [ConfigCycleTask(task_a={})]})],
             ...     tasks=[ConfigShellTask(task_a={"plugin": "shell"})],
             ...     data=ConfigData(
