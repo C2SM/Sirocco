@@ -533,7 +533,7 @@ class ConfigWorkflow(BaseModel):
             ...           tasks:
             ...             - task_a:
             ...     tasks:
-            ...       - task_b:
+            ...       - task_a:
             ...           plugin: shell
             ...     data:
             ...       available:
@@ -548,7 +548,7 @@ class ConfigWorkflow(BaseModel):
 
             >>> wf = ConfigWorkflow(
             ...     cycles=[ConfigCycle(minimal_cycle={"tasks": [ConfigCycleTask(task_a={})]})],
-            ...     tasks=[ConfigShellTask(task_b={"plugin": "shell"})],
+            ...     tasks=[ConfigShellTask(task_a={"plugin": "shell"})],
             ...     data=ConfigData(
             ...         available=[ConfigAvailableData(foo={})],
             ...         generated=[ConfigGeneratedData(bar={})],
