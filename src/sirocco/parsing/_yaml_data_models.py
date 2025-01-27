@@ -440,25 +440,26 @@ class ConfigIconTaskSpecs:
 class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
     """Class representing an ICON task configuration from a workflow file
 
-        Examples:
+    Examples:
 
-        yaml snippet:
+    yaml snippet:
 
-            >>> import textwrap
-            >>> import pydantic_yaml
-            >>> snippet = textwrap.dedent(
-            ...     '''
-            ...       ICON:
-            ...         plugin: icon
-            ...         namelists:
-            ...           - path/to/icon_master.namelist
-            ...           - path/to/case_nml:
-            ...               block_1:
-            ...                 param_name: param_value
-            ...     '''
-            ... )
-            >>> icon_task_cfg = pydantic_yaml.parse_yaml_raw_as(ConfigIconTask, snippet)
+        >>> import textwrap
+        >>> import pydantic_yaml
+        >>> snippet = textwrap.dedent(
+        ...     '''
+        ...       ICON:
+        ...         plugin: icon
+        ...         namelists:
+        ...           - path/to/icon_master.namelist
+        ...           - path/to/case_nml:
+        ...               block_1:
+        ...                 param_name: param_value
+        ...     '''
+        ... )
+        >>> icon_task_cfg = pydantic_yaml.parse_yaml_raw_as(ConfigIconTask, snippet)
     """
+
     @field_validator("namelists", mode="before")
     @classmethod
     def check_nmls(cls, nmls: dict[str, ConfigNamelist] | list[Any]) -> dict[str, ConfigNamelist]:
