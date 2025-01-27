@@ -10,7 +10,7 @@ from sirocco.core.graph_items import Task
 from sirocco.parsing._yaml_data_models import ConfigIconTaskSpecs
 
 
-@dataclass
+@dataclass(kw_only=True)
 class IconTask(ConfigIconTaskSpecs, Task):
     core_namelists: dict[str, f90nml.Namelist] = field(default_factory=dict)
 

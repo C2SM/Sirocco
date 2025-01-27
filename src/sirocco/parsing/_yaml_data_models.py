@@ -276,7 +276,7 @@ class ConfigCycle(_NamedBaseModel):
         return self
 
 
-@dataclass
+@dataclass(kw_only=True)
 class ConfigBaseTaskSpecs:
     computer: str | None = None
     host: str | None = None
@@ -349,7 +349,7 @@ class ShellCliArgument:
         return cls(name, references_data_item, cli_option_of_data_item)
 
 
-@dataclass
+@dataclass(kw_only=True)
 class ConfigShellTaskSpecs:
     plugin: ClassVar[Literal["shell"]] = "shell"
     command: str = ""
@@ -409,7 +409,7 @@ class ConfigShellTask(ConfigBaseTask, ConfigShellTaskSpecs):
         return [ShellCliArgument.from_cli_argument(arg) for arg in ConfigShellTask.split_cli_arguments(cli_arguments)]
 
 
-@dataclass
+@dataclass(kw_only=True)
 class ConfigNamelist:
     """Class for namelist specifications"""
 
@@ -417,10 +417,10 @@ class ConfigNamelist:
     specs: dict | None = None
 
 
-@dataclass
+@dataclass(kw_only=True)
 class ConfigIconTaskSpecs:
     plugin: ClassVar[Literal["icon"]] = "icon"
-    namelists: dict[str, ConfigNamelist] | None = None
+    namelists: dict[str, ConfigNamelist]
 
 
 class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
@@ -463,6 +463,7 @@ class DataType(enum.StrEnum):
 
 
 @dataclass
+@dataclass(kw_only=True)
 class ConfigBaseDataSpecs:
     type: DataType
     src: str

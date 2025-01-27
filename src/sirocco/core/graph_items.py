@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     )
 
 
-@dataclass
+@dataclass(kw_only=True)
 class GraphItem:
     """base class for Data Tasks and Cycles"""
 
@@ -33,7 +33,7 @@ class GraphItem:
     coordinates: dict
 
 
-@dataclass
+@dataclass(kw_only=True)
 class Data(ConfigBaseDataSpecs, GraphItem):
     """Internal representation of a data node"""
 
@@ -56,7 +56,7 @@ class Data(ConfigBaseDataSpecs, GraphItem):
 BoundData: TypeAlias = tuple[Data, str | None]
 
 
-@dataclass
+@dataclass(kw_only=True)
 class Task(ConfigBaseTaskSpecs, GraphItem):
     """Internal representation of a task node"""
 
@@ -129,7 +129,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
         )
 
 
-@dataclass
+@dataclass(kw_only=True)
 class Cycle(GraphItem):
     """Internal reprenstation of a cycle"""
 
