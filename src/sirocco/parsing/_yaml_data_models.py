@@ -558,24 +558,12 @@ class ConfigWorkflow(BaseModel):
 
     """
 
-    rootdir: Path | None = Path.cwd()
-    name: str | None = None
+    rootdir: Path
+    name: str
     cycles: Annotated[list[ConfigCycle], AfterValidator(list_not_empty)]
     tasks: Annotated[list[ConfigTask], AfterValidator(list_not_empty)]
     data: ConfigData
     parameters: dict[str, list] = {}
-
-    @field_validator("rootdir", mode="before")
-    @classmethod
-    def check_rootdir(cls, rootdir: Path | None) -> Path:
-        match rootdir:
-            case None:
-                return Path.cwd()
-            case Path():
-                return rootdir
-            case _:
-                msg = f"Need to provide path for rootdir but got {type(rootdir)}"
-                raise TypeError(msg)
 
     @field_validator("parameters", mode="before")
     @classmethod
@@ -602,14 +590,19 @@ class ConfigWorkflow(BaseModel):
 
     @classmethod
     def from_config_file(cls, config_filename: str):
-        from pydantic_yaml import parse_yaml_raw_as
+        from io import StringIO
+
+        from pydantic import TypeAdapter
+        from ruamel.yaml import YAML
 
         config_path = Path(config_filename)
         content = config_path.read_text()
-        self = parse_yaml_raw_as(ConfigWorkflow, content)
-
+        reader = YAML(typ="safe", pure=True)
+        object_ = reader.load(StringIO(content))
         # If name was not specified, then we use filename without file extension
-        if self.name is None:
-            self.name = config_path.stem
-        self.rootdir = config_path.resolve().parent
-        return self
+        if "name" not in object_:
+            object_["name"] = config_path.stem
+        if "rootdir" not in object_:
+            object_["rootdir"] = config_path.resolve().parent
+        adapter = TypeAdapter(ConfigWorkflow)
+        return adapter.validate_python(object_)
