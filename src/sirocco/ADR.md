@@ -182,6 +182,6 @@ We will at some point introduce parameterized tasks (and thus data as well). Thi
 
 Since the introduction of parameterized tasks, the `Store` and `Timeseries` design evolved.
 
-The `Timeseries` class became the more generic `Array` class. This makes the date part of the `Array` dimensions, along with the parameters.
+The `Timeseries` class became the more generic `Array` class. This makes the date part of the `Array` dimensions, along with potential parameters. Objects stored in an `Array` are accessed with their `coordinates` which is a `dict` mapping the dimension name to its value. Another change is that `Array` allows for empty coordinates (`{}`) so that this is not a special case to treat in the `Store` class anymore.
 
-`Store` then becomes a container for `Array` objects.
+`Store` is now a container for `Array` objects.
