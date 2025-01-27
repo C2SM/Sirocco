@@ -8,7 +8,7 @@ from termcolor import colored
 from sirocco import core
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(kw_only=True)
 class PrettyPrinter:
     """
     Pretty print unrolled workflow graph elements in a reproducible and human readable format.

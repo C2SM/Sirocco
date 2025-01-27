@@ -417,14 +417,13 @@ class ConfigNamelist:
     - specs is a dictionnary containing the specifications of parameters
       to change in the original namelist file
 
-    For example:
+    Example:
 
-    ... python
-
-        ConfigNamelist(path="/some/path/to/icon.nml",
-                       specs={"first_nml_block":{"first_param": first_value,
-                                                 "second_param": second_value},
-                              "second_nml_block":{"third_param": third_value}})
+        >>> path="/some/path/to/icon.nml"
+        >>> specs = {"first_nml_block": {"first_param": "a string value",
+        ...                              "second_param": 0},
+        ...          "second_nml_block": {"third_param": False}}
+        >>> config_nml = ConfigNamelist(path=path, specs=specs)
     """
 
     path: Path
