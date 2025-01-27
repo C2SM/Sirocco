@@ -230,11 +230,10 @@ class AiidaWorkGraph:
     def _link_wait_on_to_task(self, task: graph_items.Task):
         label = AiidaWorkGraph.get_aiida_label_from_graph_item(task)
         workgraph_task = self._aiida_task_nodes[label]
-        wait_on_tasks = []
+        workgraph_task.waiting_on.clear()
         for wait_on in task.wait_on:
             wait_on_task_label = AiidaWorkGraph.get_aiida_label_from_graph_item(wait_on)
-            wait_on_tasks.append(self._aiida_task_nodes[wait_on_task_label])
-        workgraph_task.wait = wait_on_tasks
+            workgraph_task.waiting_on.add(self._aiida_task_nodes[wait_on_task_label])
 
     def _link_input_nodes_to_task(self, task: graph_items.Task, input_: graph_items.Data):
         """Links the input to the workgraph task."""
