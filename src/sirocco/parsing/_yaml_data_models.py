@@ -276,7 +276,7 @@ class ConfigCycle(_NamedBaseModel):
         return self
 
 
-@dataclass
+@dataclass(kw_only=True)
 class ConfigBaseTaskSpecs:
     computer: str | None = None
     host: str | None = None
@@ -349,7 +349,7 @@ class ShellCliArgument:
         return cls(name, references_data_item, cli_option_of_data_item)
 
 
-@dataclass
+@dataclass(kw_only=True)
 class ConfigShellTaskSpecs:
     plugin: ClassVar[Literal["shell"]] = "shell"
     command: str = ""
@@ -409,36 +409,69 @@ class ConfigShellTask(ConfigBaseTask, ConfigShellTaskSpecs):
         return [ShellCliArgument.from_cli_argument(arg) for arg in ConfigShellTask.split_cli_arguments(cli_arguments)]
 
 
-@dataclass
+@dataclass(kw_only=True)
 class ConfigNamelist:
-    """Class for namelist specifications"""
+    """Class for namelist specifications
+
+    - path is the path to the namelist file considered as template
+    - specs is a dictionnary containing the specifications of parameters
+      to change in the original namelist file
+
+    Example:
+
+        >>> path = "/some/path/to/icon.nml"
+        >>> specs = {
+        ...     "first_nml_block": {"first_param": "a string value", "second_param": 0},
+        ...     "second_nml_block": {"third_param": False},
+        ... }
+        >>> config_nml = ConfigNamelist(path=path, specs=specs)
+    """
 
     path: Path
     specs: dict | None = None
 
 
-@dataclass
+@dataclass(kw_only=True)
 class ConfigIconTaskSpecs:
     plugin: ClassVar[Literal["icon"]] = "icon"
-    namelists: dict[str, ConfigNamelist] | None = None
+    namelists: dict[str, ConfigNamelist]
 
 
 class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
-    # validation done here and not in ConfigNamelist so that we can still
-    # import ConfigIconTaskSpecs in core._tasks.IconTask. Hence the iteration
-    # over the namelists that could be avoided with a more raw pydantic design
+    """Class representing an ICON task configuration from a workflow file
+
+    Examples:
+
+    yaml snippet:
+
+        >>> import textwrap
+        >>> import pydantic_yaml
+        >>> snippet = textwrap.dedent(
+        ...     '''
+        ...       ICON:
+        ...         plugin: icon
+        ...         namelists:
+        ...           - path/to/icon_master.namelist
+        ...           - path/to/case_nml:
+        ...               block_1:
+        ...                 param_name: param_value
+        ...     '''
+        ... )
+        >>> icon_task_cfg = pydantic_yaml.parse_yaml_raw_as(ConfigIconTask, snippet)
+    """
+
     @field_validator("namelists", mode="before")
     @classmethod
-    def check_nml(cls, nml_list: list[Any]) -> ConfigNamelist:
-        if nml_list is None:
-            msg = "ICON tasks need namelists, got none"
-            raise ValueError(msg)
-        if not isinstance(nml_list, list):
-            msg = f"expected a list got type {type(nml_list).__name__}"
+    def check_nmls(cls, nmls: dict[str, ConfigNamelist] | list[Any]) -> dict[str, ConfigNamelist]:
+        # Make validator idempotent even if not used yet
+        if isinstance(nmls, dict):
+            return nmls
+        if not isinstance(nmls, list):
+            msg = f"expected a list got type {type(nmls).__name__}"
             raise TypeError(msg)
         namelists = {}
         master_found = False
-        for nml in nml_list:
+        for nml in nmls:
             msg = f"was expecting a dict of length 1 or a string, got {nml}"
             if not isinstance(nml, (str, dict)):
                 raise TypeError(msg)
@@ -462,7 +495,7 @@ class DataType(enum.StrEnum):
     DIR = enum.auto()
 
 
-@dataclass
+@dataclass(kw_only=True)
 class ConfigBaseDataSpecs:
     type: DataType
     src: str
