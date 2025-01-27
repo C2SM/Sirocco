@@ -419,10 +419,11 @@ class ConfigNamelist:
 
     Example:
 
-        >>> path="/some/path/to/icon.nml"
-        >>> specs = {"first_nml_block": {"first_param": "a string value",
-        ...                              "second_param": 0},
-        ...          "second_nml_block": {"third_param": False}}
+        >>> path = "/some/path/to/icon.nml"
+        >>> specs = {
+        ...     "first_nml_block": {"first_param": "a string value", "second_param": 0},
+        ...     "second_nml_block": {"third_param": False},
+        ... }
         >>> config_nml = ConfigNamelist(path=path, specs=specs)
     """
 
