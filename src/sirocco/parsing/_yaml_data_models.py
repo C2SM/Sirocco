@@ -23,6 +23,15 @@ from pydantic import (
 
 from sirocco.parsing._utils import TimeUtils
 
+ITEM_T = typing.TypeVar("ITEM_T")
+
+
+def list_not_empty(value: list[ITEM_T]) -> list[ITEM_T]:
+    if len(value) < 1:
+        msg = "At least one element is required."
+        raise ValueError(msg)
+    return value
+
 
 class _NamedBaseModel(BaseModel):
     """Base class for all classes with a key that specifies their name.
@@ -524,7 +533,7 @@ class ConfigWorkflow(BaseModel):
             ...           tasks:
             ...             - task_a:
             ...     tasks:
-            ...       - task_b:
+            ...       - task_a:
             ...           plugin: shell
             ...     data:
             ...       available:
@@ -537,15 +546,36 @@ class ConfigWorkflow(BaseModel):
 
         minimum programmatically created instance
 
-            >>> empty_wf = ConfigWorkflow(cycles=[], tasks=[], data={})
+            >>> wf = ConfigWorkflow(
+            ...     cycles=[ConfigCycle(minimal_cycle={"tasks": [ConfigCycleTask(task_a={})]})],
+            ...     tasks=[ConfigShellTask(task_a={"plugin": "shell"})],
+            ...     data=ConfigData(
+            ...         available=[ConfigAvailableData(foo={})],
+            ...         generated=[ConfigGeneratedData(bar={})],
+            ...     ),
+            ...     parameters={},
+            ... )
 
     """
 
+    rootdir: Path | None = Path.cwd()
     name: str | None = None
-    cycles: list[ConfigCycle]
-    tasks: list[ConfigTask]
+    cycles: Annotated[list[ConfigCycle], AfterValidator(list_not_empty)]
+    tasks: Annotated[list[ConfigTask], AfterValidator(list_not_empty)]
     data: ConfigData
     parameters: dict[str, list] = {}
+
+    @field_validator("rootdir", mode="before")
+    @classmethod
+    def check_rootdir(cls, rootdir: Path | None) -> Path:
+        match rootdir:
+            case None:
+                return Path.cwd()
+            case Path():
+                return rootdir
+            case _:
+                msg = f"Need to provide path for rootdir but got {type(rootdir)}"
+                raise TypeError(msg)
 
     @field_validator("parameters", mode="before")
     @classmethod
@@ -570,67 +600,16 @@ class ConfigWorkflow(BaseModel):
                     raise ValueError(msg)
         return self
 
+    @classmethod
+    def from_config_file(cls, config_filename: str):
+        from pydantic_yaml import parse_yaml_raw_as
 
-ITEM_T = typing.TypeVar("ITEM_T")
+        config_path = Path(config_filename)
+        content = config_path.read_text()
+        self = parse_yaml_raw_as(ConfigWorkflow, content)
 
-
-def list_not_empty(value: list[ITEM_T]) -> list[ITEM_T]:
-    if len(value) < 1:
-        msg = "At least one element is required."
-        raise ValueError(msg)
-    return value
-
-
-class CanonicalWorkflow(BaseModel):
-    name: str
-    rootdir: Path
-    cycles: Annotated[list[ConfigCycle], AfterValidator(list_not_empty)]
-    tasks: Annotated[list[ConfigTask], AfterValidator(list_not_empty)]
-    data: ConfigData
-    parameters: dict[str, list[Any]]
-
-    @property
-    def data_dict(self) -> dict[str, ConfigAvailableData | ConfigGeneratedData]:
-        return {data.name: data for data in itertools.chain(self.data.available, self.data.generated)}
-
-    @property
-    def task_dict(self) -> dict[str, ConfigTask]:
-        return {task.name: task for task in self.tasks}
-
-
-def canonicalize_workflow(config_workflow: ConfigWorkflow, rootdir: Path) -> CanonicalWorkflow:
-    if not config_workflow.name:
-        msg = "Workflow name required for canonicalization."
-        raise ValueError(msg)
-    return CanonicalWorkflow(
-        name=config_workflow.name,
-        rootdir=rootdir,
-        cycles=config_workflow.cycles,
-        tasks=config_workflow.tasks,
-        data=config_workflow.data,
-        parameters=config_workflow.parameters,
-    )
-
-
-def load_workflow_config(workflow_config: str) -> CanonicalWorkflow:
-    """
-    Loads a python representation of a workflow config file.
-
-    :param workflow_config: the string to the config yaml file containing the workflow definition
-    """
-    from pydantic_yaml import parse_yaml_raw_as
-
-    config_path = Path(workflow_config)
-
-    content = config_path.read_text()
-
-    parsed_workflow = parse_yaml_raw_as(ConfigWorkflow, content)
-
-    # If name was not specified, then we use filename without file extension
-    if parsed_workflow.name is None:
-        parsed_workflow.name = config_path.stem
-
-    rootdir = config_path.resolve().parent
-
-    return canonicalize_workflow(config_workflow=parsed_workflow, rootdir=rootdir)
-    # return parsed_workflow
+        # If name was not specified, then we use filename without file extension
+        if self.name is None:
+            self.name = config_path.stem
+        self.rootdir = config_path.resolve().parent
+        return self
