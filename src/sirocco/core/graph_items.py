@@ -39,7 +39,7 @@ class Data(ConfigBaseDataSpecs, GraphItem):
 
     color: ClassVar[str] = field(default="light_blue", repr=False)
 
-    available: bool | None = None  # must get a default value because of dataclass inheritence
+    available: bool
 
     @classmethod
     def from_config(cls, config: ConfigBaseData, coordinates: dict) -> Self:
