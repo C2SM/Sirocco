@@ -1,8 +1,8 @@
-# Architectural Decision Record
+# `Sirocco.core.graph_items.Store` Design [2024-11-11]
 
-## Sirocco.core.Store design
+# Initial version [2024-11-11] 
 
-### Understanding the intended usage
+## Understanding the intended usage
 
 In the current yaml format we specify all data nodes in the same way, whether they are
 
@@ -73,18 +73,18 @@ A further constraint for the design at the moment is that we want to distinguish
     - return `None` if the date is too earlier / later than the earliest / latest stored node
     - ValueError if the date is in the right range but there is no node stored for it
 
-To this end the `TimeSeries` data structure was introduced, which takes care of storing all the data points by date for recurring nodes.
+**[SEE UPDATE]** To this end the `TimeSeries` data structure was introduced, which takes care of storing all the data points by date for recurring nodes.
 
 ```python
-master_namelists = TimeSeries()
-master_namelists[datetime.fromisoformat("2024-01-01")] = Data.from_config(...)
-master_namelists[datetime.fromisoformat("2025-01-01")] = Data.from_config(...)
+icon_output = TimeSeries()
+icon_output[datetime.fromisoformat("2024-01-01")] = Data.from_config(...)
+icon_output[datetime.fromisoformat("2025-01-01")] = Data.from_config(...)
 
-master_namelists.start_date  # is now 2024-01-01
-master_namelists.end_date  # is now 2025-01-01
-master_namelists[datetime.fromisoformat("2024-01-01")]  # will return the first entry
-master_namelists[datetime.fromisoformat("2026-01-01")]  # will return None and log a warning
-master_namelists[datetime.fromisoformat("2024-06-01")]  # will raise an Error
+icon_output.start_date  # is now 2024-01-01
+icon_output.end_date  # is now 2025-01-01
+icon_output[datetime.fromisoformat("2024-01-01")]  # will return the first entry
+icon_output[datetime.fromisoformat("2026-01-01")]  # will return None and log a warning
+icon_output[datetime.fromisoformat("2024-06-01")]  # will raise an Error
 ```
 
 This means the checking logic to decide whether we are storing a one-off data point / task or a recurring one (in this case we initialize a `TimeSeries` for it) has to go somewhere. The choices are:
@@ -163,25 +163,31 @@ If we were not using `TimeSeries`, this would open up the following additional o
             - or the functionality would have to be implemented external to a standard mapping and would have to do even more checking
         - If not hosted in the `Workflow` class directly, a cumbersome logic will have to be reproduced each time we need to access the nodes, like generating the `WorkGraph` or the visualization graph. If hosted in `WorkFlow`, this is not less maintenance than the `Store` and `TimeSeries` classes but less clean.
 
-### Temporary Conclusion
+## Temporary Conclusion
 
 All-in-all we (Rico, Matthieu) think `Store` is a good enough design for now, as the maintenance burden is low, given that `Sirocco` is more of an app and less of a library. Therefore `Store` should not be confronted with expectations to support any `Mapping` functionality beyond what we need inside `Sirocco` itself.
 
-### Further developments potentially affecting this design
+## Further developments potentially affecting this design
 
 We will at some point introduce parameterized tasks (and thus data as well). This will add other dimensions to the `Store`. 
 
-### Reasons to change
+## Reasons to change
 
 - If we find ourselves implementing more and more standard container functionality on `Store` it is time to reconsider.
 - If the code for turning the IR into a WorkGraph suffers from additional complexity due to the design of `Store`, then it needs to be changed
 - Potentially, changes to the config schema might necessitate or unlock a different design here
 
 
-### UPDATE: Introduction of parameterized tasks
+# UPDATE [2025-01-29]
+
+## The `Array` class
 
 Since the introduction of parameterized tasks, the `Store` and `Timeseries` design evolved.
 
-The `Timeseries` class became the more generic `Array` class. This makes the date part of the `Array` dimensions, along with potential parameters. Objects stored in an `Array` are accessed with their `coordinates` which is a `dict` mapping the dimension name to its value. Another change is that `Array` allows for empty coordinates (`{}`) so that this is not a special case to treat in the `Store` class anymore.
+The `Timeseries` class became the more generic `Array` class. This makes the date part of the `Array` dimensions, along with potential parameters. Objects stored in an `Array` are accessed with their `coordinates` which is a `dict` mapping the dimension name to its value. `Store` is now a container for `Array` objects.
 
-`Store` is now a container for `Array` objects.
+The following 2 changes also simplified the code and made it cleaner:
+- Accessing nodes without any date or parameter is simplified as `Array` allows for empty coordinates (`{}`) so that these cases are not captured and treated in a special way in `Store` anymore.
+- The need for special handling of nodes with dates out of range (just ignoring them, which is rather dirty) also disappeared with the introduction of the `when` keyword in the config format.
+
+
