@@ -7,6 +7,9 @@ repo_url: https://github.com/C2SM/WCFlow
 docs_dir: src
 site_dir: build
 
+markdown_extensions:
+  - attr_list
+
 theme:
   name: material
   color_mode: auto
