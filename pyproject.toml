@@ -84,6 +84,13 @@ extra-args = ["--doctest-modules"]
 [[tool.hatch.envs.hatch-test.matrix]]
 python = ["3.12"]
 
+[tool.hatch.envs.types]
+extra-dependencies = [
+  "mypy>=1.0.0",
+]
+[tool.hatch.envs.types.scripts]
+check = "mypy --install-types --non-interactive src/sirocco"
+
 [tool.hatch.envs.docs]
 description = "Build the documentation"
 extra-dependencies = [
