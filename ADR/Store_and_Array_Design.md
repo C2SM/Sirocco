@@ -1,4 +1,4 @@
-# `Sirocco.core.graph_items.Store` Design [2024-11-11]
+# `Sirocco.core.graph_items.Store` Design
 
 # Initial version [2024-11-11] 
 
