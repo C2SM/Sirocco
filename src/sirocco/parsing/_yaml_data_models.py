@@ -448,7 +448,6 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
     yaml snippet:
 
         >>> import textwrap
-        >>> import pydantic_yaml
         >>> snippet = textwrap.dedent(
         ...     '''
         ...       ICON:
@@ -460,7 +459,7 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
         ...                 param_name: param_value
         ...     '''
         ... )
-        >>> icon_task_cfg = pydantic_yaml.parse_yaml_raw_as(ConfigIconTask, snippet)
+        >>> icon_task_cfg = validate_yaml_content(ConfigIconTask, snippet)
     """
 
     @field_validator("namelists", mode="before")
