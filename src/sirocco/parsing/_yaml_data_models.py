@@ -719,14 +719,26 @@ class ConfigWorkflow(BaseModel):
             OBJECT_T: An instance of the specified class type with data parsed and
             validated from the YAML content.
         """
-        config_path_ = Path(config_path)
-        content = config_path_.read_text()
+        config_filename = Path(config_path).stem
+        config_resolved_path = Path(config_path).resolve()
+        if not config_resolved_path.exists():
+            msg = f"Workflow config file in path {config_resolved_path} does not exists."
+            raise FileNotFoundError(msg)
+        if not config_resolved_path.is_file():
+            msg = f"Workflow config file in path {config_resolved_path} is not a file."
+            raise FileNotFoundError(msg)
+
+        content = config_resolved_path.read_text()
+        # An empty workflow is parsed to None object so we catch this here for a more understandable error
+        if content == "":
+            msg = f"Workflow config file in path {config_resolved_path} is empty."
+            raise ValueError(msg)
         reader = YAML(typ="safe", pure=True)
         object_ = reader.load(StringIO(content))
         # If name was not specified, then we use filename without file extension
         if "name" not in object_:
-            object_["name"] = config_path_.stem
-        object_["rootdir"] = config_path_.resolve().parent
+            object_["name"] = config_filename
+        object_["rootdir"] = config_resolved_path.parent
         adapter = TypeAdapter(cls)
         return adapter.validate_python(object_)
 
