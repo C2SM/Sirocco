@@ -8,12 +8,14 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
-from typing import Annotated, Any, ClassVar, Literal
+from typing import Annotated, Any, ClassVar, Literal, TypeAlias, Type
+from collections.abc import Callable
 
 from isoduration import parse_duration
 from isoduration.types import Duration  # pydantic needs type # noqa: TCH002
 from pydantic import (
     AfterValidator,
+    BeforeValidator,
     BaseModel,
     ConfigDict,
     Discriminator,
@@ -93,12 +95,15 @@ class _NamedBaseModel(BaseModel):
         return data
 
 
+DatetimeNone: TypeAlias = datetime | None
+
+
 class _WhenBaseModel(BaseModel):
     """Base class for when specifications"""
 
-    before: datetime | None = None
-    after: datetime | None = None
-    at: datetime | None = None
+    before: DatetimeNone = None
+    after: DatetimeNone = None
+    at: DatetimeNone = None
 
     @model_validator(mode="before")
     @classmethod
@@ -113,7 +118,7 @@ class _WhenBaseModel(BaseModel):
 
     @field_validator("before", "after", "at", mode="before")
     @classmethod
-    def convert_datetime(cls, value) -> datetime:
+    def convert_datetime(cls, value) -> DatetimeNone:
         if value is None:
             return None
         return datetime.fromisoformat(value)
@@ -182,54 +187,67 @@ class ConfigCycleTaskOutput(_NamedBaseModel):
     To create an instance of an output in a task in a cycle defined in a workflow file.
     """
 
+# - ML - Works but mypy is not happy
+# def gen_convert_list_target_nodes(cls: type) -> Callable[[Any], list[Type[cls]]]:
+#     def convert_list_target_nodes(values) -> list[Type[cls]]:
+#         items: list[Type[cls]] = []
+#         if values is None:
+#             return items
+#         for value in values:
+#             if isinstance(value, str):
+#                 items.append(cls(name=value))
+#             elif isinstance(value, dict):
+#                 items.append(cls(**value))
+#         return items
+#     return convert_list_target_nodes
+
+
+def convert_cycle_task_inputs(values) -> list[ConfigCycleTaskInput]:
+        inputs: list[ConfigCycleTaskInput] = []
+        if values is None:
+            return inputs
+        for value in values:
+            if isinstance(value, str):
+                inputs.append(ConfigCycleTaskInput(name=value))
+            elif isinstance(value, dict):
+                inputs.append(ConfigCycleTaskInput(**value))
+        return inputs
+
+def convert_cycle_task_outputs(values) -> list[ConfigCycleTaskOutput]:
+        outputs: list[ConfigCycleTaskOutput] = []
+        if values is None:
+            return outputs
+        for value in values:
+            if isinstance(value, str):
+                outputs.append(ConfigCycleTaskOutput(name=value))
+            elif isinstance(value, dict):
+                outputs.append(ConfigCycleTaskOutput(**value))
+        return outputs
+
+def convert_cycle_task_waiton(values) -> list[ConfigCycleTaskWaitOn]:
+        wait_on: list[ConfigCycleTaskWaitOn] = []
+        if values is None:
+            return wait_on
+        for value in values:
+            if isinstance(value, str):
+                wait_on.append(ConfigCycleTaskWaitOn(name=value))
+            elif isinstance(value, dict):
+                wait_on.append(ConfigCycleTaskWaitOn(**value))
+        return wait_on
+
 
 class ConfigCycleTask(_NamedBaseModel):
     """
     To create an instance of a task in a cycle defined in a workflow file.
     """
 
-    inputs: list[ConfigCycleTaskInput | str] | None = Field(default_factory=list)
-    outputs: list[ConfigCycleTaskOutput | str] | None = Field(default_factory=list)
-    wait_on: list[ConfigCycleTaskWaitOn | str] | None = Field(default_factory=list)
-
-    @field_validator("inputs", mode="before")
-    @classmethod
-    def convert_cycle_task_inputs(cls, values) -> list[ConfigCycleTaskInput]:
-        inputs = []
-        if values is None:
-            return inputs
-        for value in values:
-            if isinstance(value, str):
-                inputs.append({value: None})
-            elif isinstance(value, dict):
-                inputs.append(value)
-        return inputs
-
-    @field_validator("outputs", mode="before")
-    @classmethod
-    def convert_cycle_task_outputs(cls, values) -> list[ConfigCycleTaskOutput]:
-        outputs = []
-        if values is None:
-            return outputs
-        for value in values:
-            if isinstance(value, str):
-                outputs.append({value: None})
-            elif isinstance(value, dict):
-                outputs.append(value)
-        return outputs
-
-    @field_validator("wait_on", mode="before")
-    @classmethod
-    def convert_cycle_task_wait_on(cls, values) -> list[ConfigCycleTaskWaitOn]:
-        wait_on = []
-        if values is None:
-            return wait_on
-        for value in values:
-            if isinstance(value, str):
-                wait_on.append({value: None})
-            elif isinstance(value, dict):
-                wait_on.append(value)
-        return wait_on
+    # - ML - Works but mypy is not happy
+    # inputs: Annotated[list[ConfigCycleTaskInput], BeforeValidator(gen_convert_list_target_nodes(ConfigCycleTaskInput))] = []
+    # outputs: Annotated[list[ConfigCycleTaskOutput], BeforeValidator(gen_convert_list_target_nodes(ConfigCycleTaskOutput))] = []
+    # wait_on: Annotated[list[ConfigCycleTaskWaitOn], BeforeValidator(gen_convert_list_target_nodes(ConfigCycleTaskWaitOn))] = []
+    inputs: Annotated[list[ConfigCycleTaskInput], BeforeValidator(convert_cycle_task_inputs)] = []
+    outputs: Annotated[list[ConfigCycleTaskOutput], BeforeValidator(convert_cycle_task_outputs)] = []
+    wait_on: Annotated[list[ConfigCycleTaskWaitOn], BeforeValidator(convert_cycle_task_waiton)] = []
 
 
 class ConfigCycle(_NamedBaseModel):
@@ -702,7 +720,7 @@ class CanonicalWorkflow(BaseModel):
     parameters: dict[str, list[Any]]
 
     @property
-    def data_dict(self) -> dict[str, ConfigAvailableData | ConfigGeneratedData]:
+    def data_dict(self) -> dict[str, ConfigBaseData]:
         return {data.name: data for data in itertools.chain(self.data.available, self.data.generated)}
 
     @property
