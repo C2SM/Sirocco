@@ -5,7 +5,6 @@ import pytest
 from sirocco.core import Workflow
 from sirocco.core._tasks.icon_task import IconTask
 from sirocco.parsing._yaml_data_models import ConfigShellTask, ShellCliArgument
-from sirocco.pretty_print import PrettyPrinter
 from sirocco.vizgraph import VizGraph
 from sirocco.workgraph import AiidaWorkGraph
 
@@ -26,28 +25,6 @@ def test_parsing_cli_parameters():
     ]
 
 
-@pytest.fixture
-def pprinter():
-    return PrettyPrinter()
-
-
-def generate_config_paths(test_case: str):
-    return {
-        "yml": Path(f"tests/cases/{test_case}/config/config.yml"),
-        "txt": Path(f"tests/cases/{test_case}/data/config.txt"),
-        "svg": Path(f"tests/cases/{test_case}/svg/config.svg"),
-    }
-
-
-# configs that are tested for parsing
-all_uses_cases = ["small", "parameters", "large"]
-
-
-@pytest.fixture(params=all_uses_cases)
-def config_paths(request):
-    return generate_config_paths(request.param)
-
-
 def test_parse_config_file(config_paths, pprinter):
     reference_str = config_paths["txt"].read_text()
     test_str = pprinter.format(Workflow.from_config_file(config_paths["yml"]))
@@ -59,11 +36,6 @@ def test_parse_config_file(config_paths, pprinter):
         ), f"Workflow graph doesn't match serialized data. New graph string dumped to {new_path}."
 
 
-@pytest.mark.skip(reason="don't run it each time, uncomment to regenerate serilaized data")
-def test_serialize_workflow(config_paths, pprinter):
-    config_paths["txt"].write_text(pprinter.format(Workflow.from_config_file(config_paths["yml"])))
-
-
 def test_vizgraph(config_paths):
     VizGraph.from_config_file(config_paths["yml"]).draw(file_path=config_paths["svg"])
 
@@ -71,13 +43,13 @@ def test_vizgraph(config_paths):
 # configs that are tested for running workgraph
 @pytest.mark.slow
 @pytest.mark.parametrize(
-    "config_path",
+    "config_case",
     [
-        "tests/cases/small/config/config.yml",
-        "tests/cases/parameters/config/config.yml",
+        "small",
+        "parameters",
     ],
 )
-def test_run_workgraph(config_path, aiida_computer):
+def test_run_workgraph(config_case, config_paths, aiida_computer):  # noqa: ARG001  # config_case is overridden
     """Tests end-to-end the parsing from file up to running the workgraph.
 
     Automatically uses the aiida_profile fixture to create a new profile. Note to debug the test with your profile
@@ -86,7 +58,7 @@ def test_run_workgraph(config_path, aiida_computer):
     # some configs reference computer "localhost" which we need to create beforehand
     aiida_computer("localhost").store()
 
-    core_workflow = Workflow.from_config_file(config_path)
+    core_workflow = Workflow.from_config_file(str(config_paths["yml"]))
     aiida_workflow = AiidaWorkGraph(core_workflow)
     out = aiida_workflow.run()
     assert out.get("execution_count", None).value == 1
@@ -94,10 +66,10 @@ def test_run_workgraph(config_path, aiida_computer):
 
 # configs containing task using icon plugin
 @pytest.mark.parametrize(
-    "config_paths",
-    [generate_config_paths("large")],
+    "config_case",
+    ["large"],
 )
-def test_nml_mod(config_paths, tmp_path):
+def test_nml_mod(config_case, config_paths, tmp_path):  # noqa: ARG001  # config_case is overridden
     nml_refdir = config_paths["txt"].parent / "ICON_namelists"
     wf = Workflow.from_config_file(config_paths["yml"])
     # Create core mamelists
@@ -112,17 +84,3 @@ def test_nml_mod(config_paths, tmp_path):
             new_path = nml.with_suffix(".new")
             new_path.write_text(test_nml)
             assert ref_nml == test_nml, f"Namelist {nml.name} differs between ref and test"
-
-
-@pytest.mark.skip(reason="don't run it each time, uncomment to regenerate serilaized data")
-# configs containing task using icon plugin
-@pytest.mark.parametrize(
-    "config_paths",
-    [generate_config_paths("large")],
-)
-def test_serialize_nml(config_paths):
-    nml_refdir = config_paths["txt"].parent / "ICON_namelists"
-    wf = Workflow.from_config_file(config_paths["yml"])
-    for task in wf.tasks:
-        if isinstance(task, IconTask):
-            task.create_workflow_namelists(folder=nml_refdir)
