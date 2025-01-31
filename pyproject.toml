@@ -48,6 +48,9 @@ Changelog = "https://github.com/C2SM/Sirocco/blob/main/CHANGELOG.md"
 # Configuration for [pytest](https://docs.pytest.org)
 addopts = "--pdbcls=IPython.terminal.debugger:TerminalPdb"
 norecursedirs = "tests/cases"
+markers = [
+  "slow: slow integration tests which are not recommended to run locally for normal development"
+]
 
 [tool.coverage.run]
 # Configuration of [coverage.py](https://coverage.readthedocs.io)
@@ -83,7 +86,7 @@ extra-dependencies = [
     "ipdb"
 ]
 default-args = []
-extra-args = ["--doctest-modules"]
+extra-args = ["--doctest-modules", '-m not slow']
 
 [[tool.hatch.envs.hatch-test.matrix]]
 python = ["3.12"]

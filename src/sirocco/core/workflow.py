@@ -116,7 +116,7 @@ class Workflow:
         return cls.from_config_workflow(ConfigWorkflow.from_config_file(config_path))
 
     @classmethod
-    def from_config_workflow(cls: type[Self], config_workflow: ConfigWorkflow) -> Workflow:
+    def from_config_workflow(cls: type[Self], config_workflow: ConfigWorkflow) -> Self:
         return cls(
             name=config_workflow.name,
             config_rootdir=config_workflow.rootdir,

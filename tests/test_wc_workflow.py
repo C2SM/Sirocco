@@ -69,6 +69,7 @@ def test_vizgraph(config_paths):
 
 
 # configs that are tested for running workgraph
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "config_path",
     [
