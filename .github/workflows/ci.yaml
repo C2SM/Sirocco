@@ -82,7 +82,7 @@ jobs:
         pip install .
         verdi presto
     - name: Run formatter and linter
-      run: hatch fmt --che
+      run: hatch fmt --check
 
   typechecking:
     runs-on: ubuntu-latest
@@ -100,4 +100,4 @@ jobs:
     - name: Install Graphviz
       run: sudo apt-get install graphviz graphviz-dev
     - name: Run formatter and linter
-      run: hatch run types:checkck
+      run: hatch run types:check
