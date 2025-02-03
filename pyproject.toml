@@ -109,6 +109,7 @@ deploy = [
 ]
 
 [tool.hatch.envs.types]
+python = "3.12"
 extra-dependencies = [
   "mypy>=1.0.0",
   "pytest",
