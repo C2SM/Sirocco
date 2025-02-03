@@ -18,7 +18,7 @@ def hsv_to_hex(h: float, s: float, v: float) -> str:
     return "#{:02x}{:02x}{:02x}".format(*map(round, (255 * r, 255 * g, 255 * b)))
 
 
-def node_colors(h: float) -> dict[str:str]:
+def node_colors(h: float) -> dict[str, str]:
     fill = hsv_to_hex(h / 365, 0.15, 1)
     border = hsv_to_hex(h / 365, 1, 0.20)
     font = hsv_to_hex(h / 365, 1, 0.15)

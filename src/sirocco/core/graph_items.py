@@ -15,6 +15,8 @@ if TYPE_CHECKING:
     from datetime import datetime
     from pathlib import Path
 
+    from termcolor._types import Color
+
     from sirocco.parsing._yaml_data_models import (
         ConfigBaseData,
         ConfigCycleTask,
@@ -28,7 +30,7 @@ if TYPE_CHECKING:
 class GraphItem:
     """base class for Data Tasks and Cycles"""
 
-    color: ClassVar[str]
+    color: ClassVar[Color]
 
     name: str
     coordinates: dict
@@ -41,7 +43,7 @@ GRAPH_ITEM_T = TypeVar("GRAPH_ITEM_T", bound=GraphItem)
 class Data(ConfigBaseDataSpecs, GraphItem):
     """Internal representation of a data node"""
 
-    color: ClassVar[str] = field(default="light_blue", repr=False)
+    color: ClassVar[Color] = field(default="light_blue", repr=False)
 
     available: bool
 
@@ -65,12 +67,12 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     """Internal representation of a task node"""
 
     plugin_classes: ClassVar[dict[str, type]] = field(default={}, repr=False)
-    color: ClassVar[str] = field(default="light_red", repr=False)
+    color: ClassVar[Color] = field(default="light_red", repr=False)
 
     inputs: list[BoundData] = field(default_factory=list)
     outputs: list[Data] = field(default_factory=list)
     wait_on: list[Task] = field(default_factory=list)
-    config_rootdir: Path | None = None
+    config_rootdir: Path
     start_date: datetime | None = None
     end_date: datetime | None = None
 
@@ -139,7 +141,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
 class Cycle(GraphItem):
     """Internal reprenstation of a cycle"""
 
-    color: ClassVar[str] = field(default="light_green", repr=False)
+    color: ClassVar[Color] = field(default="light_green", repr=False)
 
     tasks: list[Task]
 

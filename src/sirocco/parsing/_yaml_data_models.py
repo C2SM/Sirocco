@@ -122,9 +122,9 @@ class _WhenBaseModel(BaseModel):
 
     @field_validator("before", "after", "at", mode="before")
     @classmethod
-    def convert_datetime(cls, value) -> datetime:
-        if value is None:
-            return None
+    def convert_datetime(cls, value: datetime | str | None) -> datetime | None:
+        if value is None or isinstance(value, datetime):
+            return value
         return datetime.fromisoformat(value)
 
 
@@ -199,7 +199,7 @@ def make_named_model_list_converter(
     cls: type[NAMED_BASE_T],
 ) -> typing.Callable[[list[NAMED_BASE_T | str | dict] | None], list[NAMED_BASE_T]]:
     def convert_named_model_list(values: list[NAMED_BASE_T | str | dict] | None) -> list[NAMED_BASE_T]:
-        inputs = []
+        inputs: list[NAMED_BASE_T] = []
         if values is None:
             return inputs
         for value in values:

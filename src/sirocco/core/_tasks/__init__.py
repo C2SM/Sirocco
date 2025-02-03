@@ -1,3 +1,4 @@
-from . import icon_task, shell_task
+from .icon_task import IconTask
+from .shell_task import ShellTask
 
-__all__ = ["icon_task", "shell_task"]
+__all__ = ["IconTask", "ShellTask"]

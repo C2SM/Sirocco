@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Self
 
 from sirocco.core.graph_items import Cycle, Data, Store, Task
 from sirocco.parsing._yaml_data_models import (
+    ConfigBaseData,
     ConfigWorkflow,
 )
 
@@ -14,10 +15,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from sirocco.parsing._yaml_data_models import (
-        ConfigAvailableData,
         ConfigCycle,
         ConfigData,
-        ConfigGeneratedData,
         ConfigTask,
     )
 
@@ -41,9 +40,7 @@ class Workflow:
         self.data: Store[Data] = Store()
         self.cycles: Store[Cycle] = Store()
 
-        data_dict: dict[str, ConfigAvailableData | ConfigGeneratedData] = {
-            data.name: data for data in chain(data.available, data.generated)
-        }
+        data_dict: dict[str, ConfigBaseData] = {data.name: data for data in chain(data.available, data.generated)}
         task_dict: dict[str, ConfigTask] = {task.name: task for task in tasks}
 
         # Function to iterate over date and parameter combinations
@@ -52,9 +49,9 @@ class Workflow:
             yield from (dict(zip(space.keys(), x, strict=False)) for x in product(*space.values()))
 
         # 1 - create availalbe data nodes
-        for data_config in data.available:
-            for coordinates in iter_coordinates(param_refs=data_config.parameters, date=None):
-                self.data.add(Data.from_config(config=data_config, coordinates=coordinates))
+        for available_data_config in data.available:
+            for coordinates in iter_coordinates(param_refs=available_data_config.parameters, date=None):
+                self.data.add(Data.from_config(config=available_data_config, coordinates=coordinates))
 
         # 2 - create output data nodes
         for cycle_config in cycles:
@@ -100,9 +97,9 @@ class Workflow:
             task.link_wait_on_tasks(self.tasks)
 
     @staticmethod
-    def cycle_dates(cycle_config: ConfigCycle) -> Iterator[datetime]:
+    def cycle_dates(cycle_config: ConfigCycle) -> Iterator[datetime | None]:
         yield (date := cycle_config.start_date)
-        if cycle_config.period is not None:
+        if cycle_config.period is not None and date is not None and cycle_config.end_date is not None:
             while (date := date + cycle_config.period) < cycle_config.end_date:
                 yield date
 
@@ -116,7 +113,7 @@ class Workflow:
         return cls.from_config_workflow(ConfigWorkflow.from_config_file(config_path))
 
     @classmethod
-    def from_config_workflow(cls: type[Self], config_workflow: ConfigWorkflow) -> Workflow:
+    def from_config_workflow(cls: type[Self], config_workflow: ConfigWorkflow) -> Self:
         return cls(
             name=config_workflow.name,
             config_rootdir=config_workflow.rootdir,

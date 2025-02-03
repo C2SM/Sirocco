@@ -85,10 +85,12 @@ class PrettyPrinter:
         Example:
 
         >>> from datetime import datetime
+        >>> import pathlib
         >>> print(
         ...     PrettyPrinter().format_basic(
         ...         core.Task(
         ...             name="foo",
+        ...             config_rootdir=pathlib.Path("."),
         ...             coordinates={"date": datetime(1000, 1, 1).date()},
         ...         )
         ...     )
