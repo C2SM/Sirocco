@@ -92,8 +92,7 @@ installer = "uv"
 extra-dependencies = [
     "ipdb"
 ]
-default-args = ['-m not slow']
-extra-args = ["--doctest-modules"]
+extra-args = ["--doctest-modules", '-m not slow']
 
 [[tool.hatch.envs.hatch-test.matrix]]
 python = ["3.12"]
