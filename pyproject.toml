@@ -107,3 +107,29 @@ serve = [
 deploy = [
   "mkdocs gh-deploy --no-history -f docs/mkdocs.yml"
 ]
+
+[tool.hatch.envs.types]
+extra-dependencies = [
+  "mypy>=1.0.0",
+  "pytest",
+  "lxml-stubs",
+  "types-setuptools",
+  "types-docutils",
+  "types-colorama",
+  "types-Pygments"
+]
+
+[tool.hatch.envs.types.scripts]
+check = "mypy --no-incremental {args:.}"
+
+[[tool.mypy.overrides]]
+module = ["isoduration", "isoduration.*"]
+follow_untyped_imports = true
+
+[[tool.mypy.overrides]]
+module = ["pygraphviz"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["f90nml"]
+ignore_missing_imports = true

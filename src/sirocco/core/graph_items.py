@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from itertools import chain, product
-from typing import TYPE_CHECKING, Any, ClassVar, Self, TypeAlias
+from typing import TYPE_CHECKING, Any, ClassVar, Self, TypeAlias, TypeVar, cast
 
 from sirocco.parsing._yaml_data_models import (
     ConfigAvailableData,
@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from sirocco.parsing._yaml_data_models import (
         ConfigBaseData,
         ConfigCycleTask,
+        ConfigCycleTaskWaitOn,
         ConfigTask,
         TargetNodesBaseModel,
     )
@@ -31,6 +32,9 @@ class GraphItem:
 
     name: str
     coordinates: dict
+
+
+GRAPH_ITEM_T = TypeVar("GRAPH_ITEM_T", bound=GraphItem)
 
 
 @dataclass(kw_only=True)
@@ -69,6 +73,8 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     config_rootdir: Path | None = None
     start_date: datetime | None = None
     end_date: datetime | None = None
+
+    _wait_on_specs: list[ConfigCycleTaskWaitOn] = field(default_factory=list, repr=False)
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -118,7 +124,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
 
         return new
 
-    def link_wait_on_tasks(self, taskstore: Store):
+    def link_wait_on_tasks(self, taskstore: Store[Task]) -> None:
         self.wait_on = list(
             chain(
                 *(
@@ -138,19 +144,19 @@ class Cycle(GraphItem):
     tasks: list[Task]
 
 
-class Array:
-    """Dictionnary of GraphItem objects accessed by arbitrary dimensions"""
+class Array[GRAPH_ITEM_T]:
+    """Dictionnary of GRAPH_ITEM_T objects accessed by arbitrary dimensions"""
 
     def __init__(self, name: str) -> None:
         self._name = name
-        self._dims: tuple[str] | None = None
-        self._axes: dict | None = None
-        self._dict: dict[tuple, GraphItem] | None = None
+        self._dims: tuple[str, ...] = ()
+        self._axes: dict[str, set] = {}
+        self._dict: dict[tuple, GRAPH_ITEM_T] = {}
 
-    def __setitem__(self, coordinates: dict, value: GraphItem) -> None:
+    def __setitem__(self, coordinates: dict, value: GRAPH_ITEM_T) -> None:
         # First access: set axes and initialize dictionnary
         input_dims = tuple(coordinates.keys())
-        if self._dims is None:
+        if self._dims == ():
             self._dims = input_dims
             self._axes = {k: set() for k in self._dims}
             self._dict = {}
@@ -171,7 +177,7 @@ class Array:
         # Set item
         self._dict[key] = value
 
-    def __getitem__(self, coordinates: dict) -> GraphItem:
+    def __getitem__(self, coordinates: dict) -> GRAPH_ITEM_T:
         if self._dims != (input_dims := tuple(coordinates.keys())):
             msg = f"Array {self._name}: coordinate names {input_dims} don't match Array dimensions {self._dims}"
             raise KeyError(msg)
@@ -179,7 +185,7 @@ class Array:
         key = tuple(coordinates[dim] for dim in self._dims)
         return self._dict[key]
 
-    def iter_from_cycle_spec(self, spec: TargetNodesBaseModel, reference: dict) -> Iterator[GraphItem]:
+    def iter_from_cycle_spec(self, spec: TargetNodesBaseModel, reference: dict) -> Iterator[GRAPH_ITEM_T]:
         # Check date references
         if "date" not in self._dims and (spec.lag or spec.date):
             msg = f"Array {self._name} has no date dimension, cannot be referenced by dates"
@@ -205,26 +211,24 @@ class Array:
         else:
             yield from self._axes[dim]
 
-    def __iter__(self) -> Iterator[GraphItem]:
+    def __iter__(self) -> Iterator[GRAPH_ITEM_T]:
         yield from self._dict.values()
 
 
-class Store:
-    """Container for GraphItem Arrays"""
+class Store[GRAPH_ITEM_T]:
+    """Container for GRAPH_ITEM_T Arrays"""
 
-    def __init__(self):
-        self._dict: dict[str, Array] = {}
+    def __init__(self) -> None:
+        self._dict: dict[str, Array[GRAPH_ITEM_T]] = {}
 
-    def add(self, item) -> None:
-        if not isinstance(item, GraphItem):
-            msg = "items in a Store must be of instance GraphItem"
-            raise TypeError(msg)
-        name, coordinates = item.name, item.coordinates
+    def add(self, item: GRAPH_ITEM_T) -> None:
+        graph_item = cast(GraphItem, item)  # mypy can somehow not deduce this
+        name, coordinates = graph_item.name, graph_item.coordinates
         if name not in self._dict:
-            self._dict[name] = Array(name)
+            self._dict[name] = Array[GRAPH_ITEM_T](name)
         self._dict[name][coordinates] = item
 
-    def __getitem__(self, key: tuple[str, dict]) -> GraphItem:
+    def __getitem__(self, key: tuple[str, dict]) -> GRAPH_ITEM_T:
         name, coordinates = key
         if "date" in coordinates and coordinates["date"] is None:
             del coordinates["date"]
@@ -233,7 +237,7 @@ class Store:
             raise KeyError(msg)
         return self._dict[name][coordinates]
 
-    def iter_from_cycle_spec(self, spec: TargetNodesBaseModel, reference: dict) -> Iterator[GraphItem]:
+    def iter_from_cycle_spec(self, spec: TargetNodesBaseModel, reference: dict) -> Iterator[GRAPH_ITEM_T]:
         # Check if target items should be querried at all
         if (when := spec.when) is not None:
             if (ref_date := reference.get("date")) is None:
@@ -248,5 +252,5 @@ class Store:
         # Yield items
         yield from self._dict[spec.name].iter_from_cycle_spec(spec, reference)
 
-    def __iter__(self) -> Iterator[GraphItem]:
+    def __iter__(self) -> Iterator[GRAPH_ITEM_T]:
         yield from chain(*(self._dict.values()))

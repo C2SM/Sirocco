@@ -37,9 +37,9 @@ class Workflow:
         self.name: str = name
         self.config_rootdir: Path = config_rootdir
 
-        self.tasks: Store = Store()
-        self.data: Store = Store()
-        self.cycles: Store = Store()
+        self.tasks: Store[Task] = Store()
+        self.data: Store[Data] = Store()
+        self.cycles: Store[Cycle] = Store()
 
         data_dict: dict[str, ConfigAvailableData | ConfigGeneratedData] = {
             data.name: data for data in chain(data.available, data.generated)

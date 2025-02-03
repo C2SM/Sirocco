@@ -192,53 +192,43 @@ class ConfigCycleTaskOutput(_NamedBaseModel):
     """
 
 
-class ConfigCycleTask(_NamedBaseModel):
-    """
-    To create an instance of a task in a cycle defined in a workflow file.
-    """
+NAMED_BASE_T = typing.TypeVar("NAMED_BASE_T", bound=_NamedBaseModel)
 
-    inputs: list[ConfigCycleTaskInput | str] | None = Field(default_factory=list)
-    outputs: list[ConfigCycleTaskOutput | str] | None = Field(default_factory=list)
-    wait_on: list[ConfigCycleTaskWaitOn | str] | None = Field(default_factory=list)
 
-    @field_validator("inputs", mode="before")
-    @classmethod
-    def convert_cycle_task_inputs(cls, values) -> list[ConfigCycleTaskInput]:
+def make_named_model_list_converter(
+    cls: type[NAMED_BASE_T],
+) -> typing.Callable[[list[NAMED_BASE_T | str | dict] | None], list[NAMED_BASE_T]]:
+    def convert_named_model_list(values: list[NAMED_BASE_T | str | dict] | None) -> list[NAMED_BASE_T]:
         inputs = []
         if values is None:
             return inputs
         for value in values:
             if isinstance(value, str):
-                inputs.append({value: None})
+                inputs.append(cls(name=value))
             elif isinstance(value, dict):
-                inputs.append(value)
+                inputs.append(cls(**value))
+            else:
+                msg = "Unsupported Type"
+                raise TypeError(msg)
         return inputs
 
-    @field_validator("outputs", mode="before")
-    @classmethod
-    def convert_cycle_task_outputs(cls, values) -> list[ConfigCycleTaskOutput]:
-        outputs = []
-        if values is None:
-            return outputs
-        for value in values:
-            if isinstance(value, str):
-                outputs.append({value: None})
-            elif isinstance(value, dict):
-                outputs.append(value)
-        return outputs
+    return convert_named_model_list
 
-    @field_validator("wait_on", mode="before")
-    @classmethod
-    def convert_cycle_task_wait_on(cls, values) -> list[ConfigCycleTaskWaitOn]:
-        wait_on = []
-        if values is None:
-            return wait_on
-        for value in values:
-            if isinstance(value, str):
-                wait_on.append({value: None})
-            elif isinstance(value, dict):
-                wait_on.append(value)
-        return wait_on
+
+class ConfigCycleTask(_NamedBaseModel):
+    """
+    To create an instance of a task in a cycle defined in a workflow file.
+    """
+
+    inputs: Annotated[
+        list[ConfigCycleTaskInput], BeforeValidator(make_named_model_list_converter(ConfigCycleTaskInput))
+    ] = []
+    outputs: Annotated[
+        list[ConfigCycleTaskOutput], BeforeValidator(make_named_model_list_converter(ConfigCycleTaskOutput))
+    ] = []
+    wait_on: Annotated[
+        list[ConfigCycleTaskWaitOn], BeforeValidator(make_named_model_list_converter(ConfigCycleTaskWaitOn))
+    ] = []
 
 
 class ConfigCycle(_NamedBaseModel):

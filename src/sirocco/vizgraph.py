@@ -9,7 +9,7 @@ from lxml import etree
 from pygraphviz import AGraph
 
 if TYPE_CHECKING:
-    from sirocco.core import Store
+    from sirocco.core.graph_items import Store
 from sirocco.core import Workflow
 
 
@@ -28,16 +28,16 @@ def node_colors(h: float) -> dict[str:str]:
 class VizGraph:
     """Class for visualizing a Sirocco workflow"""
 
-    node_base_kw: ClassVar[dict[str:Any]] = {"style": "filled", "fontname": "Fira Sans", "fontsize": 14, "penwidth": 2}
-    edge_base_kw: ClassVar[dict[str:Any]] = {"color": "#77767B", "penwidth": 1.5}
-    data_node_base_kw: ClassVar[dict[str:Any]] = node_base_kw | {"shape": "ellipse"}
+    node_base_kw: ClassVar[dict[str, Any]] = {"style": "filled", "fontname": "Fira Sans", "fontsize": 14, "penwidth": 2}
+    edge_base_kw: ClassVar[dict[str, Any]] = {"color": "#77767B", "penwidth": 1.5}
+    data_node_base_kw: ClassVar[dict[str, Any]] = node_base_kw | {"shape": "ellipse"}
 
-    data_av_node_kw: ClassVar[dict[str:Any]] = data_node_base_kw | node_colors(116)
-    data_gen_node_kw: ClassVar[dict[str:Any]] = data_node_base_kw | node_colors(214)
-    task_node_kw: ClassVar[dict[str:Any]] = node_base_kw | {"shape": "box"} | node_colors(354)
-    io_edge_kw: ClassVar[dict[str:Any]] = edge_base_kw
-    wait_on_edge_kw: ClassVar[dict[str:Any]] = edge_base_kw | {"style": "dashed"}
-    cluster_kw: ClassVar[dict[str:Any]] = {"bgcolor": "#F6F5F4", "color": None, "fontsize": 16}
+    data_av_node_kw: ClassVar[dict[str, Any]] = data_node_base_kw | node_colors(116)
+    data_gen_node_kw: ClassVar[dict[str, Any]] = data_node_base_kw | node_colors(214)
+    task_node_kw: ClassVar[dict[str, Any]] = node_base_kw | {"shape": "box"} | node_colors(354)
+    io_edge_kw: ClassVar[dict[str, Any]] = edge_base_kw
+    wait_on_edge_kw: ClassVar[dict[str, Any]] = edge_base_kw | {"style": "dashed"}
+    cluster_kw: ClassVar[dict[str, Any]] = {"bgcolor": "#F6F5F4", "color": None, "fontsize": 16}
 
     def __init__(self, name: str, cycles: Store, data: Store) -> None:
         self.name = name
