@@ -203,13 +203,16 @@ def make_named_model_list_converter(
         if values is None:
             return inputs
         for value in values:
-            if isinstance(value, str):
-                inputs.append(cls(name=value))
-            elif isinstance(value, dict):
-                inputs.append(cls(**value))
-            else:
-                msg = "Unsupported Type"
-                raise TypeError(msg)
+            match value:
+                case str():
+                    inputs.append(cls(name=value))
+                case dict():
+                    inputs.append(cls(**value))
+                case _NamedBaseModel():
+                    inputs.append(value)
+                case _:
+                    msg = "Unsupported Type"
+                    raise TypeError(msg)
         return inputs
 
     return convert_named_model_list
