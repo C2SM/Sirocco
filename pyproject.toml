@@ -92,6 +92,7 @@ installer = "uv"
 extra-dependencies = [
     "ipdb"
 ]
+default-args = []
 extra-args = ["--doctest-modules", '-m not slow']
 
 [[tool.hatch.envs.hatch-test.matrix]]
