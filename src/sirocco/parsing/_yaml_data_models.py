@@ -198,7 +198,9 @@ NAMED_BASE_T = typing.TypeVar("NAMED_BASE_T", bound=_NamedBaseModel)
 def make_named_model_list_converter(
     cls: type[NAMED_BASE_T],
 ) -> typing.Callable[[list[NAMED_BASE_T | str | dict] | None], list[NAMED_BASE_T]]:
-    def convert_named_model_list(values: list[NAMED_BASE_T | str | dict] | None) -> list[NAMED_BASE_T]:
+    def convert_named_model_list(
+        values: list[NAMED_BASE_T | str | dict] | None,
+    ) -> list[NAMED_BASE_T]:
         inputs: list[NAMED_BASE_T] = []
         if values is None:
             return inputs
@@ -224,13 +226,16 @@ class ConfigCycleTask(_NamedBaseModel):
     """
 
     inputs: Annotated[
-        list[ConfigCycleTaskInput], BeforeValidator(make_named_model_list_converter(ConfigCycleTaskInput))
+        list[ConfigCycleTaskInput],
+        BeforeValidator(make_named_model_list_converter(ConfigCycleTaskInput)),
     ] = []
     outputs: Annotated[
-        list[ConfigCycleTaskOutput], BeforeValidator(make_named_model_list_converter(ConfigCycleTaskOutput))
+        list[ConfigCycleTaskOutput],
+        BeforeValidator(make_named_model_list_converter(ConfigCycleTaskOutput)),
     ] = []
     wait_on: Annotated[
-        list[ConfigCycleTaskWaitOn], BeforeValidator(make_named_model_list_converter(ConfigCycleTaskWaitOn))
+        list[ConfigCycleTaskWaitOn],
+        BeforeValidator(make_named_model_list_converter(ConfigCycleTaskWaitOn)),
     ] = []
 
 
@@ -534,16 +539,6 @@ class ConfigBaseData(_NamedBaseModel, ConfigBaseDataSpecs):
     """
 
     parameters: list[str] = []
-
-    @field_validator("type")
-    @classmethod
-    def is_file_or_dir(cls, value: str) -> str:
-        """."""
-        valid_types = ("file", "dir")
-        if value not in valid_types:
-            msg = f"Must be one of {valid_types}"
-            raise ValueError(msg)
-        return value
 
 
 class ConfigAvailableData(ConfigBaseData):
