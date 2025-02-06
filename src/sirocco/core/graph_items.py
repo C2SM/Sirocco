@@ -5,6 +5,9 @@ from itertools import chain, product
 from typing import TYPE_CHECKING, Any, ClassVar, Self, TypeAlias, TypeVar, cast
 
 from sirocco.parsing._yaml_data_models import (
+    AnyWhen,
+    AtDate,
+    BeforeAfterDate,
     ConfigAvailableData,
     ConfigBaseDataSpecs,
     ConfigBaseTaskSpecs,
@@ -187,29 +190,29 @@ class Array[GRAPH_ITEM_T]:
         key = tuple(coordinates[dim] for dim in self._dims)
         return self._dict[key]
 
-    def iter_from_cycle_spec(self, spec: TargetNodesBaseModel, reference: dict) -> Iterator[GRAPH_ITEM_T]:
+    def iter_from_cycle_spec(self, spec: TargetNodesBaseModel, ref_coordinates: dict) -> Iterator[GRAPH_ITEM_T]:
         # Check date references
         if "date" not in self._dims and (spec.lag or spec.date):
             msg = f"Array {self._name} has no date dimension, cannot be referenced by dates"
             raise ValueError(msg)
-        if "date" in self._dims and reference.get("date") is None and len(spec.date) == 0:
+        if "date" in self._dims and ref_coordinates.get("date") is None and len(spec.date) == 0:
             msg = f"Array {self._name} has a date dimension, must be referenced by dates"
             raise ValueError(msg)
 
-        for key in product(*(self._resolve_target_dim(spec, dim, reference) for dim in self._dims)):
+        for key in product(*(self._resolve_target_dim(spec, dim, ref_coordinates) for dim in self._dims)):
             yield self._dict[key]
 
-    def _resolve_target_dim(self, spec: TargetNodesBaseModel, dim: str, reference: Any) -> Iterator[Any]:
+    def _resolve_target_dim(self, spec: TargetNodesBaseModel, dim: str, ref_coordinates: Any) -> Iterator[Any]:
         if dim == "date":
             if not spec.lag and not spec.date:
-                yield reference["date"]
+                yield ref_coordinates["date"]
             if spec.lag:
                 for lag in spec.lag:
-                    yield reference["date"] + lag
+                    yield ref_coordinates["date"] + lag
             if spec.date:
                 yield from spec.date
         elif spec.parameters.get(dim) == "single":
-            yield reference[dim]
+            yield ref_coordinates[dim]
         else:
             yield from self._axes[dim]
 
@@ -239,20 +242,26 @@ class Store[GRAPH_ITEM_T]:
             raise KeyError(msg)
         return self._dict[name][coordinates]
 
-    def iter_from_cycle_spec(self, spec: TargetNodesBaseModel, reference: dict) -> Iterator[GRAPH_ITEM_T]:
-        # Check if target items should be querried at all
-        if (when := spec.when) is not None:
-            if (ref_date := reference.get("date")) is None:
-                msg = "Cannot use a `when` specification without a `reference date`"
+    def iter_from_cycle_spec(self, spec: TargetNodesBaseModel, ref_coordinates: dict) -> Iterator[GRAPH_ITEM_T]:
+        ref_date: datetime | None = ref_coordinates.get("date")
+        if ref_date is None:
+            # Check if "at", "before" or "after" is used with a non-dated task
+            if not isinstance(spec.when, AnyWhen):
+                msg = "Cannot use a `when` specification in a one-off cycle"
                 raise ValueError(msg)
-            if (at := when.at) is not None and at != ref_date:
-                return
-            if (before := when.before) is not None and before <= ref_date:
-                return
-            if (after := when.after) is not None and after >= ref_date:
-                return
+        else:
+            # Check if target items should be querried at all
+            match spec.when:
+                case AtDate():
+                    if spec.when.at != ref_date:
+                        return
+                case BeforeAfterDate():
+                    if (before := spec.when.before) is not None and before <= ref_date:
+                        return
+                    if (after := spec.when.after) is not None and after >= ref_date:
+                        return
         # Yield items
-        yield from self._dict[spec.name].iter_from_cycle_spec(spec, reference)
+        yield from self._dict[spec.name].iter_from_cycle_spec(spec, ref_coordinates)
 
     def __iter__(self) -> Iterator[GRAPH_ITEM_T]:
         yield from chain(*(self._dict.values()))

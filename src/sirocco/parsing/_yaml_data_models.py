@@ -8,10 +8,10 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
-from typing import Annotated, Any, ClassVar, Literal, Self
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, Self, TypeAlias
 
 from isoduration import parse_duration
-from isoduration.types import Duration  # pydantic needs type # noqa: TCH002
+from isoduration.types import Duration  # pydantic needs type
 from pydantic import (
     BaseModel,
     BeforeValidator,
@@ -26,6 +26,9 @@ from pydantic import (
 from ruamel.yaml import YAML
 
 from sirocco.parsing._utils import TimeUtils
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 ITEM_T = typing.TypeVar("ITEM_T")
 
@@ -102,30 +105,99 @@ class _NamedBaseModel(BaseModel):
         return data
 
 
-class _WhenBaseModel(BaseModel):
-    """Base class for when specifications"""
+class AnyWhen:
+    pass
 
+
+@dataclass(kw_only=True)
+class AtDate:
+    at: datetime
+
+
+@dataclass(kw_only=True)
+class BeforeAfterDate:
     before: datetime | None = None
     after: datetime | None = None
-    at: datetime | None = None
 
-    @model_validator(mode="before")
-    @classmethod
-    def check_before_after_at_combination(cls, data: Any) -> Any:
-        if "at" in data and any(k in data for k in ("before", "after")):
-            msg = "'at' key is incompatible with 'before' and after'"
-            raise ValueError(msg)
-        if not any(k in data for k in ("at", "before", "after")):
-            msg = "use at least one of 'at', 'before' or 'after' keys"
-            raise ValueError(msg)
-        return data
 
-    @field_validator("before", "after", "at", mode="before")
-    @classmethod
-    def convert_datetime(cls, value: datetime | str | None) -> datetime | None:
-        if value is None or isinstance(value, datetime):
-            return value
-        return datetime.fromisoformat(value)
+WhenType: TypeAlias = AnyWhen | AtDate | BeforeAfterDate
+
+
+def select_when(spec: Any) -> WhenType:
+    match spec:
+        case a if isinstance(a, WhenType):
+            return spec
+        case dict():
+            if not all(k in ("at", "before", "after") for k in spec):
+                msg = "when keys can only be 'at', 'before' or 'after'"
+                raise KeyError(msg)
+            if "at" in spec:
+                if any(k in spec for k in ("before", "after")):
+                    msg = "'at' key is incompatible with 'before' and after'"
+                    raise KeyError(msg)
+                match spec["at"]:
+                    case datetime():
+                        return AtDate(at=spec["at"])
+                    case str():
+                        return AtDate(at=datetime.fromisoformat(spec["at"]))
+                    case _:
+                        msg = "Unsupported type"
+                        raise TypeError(msg)
+            if not all(isinstance(v, datetime | str | None) for v in spec.values()):
+                msg = "Unsupported type(s)"
+                raise TypeError(msg)
+            return BeforeAfterDate(
+                **{k: v if isinstance(v, datetime | None) else datetime.fromisoformat(v) for k, v in spec.items()}
+            )
+        case _:
+            msg = "Unsupported type(s)"
+            raise TypeError(msg)
+
+
+def iter_yaml_item(values: Any) -> Iterator[Any]:
+    if isinstance(values, list):
+        yield from values
+    else:
+        yield values
+
+
+def convert_durations(values: Any) -> list[Duration]:
+    durations = []
+    for value in iter_yaml_item(values):
+        match value:
+            case Duration():
+                durations.append(value)
+            case str():
+                durations.append(parse_duration(value))
+            case _:
+                msg = f"Unsupported Type {type(value)}"
+                raise TypeError(msg)
+    return durations
+
+
+def convert_dates(values: Any) -> list[datetime]:
+    dates = []
+    for value in iter_yaml_item(values):
+        match value:
+            case datetime():
+                dates.append(value)
+            case str():
+                dates.append(datetime.fromisoformat(value))
+            case _:
+                msg = f"Unsupported Type {type(value)}"
+                raise TypeError(msg)
+    return dates
+
+
+def check_parameters_spec(params: Any) -> dict[str, str]:
+    if not isinstance(params, dict):
+        msg = "Unsupported type"
+        raise TypeError(msg)
+    for k, v in params.items():
+        if v not in ("single", "all"):
+            msg = f"parameter {k}: reference can only be 'single' or 'all', got {v}"
+            raise ValueError(msg)
+    return params
 
 
 class TargetNodesBaseModel(_NamedBaseModel):
@@ -137,10 +209,10 @@ class TargetNodesBaseModel(_NamedBaseModel):
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    date: list[datetime] = []  # this is safe in pydantic
-    lag: list[Duration] = []  # this is safe in pydantic
-    when: _WhenBaseModel | None = None
-    parameters: dict = {}
+    date: Annotated[list[datetime], BeforeValidator(convert_dates)] = []  # this is safe in pydantic
+    lag: Annotated[list[Duration], BeforeValidator(convert_durations)] = []  # this is safe in pydantic
+    when: Annotated[WhenType, BeforeValidator(select_when)] = AnyWhen()
+    parameters: Annotated[dict[str, str], BeforeValidator(check_parameters_spec)] = {}
 
     @model_validator(mode="before")
     @classmethod
@@ -149,33 +221,6 @@ class TargetNodesBaseModel(_NamedBaseModel):
             msg = "Only one key 'lag' or 'date' is allowed. Not both."
             raise ValueError(msg)
         return data
-
-    @field_validator("lag", mode="before")
-    @classmethod
-    def convert_durations(cls, value) -> list[Duration]:
-        if value is None:
-            return []
-        values = value if isinstance(value, list) else [value]
-        return [parse_duration(value) for value in values]
-
-    @field_validator("date", mode="before")
-    @classmethod
-    def convert_datetimes(cls, value) -> list[datetime]:
-        if value is None:
-            return []
-        values = value if isinstance(value, list) else [value]
-        return [datetime.fromisoformat(value) for value in values]
-
-    @field_validator("parameters", mode="before")
-    @classmethod
-    def check_parameters_spec(cls, params: dict) -> dict:
-        if not params:
-            return {}
-        for k, v in params.items():
-            if v not in ("single", "all"):
-                msg = f"parameter {k}: reference can only be 'single' or 'all', got {v}"
-                raise ValueError(msg)
-        return params
 
 
 class ConfigCycleTaskInput(TargetNodesBaseModel):
