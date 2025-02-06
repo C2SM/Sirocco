@@ -211,12 +211,12 @@ def convert_dates(values: Any) -> list[datetime]:
     return dates
 
 
-def check_parameters_spec(params: Any) -> dict[str, str]:
+def check_parameters_spec(params: Any) -> dict[str, Literal["all", "single"]]:
     if not isinstance(params, dict):
         msg = "Unsupported type"
         raise TypeError(msg)
     for k, v in params.items():
-        if v not in ("single", "all"):
+        if v not in ("all", "single"):
             msg = f"parameter {k}: reference can only be 'single' or 'all', got {v}"
             raise ValueError(msg)
     return params
@@ -231,10 +231,10 @@ class TargetNodesBaseModel(_NamedBaseModel):
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    date: Annotated[list[datetime], BeforeValidator(convert_dates)] = []  # this is safe in pydantic
-    lag: Annotated[list[Duration], BeforeValidator(convert_durations)] = []  # this is safe in pydantic
+    date: Annotated[list[datetime], BeforeValidator(convert_dates)] = []
+    lag: Annotated[list[Duration], BeforeValidator(convert_durations)] = []
     when: Annotated[WhenType, BeforeValidator(select_when)] = AnyWhen()
-    parameters: Annotated[dict[str, str], BeforeValidator(check_parameters_spec)] = {}
+    parameters: Annotated[dict[str, Literal["all", "single"]], BeforeValidator(check_parameters_spec)] = {}
 
     @model_validator(mode="before")
     @classmethod
