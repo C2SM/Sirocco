@@ -145,7 +145,7 @@ class BeforeAfterDate(WhenSpec):
 
 def select_when(spec: Any) -> WhenType:
     match spec:
-        case a if isinstance(a, WhenType):
+        case WhenType():
             return spec
         case dict():
             if not spec:
