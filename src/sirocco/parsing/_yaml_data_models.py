@@ -4,12 +4,12 @@ import enum
 import itertools
 import time
 import typing
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, Self
-from abc import ABC, abstractmethod
 
 from isoduration import parse_duration
 from isoduration.types import Duration  # pydantic needs type
@@ -106,7 +106,7 @@ class _NamedBaseModel(BaseModel):
         return data
 
 
-class WhenType(ABC):
+class WhenType:
     pass
 
 
@@ -114,15 +114,14 @@ class AnyWhen(WhenType):
     pass
 
 
-class WhenSpec(WhenType):
+class WhenSpec(ABC, WhenType):
     @abstractmethod
     def is_active(self: Self, date: datetime | None) -> bool:
-        raise NotImplementedError()
+        raise NotImplementedError
 
 
 @dataclass(kw_only=True)
 class AtDate(WhenSpec):
-
     at: datetime
 
     def is_active(self: Self, date: datetime | None) -> bool:
@@ -134,7 +133,6 @@ class AtDate(WhenSpec):
 
 @dataclass(kw_only=True)
 class BeforeAfterDate(WhenSpec):
-
     before: datetime | None = None
     after: datetime | None = None
 

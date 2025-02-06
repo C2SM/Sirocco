@@ -5,10 +5,10 @@ from itertools import chain, product
 from typing import TYPE_CHECKING, Any, ClassVar, Self, TypeAlias, TypeVar, cast
 
 from sirocco.parsing._yaml_data_models import (
-    WhenSpec,
     ConfigAvailableData,
     ConfigBaseDataSpecs,
     ConfigBaseTaskSpecs,
+    WhenSpec,
 )
 
 if TYPE_CHECKING:
