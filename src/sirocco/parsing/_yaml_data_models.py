@@ -8,7 +8,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, Self, TypeAlias
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, Self
+from abc import ABC, abstractmethod
 
 from isoduration import parse_duration
 from isoduration.types import Duration  # pydantic needs type
@@ -105,22 +106,43 @@ class _NamedBaseModel(BaseModel):
         return data
 
 
-class AnyWhen:
+class WhenType(ABC):
     pass
 
 
+class AnyWhen(WhenType):
+    pass
+
+
+class WhenSpec(WhenType):
+    @abstractmethod
+    def is_active(self: Self, date: datetime | None) -> bool:
+        raise NotImplementedError()
+
+
 @dataclass(kw_only=True)
-class AtDate:
+class AtDate(WhenSpec):
+
     at: datetime
 
+    def is_active(self: Self, date: datetime | None) -> bool:
+        if date is None:
+            msg = "Cannot use a when.at specification in a one-off cycle"
+            raise ValueError(msg)
+        return date == self.at
+
 
 @dataclass(kw_only=True)
-class BeforeAfterDate:
+class BeforeAfterDate(WhenSpec):
+
     before: datetime | None = None
     after: datetime | None = None
 
-
-WhenType: TypeAlias = AnyWhen | AtDate | BeforeAfterDate
+    def is_active(self: Self, date: datetime | None) -> bool:
+        if date is None:
+            msg = "Cannot use a when.before or when.after specification in a one-off cycle"
+            raise ValueError(msg)
+        return (self.before is None or date < self.before) and (self.after is None or date > self.after)
 
 
 def select_when(spec: Any) -> WhenType:
@@ -128,6 +150,8 @@ def select_when(spec: Any) -> WhenType:
         case a if isinstance(a, WhenType):
             return spec
         case dict():
+            if not spec:
+                return AnyWhen()
             if not all(k in ("at", "before", "after") for k in spec):
                 msg = "when keys can only be 'at', 'before' or 'after'"
                 raise KeyError(msg)
