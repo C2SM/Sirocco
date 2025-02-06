@@ -5,9 +5,7 @@ from itertools import chain, product
 from typing import TYPE_CHECKING, Any, ClassVar, Self, TypeAlias, TypeVar, cast
 
 from sirocco.parsing._yaml_data_models import (
-    AnyWhen,
-    AtDate,
-    BeforeAfterDate,
+    WhenSpec,
     ConfigAvailableData,
     ConfigBaseDataSpecs,
     ConfigBaseTaskSpecs,
@@ -243,23 +241,9 @@ class Store[GRAPH_ITEM_T]:
         return self._dict[name][coordinates]
 
     def iter_from_cycle_spec(self, spec: TargetNodesBaseModel, ref_coordinates: dict) -> Iterator[GRAPH_ITEM_T]:
-        ref_date: datetime | None = ref_coordinates.get("date")
-        if ref_date is None:
-            # Check if "at", "before" or "after" is used with a non-dated task
-            if not isinstance(spec.when, AnyWhen):
-                msg = "Cannot use a `when` specification in a one-off cycle"
-                raise ValueError(msg)
-        else:
-            # Check if target items should be querried at all
-            match spec.when:
-                case AtDate():
-                    if spec.when.at != ref_date:
-                        return
-                case BeforeAfterDate():
-                    if (before := spec.when.before) is not None and before <= ref_date:
-                        return
-                    if (after := spec.when.after) is not None and after >= ref_date:
-                        return
+        # Check if we need to skip this querry
+        if isinstance(spec.when, WhenSpec) and not spec.when.is_active(ref_coordinates.get("date")):
+            return
         # Yield items
         yield from self._dict[spec.name].iter_from_cycle_spec(spec, ref_coordinates)
 
