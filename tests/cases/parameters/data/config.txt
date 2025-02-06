@@ -11,7 +11,7 @@ cycles:
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0), 'foo': 0, 'bar': 3.0}
             start date: 2026-01-01 00:00:00
-            end date: 2028-01-01 00:00:00
+            stop date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: 'scripts/icon.py'
             cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing')]
@@ -26,7 +26,7 @@ cycles:
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0), 'foo': 1, 'bar': 3.0}
             start date: 2026-01-01 00:00:00
-            end date: 2028-01-01 00:00:00
+            stop date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: 'scripts/icon.py'
             cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing')]
@@ -40,7 +40,7 @@ cycles:
             name: 'statistics_foo'
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0), 'bar': 3.0}
             start date: 2026-01-01 00:00:00
-            end date: 2028-01-01 00:00:00
+            stop date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: 'scripts/statistics.py'
             cli arguments: []
@@ -53,7 +53,7 @@ cycles:
             name: 'statistics_foo_bar'
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
             start date: 2026-01-01 00:00:00
-            end date: 2028-01-01 00:00:00
+            stop date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: 'scripts/statistics.py'
             cli arguments: []
@@ -70,7 +70,7 @@ cycles:
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 7, 1, 0, 0), 'foo': 0, 'bar': 3.0}
             start date: 2026-01-01 00:00:00
-            end date: 2028-01-01 00:00:00
+            stop date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: 'scripts/icon.py'
             cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing')]
@@ -85,7 +85,7 @@ cycles:
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 7, 1, 0, 0), 'foo': 1, 'bar': 3.0}
             start date: 2026-01-01 00:00:00
-            end date: 2028-01-01 00:00:00
+            stop date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: 'scripts/icon.py'
             cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing')]
@@ -99,7 +99,7 @@ cycles:
             name: 'statistics_foo'
             coordinates: {'date': datetime.datetime(2026, 7, 1, 0, 0), 'bar': 3.0}
             start date: 2026-01-01 00:00:00
-            end date: 2028-01-01 00:00:00
+            stop date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: 'scripts/statistics.py'
             cli arguments: []
@@ -112,7 +112,7 @@ cycles:
             name: 'statistics_foo_bar'
             coordinates: {'date': datetime.datetime(2026, 7, 1, 0, 0)}
             start date: 2026-01-01 00:00:00
-            end date: 2028-01-01 00:00:00
+            stop date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: 'scripts/statistics.py'
             cli arguments: []
@@ -129,7 +129,7 @@ cycles:
             name: 'icon'
             coordinates: {'date': datetime.datetime(2027, 1, 1, 0, 0), 'foo': 0, 'bar': 3.0}
             start date: 2026-01-01 00:00:00
-            end date: 2028-01-01 00:00:00
+            stop date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: 'scripts/icon.py'
             cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing')]
@@ -144,7 +144,7 @@ cycles:
             name: 'icon'
             coordinates: {'date': datetime.datetime(2027, 1, 1, 0, 0), 'foo': 1, 'bar': 3.0}
             start date: 2026-01-01 00:00:00
-            end date: 2028-01-01 00:00:00
+            stop date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: 'scripts/icon.py'
             cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing')]
@@ -158,7 +158,7 @@ cycles:
             name: 'statistics_foo'
             coordinates: {'date': datetime.datetime(2027, 1, 1, 0, 0), 'bar': 3.0}
             start date: 2026-01-01 00:00:00
-            end date: 2028-01-01 00:00:00
+            stop date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: 'scripts/statistics.py'
             cli arguments: []
@@ -171,7 +171,7 @@ cycles:
             name: 'statistics_foo_bar'
             coordinates: {'date': datetime.datetime(2027, 1, 1, 0, 0)}
             start date: 2026-01-01 00:00:00
-            end date: 2028-01-01 00:00:00
+            stop date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: 'scripts/statistics.py'
             cli arguments: []
@@ -188,7 +188,7 @@ cycles:
             name: 'icon'
             coordinates: {'date': datetime.datetime(2027, 7, 1, 0, 0), 'foo': 0, 'bar': 3.0}
             start date: 2026-01-01 00:00:00
-            end date: 2028-01-01 00:00:00
+            stop date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: 'scripts/icon.py'
             cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing')]
@@ -203,7 +203,7 @@ cycles:
             name: 'icon'
             coordinates: {'date': datetime.datetime(2027, 7, 1, 0, 0), 'foo': 1, 'bar': 3.0}
             start date: 2026-01-01 00:00:00
-            end date: 2028-01-01 00:00:00
+            stop date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: 'scripts/icon.py'
             cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init'), ShellCliArgument(name='forcing', references_data_item=True, cli_option_of_data_item='--forcing')]
@@ -217,7 +217,7 @@ cycles:
             name: 'statistics_foo'
             coordinates: {'date': datetime.datetime(2027, 7, 1, 0, 0), 'bar': 3.0}
             start date: 2026-01-01 00:00:00
-            end date: 2028-01-01 00:00:00
+            stop date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: 'scripts/statistics.py'
             cli arguments: []
@@ -230,7 +230,7 @@ cycles:
             name: 'statistics_foo_bar'
             coordinates: {'date': datetime.datetime(2027, 7, 1, 0, 0)}
             start date: 2026-01-01 00:00:00
-            end date: 2028-01-01 00:00:00
+            stop date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: 'scripts/statistics.py'
             cli arguments: []
@@ -246,7 +246,7 @@ cycles:
             name: 'merge'
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
             start date: 2026-01-01 00:00:00
-            end date: 2028-01-01 00:00:00
+            stop date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: 'scripts/merge.py'
             cli arguments: []
@@ -262,7 +262,7 @@ cycles:
             name: 'merge'
             coordinates: {'date': datetime.datetime(2027, 1, 1, 0, 0)}
             start date: 2026-01-01 00:00:00
-            end date: 2028-01-01 00:00:00
+            stop date: 2028-01-01 00:00:00
             plugin: 'shell'
             command: 'scripts/merge.py'
             cli arguments: []

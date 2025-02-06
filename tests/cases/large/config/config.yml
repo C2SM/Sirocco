@@ -1,6 +1,6 @@
 ---
 start_date: &root_start_date '2025-01-01T00:00'
-end_date: &root_end_date '2027-01-01T00:00'
+stop_date: &root_stop_date '2027-01-01T00:00'
 cycles:
   - init:
       tasks:
@@ -9,7 +9,7 @@ cycles:
             outputs: [extpar_file]
   - icon_bimonthly:
       start_date: *root_start_date
-      end_date: *root_end_date
+      stop_date: *root_stop_date
       period: 'P2M'
       tasks:
         - preproc:
@@ -38,7 +38,7 @@ cycles:
             outputs: [stored_data_1]
   - yearly:
       start_date: *root_start_date
-      end_date: *root_end_date
+      stop_date: *root_stop_date
       period: 'P1Y'
       tasks:
         - postproc_2:

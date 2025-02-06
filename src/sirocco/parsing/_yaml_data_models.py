@@ -315,10 +315,10 @@ class ConfigCycle(_NamedBaseModel):
     name: str
     tasks: list[ConfigCycleTask]
     start_date: datetime | None = None
-    end_date: datetime | None = None
+    stop_date: datetime | None = None
     period: Duration | None = None
 
-    @field_validator("start_date", "end_date", mode="before")
+    @field_validator("start_date", "stop_date", mode="before")
     @classmethod
     def convert_datetime(cls, value) -> None | datetime:
         return None if value is None else datetime.fromisoformat(value)
@@ -330,18 +330,18 @@ class ConfigCycle(_NamedBaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def check_start_date_end_date_period_combination(cls, data: Any) -> Any:
-        if ("start_date" in data) ^ ("end_date" in data):
-            msg = f"in cycle {data['name']}: both start_date and end_date must be provided or none of them."
+    def check_start_date_stop_date_period_combination(cls, data: Any) -> Any:
+        if ("start_date" in data) ^ ("stop_date" in data):
+            msg = f"in cycle {data['name']}: both start_date and stop_date must be provided or none of them."
             raise ValueError(msg)
         if "period" in data and "start_date" not in data:
             msg = f"in cycle {data['name']}: period provided without start and end dates."
         return data
 
     @model_validator(mode="after")
-    def check_start_date_before_end_date(self) -> ConfigCycle:
-        if self.start_date is not None and self.end_date is not None and self.start_date > self.end_date:
-            msg = "For cycle {self._name!r} the start_date {start_date!r} lies after given end_date {end_date!r}."
+    def check_start_date_before_stop_date(self) -> ConfigCycle:
+        if self.start_date is not None and self.stop_date is not None and self.start_date > self.stop_date:
+            msg = "For cycle {self._name!r} the start_date {start_date!r} lies after given stop_date {stop_date!r}."
             raise ValueError(msg)
         return self
 
