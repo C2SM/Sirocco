@@ -75,7 +75,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     wait_on: list[Task] = field(default_factory=list)
     config_rootdir: Path
     start_date: datetime | None = None
-    end_date: datetime | None = None
+    stop_date: datetime | None = None
 
     _wait_on_specs: list[ConfigCycleTaskWaitOn] = field(default_factory=list, repr=False)
 
@@ -92,7 +92,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
         config: ConfigTask,
         config_rootdir: Path,
         start_date: datetime | None,
-        end_date: datetime | None,
+        stop_date: datetime | None,
         coordinates: dict[str, Any],
         datastore: Store,
         graph_spec: ConfigCycleTask,
@@ -114,7 +114,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
             config_rootdir=config_rootdir,
             coordinates=coordinates,
             start_date=start_date,
-            end_date=end_date,
+            stop_date=stop_date,
             inputs=inputs,
             outputs=outputs,
             **cls_config,

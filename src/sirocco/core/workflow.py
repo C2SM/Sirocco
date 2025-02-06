@@ -77,7 +77,7 @@ class Workflow:
                             config=task_config,
                             config_rootdir=self.config_rootdir,
                             start_date=cycle_config.start_date,
-                            end_date=cycle_config.end_date,
+                            stop_date=cycle_config.stop_date,
                             coordinates=coordinates,
                             datastore=self.data,
                             graph_spec=task_graph_spec,
@@ -99,8 +99,8 @@ class Workflow:
     @staticmethod
     def cycle_dates(cycle_config: ConfigCycle) -> Iterator[datetime | None]:
         yield (date := cycle_config.start_date)
-        if cycle_config.period is not None and date is not None and cycle_config.end_date is not None:
-            while (date := date + cycle_config.period) < cycle_config.end_date:
+        if cycle_config.period is not None and date is not None and cycle_config.stop_date is not None:
+            while (date := date + cycle_config.period) < cycle_config.stop_date:
                 yield date
 
     @classmethod
