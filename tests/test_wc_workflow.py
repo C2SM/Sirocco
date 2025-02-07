@@ -4,7 +4,7 @@ import pytest
 
 from sirocco.core import Workflow
 from sirocco.core._tasks.icon_task import IconTask
-from sirocco.parsing._yaml_data_models import ConfigShellTask, ShellCliArgument
+from sirocco.parsing.yaml_data_models import ConfigShellTask, ShellCliArgument
 from sirocco.vizgraph import VizGraph
 from sirocco.workgraph import AiidaWorkGraph
 
