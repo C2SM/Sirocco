@@ -4,21 +4,22 @@ from dataclasses import dataclass, field
 from itertools import chain, product
 from typing import TYPE_CHECKING, Any, ClassVar, Self, TypeAlias, TypeVar, cast
 
-from sirocco.parsing._yaml_data_models import (
+from sirocco.parsing.target_date import DateList, LagList, SameDate
+from sirocco.parsing.when import WhenSpec
+from sirocco.parsing.yaml_data_models import (
     ConfigAvailableData,
     ConfigBaseDataSpecs,
     ConfigBaseTaskSpecs,
-    WhenSpec,
 )
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from datetime import datetime
     from pathlib import Path
 
     from termcolor._types import Color
 
-    from sirocco.parsing._yaml_data_models import (
+    from sirocco.parsing.cycling import CyclePoint
+    from sirocco.parsing.yaml_data_models import (
         ConfigBaseData,
         ConfigCycleTask,
         ConfigCycleTaskWaitOn,
@@ -74,8 +75,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     outputs: list[Data] = field(default_factory=list)
     wait_on: list[Task] = field(default_factory=list)
     config_rootdir: Path
-    start_date: datetime | None = None
-    stop_date: datetime | None = None
+    cycle_point: CyclePoint
 
     _wait_on_specs: list[ConfigCycleTaskWaitOn] = field(default_factory=list, repr=False)
 
@@ -91,8 +91,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
         cls,
         config: ConfigTask,
         config_rootdir: Path,
-        start_date: datetime | None,
-        stop_date: datetime | None,
+        cycle_point: CyclePoint,
         coordinates: dict[str, Any],
         datastore: Store,
         graph_spec: ConfigCycleTask,
@@ -113,8 +112,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
         new = plugin_cls(
             config_rootdir=config_rootdir,
             coordinates=coordinates,
-            start_date=start_date,
-            stop_date=stop_date,
+            cycle_point=cycle_point,
             inputs=inputs,
             outputs=outputs,
             **cls_config,
@@ -190,10 +188,10 @@ class Array[GRAPH_ITEM_T]:
 
     def iter_from_cycle_spec(self, spec: TargetNodesBaseModel, ref_coordinates: dict) -> Iterator[GRAPH_ITEM_T]:
         # Check date references
-        if "date" not in self._dims and (spec.lag or spec.date):
+        if "date" not in self._dims and isinstance(spec.target_date, DateList | LagList):
             msg = f"Array {self._name} has no date dimension, cannot be referenced by dates"
             raise ValueError(msg)
-        if "date" in self._dims and ref_coordinates.get("date") is None and len(spec.date) == 0:
+        if "date" in self._dims and ref_coordinates.get("date") is None and not isinstance(spec.target_date, DateList):
             msg = f"Array {self._name} has a date dimension, must be referenced by dates"
             raise ValueError(msg)
 
@@ -202,13 +200,13 @@ class Array[GRAPH_ITEM_T]:
 
     def _resolve_target_dim(self, spec: TargetNodesBaseModel, dim: str, ref_coordinates: Any) -> Iterator[Any]:
         if dim == "date":
-            if not spec.lag and not spec.date:
-                yield ref_coordinates["date"]
-            if spec.lag:
-                for lag in spec.lag:
-                    yield ref_coordinates["date"] + lag
-            if spec.date:
-                yield from spec.date
+            match spec.target_date:
+                case SameDate():
+                    yield ref_coordinates["date"]
+                case DateList():
+                    yield from spec.target_date.dates
+                case LagList():
+                    yield from spec.target_date.lags
         elif spec.parameters.get(dim) == "single":
             yield ref_coordinates[dim]
         else:

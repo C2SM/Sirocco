@@ -3,9 +3,10 @@ start_date: &root_start_date '2026-01-01T00:00'
 stop_date: &root_stop_date '2026-06-01T00:00'
 cycles:
   - bimonthly_tasks:
-      start_date: *root_start_date
-      stop_date: *root_stop_date
-      period: P2M
+      cycling:
+        start_date: *root_start_date
+        stop_date: *root_stop_date
+        period: P2M
       tasks:
         - icon:
             inputs:
