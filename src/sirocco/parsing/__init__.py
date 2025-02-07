@@ -1,4 +1,4 @@
-from ._yaml_data_models import (
+from .yaml_data_models import (
     ConfigWorkflow,
 )
 

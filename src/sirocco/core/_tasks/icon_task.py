@@ -7,7 +7,7 @@ from pathlib import Path
 import f90nml
 
 from sirocco.core.graph_items import Task
-from sirocco.parsing._yaml_data_models import ConfigIconTaskSpecs
+from sirocco.parsing.yaml_data_models import ConfigIconTaskSpecs
 
 
 @dataclass(kw_only=True)
@@ -51,7 +51,7 @@ class IconTask(ConfigIconTaskSpecs, Task):
         self.core_namelists["icon_master.namelist"]["master_time_control_nml"].update(
             {
                 "experimentStartDate": self.start_date.isoformat() + "Z",
-                "experimentStopDate": self.end_date.isoformat() + "Z",
+                "experimentStopDate": self.stop_date.isoformat() + "Z",
             }
         )
         self.core_namelists["icon_master.namelist"]["master_nml"]["lrestart"] = any(
