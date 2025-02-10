@@ -17,7 +17,8 @@ cycles:
               - icon_restart:
                   when:
                     after: *root_start_date
-                  lag: -P2M
+                  target_cycle:
+                    lag: -P2M
                   port: restart
             outputs: [icon_output, icon_restart]
   - lastly:
@@ -25,7 +26,8 @@ cycles:
         - cleanup:
             wait_on:
               - icon:
-                  date: 2026-05-01T00:00
+                  target_cycle:
+                    date: 2026-05-01T00:00
 tasks:
   - icon:
       computer: localhost

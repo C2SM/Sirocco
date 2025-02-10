@@ -45,7 +45,7 @@ class Workflow:
         task_dict: dict[str, ConfigTask] = {task.name: task for task in tasks}
 
         # Function to iterate over date and parameter combinations
-        def iter_coordinates(param_refs: list[str], cycle_point: CyclePoint) -> Iterator[dict]:
+        def iter_coordinates(cycle_point: CyclePoint, param_refs: list[str]) -> Iterator[dict]:
             axes = {k: parameters[k] for k in param_refs}
             if isinstance(cycle_point, DateCyclePoint):
                 axes["date"] = [cycle_point.begin_date]
@@ -53,7 +53,7 @@ class Workflow:
 
         # 1 - create availalbe data nodes
         for available_data_config in data.available:
-            for coordinates in iter_coordinates(param_refs=available_data_config.parameters, cycle_point=OneOffPoint()):
+            for coordinates in iter_coordinates(OneOffPoint(), available_data_config.parameters):
                 self.data.add(Data.from_config(config=available_data_config, coordinates=coordinates))
 
         # 2 - create output data nodes
@@ -63,7 +63,7 @@ class Workflow:
                     for data_ref in task_ref.outputs:
                         data_name = data_ref.name
                         data_config = data_dict[data_name]
-                        for coordinates in iter_coordinates(param_refs=data_config.parameters, cycle_point=cycle_point):
+                        for coordinates in iter_coordinates(cycle_point, data_config.parameters):
                             self.data.add(Data.from_config(config=data_config, coordinates=coordinates))
 
         # 3 - create cycles and tasks
@@ -74,7 +74,7 @@ class Workflow:
                 for task_graph_spec in cycle_config.tasks:
                     task_name = task_graph_spec.name
                     task_config = task_dict[task_name]
-                    for coordinates in iter_coordinates(param_refs=task_config.parameters, cycle_point=cycle_point):
+                    for coordinates in iter_coordinates(cycle_point, task_config.parameters):
                         task = Task.from_config(
                             config=task_config,
                             config_rootdir=self.config_rootdir,
@@ -89,7 +89,7 @@ class Workflow:
                     Cycle(
                         name=cycle_name,
                         tasks=cycle_tasks,
-                        coordinates={} if isinstance(cycle_point, OneOffPoint) else {"date": cycle_point.begin_date},
+                        coordinates={"date": cycle_point.begin_date} if isinstance(cycle_point, DateCyclePoint) else {},
                     )
                 )
 

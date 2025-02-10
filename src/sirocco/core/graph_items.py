@@ -4,8 +4,7 @@ from dataclasses import dataclass, field
 from itertools import chain, product
 from typing import TYPE_CHECKING, Any, ClassVar, Self, TypeAlias, TypeVar, cast
 
-from sirocco.parsing.target_date import DateList, LagList, SameDate
-from sirocco.parsing.when import WhenSpec
+from sirocco.parsing.target_cycle import DateList, LagList, NoTargetCycle
 from sirocco.parsing.yaml_data_models import (
     ConfigAvailableData,
     ConfigBaseDataSpecs,
@@ -188,10 +187,10 @@ class Array[GRAPH_ITEM_T]:
 
     def iter_from_cycle_spec(self, spec: TargetNodesBaseModel, ref_coordinates: dict) -> Iterator[GRAPH_ITEM_T]:
         # Check date references
-        if "date" not in self._dims and isinstance(spec.target_date, DateList | LagList):
+        if "date" not in self._dims and isinstance(spec.target_cycle, DateList | LagList):
             msg = f"Array {self._name} has no date dimension, cannot be referenced by dates"
             raise ValueError(msg)
-        if "date" in self._dims and ref_coordinates.get("date") is None and not isinstance(spec.target_date, DateList):
+        if "date" in self._dims and ref_coordinates.get("date") is None and not isinstance(spec.target_cycle, DateList):
             msg = f"Array {self._name} has a date dimension, must be referenced by dates"
             raise ValueError(msg)
 
@@ -200,13 +199,14 @@ class Array[GRAPH_ITEM_T]:
 
     def _resolve_target_dim(self, spec: TargetNodesBaseModel, dim: str, ref_coordinates: Any) -> Iterator[Any]:
         if dim == "date":
-            match spec.target_date:
-                case SameDate():
+            match spec.target_cycle:
+                case NoTargetCycle():
                     yield ref_coordinates["date"]
                 case DateList():
-                    yield from spec.target_date.dates
+                    yield from spec.target_cycle.dates
                 case LagList():
-                    yield from spec.target_date.lags
+                    for lag in spec.target_cycle.lags:
+                        yield ref_coordinates["date"] + lag
         elif spec.parameters.get(dim) == "single":
             yield ref_coordinates[dim]
         else:
@@ -239,10 +239,8 @@ class Store[GRAPH_ITEM_T]:
         return self._dict[name][coordinates]
 
     def iter_from_cycle_spec(self, spec: TargetNodesBaseModel, ref_coordinates: dict) -> Iterator[GRAPH_ITEM_T]:
-        # Check if we need to skip this querry
-        if isinstance(spec.when, WhenSpec) and not spec.when.is_active(ref_coordinates.get("date")):
+        if not spec.when.is_active(ref_coordinates.get("date")):
             return
-        # Yield items
         yield from self._dict[spec.name].iter_from_cycle_spec(spec, ref_coordinates)
 
     def __iter__(self) -> Iterator[GRAPH_ITEM_T]:
