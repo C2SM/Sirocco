@@ -602,16 +602,6 @@ class ConfigBaseData(_NamedBaseModel, ConfigBaseDataSpecs):
 
     parameters: list[str] = []
 
-    @field_validator("type")
-    @classmethod
-    def is_file_or_dir(cls, value: str) -> str:
-        """."""
-        valid_types = ("file", "dir")
-        if value not in valid_types:
-            msg = f"Must be one of {valid_types}"
-            raise ValueError(msg)
-        return value
-
 
 class ConfigAvailableData(ConfigBaseData):
     pass
