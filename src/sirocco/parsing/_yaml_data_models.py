@@ -288,6 +288,12 @@ class ConfigCycle(_NamedBaseModel):
 
 @dataclass(kw_only=True)
 class ConfigBaseTaskSpecs:
+    """
+    Common information for tasks.
+
+    Any of these keys can be None, in which case they are inherited from the root task.
+    """
+
     computer: str | None = None
     host: str | None = None
     account: str | None = None
@@ -298,7 +304,7 @@ class ConfigBaseTaskSpecs:
 
 class ConfigBaseTask(_NamedBaseModel, ConfigBaseTaskSpecs):
     """
-    config for genric task, no plugin specifics
+    Config for genric task, no plugin specifics.
     """
 
     parameters: list[str] = Field(default_factory=list)
@@ -369,6 +375,38 @@ class ConfigShellTaskSpecs:
 
 
 class ConfigShellTask(ConfigBaseTask, ConfigShellTaskSpecs):
+    """
+    Represent a shell script to be run as part of the workflow.
+
+    Examples:
+
+        >>> import textwrap
+        >>> my_task = validate_yaml_content(
+        ...     ConfigShellTask,
+        ...     textwrap.dedent(
+        ...         '''
+        ...     my_task:
+        ...       plugin: shell
+        ...       command: my_script.sh
+        ...       src: post_run_scripts
+        ...       cli_arguments: "-n 1024 {current_sim_output}"
+        ...       env_source_files: "env.sh"
+        ...       walltime: 00:01:00
+        ...     '''
+        ...     ),
+        ... )
+        >>> my_task.cli_arguments[0]
+        ShellCliArgument(name='-n', references_data_item=False, cli_option_of_data_item=None)
+        >>> my_task.cli_arguments[1]
+        ShellCliArgument(name='1024', references_data_item=False, cli_option_of_data_item=None)
+        >>> my_task.cli_arguments[2]
+        ShellCliArgument(name='current_sim_output', references_data_item=True, cli_option_of_data_item=None)
+        >>> my_task.env_source_files
+        ['env.sh']
+        >>> my_task.walltime.tm_min
+        1
+    """
+
     command: str = ""
     cli_arguments: list[ShellCliArgument] = Field(default_factory=list)
     env_source_files: list[str] = Field(default_factory=list)
