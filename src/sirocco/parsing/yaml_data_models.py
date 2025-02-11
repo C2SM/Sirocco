@@ -116,8 +116,7 @@ def select_when(spec: Any) -> When:
                 return AtDate(**spec)
             return BeforeAfterDate(**spec)
         case _:
-            msg = "Unsupported type(s)"
-            raise TypeError(msg)
+            raise TypeError
 
 
 def select_target_cycle(spec: Any) -> TargetCycle:
@@ -132,14 +131,12 @@ def select_target_cycle(spec: Any) -> TargetCycle:
                 return DateList(dates=spec["date"])
             return LagList(lags=spec["lag"])
         case _:
-            msg = f"Unsupported Type {type(spec)}"
-            raise TypeError(msg)
+            raise TypeError
 
 
 def check_parameters_spec(params: Any) -> dict[str, Literal["all", "single"]]:
     if not isinstance(params, dict):
-        msg = "Unsupported type"
-        raise TypeError(msg)
+        raise TypeError
     for k, v in params.items():
         if v not in ("all", "single"):
             msg = f"parameter {k}: reference can only be 'single' or 'all', got {v}"
@@ -195,8 +192,7 @@ def make_named_model_list_converter(
                 case _NamedBaseModel():
                     inputs.append(value)
                 case _:
-                    msg = "Unsupported Type"
-                    raise TypeError(msg)
+                    raise TypeError
         return inputs
 
     return convert_named_model_list
@@ -228,8 +224,7 @@ def select_cycling(spec: Any) -> Cycling:
                 raise KeyError(msg)
             return DateCycling(**spec)
         case _:
-            msg = "unsupported type"
-            raise TypeError(msg)
+            raise TypeError
 
 
 class ConfigCycle(_NamedBaseModel):
@@ -583,8 +578,7 @@ ConfigTask = Annotated[
 
 def check_parameters_lists(data: Any) -> dict[str, list]:
     if not isinstance(data, dict):
-        msg = "Unsupported type"
-        raise TypeError(msg)
+        raise TypeError
     for param_name, param_values in data.items():
         msg = f"""{param_name}: parameters must map a string to list of single values, got {param_values}"""
         if isinstance(param_values, list):

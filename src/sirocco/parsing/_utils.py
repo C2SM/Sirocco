@@ -36,8 +36,7 @@ def convert_to_date(value: Any) -> datetime:
         case str():
             return datetime.fromisoformat(value)
         case _:
-            msg = "unsupported type"
-            raise TypeError(msg)
+            raise TypeError
 
 
 def convert_to_duration(value: Any) -> Duration:
@@ -47,8 +46,7 @@ def convert_to_duration(value: Any) -> Duration:
         case str():
             return parse_duration(value)
         case _:
-            msg = "unsupported type"
-            raise TypeError(msg)
+            raise TypeError
 
 
 def convert_to_date_or_none(value: Any) -> datetime | None:
