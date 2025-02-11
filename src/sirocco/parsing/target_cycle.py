@@ -1,7 +1,10 @@
-from dataclasses import dataclass
 from datetime import datetime
+from typing import Annotated
 
 from isoduration.types import Duration
+from pydantic import BaseModel, BeforeValidator, ConfigDict
+
+from sirocco.parsing._utils import convert_to_date_list, convert_to_duration_list
 
 
 class TargetCycle:
@@ -12,11 +15,10 @@ class NoTargetCycle(TargetCycle):
     pass
 
 
-@dataclass(kw_only=True)
-class DateList(TargetCycle):
-    dates: list[datetime]
+class DateList(BaseModel, TargetCycle):
+    dates: Annotated[list[datetime], BeforeValidator(convert_to_date_list)]
 
 
-@dataclass(kw_only=True)
-class LagList(TargetCycle):
-    lags: list[Duration]
+class LagList(BaseModel, TargetCycle):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    lags: Annotated[list[Duration], BeforeValidator(convert_to_duration_list)]

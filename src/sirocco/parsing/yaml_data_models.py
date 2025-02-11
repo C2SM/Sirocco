@@ -5,12 +5,10 @@ import itertools
 import time
 import typing
 from dataclasses import dataclass, field
-from datetime import datetime
 from io import StringIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, Self
+from typing import Annotated, Any, ClassVar, Literal, Self
 
-from isoduration import parse_duration
 from pydantic import (
     BaseModel,
     BeforeValidator,
@@ -24,13 +22,9 @@ from pydantic import (
 )
 from ruamel.yaml import YAML
 
-from sirocco.parsing._utils import TimeUtils
 from sirocco.parsing.cycling import Cycling, DateCycling, OneOff
 from sirocco.parsing.target_cycle import DateList, LagList, NoTargetCycle, TargetCycle
 from sirocco.parsing.when import AnyWhen, AtDate, BeforeAfterDate, When
-
-if TYPE_CHECKING:
-    from collections.abc import Iterator
 
 ITEM_T = typing.TypeVar("ITEM_T")
 
@@ -119,30 +113,11 @@ def select_when(spec: Any) -> When:
                 if any(k in spec for k in ("before", "after")):
                     msg = "'at' key is incompatible with 'before' and after'"
                     raise KeyError(msg)
-                match spec["at"]:
-                    case datetime():
-                        return AtDate(at=spec["at"])
-                    case str():
-                        return AtDate(at=datetime.fromisoformat(spec["at"]))
-                    case _:
-                        msg = "Unsupported type"
-                        raise TypeError(msg)
-            if not all(isinstance(v, datetime | str | None) for v in spec.values()):
-                msg = "Unsupported type(s)"
-                raise TypeError(msg)
-            return BeforeAfterDate(
-                **{k: v if isinstance(v, datetime | None) else datetime.fromisoformat(v) for k, v in spec.items()}
-            )
+                return AtDate(**spec)
+            return BeforeAfterDate(**spec)
         case _:
             msg = "Unsupported type(s)"
             raise TypeError(msg)
-
-
-def iter_yaml_item(values: Any) -> Iterator[Any]:
-    if isinstance(values, list):
-        yield from values
-    else:
-        yield values
 
 
 def select_target_cycle(spec: Any) -> TargetCycle:
@@ -154,8 +129,8 @@ def select_target_cycle(spec: Any) -> TargetCycle:
                 msg = "target_cycle key can only be 'lag' or 'date' and not both"
                 raise KeyError(msg)
             if "date" in spec:
-                return DateList(dates=[datetime.fromisoformat(date) for date in iter_yaml_item(spec["date"])])
-            return LagList(lags=[parse_duration(lag) for lag in iter_yaml_item(spec["lag"])])
+                return DateList(dates=spec["date"])
+            return LagList(lags=spec["lag"])
         case _:
             msg = f"Unsupported Type {type(spec)}"
             raise TypeError(msg)
@@ -243,32 +218,18 @@ class ConfigCycleTask(_NamedBaseModel):
     ] = []
 
 
-def select_cycling(spec: Cycling | dict | None) -> Cycling:
+def select_cycling(spec: Any) -> Cycling:
     match spec:
         case Cycling():
             return spec
-        case None:
-            return OneOff()
         case dict():
-            if not all(k in ("start_date", "stop_date", "period") for k in spec):
-                msg = "cycling keys can only be 'start_date', 'stop_date', 'period'"
+            if spec.keys() != {"start_date", "stop_date", "period"}:
+                msg = "cycling requires the 'start_date' 'stop_date' and 'period' keys and only these"
                 raise KeyError(msg)
-            if not all(k in spec for k in ("start_date", "stop_date", "period")):
-                msg = "cycling requires 'start_date' 'stop_date' and 'period'"
-                raise KeyError(msg)
-            start = datetime.fromisoformat(spec["start_date"])
-            stop = datetime.fromisoformat(spec["stop_date"])
-            period = parse_duration(spec["period"])
-            if start > stop:
-                msg = f"start_date {start!r} lies after given stop_date {stop!r}."
-                raise ValueError(msg)
-            if TimeUtils.duration_is_less_equal_zero(period):
-                msg = f"period {period!r} is negative or zero."
-                raise ValueError(msg)
-            if start + period > stop:
-                msg = f"period {period!r} larger than the duration between start date {start!r} and stop_date {stop!r}"
-                raise ValueError(msg)
-            return DateCycling(start_date=start, stop_date=stop, period=period)
+            return DateCycling(**spec)
+        case _:
+            msg = "unsupported type"
+            raise TypeError(msg)
 
 
 class ConfigCycle(_NamedBaseModel):

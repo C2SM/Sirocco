@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Iterator  # noqa: TCH003 needed for pydantic
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from datetime import datetime  # noqa: TCH003 needed for pydantic
+from typing import Annotated, Self
 
-if TYPE_CHECKING:
-    from collections.abc import Iterator
-    from datetime import datetime
+from isoduration.types import Duration  # noqa: TCH002 needed for pydantic
+from pydantic import BaseModel, BeforeValidator, ConfigDict, model_validator
 
-    from isoduration.types import Duration
+from sirocco.parsing._utils import TimeUtils, convert_to_date, convert_to_duration
 
 
 class CyclePoint:
@@ -42,11 +43,24 @@ class OneOff(Cycling):
         yield OneOffPoint()
 
 
-@dataclass(kw_only=True)
-class DateCycling(Cycling):
-    start_date: datetime
-    stop_date: datetime
-    period: Duration
+class DateCycling(BaseModel, Cycling):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    start_date: Annotated[datetime, BeforeValidator(convert_to_date)]
+    stop_date: Annotated[datetime, BeforeValidator(convert_to_date)]
+    period: Annotated[Duration, BeforeValidator(convert_to_duration)]
+
+    @model_validator(mode="after")
+    def check_dates_and_period(self) -> Self:
+        if self.start_date > self.stop_date:
+            msg = f"start_date {self.start_date!r} lies after given stop_date {self.stop_date!r}."
+            raise ValueError(msg)
+        if TimeUtils.duration_is_less_equal_zero(self.period):
+            msg = f"period {self.period!r} is negative or zero."
+            raise ValueError(msg)
+        if self.start_date + self.period > self.stop_date:
+            msg = f"period {self.period!r} larger than the duration between start date {self.start_date!r} and stop_date {self.stop_date!r}"
+            raise ValueError(msg)
+        return self
 
     def iter_cycle_points(self) -> Iterator[DateCyclePoint]:
         begin = self.start_date

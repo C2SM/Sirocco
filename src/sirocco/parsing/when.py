@@ -1,6 +1,10 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from datetime import datetime
+from typing import Annotated
+
+from pydantic import BaseModel, BeforeValidator
+
+from sirocco.parsing._utils import convert_to_date, convert_to_date_or_none
 
 
 class When(ABC):
@@ -14,9 +18,8 @@ class AnyWhen(When):
         return True
 
 
-@dataclass(kw_only=True)
-class AtDate(When):
-    at: datetime
+class AtDate(When, BaseModel):
+    at: Annotated[datetime, BeforeValidator(convert_to_date)]
 
     def is_active(self, date: datetime | None) -> bool:
         if date is None:
@@ -25,10 +28,9 @@ class AtDate(When):
         return date == self.at
 
 
-@dataclass(kw_only=True)
-class BeforeAfterDate(When):
-    before: datetime | None = None
-    after: datetime | None = None
+class BeforeAfterDate(When, BaseModel):
+    before: Annotated[datetime | None, BeforeValidator(convert_to_date_or_none)] = None
+    after: Annotated[datetime | None, BeforeValidator(convert_to_date_or_none)] = None
 
     def is_active(self, date: datetime | None) -> bool:
         if date is None:
