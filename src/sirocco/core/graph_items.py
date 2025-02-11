@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from itertools import chain, product
 from typing import TYPE_CHECKING, Any, ClassVar, Self, TypeAlias, TypeVar, cast
 
+from sirocco.core import _tasks as tasks
+from sirocco.parsing import _yaml_data_models as models
 from sirocco.parsing._yaml_data_models import (
     ConfigAvailableData,
     ConfigBaseDataSpecs,
@@ -109,6 +111,8 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
             msg = f"Plugin {type(config).plugin!r} is not supported."
             raise ValueError(msg)
 
+        if plugin_cls is tasks.IconTask and isinstance(config, models.ConfigIconTask):
+            cls_config["namelists"] = config.namelists_by_name
         new = plugin_cls(
             config_rootdir=config_rootdir,
             coordinates=coordinates,
