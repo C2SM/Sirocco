@@ -11,6 +11,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            cycle point: []
             plugin: 'shell'
             command: 'scripts/extpar'
             cli arguments: [ShellCliArgument(name='--verbose', references_data_item=False, cli_option_of_data_item=None), ShellCliArgument(name='obs_data', references_data_item=True, cli_option_of_data_item='--input')]
@@ -29,8 +30,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2025-01-01 00:00:00 -- 2025-03-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/cleanup.sh'
             cli arguments: [ShellCliArgument(name='extpar_file', references_data_item=True, cli_option_of_data_item='-p'), ShellCliArgument(name='ERA5', references_data_item=True, cli_option_of_data_item='-e'), ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item=None)]
@@ -48,8 +48,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2025-01-01 00:00:00 -- 2025-03-01 00:00:00]
             plugin: 'icon'
             namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
@@ -63,8 +62,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2025-01-01 00:00:00 -- 2025-03-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/main_script_ocn.sh'
             cli arguments: [ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--input')]
@@ -80,8 +78,7 @@ cycles:
             coordinates: {'date': datetime.datetime(2025, 1, 1, 0, 0)}
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2025-01-01 00:00:00 -- 2025-03-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/post_clean.sh'
             cli arguments: [ShellCliArgument(name='postout_1', references_data_item=True, cli_option_of_data_item='--input'), ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--stream'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--icon_input')]
@@ -100,8 +97,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2025-03-01 00:00:00 -- 2025-05-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/cleanup.sh'
             cli arguments: [ShellCliArgument(name='extpar_file', references_data_item=True, cli_option_of_data_item='-p'), ShellCliArgument(name='ERA5', references_data_item=True, cli_option_of_data_item='-e'), ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item=None)]
@@ -120,8 +116,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2025-03-01 00:00:00 -- 2025-05-01 00:00:00]
             plugin: 'icon'
             namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
@@ -135,8 +130,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2025-03-01 00:00:00 -- 2025-05-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/main_script_ocn.sh'
             cli arguments: [ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--input')]
@@ -152,8 +146,7 @@ cycles:
             coordinates: {'date': datetime.datetime(2025, 3, 1, 0, 0)}
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2025-03-01 00:00:00 -- 2025-05-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/post_clean.sh'
             cli arguments: [ShellCliArgument(name='postout_1', references_data_item=True, cli_option_of_data_item='--input'), ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--stream'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--icon_input')]
@@ -174,8 +167,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2025-05-01 00:00:00 -- 2025-07-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/cleanup.sh'
             cli arguments: [ShellCliArgument(name='extpar_file', references_data_item=True, cli_option_of_data_item='-p'), ShellCliArgument(name='ERA5', references_data_item=True, cli_option_of_data_item='-e'), ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item=None)]
@@ -194,8 +186,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2025-05-01 00:00:00 -- 2025-07-01 00:00:00]
             plugin: 'icon'
             namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
@@ -209,8 +200,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2025-05-01 00:00:00 -- 2025-07-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/main_script_ocn.sh'
             cli arguments: [ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--input')]
@@ -226,8 +216,7 @@ cycles:
             coordinates: {'date': datetime.datetime(2025, 5, 1, 0, 0)}
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2025-05-01 00:00:00 -- 2025-07-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/post_clean.sh'
             cli arguments: [ShellCliArgument(name='postout_1', references_data_item=True, cli_option_of_data_item='--input'), ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--stream'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--icon_input')]
@@ -248,8 +237,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2025-07-01 00:00:00 -- 2025-09-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/cleanup.sh'
             cli arguments: [ShellCliArgument(name='extpar_file', references_data_item=True, cli_option_of_data_item='-p'), ShellCliArgument(name='ERA5', references_data_item=True, cli_option_of_data_item='-e'), ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item=None)]
@@ -268,8 +256,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2025-07-01 00:00:00 -- 2025-09-01 00:00:00]
             plugin: 'icon'
             namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
@@ -283,8 +270,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2025-07-01 00:00:00 -- 2025-09-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/main_script_ocn.sh'
             cli arguments: [ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--input')]
@@ -300,8 +286,7 @@ cycles:
             coordinates: {'date': datetime.datetime(2025, 7, 1, 0, 0)}
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2025-07-01 00:00:00 -- 2025-09-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/post_clean.sh'
             cli arguments: [ShellCliArgument(name='postout_1', references_data_item=True, cli_option_of_data_item='--input'), ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--stream'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--icon_input')]
@@ -322,8 +307,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2025-09-01 00:00:00 -- 2025-11-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/cleanup.sh'
             cli arguments: [ShellCliArgument(name='extpar_file', references_data_item=True, cli_option_of_data_item='-p'), ShellCliArgument(name='ERA5', references_data_item=True, cli_option_of_data_item='-e'), ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item=None)]
@@ -342,8 +326,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2025-09-01 00:00:00 -- 2025-11-01 00:00:00]
             plugin: 'icon'
             namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
@@ -357,8 +340,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2025-09-01 00:00:00 -- 2025-11-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/main_script_ocn.sh'
             cli arguments: [ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--input')]
@@ -374,8 +356,7 @@ cycles:
             coordinates: {'date': datetime.datetime(2025, 9, 1, 0, 0)}
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2025-09-01 00:00:00 -- 2025-11-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/post_clean.sh'
             cli arguments: [ShellCliArgument(name='postout_1', references_data_item=True, cli_option_of_data_item='--input'), ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--stream'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--icon_input')]
@@ -396,8 +377,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2025-11-01 00:00:00 -- 2026-01-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/cleanup.sh'
             cli arguments: [ShellCliArgument(name='extpar_file', references_data_item=True, cli_option_of_data_item='-p'), ShellCliArgument(name='ERA5', references_data_item=True, cli_option_of_data_item='-e'), ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item=None)]
@@ -416,8 +396,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2025-11-01 00:00:00 -- 2026-01-01 00:00:00]
             plugin: 'icon'
             namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
@@ -431,8 +410,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2025-11-01 00:00:00 -- 2026-01-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/main_script_ocn.sh'
             cli arguments: [ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--input')]
@@ -448,8 +426,7 @@ cycles:
             coordinates: {'date': datetime.datetime(2025, 11, 1, 0, 0)}
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2025-11-01 00:00:00 -- 2026-01-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/post_clean.sh'
             cli arguments: [ShellCliArgument(name='postout_1', references_data_item=True, cli_option_of_data_item='--input'), ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--stream'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--icon_input')]
@@ -470,8 +447,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2026-01-01 00:00:00 -- 2026-03-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/cleanup.sh'
             cli arguments: [ShellCliArgument(name='extpar_file', references_data_item=True, cli_option_of_data_item='-p'), ShellCliArgument(name='ERA5', references_data_item=True, cli_option_of_data_item='-e'), ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item=None)]
@@ -490,8 +466,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2026-01-01 00:00:00 -- 2026-03-01 00:00:00]
             plugin: 'icon'
             namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
@@ -505,8 +480,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2026-01-01 00:00:00 -- 2026-03-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/main_script_ocn.sh'
             cli arguments: [ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--input')]
@@ -522,8 +496,7 @@ cycles:
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2026-01-01 00:00:00 -- 2026-03-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/post_clean.sh'
             cli arguments: [ShellCliArgument(name='postout_1', references_data_item=True, cli_option_of_data_item='--input'), ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--stream'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--icon_input')]
@@ -544,8 +517,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2026-03-01 00:00:00 -- 2026-05-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/cleanup.sh'
             cli arguments: [ShellCliArgument(name='extpar_file', references_data_item=True, cli_option_of_data_item='-p'), ShellCliArgument(name='ERA5', references_data_item=True, cli_option_of_data_item='-e'), ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item=None)]
@@ -564,8 +536,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2026-03-01 00:00:00 -- 2026-05-01 00:00:00]
             plugin: 'icon'
             namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
@@ -579,8 +550,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2026-03-01 00:00:00 -- 2026-05-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/main_script_ocn.sh'
             cli arguments: [ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--input')]
@@ -596,8 +566,7 @@ cycles:
             coordinates: {'date': datetime.datetime(2026, 3, 1, 0, 0)}
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2026-03-01 00:00:00 -- 2026-05-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/post_clean.sh'
             cli arguments: [ShellCliArgument(name='postout_1', references_data_item=True, cli_option_of_data_item='--input'), ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--stream'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--icon_input')]
@@ -618,8 +587,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2026-05-01 00:00:00 -- 2026-07-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/cleanup.sh'
             cli arguments: [ShellCliArgument(name='extpar_file', references_data_item=True, cli_option_of_data_item='-p'), ShellCliArgument(name='ERA5', references_data_item=True, cli_option_of_data_item='-e'), ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item=None)]
@@ -638,8 +606,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2026-05-01 00:00:00 -- 2026-07-01 00:00:00]
             plugin: 'icon'
             namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
@@ -653,8 +620,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2026-05-01 00:00:00 -- 2026-07-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/main_script_ocn.sh'
             cli arguments: [ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--input')]
@@ -670,8 +636,7 @@ cycles:
             coordinates: {'date': datetime.datetime(2026, 5, 1, 0, 0)}
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2026-05-01 00:00:00 -- 2026-07-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/post_clean.sh'
             cli arguments: [ShellCliArgument(name='postout_1', references_data_item=True, cli_option_of_data_item='--input'), ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--stream'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--icon_input')]
@@ -692,8 +657,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2026-07-01 00:00:00 -- 2026-09-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/cleanup.sh'
             cli arguments: [ShellCliArgument(name='extpar_file', references_data_item=True, cli_option_of_data_item='-p'), ShellCliArgument(name='ERA5', references_data_item=True, cli_option_of_data_item='-e'), ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item=None)]
@@ -712,8 +676,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2026-07-01 00:00:00 -- 2026-09-01 00:00:00]
             plugin: 'icon'
             namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
@@ -727,8 +690,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2026-07-01 00:00:00 -- 2026-09-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/main_script_ocn.sh'
             cli arguments: [ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--input')]
@@ -744,8 +706,7 @@ cycles:
             coordinates: {'date': datetime.datetime(2026, 7, 1, 0, 0)}
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2026-07-01 00:00:00 -- 2026-09-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/post_clean.sh'
             cli arguments: [ShellCliArgument(name='postout_1', references_data_item=True, cli_option_of_data_item='--input'), ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--stream'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--icon_input')]
@@ -766,8 +727,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2026-09-01 00:00:00 -- 2026-11-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/cleanup.sh'
             cli arguments: [ShellCliArgument(name='extpar_file', references_data_item=True, cli_option_of_data_item='-p'), ShellCliArgument(name='ERA5', references_data_item=True, cli_option_of_data_item='-e'), ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item=None)]
@@ -786,8 +746,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2026-09-01 00:00:00 -- 2026-11-01 00:00:00]
             plugin: 'icon'
             namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
@@ -801,8 +760,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2026-09-01 00:00:00 -- 2026-11-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/main_script_ocn.sh'
             cli arguments: [ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--input')]
@@ -818,8 +776,7 @@ cycles:
             coordinates: {'date': datetime.datetime(2026, 9, 1, 0, 0)}
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2026-09-01 00:00:00 -- 2026-11-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/post_clean.sh'
             cli arguments: [ShellCliArgument(name='postout_1', references_data_item=True, cli_option_of_data_item='--input'), ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--stream'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--icon_input')]
@@ -840,8 +797,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2026-11-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/cleanup.sh'
             cli arguments: [ShellCliArgument(name='extpar_file', references_data_item=True, cli_option_of_data_item='-p'), ShellCliArgument(name='ERA5', references_data_item=True, cli_option_of_data_item='-e'), ShellCliArgument(name='grid_file', references_data_item=True, cli_option_of_data_item=None)]
@@ -860,8 +816,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2026-11-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'icon'
             namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
@@ -875,8 +830,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2026-11-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/main_script_ocn.sh'
             cli arguments: [ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--input')]
@@ -892,8 +846,7 @@ cycles:
             coordinates: {'date': datetime.datetime(2026, 11, 1, 0, 0)}
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2026-11-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/post_clean.sh'
             cli arguments: [ShellCliArgument(name='postout_1', references_data_item=True, cli_option_of_data_item='--input'), ShellCliArgument(name='stream_1', references_data_item=True, cli_option_of_data_item='--stream'), ShellCliArgument(name='icon_input', references_data_item=True, cli_option_of_data_item='--icon_input')]
@@ -915,8 +868,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2025-01-01 00:00:00 -- 2026-01-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/main_script_atm.sh'
             cli arguments: [ShellCliArgument(name='stream_2', references_data_item=True, cli_option_of_data_item='--input')]
@@ -937,8 +889,7 @@ cycles:
             coordinates: {'date': datetime.datetime(2025, 1, 1, 0, 0)}
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2025-01-01 00:00:00 -- 2026-01-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/post_clean.sh'
             cli arguments: [ShellCliArgument(name='postout_2', references_data_item=True, cli_option_of_data_item='--input')]
@@ -960,8 +911,7 @@ cycles:
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2026-01-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/main_script_atm.sh'
             cli arguments: [ShellCliArgument(name='stream_2', references_data_item=True, cli_option_of_data_item='--input')]
@@ -982,8 +932,7 @@ cycles:
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
-            start date: 2025-01-01 00:00:00
-            end date: 2027-01-01 00:00:00
+            cycle point: [2026-01-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/post_clean.sh'
             cli arguments: [ShellCliArgument(name='postout_2', references_data_item=True, cli_option_of_data_item='--input')]

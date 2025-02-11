@@ -5,7 +5,7 @@ import pytest
 from sirocco import pretty_print
 from sirocco.core import _tasks as core_tasks
 from sirocco.core import workflow
-from sirocco.parsing import _yaml_data_models as models
+from sirocco.parsing import yaml_data_models as models
 
 pytest_plugins = ["aiida.tools.pytest_fixtures"]
 

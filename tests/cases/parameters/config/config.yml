@@ -1,12 +1,13 @@
 ---
 start_date: &root_start_date '2026-01-01T00:00'
-end_date: &root_end_date '2028-01-01T00:00'
+stop_date: &root_stop_date '2028-01-01T00:00'
 
 cycles:
   - bimonthly_tasks:
-      start_date: *root_start_date
-      end_date: *root_end_date
-      period: P6M
+      cycling:
+        start_date: *root_start_date
+        stop_date: *root_stop_date
+        period: P6M
       tasks:
         - icon:
             inputs:
@@ -16,7 +17,8 @@ cycles:
               - icon_restart:
                   when:
                     after: *root_start_date
-                  lag: -P6M
+                  target_cycle:
+                    lag: -P6M
                   parameters:
                     foo: single
                     bar: single
@@ -32,14 +34,16 @@ cycles:
             inputs: [analysis_foo]
             outputs: [analysis_foo_bar]
   - yearly:
-      start_date: *root_start_date
-      end_date: *root_end_date
-      period: P1Y
+      cycling:
+        start_date: *root_start_date
+        stop_date: *root_stop_date
+        period: P1Y
       tasks:
         - merge:
             inputs:
               - analysis_foo_bar:
-                  lag: ['P0M', 'P6M']
+                  target_cycle:
+                    lag: ['P0M', 'P6M']
             outputs: [yearly_analysis]
 
 tasks:

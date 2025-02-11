@@ -3,7 +3,7 @@ import textwrap
 import pytest
 from pydantic import ValidationError
 
-from sirocco.parsing import _yaml_data_models as models
+from sirocco.parsing import yaml_data_models as models
 
 
 @pytest.mark.parametrize("data_type", ["file", "dir"])

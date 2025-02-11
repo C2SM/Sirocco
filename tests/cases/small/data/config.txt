@@ -11,8 +11,7 @@ cycles:
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
             computer: 'localhost'
-            start date: 2026-01-01 00:00:00
-            end date: 2026-06-01 00:00:00
+            cycle point: [2026-01-01 00:00:00 -- 2026-03-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/icon.py'
             cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init')]
@@ -29,8 +28,7 @@ cycles:
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 3, 1, 0, 0)}
             computer: 'localhost'
-            start date: 2026-01-01 00:00:00
-            end date: 2026-06-01 00:00:00
+            cycle point: [2026-03-01 00:00:00 -- 2026-05-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/icon.py'
             cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init')]
@@ -47,8 +45,7 @@ cycles:
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 5, 1, 0, 0)}
             computer: 'localhost'
-            start date: 2026-01-01 00:00:00
-            end date: 2026-06-01 00:00:00
+            cycle point: [2026-05-01 00:00:00 -- 2026-06-01 00:00:00]
             plugin: 'shell'
             command: 'scripts/icon.py'
             cli arguments: [ShellCliArgument(name='icon_restart', references_data_item=True, cli_option_of_data_item='--restart'), ShellCliArgument(name='initial_conditions', references_data_item=True, cli_option_of_data_item='--init')]
@@ -61,6 +58,7 @@ cycles:
             name: 'cleanup'
             coordinates: {}
             computer: 'localhost'
+            cycle point: []
             plugin: 'shell'
             command: 'scripts/cleanup.py'
             cli arguments: []
