@@ -3,15 +3,19 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, Self
 
 import f90nml
 
 from sirocco.core.graph_items import Task
-from sirocco.parsing._yaml_data_models import ConfigIconTaskSpecs
+from sirocco.parsing import _yaml_data_models as models
+
+if TYPE_CHECKING:
+    from sirocco.parsing._yaml_data_models import ConfigTask
 
 
 @dataclass(kw_only=True)
-class IconTask(ConfigIconTaskSpecs, Task):
+class IconTask(models.ConfigIconTaskSpecs, Task):
     core_namelists: dict[str, f90nml.Namelist] = field(default_factory=dict)
 
     def init_core_namelists(self):
@@ -93,3 +97,17 @@ class IconTask(ConfigIconTaskSpecs, Task):
         if m := multi_section_pattern.match(section_name):
             return m.group(1), int(m.group(2)) - 1
         return section_name, None
+
+    @classmethod
+    def build_from_config(cls: type[Self], config: ConfigTask, **kwargs: Any) -> Self:
+        config_kwargs = dict(config)
+        del config_kwargs["parameters"]
+        if not isinstance(config, models.ConfigIconTask):
+            raise TypeError
+        config_kwargs["namelists"] = {
+            nml.path.name: models.NamelistInfo(**nml.model_dump()) for nml in config.namelists
+        }
+        return cls(
+            **kwargs,
+            **config_kwargs,
+        )

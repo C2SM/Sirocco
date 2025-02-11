@@ -51,7 +51,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'icon'
-            namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
+            namelists: {'icon_master.namelist': NamelistInfo(path=PosixPath('ICON/icon_master.namelist'), specs={}), 'NAMELIST_exclaim_ape_R02B04': NamelistInfo(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
         - postproc_1 [date: 2025-01-01 00:00:00]:
             input:
@@ -123,7 +123,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'icon'
-            namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
+            namelists: {'icon_master.namelist': NamelistInfo(path=PosixPath('ICON/icon_master.namelist'), specs={}), 'NAMELIST_exclaim_ape_R02B04': NamelistInfo(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
         - postproc_1 [date: 2025-03-01 00:00:00]:
             input:
@@ -197,7 +197,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'icon'
-            namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
+            namelists: {'icon_master.namelist': NamelistInfo(path=PosixPath('ICON/icon_master.namelist'), specs={}), 'NAMELIST_exclaim_ape_R02B04': NamelistInfo(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
         - postproc_1 [date: 2025-05-01 00:00:00]:
             input:
@@ -271,7 +271,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'icon'
-            namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
+            namelists: {'icon_master.namelist': NamelistInfo(path=PosixPath('ICON/icon_master.namelist'), specs={}), 'NAMELIST_exclaim_ape_R02B04': NamelistInfo(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
         - postproc_1 [date: 2025-07-01 00:00:00]:
             input:
@@ -345,7 +345,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'icon'
-            namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
+            namelists: {'icon_master.namelist': NamelistInfo(path=PosixPath('ICON/icon_master.namelist'), specs={}), 'NAMELIST_exclaim_ape_R02B04': NamelistInfo(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
         - postproc_1 [date: 2025-09-01 00:00:00]:
             input:
@@ -419,7 +419,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'icon'
-            namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
+            namelists: {'icon_master.namelist': NamelistInfo(path=PosixPath('ICON/icon_master.namelist'), specs={}), 'NAMELIST_exclaim_ape_R02B04': NamelistInfo(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
         - postproc_1 [date: 2025-11-01 00:00:00]:
             input:
@@ -493,7 +493,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'icon'
-            namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
+            namelists: {'icon_master.namelist': NamelistInfo(path=PosixPath('ICON/icon_master.namelist'), specs={}), 'NAMELIST_exclaim_ape_R02B04': NamelistInfo(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
         - postproc_1 [date: 2026-01-01 00:00:00]:
             input:
@@ -567,7 +567,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'icon'
-            namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
+            namelists: {'icon_master.namelist': NamelistInfo(path=PosixPath('ICON/icon_master.namelist'), specs={}), 'NAMELIST_exclaim_ape_R02B04': NamelistInfo(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
         - postproc_1 [date: 2026-03-01 00:00:00]:
             input:
@@ -641,7 +641,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'icon'
-            namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
+            namelists: {'icon_master.namelist': NamelistInfo(path=PosixPath('ICON/icon_master.namelist'), specs={}), 'NAMELIST_exclaim_ape_R02B04': NamelistInfo(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
         - postproc_1 [date: 2026-05-01 00:00:00]:
             input:
@@ -715,7 +715,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'icon'
-            namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
+            namelists: {'icon_master.namelist': NamelistInfo(path=PosixPath('ICON/icon_master.namelist'), specs={}), 'NAMELIST_exclaim_ape_R02B04': NamelistInfo(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
         - postproc_1 [date: 2026-07-01 00:00:00]:
             input:
@@ -789,7 +789,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'icon'
-            namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
+            namelists: {'icon_master.namelist': NamelistInfo(path=PosixPath('ICON/icon_master.namelist'), specs={}), 'NAMELIST_exclaim_ape_R02B04': NamelistInfo(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
         - postproc_1 [date: 2026-09-01 00:00:00]:
             input:
@@ -863,7 +863,7 @@ cycles:
             start date: 2025-01-01 00:00:00
             end date: 2027-01-01 00:00:00
             plugin: 'icon'
-            namelists: {'icon_master.namelist': ConfigNamelist(path=PosixPath('ICON/icon_master.namelist'), specs=None), 'NAMELIST_exclaim_ape_R02B04': ConfigNamelist(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
+            namelists: {'icon_master.namelist': NamelistInfo(path=PosixPath('ICON/icon_master.namelist'), specs={}), 'NAMELIST_exclaim_ape_R02B04': NamelistInfo(path=PosixPath('ICON/NAMELIST_exclaim_ape_R02B04'), specs={'parallel_nml': {'nproma': 96}, 'output_nml[1]': {'output_filename': 'atm_2d'}})}
             core namelists: {}
         - postproc_1 [date: 2026-11-01 00:00:00]:
             input:
