@@ -239,9 +239,8 @@ class Store[GRAPH_ITEM_T]:
         return self._dict[name][coordinates]
 
     def iter_from_cycle_spec(self, spec: TargetNodesBaseModel, ref_coordinates: dict) -> Iterator[GRAPH_ITEM_T]:
-        if not spec.when.is_active(ref_coordinates.get("date")):
-            return
-        yield from self._dict[spec.name].iter_from_cycle_spec(spec, ref_coordinates)
+        if spec.when.is_active(ref_coordinates.get("date")):
+            yield from self._dict[spec.name].iter_from_cycle_spec(spec, ref_coordinates)
 
     def __iter__(self) -> Iterator[GRAPH_ITEM_T]:
         yield from chain(*(self._dict.values()))
