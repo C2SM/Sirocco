@@ -522,10 +522,6 @@ class ConfigIconTask(ConfigBaseTask):
             raise ValueError(msg)
         return nmls
 
-    @property
-    def namelists_by_name(self) -> dict[str, NamelistInfo]:
-        return {nml.path.name: NamelistInfo(**nml.model_dump()) for nml in self.namelists}
-
 
 class DataType(enum.StrEnum):
     FILE = enum.auto()

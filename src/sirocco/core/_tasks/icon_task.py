@@ -8,14 +8,14 @@ from typing import TYPE_CHECKING, Any, Self
 import f90nml
 
 from sirocco.core.graph_items import Task
-from sirocco.parsing._yaml_data_models import ConfigIconTask, ConfigIconTaskSpecs
+from sirocco.parsing import _yaml_data_models as models
 
 if TYPE_CHECKING:
     from sirocco.parsing._yaml_data_models import ConfigTask
 
 
 @dataclass(kw_only=True)
-class IconTask(ConfigIconTaskSpecs, Task):
+class IconTask(models.ConfigIconTaskSpecs, Task):
     core_namelists: dict[str, f90nml.Namelist] = field(default_factory=dict)
 
     def init_core_namelists(self):
@@ -102,9 +102,11 @@ class IconTask(ConfigIconTaskSpecs, Task):
     def build_from_config(cls: type[Self], config: ConfigTask, **kwargs: Any) -> Self:
         config_kwargs = dict(config)
         del config_kwargs["parameters"]
-        if not isinstance(config, ConfigIconTask):
+        if not isinstance(config, models.ConfigIconTask):
             raise TypeError
-        config_kwargs["namelists"] = config.namelists_by_name
+        config_kwargs["namelists"] = {
+            nml.path.name: models.NamelistInfo(**nml.model_dump()) for nml in config.namelists
+        }
         return cls(
             **kwargs,
             **config_kwargs,
