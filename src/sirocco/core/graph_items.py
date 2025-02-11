@@ -4,8 +4,6 @@ from dataclasses import dataclass, field
 from itertools import chain, product
 from typing import TYPE_CHECKING, Any, ClassVar, Self, TypeAlias, TypeVar, cast
 
-from sirocco.core import _tasks as tasks
-from sirocco.parsing import _yaml_data_models as models
 from sirocco.parsing._yaml_data_models import (
     ConfigAvailableData,
     ConfigBaseDataSpecs,
@@ -68,7 +66,7 @@ BoundData: TypeAlias = tuple[Data, str | None]
 class Task(ConfigBaseTaskSpecs, GraphItem):
     """Internal representation of a task node"""
 
-    plugin_classes: ClassVar[dict[str, type]] = field(default={}, repr=False)
+    plugin_classes: ClassVar[dict[str, type[Self]]] = field(default={}, repr=False)
     color: ClassVar[Color] = field(default="light_red", repr=False)
 
     inputs: list[BoundData] = field(default_factory=list)
@@ -89,7 +87,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
 
     @classmethod
     def from_config(
-        cls,
+        cls: type[Self],
         config: ConfigTask,
         config_rootdir: Path,
         start_date: datetime | None,
@@ -104,24 +102,19 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
             for data_node in datastore.iter_from_cycle_spec(input_spec, coordinates)
         ]
         outputs = [datastore[output_spec.name, coordinates] for output_spec in graph_spec.outputs]
-        # use the fact that pydantic models can be turned into dicts easily
-        cls_config = dict(config)
-        del cls_config["parameters"]
         if (plugin_cls := Task.plugin_classes.get(type(config).plugin, None)) is None:
             msg = f"Plugin {type(config).plugin!r} is not supported."
             raise ValueError(msg)
 
-        if plugin_cls is tasks.IconTask and isinstance(config, models.ConfigIconTask):
-            cls_config["namelists"] = config.namelists_by_name
-        new = plugin_cls(
+        new = plugin_cls.build_from_config(
+            config,
             config_rootdir=config_rootdir,
             coordinates=coordinates,
             start_date=start_date,
             end_date=end_date,
             inputs=inputs,
             outputs=outputs,
-            **cls_config,
-        )  # this works because dataclass has generated this init for us
+        )
 
         # Store for actual linking in link_wait_on_tasks() once all tasks are created
         new._wait_on_specs = graph_spec.wait_on  # noqa: SLF001 we don't have access to self in a dataclass
@@ -129,6 +122,12 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
         #                                                the class itself raises SLF001
 
         return new
+
+    @classmethod
+    def build_from_config(cls: type[Self], config: ConfigTask, **kwargs: Any) -> Self:
+        config_kwargs = dict(config)
+        del config_kwargs["parameters"]
+        return cls(**kwargs, **config_kwargs)
 
     def link_wait_on_tasks(self, taskstore: Store[Task]) -> None:
         self.wait_on = list(
