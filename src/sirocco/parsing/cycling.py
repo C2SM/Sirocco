@@ -29,6 +29,7 @@ class DateCyclePoint(CyclePoint):
     start_date and stop_date are the overall dates
     begin_date and end_date relate to the current chunk
     """
+
     start_date: datetime
     stop_date: datetime
     begin_date: datetime
