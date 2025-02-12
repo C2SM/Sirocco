@@ -231,8 +231,6 @@ class Store[GRAPH_ITEM_T]:
 
     def __getitem__(self, key: tuple[str, dict]) -> GRAPH_ITEM_T:
         name, coordinates = key
-        if "date" in coordinates and coordinates["date"] is None:
-            del coordinates["date"]
         if name not in self._dict:
             msg = f"entry {name} not found in Store"
             raise KeyError(msg)
