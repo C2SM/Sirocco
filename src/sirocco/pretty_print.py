@@ -86,11 +86,18 @@ class PrettyPrinter:
 
         >>> from datetime import datetime
         >>> import pathlib
+        >>> from sirocco.parsing.cycling import DateCyclePoint
         >>> print(
         ...     PrettyPrinter().format_basic(
         ...         core.Task(
         ...             name="foo",
         ...             config_rootdir=pathlib.Path("."),
+        ...             cycle_point=DateCyclePoint(
+        ...                 start_date=datetime(1000, 1, 1),
+        ...                 stop_date=datetime(1000, 1, 2),
+        ...                 chunk_start_date=datetime(1000, 1, 1),
+        ...                 chunk_stop_date=datetime(1000, 1, 2),
+        ...             ),
         ...             coordinates={"date": datetime(1000, 1, 1).date()},
         ...         )
         ...     )

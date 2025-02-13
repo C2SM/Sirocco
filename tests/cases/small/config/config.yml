@@ -1,11 +1,12 @@
 ---
 start_date: &root_start_date '2026-01-01T00:00'
-end_date: &root_end_date '2026-06-01T00:00'
+stop_date: &root_stop_date '2026-06-01T00:00'
 cycles:
   - bimonthly_tasks:
-      start_date: *root_start_date
-      end_date: *root_end_date
-      period: P2M
+      cycling:
+        start_date: *root_start_date
+        stop_date: *root_stop_date
+        period: P2M
       tasks:
         - icon:
             inputs:
@@ -16,7 +17,8 @@ cycles:
               - icon_restart:
                   when:
                     after: *root_start_date
-                  lag: -P2M
+                  target_cycle:
+                    lag: -P2M
                   port: restart
             outputs: [icon_output, icon_restart]
   - lastly:
@@ -24,7 +26,8 @@ cycles:
         - cleanup:
             wait_on:
               - icon:
-                  date: 2026-05-01T00:00
+                  target_cycle:
+                    date: 2026-05-01T00:00
 tasks:
   - icon:
       computer: localhost

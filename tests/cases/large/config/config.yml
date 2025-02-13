@@ -1,6 +1,6 @@
 ---
 start_date: &root_start_date '2025-01-01T00:00'
-end_date: &root_end_date '2027-01-01T00:00'
+stop_date: &root_stop_date '2027-01-01T00:00'
 cycles:
   - init:
       tasks:
@@ -8,9 +8,10 @@ cycles:
             inputs: [obs_data]
             outputs: [extpar_file]
   - icon_bimonthly:
-      start_date: *root_start_date
-      end_date: *root_end_date
-      period: 'P2M'
+      cycling:
+        start_date: *root_start_date
+        stop_date: *root_stop_date
+        period: 'P2M'
       tasks:
         - preproc:
             inputs: [grid_file, extpar_file, ERA5]
@@ -19,7 +20,8 @@ cycles:
               - icon:
                   when:
                     after: '2025-03-01T00:00'
-                  lag: '-P4M'
+                  target_cycle:
+                    lag: '-P4M'
         - icon:
             inputs:
               - grid_file
@@ -27,7 +29,8 @@ cycles:
               - icon_restart:
                   when:
                     after: *root_start_date
-                  lag: '-P2M'
+                  target_cycle:
+                    lag: '-P2M'
                   port: restart
             outputs: [stream_1, stream_2, icon_restart]
         - postproc_1:
@@ -37,20 +40,23 @@ cycles:
             inputs: [postout_1, stream_1, icon_input]
             outputs: [stored_data_1]
   - yearly:
-      start_date: *root_start_date
-      end_date: *root_end_date
-      period: 'P1Y'
+      cycling:
+        start_date: *root_start_date
+        stop_date: *root_stop_date
+        period: 'P1Y'
       tasks:
         - postproc_2:
             inputs:
               - stream_2:
-                  lag: ['P0M', 'P2M', 'P4M', 'P6M', 'P8M', 'P10M']
+                  target_cycle:
+                    lag: ['P0M', 'P2M', 'P4M', 'P6M', 'P8M', 'P10M']
             outputs: [postout_2]
         - store_and_clean_2:
             inputs:
               - postout_2
               - stream_2:
-                  lag: ['P0M', 'P2M', 'P4M', 'P6M', 'P8M', 'P10M']
+                  target_cycle:
+                    lag: ['P0M', 'P2M', 'P4M', 'P6M', 'P8M', 'P10M']
             outputs:
               - stored_data_2
 # Each task and piece of data (input and output of tasks) used to
