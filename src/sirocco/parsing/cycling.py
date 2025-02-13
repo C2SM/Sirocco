@@ -27,16 +27,16 @@ class DateCyclePoint(CyclePoint):
     Dates of the current point in the cycle
 
     start_date and stop_date are the overall dates
-    begin_date and end_date relate to the current chunk
+    chunk_start_date and chunk_stop_date relate to the current chunk
     """
 
     start_date: datetime
     stop_date: datetime
-    begin_date: datetime
-    end_date: datetime
+    chunk_start_date: datetime
+    chunk_stop_date: datetime
 
     def __str__(self) -> str:
-        return f"[{self.begin_date} -- {self.end_date}]"
+        return f"[{self.chunk_start_date} -- {self.chunk_stop_date}]"
 
 
 class Cycling(ABC):
@@ -73,5 +73,7 @@ class DateCycling(BaseModel, Cycling):
         begin = self.start_date
         while begin < self.stop_date:
             end = min(begin + self.period, self.stop_date)
-            yield DateCyclePoint(start_date=self.start_date, stop_date=self.stop_date, begin_date=begin, end_date=end)
+            yield DateCyclePoint(
+                start_date=self.start_date, stop_date=self.stop_date, chunk_start_date=begin, chunk_stop_date=end
+            )
             begin = end

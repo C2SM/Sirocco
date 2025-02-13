@@ -48,7 +48,7 @@ class Workflow:
         def iter_coordinates(cycle_point: CyclePoint, param_refs: list[str]) -> Iterator[dict]:
             axes = {k: parameters[k] for k in param_refs}
             if isinstance(cycle_point, DateCyclePoint):
-                axes["date"] = [cycle_point.begin_date]
+                axes["date"] = [cycle_point.chunk_start_date]
             yield from (dict(zip(axes.keys(), x, strict=False)) for x in product(*axes.values()))
 
         # 1 - create availalbe data nodes
@@ -89,7 +89,9 @@ class Workflow:
                     Cycle(
                         name=cycle_name,
                         tasks=cycle_tasks,
-                        coordinates={"date": cycle_point.begin_date} if isinstance(cycle_point, DateCyclePoint) else {},
+                        coordinates={"date": cycle_point.chunk_start_date}
+                        if isinstance(cycle_point, DateCyclePoint)
+                        else {},
                     )
                 )
 

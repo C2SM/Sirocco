@@ -95,8 +95,8 @@ class PrettyPrinter:
         ...             cycle_point=DateCyclePoint(
         ...                 start_date=datetime(1000, 1, 1),
         ...                 stop_date=datetime(1000, 1, 2),
-        ...                 begin_date=datetime(1000, 1, 1),
-        ...                 end_date=datetime(1000, 1, 2),
+        ...                 chunk_start_date=datetime(1000, 1, 1),
+        ...                 chunk_stop_date=datetime(1000, 1, 2),
         ...             ),
         ...             coordinates={"date": datetime(1000, 1, 1).date()},
         ...         )
