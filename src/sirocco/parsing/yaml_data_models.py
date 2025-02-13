@@ -304,7 +304,7 @@ class ConfigBaseTaskSpecs:
 
 class ConfigBaseTask(_NamedBaseModel, ConfigBaseTaskSpecs):
     """
-    Config for genric task, no plugin specifics.
+    Config for generic task, no plugin specifics.
     """
 
     parameters: list[str] = Field(default_factory=list)
