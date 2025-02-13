@@ -8,10 +8,10 @@ from typing import TYPE_CHECKING, Any, Self
 import f90nml
 
 from sirocco.core.graph_items import Task
-from sirocco.parsing import _yaml_data_models as models
+from sirocco.parsing import yaml_data_models as models
 
 if TYPE_CHECKING:
-    from sirocco.parsing._yaml_data_models import ConfigTask
+    from sirocco.parsing.yaml_data_models import ConfigTask
 
 
 @dataclass(kw_only=True)

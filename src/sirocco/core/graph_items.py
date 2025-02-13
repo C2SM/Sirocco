@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from itertools import chain, product
 from typing import TYPE_CHECKING, Any, ClassVar, Self, TypeAlias, TypeVar, cast
 
-from sirocco.parsing._yaml_data_models import (
+from sirocco.parsing.yaml_data_models import (
     ConfigAvailableData,
     ConfigBaseDataSpecs,
     ConfigBaseTaskSpecs,
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
     from termcolor._types import Color
 
-    from sirocco.parsing._yaml_data_models import (
+    from sirocco.parsing.yaml_data_models import (
         ConfigBaseData,
         ConfigCycleTask,
         ConfigCycleTaskWaitOn,
