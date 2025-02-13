@@ -105,7 +105,7 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         if not isinstance(config, models.ConfigIconTask):
             raise TypeError
         config_kwargs["namelists"] = {
-            nml.path.name: models.NamelistInfo(**nml.model_dump()) for nml in config.namelists
+            nml.path.name: models.NamelistSpec(**nml.model_dump()) for nml in config.namelists
         }
         return cls(
             **kwargs,

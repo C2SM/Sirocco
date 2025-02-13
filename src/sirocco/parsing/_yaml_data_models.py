@@ -458,7 +458,7 @@ class ConfigShellTask(ConfigBaseTask, ConfigShellTaskSpecs):
 
 
 @dataclass(kw_only=True)
-class NamelistInfo:
+class NamelistSpec:
     """Class for namelist specifications
 
     - path is the path to the namelist file considered as template
@@ -472,14 +472,14 @@ class NamelistInfo:
         ...     "first_nml_block": {"first_param": "a string value", "second_param": 0},
         ...     "second_nml_block": {"third_param": False},
         ... }
-        >>> nml_info = NamelistInfo(path=path, specs=specs)
+        >>> nml_info = NamelistSpec(path=path, specs=specs)
     """
 
     path: Path
     specs: dict[str, Any] = field(default_factory=dict)
 
 
-class ConfigNamelist(BaseModel, NamelistInfo):
+class ConfigNamelist(BaseModel, NamelistSpec):
     """
     Validated namelist specifications.
 
@@ -522,7 +522,7 @@ class ConfigNamelist(BaseModel, NamelistInfo):
 @dataclass(kw_only=True)
 class ConfigIconTaskSpecs:
     plugin: ClassVar[Literal["icon"]] = "icon"
-    namelists: dict[str, NamelistInfo]
+    namelists: dict[str, NamelistSpec]
 
 
 class ConfigIconTask(ConfigBaseTask):
