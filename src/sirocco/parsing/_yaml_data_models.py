@@ -5,10 +5,13 @@ import itertools
 import time
 import typing
 from dataclasses import dataclass, field
+from datetime import datetime
 from io import StringIO
 from pathlib import Path
 from typing import Annotated, Any, ClassVar, Literal, Self
 
+from isoduration import parse_duration
+from isoduration.types import Duration  # pydantic needs type # noqa: TCH002
 from pydantic import (
     BaseModel,
     BeforeValidator,
@@ -22,9 +25,7 @@ from pydantic import (
 )
 from ruamel.yaml import YAML
 
-from sirocco.parsing.cycling import Cycling, DateCycling, OneOff
-from sirocco.parsing.target_cycle import DateList, LagList, NoTargetCycle, TargetCycle
-from sirocco.parsing.when import AnyWhen, AtDate, BeforeAfterDate, When
+from sirocco.parsing._utils import TimeUtils
 
 ITEM_T = typing.TypeVar("ITEM_T")
 
@@ -101,47 +102,30 @@ class _NamedBaseModel(BaseModel):
         return data
 
 
-def select_when(spec: Any) -> When:
-    match spec:
-        case When():
-            return spec
-        case dict():
-            if not all(k in ("at", "before", "after") for k in spec):
-                msg = "when keys can only be 'at', 'before' or 'after'"
-                raise KeyError(msg)
-            if "at" in spec:
-                if any(k in spec for k in ("before", "after")):
-                    msg = "'at' key is incompatible with 'before' and after'"
-                    raise KeyError(msg)
-                return AtDate(**spec)
-            return BeforeAfterDate(**spec)
-        case _:
-            raise TypeError
+class _WhenBaseModel(BaseModel):
+    """Base class for when specifications"""
 
+    before: datetime | None = None
+    after: datetime | None = None
+    at: datetime | None = None
 
-def select_target_cycle(spec: Any) -> TargetCycle:
-    match spec:
-        case TargetCycle():
-            return spec
-        case dict():
-            if tuple(spec.keys()) not in (("date",), ("lag",)):
-                msg = "target_cycle key can only be 'lag' or 'date' and not both"
-                raise KeyError(msg)
-            if "date" in spec:
-                return DateList(dates=spec["date"])
-            return LagList(lags=spec["lag"])
-        case _:
-            raise TypeError
-
-
-def check_parameters_spec(params: Any) -> dict[str, Literal["all", "single"]]:
-    if not isinstance(params, dict):
-        raise TypeError
-    for k, v in params.items():
-        if v not in ("all", "single"):
-            msg = f"parameter {k}: reference can only be 'single' or 'all', got {v}"
+    @model_validator(mode="before")
+    @classmethod
+    def check_before_after_at_combination(cls, data: Any) -> Any:
+        if "at" in data and any(k in data for k in ("before", "after")):
+            msg = "'at' key is incompatible with 'before' and after'"
             raise ValueError(msg)
-    return params
+        if not any(k in data for k in ("at", "before", "after")):
+            msg = "use at least one of 'at', 'before' or 'after' keys"
+            raise ValueError(msg)
+        return data
+
+    @field_validator("before", "after", "at", mode="before")
+    @classmethod
+    def convert_datetime(cls, value: datetime | str | None) -> datetime | None:
+        if value is None or isinstance(value, datetime):
+            return value
+        return datetime.fromisoformat(value)
 
 
 class TargetNodesBaseModel(_NamedBaseModel):
@@ -153,10 +137,45 @@ class TargetNodesBaseModel(_NamedBaseModel):
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
+    date: list[datetime] = []  # this is safe in pydantic
+    lag: list[Duration] = []  # this is safe in pydantic
+    when: _WhenBaseModel | None = None
+    parameters: dict = {}
 
-    target_cycle: Annotated[TargetCycle, BeforeValidator(select_target_cycle)] = NoTargetCycle()
-    when: Annotated[When, BeforeValidator(select_when)] = AnyWhen()
-    parameters: Annotated[dict[str, Literal["all", "single"]], BeforeValidator(check_parameters_spec)] = {}
+    @model_validator(mode="before")
+    @classmethod
+    def check_lag_xor_date_is_set(cls, data: Any) -> Any:
+        if "lag" in data and "date" in data:
+            msg = "Only one key 'lag' or 'date' is allowed. Not both."
+            raise ValueError(msg)
+        return data
+
+    @field_validator("lag", mode="before")
+    @classmethod
+    def convert_durations(cls, value) -> list[Duration]:
+        if value is None:
+            return []
+        values = value if isinstance(value, list) else [value]
+        return [parse_duration(value) for value in values]
+
+    @field_validator("date", mode="before")
+    @classmethod
+    def convert_datetimes(cls, value) -> list[datetime]:
+        if value is None:
+            return []
+        values = value if isinstance(value, list) else [value]
+        return [datetime.fromisoformat(value) for value in values]
+
+    @field_validator("parameters", mode="before")
+    @classmethod
+    def check_parameters_spec(cls, params: dict) -> dict:
+        if not params:
+            return {}
+        for k, v in params.items():
+            if v not in ("single", "all"):
+                msg = f"parameter {k}: reference can only be 'single' or 'all', got {v}"
+                raise ValueError(msg)
+        return params
 
 
 class ConfigCycleTaskInput(TargetNodesBaseModel):
@@ -179,7 +198,9 @@ NAMED_BASE_T = typing.TypeVar("NAMED_BASE_T", bound=_NamedBaseModel)
 def make_named_model_list_converter(
     cls: type[NAMED_BASE_T],
 ) -> typing.Callable[[list[NAMED_BASE_T | str | dict] | None], list[NAMED_BASE_T]]:
-    def convert_named_model_list(values: list[NAMED_BASE_T | str | dict] | None) -> list[NAMED_BASE_T]:
+    def convert_named_model_list(
+        values: list[NAMED_BASE_T | str | dict] | None,
+    ) -> list[NAMED_BASE_T]:
         inputs: list[NAMED_BASE_T] = []
         if values is None:
             return inputs
@@ -192,7 +213,8 @@ def make_named_model_list_converter(
                 case _NamedBaseModel():
                     inputs.append(value)
                 case _:
-                    raise TypeError
+                    msg = "Unsupported Type"
+                    raise TypeError(msg)
         return inputs
 
     return convert_named_model_list
@@ -204,27 +226,17 @@ class ConfigCycleTask(_NamedBaseModel):
     """
 
     inputs: Annotated[
-        list[ConfigCycleTaskInput], BeforeValidator(make_named_model_list_converter(ConfigCycleTaskInput))
+        list[ConfigCycleTaskInput],
+        BeforeValidator(make_named_model_list_converter(ConfigCycleTaskInput)),
     ] = []
     outputs: Annotated[
-        list[ConfigCycleTaskOutput], BeforeValidator(make_named_model_list_converter(ConfigCycleTaskOutput))
+        list[ConfigCycleTaskOutput],
+        BeforeValidator(make_named_model_list_converter(ConfigCycleTaskOutput)),
     ] = []
     wait_on: Annotated[
-        list[ConfigCycleTaskWaitOn], BeforeValidator(make_named_model_list_converter(ConfigCycleTaskWaitOn))
+        list[ConfigCycleTaskWaitOn],
+        BeforeValidator(make_named_model_list_converter(ConfigCycleTaskWaitOn)),
     ] = []
-
-
-def select_cycling(spec: Any) -> Cycling:
-    match spec:
-        case Cycling():
-            return spec
-        case dict():
-            if spec.keys() != {"start_date", "stop_date", "period"}:
-                msg = "cycling requires the 'start_date' 'stop_date' and 'period' keys and only these"
-                raise KeyError(msg)
-            return DateCycling(**spec)
-        case _:
-            raise TypeError
 
 
 class ConfigCycle(_NamedBaseModel):
@@ -233,10 +245,45 @@ class ConfigCycle(_NamedBaseModel):
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
-
     name: str
     tasks: list[ConfigCycleTask]
-    cycling: Annotated[Cycling, BeforeValidator(select_cycling)] = OneOff()
+    start_date: datetime | None = None
+    end_date: datetime | None = None
+    period: Duration | None = None
+
+    @field_validator("start_date", "end_date", mode="before")
+    @classmethod
+    def convert_datetime(cls, value) -> None | datetime:
+        return None if value is None else datetime.fromisoformat(value)
+
+    @field_validator("period", mode="before")
+    @classmethod
+    def convert_duration(cls, value):
+        return None if value is None else parse_duration(value)
+
+    @model_validator(mode="before")
+    @classmethod
+    def check_start_date_end_date_period_combination(cls, data: Any) -> Any:
+        if ("start_date" in data) ^ ("end_date" in data):
+            msg = f"in cycle {data['name']}: both start_date and end_date must be provided or none of them."
+            raise ValueError(msg)
+        if "period" in data and "start_date" not in data:
+            msg = f"in cycle {data['name']}: period provided without start and end dates."
+        return data
+
+    @model_validator(mode="after")
+    def check_start_date_before_end_date(self) -> ConfigCycle:
+        if self.start_date is not None and self.end_date is not None and self.start_date > self.end_date:
+            msg = "For cycle {self._name!r} the start_date {start_date!r} lies after given end_date {end_date!r}."
+            raise ValueError(msg)
+        return self
+
+    @model_validator(mode="after")
+    def check_period_is_not_negative_or_zero(self) -> ConfigCycle:
+        if self.period is not None and TimeUtils.duration_is_less_equal_zero(self.period):
+            msg = f"For cycle {self.name!r} the period {self.period!r} is negative or zero."
+            raise ValueError(msg)
+        return self
 
 
 @dataclass(kw_only=True)
@@ -359,7 +406,7 @@ class ConfigShellTask(ConfigBaseTask, ConfigShellTaskSpecs):
                 nb_open_curly_brackets += 1
             elif char == "}":
                 if nb_open_curly_brackets == 0:
-                    msg = f"Invalid input for cli_arguments. Found a closing curly bracket before an opening in {cli_arguments!r}"
+                    msg = "Invalid input for cli_arguments. Found a closing curly bracket before an opening in {cli_argumentss!r}"
                     raise ValueError(msg)
                 nb_open_curly_brackets -= 1
 
@@ -566,20 +613,6 @@ ConfigTask = Annotated[
 ]
 
 
-def check_parameters_lists(data: Any) -> dict[str, list]:
-    if not isinstance(data, dict):
-        raise TypeError
-    for param_name, param_values in data.items():
-        msg = f"""{param_name}: parameters must map a string to list of single values, got {param_values}"""
-        if isinstance(param_values, list):
-            for v in param_values:
-                if isinstance(v, dict | list):
-                    raise TypeError(msg)
-        else:
-            raise TypeError(msg)
-    return data
-
-
 class ConfigWorkflow(BaseModel):
     """
     The root of the configuration tree.
@@ -638,7 +671,20 @@ class ConfigWorkflow(BaseModel):
     cycles: Annotated[list[ConfigCycle], BeforeValidator(list_not_empty)]
     tasks: Annotated[list[ConfigTask], BeforeValidator(list_not_empty)]
     data: ConfigData
-    parameters: Annotated[dict[str, list], BeforeValidator(check_parameters_lists)] = {}
+    parameters: dict[str, list] = {}
+
+    @field_validator("parameters", mode="before")
+    @classmethod
+    def check_parameters_lists(cls, data) -> dict[str, list]:
+        for param_name, param_values in data.items():
+            msg = f"""{param_name}: parameters must map a string to list of single values, got {param_values}"""
+            if isinstance(param_values, list):
+                for v in param_values:
+                    if isinstance(v, dict | list):
+                        raise TypeError(msg)
+            else:
+                raise TypeError(msg)
+        return data
 
     @model_validator(mode="after")
     def check_parameters(self) -> ConfigWorkflow:

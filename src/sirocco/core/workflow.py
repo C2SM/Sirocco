@@ -4,18 +4,17 @@ from itertools import chain, product
 from typing import TYPE_CHECKING, Self
 
 from sirocco.core.graph_items import Cycle, Data, Store, Task
-from sirocco.parsing.cycling import DateCyclePoint, OneOffPoint
-from sirocco.parsing.yaml_data_models import (
+from sirocco.parsing._yaml_data_models import (
     ConfigBaseData,
     ConfigWorkflow,
 )
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+    from datetime import datetime
     from pathlib import Path
 
-    from sirocco.parsing.cycling import CyclePoint
-    from sirocco.parsing.yaml_data_models import (
+    from sirocco.parsing._yaml_data_models import (
         ConfigCycle,
         ConfigData,
         ConfigTask,
@@ -45,40 +44,40 @@ class Workflow:
         task_dict: dict[str, ConfigTask] = {task.name: task for task in tasks}
 
         # Function to iterate over date and parameter combinations
-        def iter_coordinates(cycle_point: CyclePoint, param_refs: list[str]) -> Iterator[dict]:
-            axes = {k: parameters[k] for k in param_refs}
-            if isinstance(cycle_point, DateCyclePoint):
-                axes["date"] = [cycle_point.chunk_start_date]
-            yield from (dict(zip(axes.keys(), x, strict=False)) for x in product(*axes.values()))
+        def iter_coordinates(param_refs: list, date: datetime | None = None) -> Iterator[dict]:
+            space = ({} if date is None else {"date": [date]}) | {k: parameters[k] for k in param_refs}
+            yield from (dict(zip(space.keys(), x, strict=False)) for x in product(*space.values()))
 
         # 1 - create availalbe data nodes
         for available_data_config in data.available:
-            for coordinates in iter_coordinates(OneOffPoint(), available_data_config.parameters):
+            for coordinates in iter_coordinates(param_refs=available_data_config.parameters, date=None):
                 self.data.add(Data.from_config(config=available_data_config, coordinates=coordinates))
 
         # 2 - create output data nodes
         for cycle_config in cycles:
-            for cycle_point in cycle_config.cycling.iter_cycle_points():
+            for date in self.cycle_dates(cycle_config):
                 for task_ref in cycle_config.tasks:
                     for data_ref in task_ref.outputs:
                         data_name = data_ref.name
                         data_config = data_dict[data_name]
-                        for coordinates in iter_coordinates(cycle_point, data_config.parameters):
+                        for coordinates in iter_coordinates(param_refs=data_config.parameters, date=date):
                             self.data.add(Data.from_config(config=data_config, coordinates=coordinates))
 
         # 3 - create cycles and tasks
         for cycle_config in cycles:
             cycle_name = cycle_config.name
-            for cycle_point in cycle_config.cycling.iter_cycle_points():
+            for date in self.cycle_dates(cycle_config):
                 cycle_tasks = []
                 for task_graph_spec in cycle_config.tasks:
                     task_name = task_graph_spec.name
                     task_config = task_dict[task_name]
-                    for coordinates in iter_coordinates(cycle_point, task_config.parameters):
+
+                    for coordinates in iter_coordinates(param_refs=task_config.parameters, date=date):
                         task = Task.from_config(
                             config=task_config,
                             config_rootdir=self.config_rootdir,
-                            cycle_point=cycle_point,
+                            start_date=cycle_config.start_date,
+                            end_date=cycle_config.end_date,
                             coordinates=coordinates,
                             datastore=self.data,
                             graph_spec=task_graph_spec,
@@ -89,15 +88,20 @@ class Workflow:
                     Cycle(
                         name=cycle_name,
                         tasks=cycle_tasks,
-                        coordinates={"date": cycle_point.chunk_start_date}
-                        if isinstance(cycle_point, DateCyclePoint)
-                        else {},
+                        coordinates={} if date is None else {"date": date},
                     )
                 )
 
         # 4 - Link wait on tasks
         for task in self.tasks:
             task.link_wait_on_tasks(self.tasks)
+
+    @staticmethod
+    def cycle_dates(cycle_config: ConfigCycle) -> Iterator[datetime | None]:
+        yield (date := cycle_config.start_date)
+        if cycle_config.period is not None and date is not None and cycle_config.end_date is not None:
+            while (date := date + cycle_config.period) < cycle_config.end_date:
+                yield date
 
     @classmethod
     def from_config_file(cls: type[Self], config_path: str) -> Self:

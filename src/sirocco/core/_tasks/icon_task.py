@@ -7,8 +7,7 @@ from pathlib import Path
 import f90nml
 
 from sirocco.core.graph_items import Task
-from sirocco.parsing.cycling import DateCyclePoint
-from sirocco.parsing.yaml_data_models import ConfigIconTaskSpecs
+from sirocco.parsing._yaml_data_models import ConfigIconTaskSpecs
 
 
 @dataclass(kw_only=True)
@@ -49,13 +48,10 @@ class IconTask(ConfigIconTaskSpecs, Task):
                 nml_section.update(params)
 
     def update_core_namelists_from_workflow(self):
-        if not isinstance(self.cycle_point, DateCyclePoint):
-            msg = "ICON task must have a DateCyclePoint"
-            raise TypeError(msg)
         self.core_namelists["icon_master.namelist"]["master_time_control_nml"].update(
             {
-                "experimentStartDate": self.cycle_point.start_date.isoformat() + "Z",
-                "experimentStopDate": self.cycle_point.stop_date.isoformat() + "Z",
+                "experimentStartDate": self.start_date.isoformat() + "Z",
+                "experimentStopDate": self.end_date.isoformat() + "Z",
             }
         )
         self.core_namelists["icon_master.namelist"]["master_nml"]["lrestart"] = any(
