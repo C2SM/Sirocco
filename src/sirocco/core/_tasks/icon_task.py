@@ -102,6 +102,9 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
     def build_from_config(cls: type[Self], config: ConfigTask, **kwargs: Any) -> Self:
         config_kwargs = dict(config)
         del config_kwargs["parameters"]
+        # The following check is here for type checkers.
+        # We don't want to narrow the type in the signature, as that would break liskov substitution.
+        # We guarantee elsewhere this is called with the correct type at runtime
         if not isinstance(config, models.ConfigIconTask):
             raise TypeError
         config_kwargs["namelists"] = {
