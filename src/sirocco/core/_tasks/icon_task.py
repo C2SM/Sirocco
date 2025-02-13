@@ -3,15 +3,12 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Self
+from typing import Any, Self
 
 import f90nml
 
 from sirocco.core.graph_items import Task
 from sirocco.parsing import yaml_data_models as models
-
-if TYPE_CHECKING:
-    from sirocco.parsing.yaml_data_models import ConfigTask
 
 
 @dataclass(kw_only=True)
@@ -99,7 +96,7 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         return section_name, None
 
     @classmethod
-    def build_from_config(cls: type[Self], config: ConfigTask, **kwargs: Any) -> Self:
+    def build_from_config(cls: type[Self], config: models.ConfigTask, **kwargs: Any) -> Self:
         config_kwargs = dict(config)
         del config_kwargs["parameters"]
         # The following check is here for type checkers.
