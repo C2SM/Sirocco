@@ -46,17 +46,23 @@ class Data(ConfigBaseDataSpecs, GraphItem):
 
     color: ClassVar[Color] = field(default="light_blue", repr=False)
 
-    available: bool
-
     @classmethod
-    def from_config(cls, config: ConfigBaseData, coordinates: dict) -> Self:
-        return cls(
+    def from_config(cls, config: ConfigBaseData, coordinates: dict) -> AvailableData | GeneratedData:
+        data_class = AvailableData if isinstance(config, ConfigAvailableData) else GeneratedData
+        return data_class(
             name=config.name,
             type=config.type,
             src=config.src,
-            available=isinstance(config, ConfigAvailableData),
             coordinates=coordinates,
         )
+
+
+class AvailableData(Data):
+    pass
+
+
+class GeneratedData(Data):
+    pass
 
 
 # contains the input data and its potential associated port

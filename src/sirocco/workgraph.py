@@ -107,7 +107,7 @@ class AiidaWorkGraph:
     def _add_available_data(self):
         """Adds the available data on initialization to the workgraph"""
         for data in self._core_workflow.data:
-            if data.available:
+            if isinstance(data, core.AvailableData):
                 self._add_aiida_input_data_node(data)
 
     @staticmethod
@@ -131,6 +131,17 @@ class AiidaWorkGraph:
         return AiidaWorkGraph.replace_invalid_chars_in_label(
             f"{obj.name}" + "__".join(f"_{key}_{value}" for key, value in obj.coordinates.items())
         )
+
+    def _get_aiida_node_from_core(self, core_node: core.GraphItem):
+        """Get a workgraph node from a core node"""
+        label = AiidaWorkGraph.get_aiida_label_from_graph_item(core_node)
+        if isinstance(core_node, core.Task):
+            return self._aiida_task_nodes[label]
+        if isinstance(core_node, core.AvailableData):
+            return self._aiida_data_nodes[label]
+        if isinstance(core_node, core.GeneratedData):
+            return self._aiida_socket_nodes[label]
+        raise TypeError
 
     def _add_aiida_input_data_node(self, data: core.Data):
         """
@@ -224,36 +235,27 @@ class AiidaWorkGraph:
             raise NotImplementedError(exc)
 
     def _link_wait_on_to_task(self, task: core.Task):
-        label = AiidaWorkGraph.get_aiida_label_from_graph_item(task)
-        workgraph_task = self._aiida_task_nodes[label]
-        wait_on_tasks = []
-        for wait_on in task.wait_on:
-            wait_on_task_label = AiidaWorkGraph.get_aiida_label_from_graph_item(wait_on)
-            wait_on_tasks.append(self._aiida_task_nodes[wait_on_task_label])
-        workgraph_task.wait = wait_on_tasks
+        self._get_aiida_node_from_core(task).wait = [self._get_aiida_node_from_core(wt) for wt in task.wait_on]
 
     def _link_input_nodes_to_task(self, task: core.Task, input_: core.Data):
         """Links the input to the workgraph task."""
-        task_label = AiidaWorkGraph.get_aiida_label_from_graph_item(task)
+        workgraph_task = self._get_aiida_node_from_core(task)
         input_label = AiidaWorkGraph.get_aiida_label_from_graph_item(input_)
-        workgraph_task = self._aiida_task_nodes[task_label]
         workgraph_task.add_input("workgraph.any", f"nodes.{input_label}")
 
         # resolve data
-        if (data_node := self._aiida_data_nodes.get(input_label)) is not None:
+        if isinstance(input_, core.AvailableData):
             if not hasattr(workgraph_task.inputs.nodes, f"{input_label}"):
                 msg = f"Socket {input_label!r} was not found in workgraph. Please contact a developer."
                 raise ValueError(msg)
             socket = getattr(workgraph_task.inputs.nodes, f"{input_label}")
-            socket.value = data_node
-        elif (output_socket := self._aiida_socket_nodes.get(input_label)) is not None:
-            self._workgraph.add_link(output_socket, workgraph_task.inputs[f"nodes.{input_label}"])
-        else:
-            msg = (
-                f"Input data node {input_label!r} was neither found in socket nodes nor in data nodes. The task "
-                f"{task_label!r} must have dependencies on inputs before they are created."
+            socket.value = self._get_aiida_node_from_core(input_)
+        elif isinstance(input_, core.GeneratedData):
+            self._workgraph.add_link(
+                self._get_aiida_node_from_core(input_), workgraph_task.inputs[f"nodes.{input_label}"]
             )
-            raise ValueError(msg)
+        else:
+            raise TypeError
 
     def _link_arguments_to_task(self, task: core.Task):
         """Links the arguments to the workgraph task.
@@ -261,8 +263,7 @@ class AiidaWorkGraph:
         Parses `cli_arguments` of the graph item task and links all arguments to the task node. It only adds arguments
         corresponding to inputs if they are contained in the task.
         """
-        task_label = AiidaWorkGraph.get_aiida_label_from_graph_item(task)
-        workgraph_task = self._aiida_task_nodes[task_label]
+        workgraph_task = self._get_aiida_node_from_core(task)
         if (workgraph_task_arguments := workgraph_task.inputs.arguments) is None:
             msg = (
                 f"Workgraph task {workgraph_task.name!r} did not initialize arguments nodes in the workgraph "
