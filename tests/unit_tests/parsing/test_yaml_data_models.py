@@ -33,6 +33,7 @@ def minimal_config_path(tmp_path):
         tasks:
           - b:
               plugin: shell
+              command: some_command
         data:
           available:
             - c:

@@ -16,7 +16,7 @@ def minimal_config() -> models.ConfigWorkflow:
         name="minimal",
         rootdir=pathlib.Path("minimal"),
         cycles=[models.ConfigCycle(name="minimal", tasks=[models.ConfigCycleTask(name="some_task")])],
-        tasks=[models.ConfigShellTask(name="some_task")],
+        tasks=[models.ConfigShellTask(name="some_task", command="some_command")],
         data=models.ConfigData(
             available=[models.ConfigAvailableData(name="foo", type=models.DataType.FILE, src="foo.txt")],
             generated=[models.ConfigGeneratedData(name="bar", type=models.DataType.DIR, src="bar")],
