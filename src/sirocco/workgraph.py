@@ -274,9 +274,7 @@ class AiidaWorkGraph:
                 raise ValueError(msg)
             getattr(workgraph_task.inputs.nodes, f"{input_label}").value = self.data_from_core(input_)
         elif isinstance(input_, core.GeneratedData):
-            self._workgraph.add_link(
-                self.socket_from_core(input_), workgraph_task.inputs[f"nodes.{input_label}"]
-            )
+            self._workgraph.add_link(self.socket_from_core(input_), workgraph_task.inputs[f"nodes.{input_label}"])
         else:
             raise TypeError
 
