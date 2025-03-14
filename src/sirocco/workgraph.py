@@ -84,7 +84,10 @@ class AiidaWorkGraph:
 
         self._add_available_data()
         self._add_tasks()
+        # Creating output sockets requires the corresponding task to already exist
         self._link_output_nodes_to_tasks()
+        # linking inputs must come after outputs to make sure they were created,
+        # either as data or as socket, before linking
         self._link_input_nodes_to_tasks()
         self._set_shelljob_arguments()
         self._link_wait_on_to_tasks()
