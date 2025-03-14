@@ -205,16 +205,16 @@ class AiidaWorkGraph:
         label = self.get_aiida_label_from_graph_item(task)
         if isinstance(task, core.ShellTask):
             # Split command line between command and arguments (this is required by aiida internals)
-            command, _ = self.split_cmd_arg(task.command)
-            command = Path(command)
+            cmd, _ = self.split_cmd_arg(task.command)
+            cmd_path = Path(cmd)
             # FIXME: task.config_rootdir shouldn't be used here
-            if command.is_absolute():
-                command = str(command)
+            if cmd_path.is_absolute():
+                command = str(cmd_path)
             else:
                 if task.src is None:
                     msg = "src must be specified when command path is relative"
                     raise ValueError(msg)
-                command = str((task.config_rootdir / task.src).parent / command)
+                command = str((task.config_rootdir / task.src).parent / cmd_path)
 
             # metadata
             metadata: dict[str, Any] = {}
