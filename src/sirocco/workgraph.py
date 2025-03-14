@@ -298,7 +298,7 @@ class AiidaWorkGraph:
             raise ValueError(msg)
 
         input_labels = {port: list(map(self.label_placeholder, task.inputs[port])) for port in task.inputs}
-        _, arguments = self.split_cmd_arg(task.replace_ports(input_labels))
+        _, arguments = self.split_cmd_arg(task.resolve_ports(input_labels))
         workgraph_task_arguments.value = arguments
 
     def _link_output_nodes_to_task(self, task: core.Task, output: core.Data):

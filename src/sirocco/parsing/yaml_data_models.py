@@ -283,7 +283,7 @@ class ConfigShellTaskSpecs:
     multi_arg_sep: str = " "
     env_source_files: list[str] = field(default_factory=list)
 
-    def replace_ports(self, input_labels: dict[str, list[str]]) -> str:
+    def resolve_ports(self, input_labels: dict[str, list[str]]) -> str:
         """returns a string corresponding to self.command with {PORT::...}
         placeholders replaced by the content provided in the input_labels dict"""
         cmd = self.command
