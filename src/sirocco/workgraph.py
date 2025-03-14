@@ -199,7 +199,7 @@ class AiidaWorkGraph:
                 self._link_output_nodes_to_task(task, output)
             for input_ in task.input_data_nodes():
                 self._link_input_nodes_to_task(task, input_)
-            self._link_arguments_to_task(task)
+            self._link_inputs_to_ports(task)
 
     def _create_task_node(self, task: core.Task):
         label = self.get_aiida_label_from_graph_item(task)
@@ -207,7 +207,12 @@ class AiidaWorkGraph:
             # Split command line between command and arguments (this is required by aiida internals)
             cmd, _ = self.split_cmd_arg(task.command)
             cmd_path = Path(cmd)
-            # FIXME: task.config_rootdir shouldn't be used here
+            # FIXME: task.config_rootdir shouldn't be used here. The final behavior of Sirocco should be:
+            #        1- src is copied to the task working directory on the computer
+            #        2- If the command is gven with a relative path, it can target any executable in $PATH, e.g.:
+            #           - relative path to the task working directory (./my_script.sh)
+            #           - something added to $PATH through environment activation (cdo)
+            #        So the full path to the command can only be resolved at runtime.
             if cmd_path.is_absolute():
                 command = str(cmd_path)
             else:
@@ -278,7 +283,7 @@ class AiidaWorkGraph:
         else:
             raise TypeError
 
-    def _link_arguments_to_task(self, task: core.Task):
+    def _link_inputs_to_ports(self, task: core.Task):
         """replace port placeholders by aiida label placeholders"""
 
         if not isinstance(task, core.ShellTask):
