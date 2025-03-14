@@ -5,7 +5,9 @@ cycles:
   - init:
       tasks:
         - extpar:
-            inputs: [obs_data]
+            inputs:
+              - obs_data:
+                  port: obs
             outputs: [extpar_file]
   - icon_bimonthly:
       cycling:
@@ -14,7 +16,13 @@ cycles:
         period: 'P2M'
       tasks:
         - preproc:
-            inputs: [grid_file, extpar_file, ERA5]
+            inputs:
+              - grid_file:
+                  port: grid
+              - extpar_file:
+                  port: extpar
+              - ERA5:
+                  port: era
             outputs: [icon_input]
             wait_on:
               - icon:
@@ -24,7 +32,8 @@ cycles:
                     lag: '-P4M'
         - icon:
             inputs:
-              - grid_file
+              - grid_file:
+                  port: grid
               - icon_input
               - icon_restart:
                   when:
@@ -37,7 +46,13 @@ cycles:
             inputs: [stream_1]
             outputs: [postout_1]
         - store_and_clean_1:
-            inputs: [postout_1, stream_1, icon_input]
+            inputs:
+              - postout_1:
+                  port: postout
+              - stream_1:
+                  port: streams
+              - icon_input:
+                  port: icon_input
             outputs: [stored_data_1]
   - yearly:
       cycling:
@@ -50,13 +65,16 @@ cycles:
               - stream_2:
                   target_cycle:
                     lag: ['P0M', 'P2M', 'P4M', 'P6M', 'P8M', 'P10M']
+                  port: streams
             outputs: [postout_2]
         - store_and_clean_2:
             inputs:
-              - postout_2
+              - postout_2:
+                  port: archive
               - stream_2:
                   target_cycle:
                     lag: ['P0M', 'P2M', 'P4M', 'P6M', 'P8M', 'P10M']
+                  port: clean
             outputs:
               - stored_data_2
 # Each task and piece of data (input and output of tasks) used to
@@ -68,8 +86,8 @@ tasks:
       account: g110
   - extpar:
       plugin: shell  # no extpar plugin available yet
-      command: scripts/extpar
-      cli_arguments: "--verbose {--input obs_data}"
+      src: scripts/extpar
+      command: "extpar --verbose --input {PORT::obs}"
       uenv:
         squashfs: path/to/squashfs
         mount_point: runtime/mount/point
@@ -77,8 +95,8 @@ tasks:
       walltime: 00:02:00
   - preproc:
       plugin: shell
-      command: scripts/cleanup.sh
-      cli_arguments: "{-p extpar_file} {-e ERA5} {grid_file}"
+      src: scripts/cleanup.sh
+      command: "cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}"
       env_source_files: data/dummy_source_file.sh
       nodes: 4
       walltime: 00:02:00
@@ -101,8 +119,8 @@ tasks:
         mount_point: runtime/mount/point
   - postproc_1:
       plugin: shell
-      command: scripts/main_script_ocn.sh
-      cli_arguments: "{--input stream_1}"
+      src: scripts/main_script_ocn.sh
+      command: "main_script_ocn.sh {PORT::None}"
       nodes: 2
       walltime: 00:05:00
       uenv:
@@ -110,24 +128,24 @@ tasks:
         mount_point: runtime/mount/point
   - postproc_2:
       plugin: shell
-      command: scripts/main_script_atm.sh
-      cli_arguments: "{--input stream_2}"
+      src: scripts/main_script_atm.sh
+      command: "main_script_atm.sh --input {PORT::streams}"
+      multi_arg_sep: ","
       nodes: 2
       walltime: 00:05:00
-      src: path/to/src/dir
       uenv:
         squashfs: path/to/squashfs
         mount_point: runtime/mount/point
   - store_and_clean_1:
       plugin: shell
-      command: scripts/post_clean.sh
-      cli_arguments: "{--input postout_1} {--stream stream_1} {--icon_input icon_input}"
+      src: scripts/post_clean.sh
+      command: "post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}"
       nodes: 1
       walltime: 00:01:00
   - store_and_clean_2:
       plugin: shell
-      command: scripts/post_clean.sh
-      cli_arguments: "{--input postout_2}"
+      src: scripts/post_clean.sh
+      command: "post_clean.sh --archive {PORT::archive} --clean {PORT::clean}"
       nodes: 1
       walltime: 00:01:00
 data:

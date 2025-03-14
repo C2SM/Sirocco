@@ -14,6 +14,8 @@ cycles:
               - initial_conditions:
                   when:
                     at: *root_start_date
+                  port:
+                    init
               - icon_restart:
                   when:
                     after: *root_start_date
@@ -32,13 +34,14 @@ tasks:
   - icon:
       computer: localhost
       plugin: shell
-      command: scripts/icon.py
-      cli_arguments: "{--restart icon_restart} {--init initial_conditions}"
+      src: scripts/icon.py
+      command: "icon.py --restart {PORT::restart} --init {PORT::init}"
       env_source_files: data/dummy_source_file.sh
   - cleanup:
       computer: localhost
       plugin: shell
-      command: scripts/cleanup.py
+      src: scripts/cleanup.py
+      command: "cleanup.py"
 data:
   available:
      - icon_namelist:

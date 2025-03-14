@@ -14,6 +14,7 @@ cycles:
               - initial_conditions:
                   when:
                     at: *root_start_date
+                  port: init
               - icon_restart:
                   when:
                     after: *root_start_date
@@ -22,7 +23,9 @@ cycles:
                   parameters:
                     foo: single
                     bar: single
-              - forcing
+                  port: restart
+              - forcing:
+                  port: forcing
             outputs: [icon_output, icon_restart]
         - statistics_foo:
             inputs:
@@ -49,19 +52,22 @@ cycles:
 tasks:
   - icon:
       plugin: shell
-      command: scripts/icon.py
-      cli_arguments: "{--restart icon_restart} {--init initial_conditions} {--forcing forcing}"
+      src: scripts/icon.py
+      command: "icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}"
       parameters: [foo, bar]
   - statistics_foo:
       plugin: shell
-      command: scripts/statistics.py
+      src: scripts/statistics.py
+      command: "statistics.py {PORT::None}"
       parameters: [bar]
   - statistics_foo_bar:
       plugin: shell
-      command: scripts/statistics.py
+      src: scripts/statistics.py
+      command: "statistics.py {PORT::None}"
   - merge:
       plugin: shell
-      command: scripts/merge.py
+      src: scripts/merge.py
+      command: "merge.py {PORT::None}"
 
 data:
   available:

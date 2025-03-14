@@ -93,7 +93,7 @@ class AiidaWorkGraph:
             except ValueError as exception:
                 msg = f"Raised error when validating task name '{task.name}': {exception.args[0]}"
                 raise ValueError(msg) from exception
-            for input_, _ in task.inputs:
+            for input_ in task.input_data_nodes():
                 try:
                     aiida.common.validate_link_label(input_.name)
                 except ValueError as exception:
@@ -123,31 +123,42 @@ class AiidaWorkGraph:
             label = label.replace(invalid_char, "_")
         return label
 
-    @staticmethod
-    def get_aiida_label_from_graph_item(obj: core.GraphItem) -> str:
+    @classmethod
+    def get_aiida_label_from_graph_item(cls, obj: core.GraphItem) -> str:
         """Returns a unique AiiDA label for the given graph item.
 
         The graph item object is uniquely determined by its name and its coordinates. There is the possibility that
         through the replacement of invalid chars in the coordinates duplication can happen but it is unlikely.
         """
-        return AiidaWorkGraph.replace_invalid_chars_in_label(
+        return cls.replace_invalid_chars_in_label(
             f"{obj.name}" + "__".join(f"_{key}_{value}" for key, value in obj.coordinates.items())
         )
 
-    def workgraph_data_node_from_core(self, core_available_data: core.AvailableData) -> WorkgraphDataNode:
-        return self._aiida_data_nodes[AiidaWorkGraph.get_aiida_label_from_graph_item(core_available_data)]
+    @staticmethod
+    def split_cmd_arg(command_line: str) -> tuple[str, str]:
+        split = command_line.split(sep=" ", maxsplit=1)
+        if len(split) == 1:
+            return command_line, ""
+        return split[0], split[1]
 
-    def workgraph_socket_node_from_core(self, core_generated_data: core.GeneratedData) -> TaskSocket:
-        return self._aiida_socket_nodes[AiidaWorkGraph.get_aiida_label_from_graph_item(core_generated_data)]
+    @classmethod
+    def label_placeholder(cls, data: core.Data) -> str:
+        return f"{{{cls.get_aiida_label_from_graph_item(data)}}}"
 
-    def workgraph_task_node_from_core(self, core_task: core.Task) -> aiida_workgraph.Task:
-        return self._aiida_task_nodes[AiidaWorkGraph.get_aiida_label_from_graph_item(core_task)]
+    def data_from_core(self, core_available_data: core.AvailableData) -> WorkgraphDataNode:
+        return self._aiida_data_nodes[self.get_aiida_label_from_graph_item(core_available_data)]
+
+    def socket_from_core(self, core_generated_data: core.GeneratedData) -> TaskSocket:
+        return self._aiida_socket_nodes[self.get_aiida_label_from_graph_item(core_generated_data)]
+
+    def task_from_core(self, core_task: core.Task) -> aiida_workgraph.Task:
+        return self._aiida_task_nodes[self.get_aiida_label_from_graph_item(core_task)]
 
     def _add_aiida_input_data_node(self, data: core.Data):
         """
         Create an `aiida.orm.Data` instance from the provided graph item.
         """
-        label = AiidaWorkGraph.get_aiida_label_from_graph_item(data)
+        label = self.get_aiida_label_from_graph_item(data)
         data_path = Path(data.src)
         data_full_path = data.src if data_path.is_absolute() else self._core_workflow.config_rootdir / data_path
 
@@ -179,23 +190,36 @@ class AiidaWorkGraph:
         for task in self._core_workflow.tasks:
             self._link_wait_on_to_task(task)
 
+        # FIXME: Nothing ensures that the input data nodes are all created
+        #        before linking them to the task. It currently depends on the
+        #        order in which tasks were specified in the config file which
+        #        should have no influence here.
         for task in self._core_workflow.tasks:
             for output in task.outputs:
                 self._link_output_nodes_to_task(task, output)
-            for input_, _ in task.inputs:
+            for input_ in task.input_data_nodes():
                 self._link_input_nodes_to_task(task, input_)
             self._link_arguments_to_task(task)
 
     def _create_task_node(self, task: core.Task):
-        label = AiidaWorkGraph.get_aiida_label_from_graph_item(task)
+        label = self.get_aiida_label_from_graph_item(task)
         if isinstance(task, core.ShellTask):
-            command_path = Path(task.command)
-            command_full_path = task.command if command_path.is_absolute() else task.config_rootdir / command_path
-            command = str(command_full_path)
+            # Split command line between command and arguments (this is required by aiida internals)
+            command, _ = self.split_cmd_arg(task.command)
+            command = Path(command)
+            # FIXME: task.config_rootdir shouldn't be used here
+            if command.is_absolute():
+                command = str(command)
+            else:
+                if task.src is None:
+                    msg = "src must be specified when command path is relative"
+                    raise ValueError(msg)
+                command = str((task.config_rootdir / task.src).parent / command)
 
             # metadata
             metadata: dict[str, Any] = {}
             ## Source file
+            # FIXME: Same as above
             env_source_paths = [
                 env_source_path
                 if (env_source_path := Path(env_source_file)).is_absolute()
@@ -220,7 +244,7 @@ class AiidaWorkGraph:
                 "ShellJob",
                 name=label,
                 command=command,
-                arguments=[],
+                arguments="",
                 outputs=[],
                 metadata=metadata,
             )
@@ -235,12 +259,12 @@ class AiidaWorkGraph:
             raise NotImplementedError(exc)
 
     def _link_wait_on_to_task(self, task: core.Task):
-        self.workgraph_task_node_from_core(task).wait = [self.workgraph_task_node_from_core(wt) for wt in task.wait_on]
+        self.task_from_core(task).wait = [self.task_from_core(wt) for wt in task.wait_on]
 
     def _link_input_nodes_to_task(self, task: core.Task, input_: core.Data):
         """Links the input to the workgraph task."""
-        workgraph_task = self.workgraph_task_node_from_core(task)
-        input_label = AiidaWorkGraph.get_aiida_label_from_graph_item(input_)
+        workgraph_task = self.task_from_core(task)
+        input_label = self.get_aiida_label_from_graph_item(input_)
         workgraph_task.add_input("workgraph.any", f"nodes.{input_label}")
 
         # resolve data
@@ -248,22 +272,21 @@ class AiidaWorkGraph:
             if not hasattr(workgraph_task.inputs.nodes, f"{input_label}"):
                 msg = f"Socket {input_label!r} was not found in workgraph. Please contact a developer."
                 raise ValueError(msg)
-            socket = getattr(workgraph_task.inputs.nodes, f"{input_label}")
-            socket.value = self.workgraph_data_node_from_core(input_)
+            getattr(workgraph_task.inputs.nodes, f"{input_label}").value = self.data_from_core(input_)
         elif isinstance(input_, core.GeneratedData):
             self._workgraph.add_link(
-                self.workgraph_socket_node_from_core(input_), workgraph_task.inputs[f"nodes.{input_label}"]
+                self.socket_from_core(input_), workgraph_task.inputs[f"nodes.{input_label}"]
             )
         else:
             raise TypeError
 
     def _link_arguments_to_task(self, task: core.Task):
-        """Links the arguments to the workgraph task.
+        """replace port placeholders by aiida label placeholders"""
 
-        Parses `cli_arguments` of the graph item task and links all arguments to the task node. It only adds arguments
-        corresponding to inputs if they are contained in the task.
-        """
-        workgraph_task = self.workgraph_task_node_from_core(task)
+        if not isinstance(task, core.ShellTask):
+            raise TypeError
+
+        workgraph_task = self.task_from_core(task)
         if (workgraph_task_arguments := workgraph_task.inputs.arguments) is None:
             msg = (
                 f"Workgraph task {workgraph_task.name!r} did not initialize arguments nodes in the workgraph "
@@ -271,37 +294,15 @@ class AiidaWorkGraph:
             )
             raise ValueError(msg)
 
-        name_to_input_map = {input_.name: input_ for input_, _ in task.inputs}
-        # we track the linked input arguments, to ensure that all linked input nodes got linked arguments
-        linked_input_args = []
-        if not isinstance(task, core.ShellTask):
-            raise TypeError
-        for arg in task.cli_arguments:
-            if arg.references_data_item:
-                # We only add an input argument to the args if it has been added to the nodes
-                # This ensures that inputs and their arguments are only added
-                # when the time conditions are fulfilled
-                if (input_ := name_to_input_map.get(arg.name)) is not None:
-                    input_label = AiidaWorkGraph.get_aiida_label_from_graph_item(input_)
-
-                    if arg.cli_option_of_data_item is not None:
-                        workgraph_task_arguments.value.append(f"{arg.cli_option_of_data_item}")
-                    workgraph_task_arguments.value.append(f"{{{input_label}}}")
-                    linked_input_args.append(input_.name)
-            else:
-                workgraph_task_arguments.value.append(f"{arg.name}")
-        # Adding remaining input nodes as positional arguments
-        for input_name in name_to_input_map:
-            if input_name not in linked_input_args:
-                input_ = name_to_input_map[input_name]
-                input_label = AiidaWorkGraph.get_aiida_label_from_graph_item(input_)
-                workgraph_task_arguments.value.append(f"{{{input_label}}}")
+        input_labels = {port: list(map(self.label_placeholder, task.inputs[port])) for port in task.inputs}
+        _, arguments = self.split_cmd_arg(task.replace_ports(input_labels))
+        workgraph_task_arguments.value = arguments
 
     def _link_output_nodes_to_task(self, task: core.Task, output: core.Data):
         """Links the output to the workgraph task."""
 
-        workgraph_task = self._aiida_task_nodes[AiidaWorkGraph.get_aiida_label_from_graph_item(task)]
-        output_label = AiidaWorkGraph.get_aiida_label_from_graph_item(output)
+        workgraph_task = self.task_from_core(task)
+        output_label = self.get_aiida_label_from_graph_item(output)
         output_socket = workgraph_task.add_output("workgraph.any", output.src)
         self._aiida_socket_nodes[output_label] = output_socket
 

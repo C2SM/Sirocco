@@ -4,25 +4,8 @@ import pytest
 
 from sirocco.core import Workflow
 from sirocco.core._tasks.icon_task import IconTask
-from sirocco.parsing.yaml_data_models import ConfigShellTask, ShellCliArgument
 from sirocco.vizgraph import VizGraph
 from sirocco.workgraph import AiidaWorkGraph
-
-
-# configs that are tested for parsing
-def test_parsing_cli_parameters():
-    cli_arguments = "-D --CMAKE_CXX_COMPILER=${CXX_COMPILER} {--init file}"
-    assert ConfigShellTask.split_cli_arguments(cli_arguments) == [
-        "-D",
-        "--CMAKE_CXX_COMPILER=${CXX_COMPILER}",
-        "{--init file}",
-    ]
-
-    assert ConfigShellTask.parse_cli_arguments(cli_arguments) == [
-        ShellCliArgument("-D", False, None),
-        ShellCliArgument("--CMAKE_CXX_COMPILER=${CXX_COMPILER}", False, None),
-        ShellCliArgument("file", True, "--init"),
-    ]
 
 
 def test_parse_config_file(config_paths, pprinter):

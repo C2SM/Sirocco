@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from itertools import chain, product
-from typing import TYPE_CHECKING, Any, ClassVar, Self, TypeAlias, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Self, TypeVar, cast
 
 from sirocco.parsing.target_cycle import DateList, LagList, NoTargetCycle
 from sirocco.parsing.yaml_data_models import (
@@ -65,10 +65,6 @@ class GeneratedData(Data):
     pass
 
 
-# contains the input data and its potential associated port
-BoundData: TypeAlias = tuple[Data, str | None]
-
-
 @dataclass(kw_only=True)
 class Task(ConfigBaseTaskSpecs, GraphItem):
     """Internal representation of a task node"""
@@ -76,7 +72,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     plugin_classes: ClassVar[dict[str, type[Self]]] = field(default={}, repr=False)
     color: ClassVar[Color] = field(default="light_red", repr=False)
 
-    inputs: list[BoundData] = field(default_factory=list)
+    inputs: dict[str, list[Data]] = field(default_factory=dict)
     outputs: list[Data] = field(default_factory=list)
     wait_on: list[Task] = field(default_factory=list)
     config_rootdir: Path
@@ -91,6 +87,9 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
             raise ValueError(msg)
         Task.plugin_classes[cls.plugin] = cls
 
+    def input_data_nodes(self) -> Iterator[Data]:
+        yield from chain(*self.inputs.values())
+
     @classmethod
     def from_config(
         cls: type[Self],
@@ -101,11 +100,11 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
         datastore: Store,
         graph_spec: ConfigCycleTask,
     ) -> Task:
-        inputs = [
-            (data_node, input_spec.port)
-            for input_spec in graph_spec.inputs
-            for data_node in datastore.iter_from_cycle_spec(input_spec, coordinates)
-        ]
+        inputs: dict[str, list[Data]] = {}
+        for input_spec in graph_spec.inputs:
+            if input_spec.port not in inputs:
+                inputs[input_spec.port] = []
+            inputs[input_spec.port].extend(datastore.iter_from_cycle_spec(input_spec, coordinates))
         outputs = [datastore[output_spec.name, coordinates] for output_spec in graph_spec.outputs]
         if (plugin_cls := Task.plugin_classes.get(type(config).plugin, None)) is None:
             msg = f"Plugin {type(config).plugin!r} is not supported."
