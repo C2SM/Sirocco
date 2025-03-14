@@ -317,6 +317,7 @@ class ConfigShellTask(ConfigBaseTask, ConfigShellTaskSpecs):
         >>> my_task.walltime.tm_min
         1
     """
+
     env_source_files: list[str] = Field(default_factory=list)
 
     @field_validator("env_source_files", mode="before")
@@ -597,7 +598,9 @@ class ConfigWorkflow(BaseModel):
             ...     name="minimal",
             ...     rootdir=Path("/location/of/config/file"),
             ...     cycles=[ConfigCycle(minimal_cycle={"tasks": [ConfigCycleTask(task_a={})]})],
-            ...     tasks=[ConfigShellTask(task_a={"plugin": "shell", "command": "some_command"})],
+            ...     tasks=[
+            ...         ConfigShellTask(task_a={"plugin": "shell", "command": "some_command"})
+            ...     ],
             ...     data=ConfigData(
             ...         available=[
             ...             ConfigAvailableData(name="foo", type=DataType.FILE, src="foo.txt")
