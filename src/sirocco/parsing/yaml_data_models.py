@@ -311,17 +311,20 @@ class ConfigShellTaskSpecs:
             './my_script input_1 input_2 --multi_arg input_3,input_4'
         """
         cmd = self.command
-        for m in self.port_pattern.finditer(cmd):
-            if (port_name := m.group(2)) is None:
-                msg = f"Wrong port name specification: {m.group(0)}"
+        for port_match in self.port_pattern.finditer(cmd):
+            if (port_name := port_match.group(2)) is None:
+                msg = f"Wrong port specification: {port_match.group(0)}"
                 raise ValueError(msg)
-            if (sep := m.group(1)) is not None:
-                if (arg_sep := self.sep_pattern.match(sep).group(1)) is None:
+            if (sep := port_match.group(1)) is None:
+                arg_sep = " "
+            else:
+                if (sep_match := self.sep_pattern.match(sep)) is None:
                     msg = "Wrong separator specification: sep"
                     raise ValueError(msg)
-            else:
-                arg_sep = " "
-            cmd = cmd.replace(m.group(0), arg_sep.join(input_labels[port_name]))
+                if (arg_sep := sep_match.group(1)) is None:
+                    msg = "Wrong separator specification: sep"
+                    raise ValueError(msg)
+            cmd = cmd.replace(port_match.group(0), arg_sep.join(input_labels[port_name]))
         return cmd
 
 
