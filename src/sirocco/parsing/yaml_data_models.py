@@ -284,13 +284,13 @@ class ConfigShellTaskSpecs:
     env_source_files: list[str] = field(default_factory=list)
 
     def resolve_ports(self, input_labels: dict[str, list[str]]) -> str:
-        """returns a string corresponding to self.command with "{PORT::...}"
+        """returns a string corresponding to self.command with "{PORT::port_name}"
         placeholders replaced by the content provided in the input_labels dict.
         When multiple input nodes are linked to a single port (e.g. with
         parameterized data or if the `when` keyword specifies a list of lags or
         dates), the provided input labels are inserted with a separator
         defaulting to a " ". Specifying an alternative separator, e.g. a comma,
-        is done via "{PORT[sep=,]::...}"
+        is done via "{PORT[sep=,]::port_name}"
 
         Examples:
 
@@ -312,10 +312,12 @@ class ConfigShellTaskSpecs:
         """
         cmd = self.command
         for m in self.port_pattern.finditer(cmd):
-            port_name = m.group(2)
-            if sep := m.group(1):
-                if not (arg_sep := self.sep_pattern.match(sep).group(1)):
-                    msg = "A separator should have been identified at that stage. Please contact a developper"
+            if (port_name := m.group(2)) is None:
+                msg = f"Wrong port name specification: {m.group(0)}"
+                raise ValueError(msg)
+            if (sep := m.group(1)) is not None:
+                if (arg_sep := self.sep_pattern.match(sep).group(1)) is None:
+                    msg = "Wrong separator specification: sep"
                     raise ValueError(msg)
             else:
                 arg_sep = " "
