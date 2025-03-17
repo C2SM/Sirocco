@@ -284,7 +284,7 @@ class AiidaWorkGraph:
             raise TypeError
 
     def _link_inputs_to_ports(self, task: core.Task):
-        """replace port placeholders by aiida label placeholders"""
+        """Set shell task arguments by replacing port placeholders with aiida labels"""
 
         if not isinstance(task, core.ShellTask):
             raise TypeError
