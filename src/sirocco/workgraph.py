@@ -213,6 +213,7 @@ class AiidaWorkGraph:
             #           - relative path to the task working directory (./my_script.sh)
             #           - something added to $PATH through environment activation (cdo)
             #        So the full path to the command can only be resolved at runtime.
+            #        See issue https://github.com/C2SM/Sirocco/issues/127
             if cmd_path.is_absolute():
                 command = str(cmd_path)
             else:
