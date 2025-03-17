@@ -298,8 +298,7 @@ class ConfigShellTaskSpecs:
             ...     command="./my_script {PORT::positionals} -l -c --verbose 2 --arg {PORT::my_arg}"
             ... )
             >>> task_specs.resolve_ports(
-            ...     {"positionals": ["input_1", "input_2"],
-            ...      "my_arg": ["input_3"]}
+            ...     {"positionals": ["input_1", "input_2"], "my_arg": ["input_3"]}
             ... )
             './my_script input_1 input_2 -l -c --verbose 2 --arg input_3'
 
@@ -307,15 +306,14 @@ class ConfigShellTaskSpecs:
             ...     command="./my_script {PORT::positionals} --multi_arg {PORT[sep=,]::multi_arg}"
             ... )
             >>> task_specs.resolve_ports(
-            ...     {"positionals": ["input_1", "input_2"],
-            ...      "multi_arg": ["input_3", "input_4"]}
+            ...     {"positionals": ["input_1", "input_2"], "multi_arg": ["input_3", "input_4"]}
             ... )
             './my_script input_1 input_2 --multi_arg input_3,input_4'
         """
         cmd = self.command
         for m in self.port_pattern.finditer(cmd):
             port_name = m.group(2)
-            if (sep := m.group(1)):
+            if sep := m.group(1):
                 if not (arg_sep := self.sep_pattern.match(sep).group(1)):
                     msg = "A separator should have been identified at that stage. Please contact a developper"
                     raise ValueError(msg)
