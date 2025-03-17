@@ -15,7 +15,6 @@ cycles:
             plugin: 'shell'
             src: 'scripts/icon.py'
             command: 'icon.py --restart {PORT::restart} --init {PORT::init}'
-            multi arg sep: ' '
             env source files: ['data/dummy_source_file.sh']
   - bimonthly_tasks [date: 2026-03-01 00:00:00]:
       tasks:
@@ -33,7 +32,6 @@ cycles:
             plugin: 'shell'
             src: 'scripts/icon.py'
             command: 'icon.py --restart {PORT::restart} --init {PORT::init}'
-            multi arg sep: ' '
             env source files: ['data/dummy_source_file.sh']
   - bimonthly_tasks [date: 2026-05-01 00:00:00]:
       tasks:
@@ -51,7 +49,6 @@ cycles:
             plugin: 'shell'
             src: 'scripts/icon.py'
             command: 'icon.py --restart {PORT::restart} --init {PORT::init}'
-            multi arg sep: ' '
             env source files: ['data/dummy_source_file.sh']
   - lastly:
       tasks:
@@ -65,5 +62,4 @@ cycles:
             plugin: 'shell'
             src: 'scripts/cleanup.py'
             command: 'cleanup.py'
-            multi arg sep: ' '
             env source files: []

@@ -277,18 +277,51 @@ class ConfigRootTask(ConfigBaseTask):
 @dataclass(kw_only=True)
 class ConfigShellTaskSpecs:
     plugin: ClassVar[Literal["shell"]] = "shell"
-    port_pattern: ClassVar[re.Pattern] = field(default=re.compile(r"{PORT::(.*?)}"), repr=False)
+    port_pattern: ClassVar[re.Pattern] = field(default=re.compile(r"{PORT(\[sep=.+\])?::(.+?)}"), repr=False)
+    sep_pattern: ClassVar[re.Pattern] = field(default=re.compile(r"\[sep=(.+)\]"), repr=False)
     src: str | None = None
     command: str
-    multi_arg_sep: str = " "
     env_source_files: list[str] = field(default_factory=list)
 
     def resolve_ports(self, input_labels: dict[str, list[str]]) -> str:
-        """returns a string corresponding to self.command with {PORT::...}
-        placeholders replaced by the content provided in the input_labels dict"""
+        """returns a string corresponding to self.command with "{PORT::...}"
+        placeholders replaced by the content provided in the input_labels dict.
+        When multiple input nodes are linked to a single port (e.g. with
+        parameterized data or if the `when` keyword specifies a list of lags or
+        dates), the provided input labels are inserted with a separator
+        defaulting to a " ". Specifying an alternative separator, e.g. a comma,
+        is done via "{PORT[sep=,]::...}"
+
+        Examples:
+
+            >>> task_specs = ConfigShellTaskSpecs(
+            ...     command="./my_script {PORT::positionals} -l -c --verbose 2 --arg {PORT::my_arg}"
+            ... )
+            >>> task_specs.resolve_ports(
+            ...     {"positionals": ["input_1", "input_2"],
+            ...      "my_arg": ["input_3"]}
+            ... )
+            './my_script input_1 input_2 -l -c --verbose 2 --arg input_3'
+
+            >>> task_specs = ConfigShellTaskSpecs(
+            ...     command="./my_script {PORT::positionals} --multi_arg {PORT[sep=,]::multi_arg}"
+            ... )
+            >>> task_specs.resolve_ports(
+            ...     {"positionals": ["input_1", "input_2"],
+            ...      "multi_arg": ["input_3", "input_4"]}
+            ... )
+            './my_script input_1 input_2 --multi_arg input_3,input_4'
+        """
         cmd = self.command
         for m in self.port_pattern.finditer(cmd):
-            cmd = cmd.replace(m.group(0), self.multi_arg_sep.join(input_labels[m.group(1)]))
+            port_name = m.group(2)
+            if (sep := m.group(1)):
+                if not (arg_sep := self.sep_pattern.match(sep).group(1)):
+                    msg = "A separator should have been identified at that stage. Please contact a developper"
+                    raise ValueError(msg)
+            else:
+                arg_sep = " "
+            cmd = cmd.replace(m.group(0), arg_sep.join(input_labels[port_name]))
         return cmd
 
 
