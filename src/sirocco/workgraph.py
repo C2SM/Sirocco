@@ -190,10 +190,6 @@ class AiidaWorkGraph:
         for task in self._core_workflow.tasks:
             self._link_wait_on_to_task(task)
 
-        # FIXME: Nothing ensures that the input data nodes are all created
-        #        before linking them to the task. It currently depends on the
-        #        order in which tasks were specified in the config file which
-        #        should have no influence here.
         for task in self._core_workflow.tasks:
             for output in task.outputs:
                 self._link_output_nodes_to_task(task, output)
@@ -219,7 +215,6 @@ class AiidaWorkGraph:
             # metadata
             metadata: dict[str, Any] = {}
             ## Source file
-            # FIXME: Same as above
             env_source_paths = [
                 env_source_path
                 if (env_source_path := Path(env_source_file)).is_absolute()
