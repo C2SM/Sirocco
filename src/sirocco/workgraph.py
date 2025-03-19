@@ -190,6 +190,10 @@ class AiidaWorkGraph:
         for task in self._core_workflow.tasks:
             self._link_wait_on_to_task(task)
 
+        # FIXME: Nothing ensures that the input data nodes are all created
+        #        before linking them to the task. It currently depends on the
+        #        order in which tasks were specified in the config file which
+        #        should have no influence here.
         for task in self._core_workflow.tasks:
             for output in task.outputs:
                 self._link_output_nodes_to_task(task, output)
@@ -215,6 +219,7 @@ class AiidaWorkGraph:
             # metadata
             metadata: dict[str, Any] = {}
             ## Source file
+            # FIXME: Same as above
             env_source_paths = [
                 env_source_path
                 if (env_source_path := Path(env_source_file)).is_absolute()
@@ -267,11 +272,10 @@ class AiidaWorkGraph:
             if not hasattr(workgraph_task.inputs.nodes, f"{input_label}"):
                 msg = f"Socket {input_label!r} was not found in workgraph. Please contact a developer."
                 raise ValueError(msg)
-            socket = getattr(workgraph_task.inputs.nodes, f"{input_label}")
-            socket.value = self.workgraph_data_node_from_core(input_)
+            getattr(workgraph_task.inputs.nodes, f"{input_label}").value = self.data_from_core(input_)
         elif isinstance(input_, core.GeneratedData):
             self._workgraph.add_link(
-                self.workgraph_socket_node_from_core(input_), workgraph_task.inputs[f"nodes.{input_label}"]
+                self.socket_from_core(input_), workgraph_task.inputs[f"nodes.{input_label}"]
             )
         else:
             raise TypeError
