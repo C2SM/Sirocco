@@ -14,7 +14,7 @@ cycles:
             cycle point: [2026-01-01 00:00:00 -- 2026-03-01 00:00:00]
             plugin: 'shell'
             src: 'scripts/icon.py'
-            command: 'icon.py --restart {PORT::restart} --init {PORT::init} {PORT:namelist}'
+            command: 'icon.py --restart {PORT::restart} --init {PORT::init}'
             env source files: ['data/dummy_source_file.sh']
   - bimonthly_tasks [date: 2026-03-01 00:00:00]:
       tasks:
@@ -31,7 +31,7 @@ cycles:
             cycle point: [2026-03-01 00:00:00 -- 2026-05-01 00:00:00]
             plugin: 'shell'
             src: 'scripts/icon.py'
-            command: 'icon.py --restart {PORT::restart} --init {PORT::init} {PORT:namelist}'
+            command: 'icon.py --restart {PORT::restart} --init {PORT::init}'
             env source files: ['data/dummy_source_file.sh']
   - bimonthly_tasks [date: 2026-05-01 00:00:00]:
       tasks:
@@ -48,7 +48,7 @@ cycles:
             cycle point: [2026-05-01 00:00:00 -- 2026-06-01 00:00:00]
             plugin: 'shell'
             src: 'scripts/icon.py'
-            command: 'icon.py --restart {PORT::restart} --init {PORT::init} {PORT:namelist}'
+            command: 'icon.py --restart {PORT::restart} --init {PORT::init}'
             env source files: ['data/dummy_source_file.sh']
   - lastly:
       tasks:
