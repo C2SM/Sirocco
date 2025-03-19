@@ -315,9 +315,7 @@ class ConfigShellTaskSpecs:
             >>> task_specs = ConfigShellTaskSpecs(
             ...     command="./my_script --input {PORT[sep= --input ]::repeat_input}"
             ... )
-            >>> task_specs.resolve_ports(
-            ...     {"repeat_input": ["input_1", "input_2", "input_3"]}
-            ... )
+            >>> task_specs.resolve_ports({"repeat_input": ["input_1", "input_2", "input_3"]})
             './my_script --input input_1 --input input_2 --input input_3'
         """
         cmd = self.command
