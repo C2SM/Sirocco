@@ -272,7 +272,7 @@ class AiidaWorkGraph:
                         msg = f"Socket {input_label!r} was not found in workgraph. Please contact a developer."
                         raise ValueError(msg)
                     socket = getattr(workgraph_task.inputs.nodes, f"{input_label}")
-					socket.value = self.data_from_core(input_)
+                    socket.value = self.data_from_core(input_)
                 elif isinstance(input_, core.GeneratedData):
                     self._workgraph.add_link(
                         self.socket_from_core(input_), workgraph_task.inputs[f"nodes.{input_label}"]
