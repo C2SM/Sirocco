@@ -34,7 +34,8 @@ cycles:
             inputs:
               - grid_file:
                   port: grid
-              - icon_input
+              - icon_input:
+                  port: lbc
               - icon_restart:
                   when:
                     after: *root_start_date
@@ -43,7 +44,9 @@ cycles:
                   port: restart
             outputs: [stream_1, stream_2, icon_restart]
         - postproc_1:
-            inputs: [stream_1]
+            inputs:
+              - stream_1:
+                  port: None
             outputs: [postout_1]
         - store_and_clean_1:
             inputs:

@@ -32,9 +32,12 @@ cycles:
               - icon_output:
                   parameters:
                     bar: single
+                  port: None
             outputs: [analysis_foo]
         - statistics_foo_bar:
-            inputs: [analysis_foo]
+            inputs:
+              - analysis_foo:
+                  port: None
             outputs: [analysis_foo_bar]
   - yearly:
       cycling:
@@ -47,6 +50,7 @@ cycles:
               - analysis_foo_bar:
                   target_cycle:
                     lag: ['P0M', 'P6M']
+                  port: None
             outputs: [yearly_analysis]
 
 tasks:

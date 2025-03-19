@@ -161,7 +161,7 @@ class TargetNodesBaseModel(_NamedBaseModel):
 
 
 class ConfigCycleTaskInput(TargetNodesBaseModel):
-    port: str = "None"
+    port: str
 
 
 class ConfigCycleTaskWaitOn(TargetNodesBaseModel):

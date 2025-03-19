@@ -10,7 +10,8 @@ cycles:
       tasks:
         - icon:
             inputs:
-              - icon_namelist
+              - icon_namelist:
+                  port: namelist
               - initial_conditions:
                   when:
                     at: *root_start_date
@@ -35,7 +36,7 @@ tasks:
       computer: localhost
       plugin: shell
       src: scripts/icon.py
-      command: "icon.py --restart {PORT::restart} --init {PORT::init}"
+      command: "icon.py --restart {PORT::restart} --init {PORT::init} --namelist {PORT::namelist}"
       env_source_files: data/dummy_source_file.sh
   - cleanup:
       computer: localhost
