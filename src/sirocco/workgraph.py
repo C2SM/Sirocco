@@ -190,10 +190,6 @@ class AiidaWorkGraph:
         for task in self._core_workflow.tasks:
             self._link_wait_on_to_task(task)
 
-        # FIXME: Nothing ensures that the input data nodes are all created
-        #        before linking them to the task. It currently depends on the
-        #        order in which tasks were specified in the config file which
-        #        should have no influence here.
         for task in self._core_workflow.tasks:
             for output in task.outputs:
                 self._link_output_nodes_to_task(task, output)
@@ -207,13 +203,7 @@ class AiidaWorkGraph:
             # Split command line between command and arguments (this is required by aiida internals)
             cmd, _ = self.split_cmd_arg(task.command)
             cmd_path = Path(cmd)
-            # FIXME: task.config_rootdir shouldn't be used here. The final behavior of Sirocco should be:
-            #        1- src is copied to the task working directory on the computer
-            #        2- If the command is gven with a relative path, it can target any executable in $PATH, e.g.:
-            #           - relative path to the task working directory (./my_script.sh)
-            #           - something added to $PATH through environment activation (cdo)
-            #        So the full path to the command can only be resolved at runtime.
-            #        See issue https://github.com/C2SM/Sirocco/issues/127
+            # FIXME: https://github.com/C2SM/Sirocco/issues/127
             if cmd_path.is_absolute():
                 command = str(cmd_path)
             else:
@@ -225,7 +215,6 @@ class AiidaWorkGraph:
             # metadata
             metadata: dict[str, Any] = {}
             ## Source file
-            # FIXME: Same as above
             env_source_paths = [
                 env_source_path
                 if (env_source_path := Path(env_source_file)).is_absolute()
