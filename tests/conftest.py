@@ -25,6 +25,43 @@ def minimal_config() -> models.ConfigWorkflow:
     )
 
 
+@pytest.fixture(scope="session")
+def minimal_invert_task_io_config() -> models.ConfigWorkflow:
+    return models.ConfigWorkflow(
+        name="minimal",
+        rootdir=pathlib.Path("minimal"),
+        cycles=[
+            models.ConfigCycle(
+                name="minimal",
+                tasks=[
+                    models.ConfigCycleTask(
+                        name="task_b",
+                        inputs=[models.ConfigCycleTaskInput(name="output_a", port="None")],
+                        outputs=[models.ConfigCycleTaskOutput(name="output_b")],
+                    ),
+                    models.ConfigCycleTask(
+                        name="task_a",
+                        inputs=[models.ConfigCycleTaskInput(name="availalble", port="None")],
+                        outputs=[models.ConfigCycleTaskOutput(name="output_a")],
+                    ),
+                ],
+            ),
+        ],
+        tasks=[
+            models.ConfigShellTask(name="task_a", command="command_a"),
+            models.ConfigShellTask(name="task_b", command="command_b"),
+        ],
+        data=models.ConfigData(
+            available=[models.ConfigAvailableData(name="availalble", type=models.DataType.FILE, src="foo.txt")],
+            generated=[
+                models.ConfigGeneratedData(name="output_a", type=models.DataType.DIR, src="bar"),
+                models.ConfigGeneratedData(name="output_b", type=models.DataType.DIR, src="bar"),
+            ],
+        ),
+        parameters={},
+    )
+
+
 # configs that are tested for parsing
 ALL_CONFIG_CASES = ["small", "parameters", "large"]
 

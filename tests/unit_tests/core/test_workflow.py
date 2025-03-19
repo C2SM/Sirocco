@@ -14,3 +14,8 @@ def test_minimal_workflow(minimal_config):
     assert len(list(testee.cycles)) == 1
     assert isinstance(testee.data[("foo", {})], AvailableData)
     assert testee.config_rootdir == minimal_config.rootdir
+
+
+def test_invert_task_io_workflow(minimal_invert_task_io_config):
+    testee = Workflow.from_config_workflow(minimal_invert_task_io_config)
+    pretty_print.PrettyPrinter().format(testee)
