@@ -36,12 +36,12 @@ def minimal_invert_task_io_config() -> models.ConfigWorkflow:
                 tasks=[
                     models.ConfigCycleTask(
                         name="task_b",
-                        inputs=[models.ConfigCycleTaskInput(name="output_a")],
+                        inputs=[models.ConfigCycleTaskInput(name="output_a", port="None")],
                         outputs=[models.ConfigCycleTaskOutput(name="output_b")],
                     ),
                     models.ConfigCycleTask(
                         name="task_a",
-                        inputs=[models.ConfigCycleTaskInput(name="availalble")],
+                        inputs=[models.ConfigCycleTaskInput(name="availalble", port="None")],
                         outputs=[models.ConfigCycleTaskOutput(name="output_a")],
                     ),
                 ],
