@@ -284,7 +284,9 @@ class ConfigShellTaskSpecs:
     env_source_files: list[str] = field(default_factory=list)
 
     def resolve_ports(self, input_labels: dict[str, list[str]]) -> str:
-        """returns a string corresponding to self.command with "{PORT::port_name}"
+        """Replace port placeholders in command string with provided input labels.
+
+        Returns a string corresponding to self.command with "{PORT::port_name}"
         placeholders replaced by the content provided in the input_labels dict.
         When multiple input nodes are linked to a single port (e.g. with
         parameterized data or if the `when` keyword specifies a list of lags or
@@ -309,6 +311,14 @@ class ConfigShellTaskSpecs:
             ...     {"positionals": ["input_1", "input_2"], "multi_arg": ["input_3", "input_4"]}
             ... )
             './my_script input_1 input_2 --multi_arg input_3,input_4'
+
+            >>> task_specs = ConfigShellTaskSpecs(
+            ...     command="./my_script --input {PORT[sep= --input ]::repeat_input}"
+            ... )
+            >>> task_specs.resolve_ports(
+            ...     {"repeat_input": ["input_1", "input_2", "input_3"]}
+            ... )
+            './my_script --input input_1 --input input_2 --input input_3'
         """
         cmd = self.command
         for port_match in self.port_pattern.finditer(cmd):
