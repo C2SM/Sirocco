@@ -60,6 +60,7 @@ def _prepare_for_shell_task(task: dict, inputs: dict) -> dict:
     missing_outputs = task_outputs.difference(default_outputs)
     inputs["outputs"] = list(missing_outputs)
     # Workaround ends here
+    # import ipdb; ipdb.set_trace()
 
     return inputs
 
@@ -280,9 +281,17 @@ class AiidaWorkGraph:
                 else:
                     raise TypeError
 
+    def _link_wait_on_to_task(self, task: core.Task):
+        label = AiidaWorkGraph.get_aiida_label_from_graph_item(task)
+        workgraph_task = self._aiida_task_nodes[label]
+        workgraph_task.waiting_on.clear()
+        for wait_on in task.wait_on:
+            wait_on_task_label = AiidaWorkGraph.get_aiida_label_from_graph_item(wait_on)
+            workgraph_task.waiting_on.add(self._aiida_task_nodes[wait_on_task_label])
+
     def _link_wait_on_to_tasks(self):
         for task in self._core_workflow.tasks:
-            self.task_from_core(task).wait = [self.task_from_core(wt) for wt in task.wait_on]
+            self._link_wait_on_to_task(task=task)
 
     def _set_shelljob_arguments(self):
         """set AiiDA ShellJob arguments by replacing port placeholders by aiida labels"""
