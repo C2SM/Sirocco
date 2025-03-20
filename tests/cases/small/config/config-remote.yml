@@ -1,0 +1,66 @@
+---
+start_date: &root_start_date '2026-01-01T00:00'
+stop_date: &root_stop_date '2026-06-01T00:00'
+cycles:
+  - bimonthly_tasks:
+      cycling:
+        start_date: *root_start_date
+        stop_date: *root_stop_date
+        period: P2M
+      tasks:
+        - icon:
+            inputs:
+              - icon_namelist:
+                  port: UNUSED
+              - initial_conditions:
+                  when:
+                    at: *root_start_date
+                  port:
+                    init
+              - icon_restart:
+                  when:
+                    after: *root_start_date
+                  target_cycle:
+                    lag: -P2M
+                  port: restart
+            outputs: [icon_output, icon_restart]
+  - lastly:
+      tasks:
+        - cleanup:
+            wait_on:
+              - icon:
+                  target_cycle:
+                    date: 2026-05-01T00:00
+tasks:
+  - icon:
+      # computer: localhost
+      computer: thor
+      plugin: shell
+      src: /mnt/home/geiger_j/test/sirocco/icon.py
+      # src: scripts/icon.py
+      command: "icon.py --restart {PORT::restart} --init {PORT::init}"
+      env_source_files: data/dummy_source_file.sh  # ! This is assumed to be on the remote machine
+  - cleanup:
+      # computer: localhost
+      computer: thor
+      plugin: shell
+      src: /mnt/home/geiger_j/test/sirocco/cleanup.py
+      # src: scripts/cleanup.py
+      command: "cleanup.py"
+data:
+  available:
+     - icon_namelist:
+         type: file
+         src: data/input
+     - initial_conditions:
+         type: file
+         computer: thor
+         src: /mnt/home/geiger_j/test/sirocco/data/
+        # ! src: data/initial_conditions  # This should point to the directory
+  generated:
+     - icon_output:
+         type: file
+         src: icon_output
+     - icon_restart:
+         type: file
+         src: restart
