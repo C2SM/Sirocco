@@ -13,7 +13,7 @@ from sirocco import core
 
 if TYPE_CHECKING:
     from aiida_workgraph.socket import TaskSocket  # type: ignore[import-untyped]
-
+    from aiida_workgraph.sockets.builtins import SocketAny
     WorkgraphDataNode: TypeAlias = aiida.orm.RemoteData | aiida.orm.SinglefileData | aiida.orm.FolderData
 
 
@@ -290,7 +290,8 @@ class AiidaWorkGraph:
         for task in self._core_workflow.tasks:
             if isinstance(task, core.ShellTask):
                 workgraph_task = self.task_from_core(task)
-                if (workgraph_task_arguments := workgraph_task.inputs.arguments) is None:
+                workgraph_task_arguments: SocketAny = workgraph_task.inputs.arguments
+                if workgraph_task_arguments is None:
                     msg = (
                         f"Workgraph task {workgraph_task.name!r} did not initialize arguments nodes in the workgraph "
                         f"before linking. This is a bug in the code, please contact developers."
