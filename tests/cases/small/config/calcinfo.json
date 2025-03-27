@@ -1,0 +1,30 @@
+{
+  "codes_info": [
+    {
+      "code_uuid": "5f4a3f0d-160e-4f1d-b778-e8d584ce1b0f",
+      "cmdline_params": ["--restart", "--init", "initial_cond"],
+      "stdin_name": null,
+      "stdout_name": "stdout",
+      "stderr_name": "stderr"
+    }
+  ],
+  "append_text": "echo $? > status",
+  "remote_copy_list": [],
+  "remote_symlink_list": [
+    [
+      "da8379b9-0b77-44ad-9dc2-6b9a03d7ca2b",
+      "/mnt/home/geiger_j/test/sirocco/data/initial_conditions/*",
+      "."
+    ]
+  ],
+  "retrieve_temporary_list": [
+    "restart",
+    "icon_output",
+    "status",
+    "stderr",
+    "stdout"
+  ],
+  "provenance_exclude_list": ["input"],
+  "file_copy_operation_order": [1, 0, 2],
+  "uuid": "7683f368-c4e5-4be0-964e-28d58b88dc60"
+}

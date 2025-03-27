@@ -12,7 +12,7 @@ cycles:
             inputs:
               - icon_namelist:
                   port: UNUSED
-              - initial_conditions:
+              - initial_cond:
                   when:
                     at: *root_start_date
                   port:
@@ -33,30 +33,29 @@ cycles:
                     date: 2026-05-01T00:00
 tasks:
   - icon:
-      # computer: localhost
       computer: thor
       plugin: shell
-      src: /mnt/home/geiger_j/test/sirocco/icon.py
       # src: scripts/icon.py
+      src: /mnt/home/geiger_j/test/sirocco/icon.py
       command: "icon.py --restart {PORT::restart} --init {PORT::init}"
-      env_source_files: data/dummy_source_file.sh  # ! This is assumed to be on the remote machine
+      # env_source_files: data/dummy_source_file.sh
   - cleanup:
-      # computer: localhost
       computer: thor
       plugin: shell
-      src: /mnt/home/geiger_j/test/sirocco/cleanup.py
       # src: scripts/cleanup.py
+      src: /mnt/home/geiger_j/test/sirocco/cleanup.py
       command: "cleanup.py"
 data:
   available:
      - icon_namelist:
          type: file
          src: data/input
-     - initial_conditions:
+     - initial_cond:
          type: file
          computer: thor
-         src: /mnt/home/geiger_j/test/sirocco/data/
-        # ! src: data/initial_conditions  # This should point to the directory
+        #  src: data/initial_conditions
+        #  src: /mnt/home/geiger_j/test/sirocco/data
+         src: /mnt/home/geiger_j/test/sirocco/data/initial_conditions
   generated:
      - icon_output:
          type: file

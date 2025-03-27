@@ -47,7 +47,6 @@ def _prepare_for_shell_task(task: dict, inputs: dict) -> dict:
 
     # Finally, we update the original `inputs` with the modified ones from the call to `prepare_shell_job_inputs`
     inputs = {**inputs, **aiida_shell_inputs}
-
     inputs.setdefault("metadata", {})
     inputs["metadata"].update({"call_link_label": task["name"]})
 
@@ -59,10 +58,23 @@ def _prepare_for_shell_task(task: dict, inputs: dict) -> dict:
     task_outputs = task_outputs.union(set(inputs.pop("outputs", [])))
     missing_outputs = task_outputs.difference(default_outputs)
     inputs["outputs"] = list(missing_outputs)
+
+    # NOTE: Hardcoded for now, possibly make user-facing option
+    inputs["metadata"]["options"]["use_symlinks"] = True
+
     # Workaround ends here
+    # FIXME: The `GeneratedData.name` ends up as the actual filename
+    # try:
+    #     computer = inputs['code'].computer
+    #     with computer.get_transport() as transport:
+    #         remote_is_file = transport.isfile(path=data.src)
+    # except:
+    #     raise
+
     # import ipdb; ipdb.set_trace()
 
     return inputs
+
 
 
 aiida_workgraph.engine.utils.prepare_for_shell_task = _prepare_for_shell_task
@@ -90,7 +102,7 @@ class AiidaWorkGraph:
         # linking inputs must come after outputs to make sure they were created,
         # either as data or as socket, before linking
         self._link_input_nodes_to_tasks()
-        self._set_shelljob_arguments()
+        self._set_shelljobs_arguments()
         self._link_wait_on_to_tasks()
 
     def _validate_workflow(self):
@@ -170,13 +182,29 @@ class AiidaWorkGraph:
         data_path = Path(data.src)
         data_full_path = data.src if data_path.is_absolute() else self._core_workflow.config_rootdir / data_path
 
+        # ? Explicitly check for data type "remote" ?
         if data.computer is not None:
             try:
                 computer = aiida.orm.load_computer(data.computer)
             except NotExistent as err:
                 msg = f"Could not find computer {data.computer!r} for input {data}."
                 raise ValueError(msg) from err
-            self._aiida_data_nodes[label] = aiida.orm.RemoteData(remote_path=data.src, label=label, computer=computer)
+
+            with computer.get_transport() as transport:
+                remote_is_file = transport.isfile(path=data.src)
+
+            # ? Is the `label` being used to construct the symlink
+            # TODO: If file provided as input, set the filename as label
+            # TODO: What to do for Folder
+            if not remote_is_file:
+                remote_data = aiida.orm.RemoteData(remote_path=data.src, label=label, computer=computer)
+            else:
+                # FIXME: Currently behavior of both cases is the same. Should this be handled in `aiida-shell` ???
+                # remote_data = aiida.orm.RemoteData(remote_path=str(Path(data.src).parent), label=label, computer=computer)
+                remote_data = aiida.orm.RemoteData(remote_path=data.src, label=label, computer=computer)
+
+            self._aiida_data_nodes[label] = remote_data
+
         elif data.type == "file":
             self._aiida_data_nodes[label] = aiida.orm.SinglefileData(label=label, file=data_full_path)
         elif data.type == "dir":
@@ -217,6 +245,8 @@ class AiidaWorkGraph:
         # metadata
         metadata: dict[str, Any] = {}
         ## Source file
+        # FIXME: Paths are resolved to paths on the local machine if not given as absolute paths. config_rootdir points
+        # to local path, so this breaks on the remote
         env_source_paths = [
             env_source_path
             if (env_source_path := Path(env_source_file)).is_absolute()
@@ -293,22 +323,70 @@ class AiidaWorkGraph:
         for task in self._core_workflow.tasks:
             self._link_wait_on_to_task(task=task)
 
-    def _set_shelljob_arguments(self):
+    def _set_shelljobs_arguments(self):
         """set AiiDA ShellJob arguments by replacing port placeholders by aiida labels"""
 
         for task in self._core_workflow.tasks:
             if isinstance(task, core.ShellTask):
-                workgraph_task = self.task_from_core(task)
-                if (workgraph_task_arguments := workgraph_task.inputs.arguments) is None:
-                    msg = (
-                        f"Workgraph task {workgraph_task.name!r} did not initialize arguments nodes in the workgraph "
-                        f"before linking. This is a bug in the code, please contact developers."
-                    )
-                    raise ValueError(msg)
+                self._set_shelljob_arguments(shell_task=task)
 
-                input_labels = {port: list(map(self.label_placeholder, task.inputs[port])) for port in task.inputs}
-                _, arguments = self.split_cmd_arg(task.resolve_ports(input_labels))
-                workgraph_task_arguments.value = arguments
+    def _set_shelljob_arguments(self, shell_task):
+        """set AiiDA ShellJob arguments by replacing port placeholders by aiida labels"""
+
+        workgraph_task = self.task_from_core(shell_task)
+        if (workgraph_task_arguments := workgraph_task.inputs.arguments) is None:
+            msg = (
+                f"Workgraph task {workgraph_task.name!r} did not initialize arguments nodes in the workgraph "
+                f"before linking. This is a bug in the code, please contact developers."
+            )
+            raise ValueError(msg)
+
+        input_labels = {port: list(map(self.label_placeholder, shell_task.inputs[port])) for port in shell_task.inputs}
+        _, arguments = self.split_cmd_arg(shell_task.resolve_ports(input_labels))
+        workgraph_task_arguments.value = arguments
+
+        # filenames = []
+        # FIXME: This currently breaks...
+        # ipdb> input_socket
+        # SocketAny(name='icon_restart_date_2026_01_01_00_00_00', value=None)
+        # ipdb> workgraph_task
+        # DecoratedNode(name='icon_date_2026_03_01_00_00_00', properties=[], inputs=['metadata', 'code', 'monitors', 'remote_folder', 'nodes', 'filenames', 'arguments', 'outputs', 'parser', '_wait', 'command', 'resolve_command'], outputs=['remote_folder', 'remote_stash', 'retrieved', '_wait', '_outputs', 'stdout', 'stderr', 'icon_output', 'restart'])
+        # ipdb> workgraph_task.inputs
+        # NodeSocketNamespace(name='inputs', sockets=['metadata', 'code', 'monitors', 'remote_folder', 'nodes', 'filenames', 'arguments', 'outputs', 'parser', '_wait', 'command', 'resolve_command'])
+        # ipdb> workgraph_task.inputs.nodes
+        # TaskSocketNamespace(name='nodes', sockets=['icon_namelist', 'icon_restart_date_2026_01_01_00_00_00'])
+        # for input_socket in workgraph_task.inputs.nodes:
+        #     try:
+        #         aiida_data_node = self._aiida_data_nodes[input_socket._name]
+        #     except:
+        #         # Fails for non-existing data nodes
+        #         # Somehow restrict to only GeneratedData
+        #         continue
+        #         # import ipdb; ipdb.set_trace()
+
+        #     if isinstance(aiida_data_node, aiida.orm.FolderData):
+        #         pass
+        #     elif isinstance(aiida_data_node, aiida.orm.SinglefileData):
+        #         filenames.append(aiida_data_node.filename)
+        #         pass
+        #     elif isinstance(aiida_data_node, aiida.orm.RemoteData):
+        #         try:
+        #             # This fails if it is a file
+        #             # Could also use `.is_empty`, but seems more fragile
+        #             aiida_data_node.listdir()
+        #             remote_is_file = False
+        #         except OSError:
+        #             remote_is_file = True
+
+        #         if remote_is_file:
+        #             filenames.append(Path(aiida_data_node.get_remote_path()).name)
+        #     else:
+        #         raise Exception
+
+        # setattr(workgraph_task.inputs, "filenames", filenames)
+
+        # import ipdb; ipdb.set_trace()
+
 
     def run(
         self,

@@ -47,7 +47,8 @@ data:
   available:
      - icon_namelist:
          type: file
-         src: data/input
+        #  src: data/input
+         src: ICON/NAMELIST_exclaim_ape_R02B04
      - initial_conditions:
          type: file
          computer: localhost
