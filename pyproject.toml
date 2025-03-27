@@ -144,3 +144,7 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = ["f90nml"]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["aiida_workgraph.sockets.builtins"]
+ignore_missing_imports = true
