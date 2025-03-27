@@ -62,6 +62,8 @@ def _prepare_for_shell_task(task: dict, inputs: dict) -> dict:
     missing_outputs = task_outputs.difference(default_outputs)
     inputs["outputs"] = list(missing_outputs)
     # Workaround ends here
+    # NOTE: Hardcoded for now, possibly make user-facing option
+    inputs["metadata"]["options"]["use_symlinks"] = True
 
     return inputs
 
@@ -105,6 +107,7 @@ class AiidaWorkGraph:
         for task in self._core_workflow.tasks:
             if isinstance(task, core.ShellTask):
                 self._set_shelljob_arguments(task)
+                self._set_shelljob_filenames(task)
 
         # link wait on to workgraph tasks
         for task in self._core_workflow.tasks:
@@ -316,6 +319,24 @@ class AiidaWorkGraph:
         input_labels = {port: list(map(self.label_placeholder, task.inputs[port])) for port in task.inputs}
         _, arguments = self.split_cmd_arg(task.resolve_ports(input_labels))
         workgraph_task_arguments.value = arguments
+
+    def _set_shelljob_filenames(self, task: core.ShellTask):
+        """set AiiDA ShellJob filenames for AvailableData entities"""
+        workgraph_task = self.task_from_core(task)
+
+        filenames = {}
+        input_sockets = workgraph_task.inputs.nodes
+
+        for input_socket in input_sockets:
+            if input_socket._name in self._aiida_data_nodes.keys():
+                # Pass empty tuple as second argument to __getitem__ of the Store
+                # as AvailableData don't have parameters (or do they??)
+                core_data = self._core_workflow.data[input_socket._name, {}]
+                if isinstance(core_data, core.AvailableData):
+                    filenames[input_socket._name] = Path(core_data.src).name
+
+        workgraph_task_filenames: SocketAny = workgraph_task.inputs.filenames
+        workgraph_task_filenames.value = filenames
 
     def run(
         self,
