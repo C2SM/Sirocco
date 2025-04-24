@@ -15,8 +15,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
     from pathlib import Path
 
-    from termcolor._types import Color
-
     from sirocco.parsing.cycling import CyclePoint
     from sirocco.parsing.yaml_data_models import (
         ConfigBaseData,
@@ -31,7 +29,7 @@ if TYPE_CHECKING:
 class GraphItem:
     """base class for Data Tasks and Cycles"""
 
-    color: ClassVar[Color]
+    color: ClassVar[str]
 
     name: str
     coordinates: dict
@@ -44,7 +42,7 @@ GRAPH_ITEM_T = TypeVar("GRAPH_ITEM_T", bound=GraphItem)
 class Data(ConfigBaseDataSpecs, GraphItem):
     """Internal representation of a data node"""
 
-    color: ClassVar[Color] = field(default="light_blue", repr=False)
+    color: ClassVar[str] = field(default="light_blue", repr=False)
 
     @classmethod
     def from_config(cls, config: ConfigBaseData, coordinates: dict) -> AvailableData | GeneratedData:
@@ -70,7 +68,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     """Internal representation of a task node"""
 
     plugin_classes: ClassVar[dict[str, type[Self]]] = field(default={}, repr=False)
-    color: ClassVar[Color] = field(default="light_red", repr=False)
+    color: ClassVar[str] = field(default="light_red", repr=False)
 
     inputs: dict[str, list[Data]] = field(default_factory=dict)
     outputs: list[Data] = field(default_factory=list)
@@ -147,7 +145,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
 class Cycle(GraphItem):
     """Internal reprenstation of a cycle"""
 
-    color: ClassVar[Color] = field(default="light_green", repr=False)
+    color: ClassVar[str] = field(default="light_green", repr=False)
 
     tasks: list[Task]
 

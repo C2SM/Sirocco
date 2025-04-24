@@ -127,7 +127,8 @@ extra-dependencies = [
   "types-setuptools",
   "types-docutils",
   "types-colorama",
-  "types-Pygments"
+  "types-Pygments",
+  "types-termcolor"
 ]
 
 [tool.hatch.envs.types.scripts]
