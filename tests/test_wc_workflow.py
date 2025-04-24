@@ -43,8 +43,10 @@ def test_run_workgraph(config_case, config_paths, aiida_computer):  # noqa: ARG0
 
     core_workflow = Workflow.from_config_file(str(config_paths["yml"]))
     aiida_workflow = AiidaWorkGraph(core_workflow)
-    out = aiida_workflow.run()
-    assert out.get("execution_count", None).value == 1
+    output_node = aiida_workflow.run()
+    assert (
+        output_node.is_finished_ok
+    ), f"Not successful run. Got exit code {output_node.exit_code} with message {output_node.exit_message}."
 
 
 # configs containing task using icon plugin

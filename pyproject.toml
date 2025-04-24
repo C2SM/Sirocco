@@ -31,7 +31,7 @@ dependencies = [
   "pydantic",
   "ruamel.yaml",
   "aiida-core>=2.5",
-  "aiida-workgraph==0.4.10",
+  "aiida-workgraph==0.5.2",
   "termcolor",
   "pygraphviz",
   "lxml",
