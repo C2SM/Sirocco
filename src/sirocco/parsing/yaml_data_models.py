@@ -172,6 +172,7 @@ class ConfigCycleTaskOutput(_NamedBaseModel):
     """
     To create an instance of an output in a task in a cycle defined in a workflow file.
     """
+    port: str | None = None
 
 
 NAMED_BASE_T = typing.TypeVar("NAMED_BASE_T", bound=_NamedBaseModel)

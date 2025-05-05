@@ -42,7 +42,13 @@ cycles:
                   target_cycle:
                     lag: '-P2M'
                   port: restart
-            outputs: [stream_1, stream_2, icon_restart]
+            outputs:
+              - stream_1:
+                  port: stream1
+              - stream_2:
+                  port: stream2
+              - icon_restart:
+                  port: restart_file
         - postproc_1:
             inputs:
               - stream_1:

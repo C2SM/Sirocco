@@ -93,7 +93,7 @@ class AiidaWorkGraph:
         for task in self._core_workflow.tasks:
             self.create_task_node(task)
             # Create and link corresponding output sockets
-            for output in task.outputs:
+            for output in task.output_data_nodes():
                 self._link_output_node_to_task(task, output)
 
         # link input nodes to workgraph tasks
@@ -124,7 +124,7 @@ class AiidaWorkGraph:
                 except ValueError as exception:
                     msg = f"Raised error when validating input name '{input_.name}': {exception.args[0]}"
                     raise ValueError(msg) from exception
-            for output in task.outputs:
+            for output in task.output_data_nodes():
                 try:
                     aiida.common.validate_link_label(output.name)
                 except ValueError as exception:

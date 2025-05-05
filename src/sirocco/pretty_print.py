@@ -139,7 +139,7 @@ class PrettyPrinter:
             sections.append(
                 self.as_block(
                     "output",
-                    "\n".join(self.as_item(self.format_basic(output)) for output in obj.outputs),
+                    "\n".join(self.as_item(self.format_basic(output)) for output in obj.output_data_nodes()),
                 )
             )
         if obj.wait_on:
