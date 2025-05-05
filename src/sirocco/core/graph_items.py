@@ -71,7 +71,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     color: ClassVar[str] = field(default="light_red", repr=False)
 
     inputs: dict[str, list[Data]] = field(default_factory=dict)
-    outputs: list[Data] = field(default_factory=list)
+    outputs: dict[str | None, list[Data]] = field(default_factory=dict)
     wait_on: list[Task] = field(default_factory=list)
     config_rootdir: Path
     cycle_point: CyclePoint
@@ -88,6 +88,9 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     def input_data_nodes(self) -> Iterator[Data]:
         yield from chain(*self.inputs.values())
 
+    def output_data_nodes(self) -> Iterator[Data]:
+        yield from chain(*self.outputs.values())
+
     @classmethod
     def from_config(
         cls: type[Self],
@@ -103,7 +106,13 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
             if input_spec.port not in inputs:
                 inputs[input_spec.port] = []
             inputs[input_spec.port].extend(datastore.iter_from_cycle_spec(input_spec, coordinates))
-        outputs = [datastore[output_spec.name, coordinates] for output_spec in graph_spec.outputs]
+
+        outputs: dict[str | None, list[Data]] = {}
+        for output_spec in graph_spec.outputs:
+            if output_spec.port not in outputs:
+                outputs[output_spec.port] = []
+            outputs[output_spec.port].append(datastore[output_spec.name, coordinates])
+
         if (plugin_cls := Task.plugin_classes.get(type(config).plugin, None)) is None:
             msg = f"Plugin {type(config).plugin!r} is not supported."
             raise ValueError(msg)
