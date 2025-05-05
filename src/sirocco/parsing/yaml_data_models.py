@@ -280,7 +280,7 @@ class ConfigShellTaskSpecs:
     plugin: ClassVar[Literal["shell"]] = "shell"
     port_pattern: ClassVar[re.Pattern] = field(default=re.compile(r"{PORT(\[sep=.+\])?::(.+?)}"), repr=False)
     sep_pattern: ClassVar[re.Pattern] = field(default=re.compile(r"\[sep=(.+)\]"), repr=False)
-    src: str | None = None
+    src: Path | None = None
     command: str
     env_source_files: list[str] = field(default_factory=list)
 
@@ -372,7 +372,7 @@ class ConfigShellTask(ConfigBaseTask, ConfigShellTaskSpecs):
 
 
 @dataclass(kw_only=True)
-class NamelistSpec:
+class ConfigNamelistSpec:
     """Class for namelist specifications
 
     - path is the path to the namelist file considered as template
@@ -390,10 +390,9 @@ class NamelistSpec:
     """
 
     path: Path
-    specs: dict[str, Any] = field(default_factory=dict)
 
 
-class ConfigNamelist(BaseModel, NamelistSpec):
+class ConfigNamelist(BaseModel, ConfigNamelistSpec):
     """
     Validated namelist specifications.
 
@@ -418,8 +417,7 @@ class ConfigNamelist(BaseModel, NamelistSpec):
         >>> no_spec = ConfigNamelist(path="/path/to/some.nml")
         >>> no_spec_yml = validate_yaml_content(ConfigNamelist, "/path/to/some.nml")
     """
-
-    specs: dict[str, Any] = {}
+    specs: dict[str, Any] = field(default_factory=dict)
 
     @model_validator(mode="before")
     @classmethod
@@ -432,11 +430,9 @@ class ConfigNamelist(BaseModel, NamelistSpec):
         path = merged.pop("path")
         return {"path": path, "specs": merged or {}}
 
-
 @dataclass(kw_only=True)
 class ConfigIconTaskSpecs:
     plugin: ClassVar[Literal["icon"]] = "icon"
-    namelists: dict[str, NamelistSpec]
 
 
 class ConfigIconTask(ConfigBaseTask):
@@ -483,7 +479,7 @@ class DataType(enum.StrEnum):
 @dataclass(kw_only=True)
 class ConfigBaseDataSpecs:
     type: DataType
-    src: str
+    src: Path # TODO also in ConfigShellTaskSpecs but not None, maybe we can merge? I also don't see why its there None
     format: str | None = None
     computer: str | None = None
 

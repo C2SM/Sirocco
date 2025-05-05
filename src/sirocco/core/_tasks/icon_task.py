@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any, Self
+from dataclasses import InitVar, dataclass
+from typing import TYPE_CHECKING, Any, ClassVar, Self
 
 import f90nml
 
@@ -11,71 +10,56 @@ from sirocco.core.graph_items import Task
 from sirocco.parsing import yaml_data_models as models
 from sirocco.parsing.cycling import DateCyclePoint
 
+if TYPE_CHECKING:
+    import pathlib
+
 
 @dataclass(kw_only=True)
-class IconTask(models.ConfigIconTaskSpecs, Task):
-    core_namelists: dict[str, f90nml.Namelist] = field(default_factory=dict)
+class Namelist(models.ConfigNamelistSpec):
+    path: InitVar[pathlib.Path]
 
-    def init_core_namelists(self):
-        """Read in or create namelists"""
-        self.core_namelists = {}
-        for name, cfg_nml in self.namelists.items():
-            if (nml_path := self.config_rootdir / cfg_nml.path).exists():
-                self.core_namelists[name] = f90nml.read(nml_path)
-            else:
-                # If namelist does not exist, build it from the users given specs
-                self.core_namelists[name] = f90nml.Namelist()
+    def __post_init__(self, path: pathlib.Path):
+        self.update_from_path(path)
 
-    def update_core_namelists_from_config(self):
-        """Update the core namelists from namelists provided by the user in the config yaml file."""
+    @property
+    def content(self) -> f90nml.Namelist:
+        return self._content
 
-        # TODO: implement format for users to reference parameters and date in their specs
-        for name, cfg_nml in self.namelists.items():
-            core_nml = self.core_namelists[name]
-            if cfg_nml.specs is None:
-                continue
-            for section, params in cfg_nml.specs.items():
-                section_name, k = self.section_index(section)
-                # Create section if non-existent
-                if section_name not in core_nml:
-                    # NOTE: f90nml will automatially create the corresponding nested f90nml.Namelist
-                    #       objects, no need to explicitly use the f90nml.Namelist class constructor
-                    core_nml[section_name] = {} if k is None else [{}]
-                # Update namelist with user input
-                # NOTE: unlike FORTRAN convention, user index starts at 0 as in Python
-                if k == len(core_nml[section_name]) + 1:
-                    # Create additional section if required
-                    core_nml[section_name][k] = f90nml.Namelist()
-                nml_section = core_nml[section_name] if k is None else core_nml[section_name][k]
-                nml_section.update(params)
+    @property # type: ignore[no-redef]
+    def path(self) -> pathlib.Path: # type: ignore[override]
+        return self._path
 
-    def update_core_namelists_from_workflow(self):
-        if not isinstance(self.cycle_point, DateCyclePoint):
-            msg = "ICON task must have a DateCyclePoint"
-            raise TypeError(msg)
-        self.core_namelists["icon_master.namelist"]["master_time_control_nml"].update(
-            {
-                "experimentStartDate": self.cycle_point.start_date.isoformat() + "Z",
-                "experimentStopDate": self.cycle_point.stop_date.isoformat() + "Z",
-            }
-        )
-        self.core_namelists["icon_master.namelist"]["master_nml"]["lrestart"] = bool(self.inputs["restart"])
+    @property
+    def name(self) -> str:
+        return self._path.name
 
-    def dump_core_namelists(self, folder: str | Path | None = None):
-        if folder is not None:
-            folder = Path(folder)
-            folder.mkdir(parents=True, exist_ok=True)
-        for name, cfg_nml in self.namelists.items():
-            if folder is None:
-                folder = (self.config_rootdir / cfg_nml.path).parent
-            suffix = ("_".join([str(p) for p in self.coordinates.values()])).replace(" ", "_")
-            self.core_namelists[name].write(folder / (name + "_" + suffix), force=True)
+    def update_from_path(self, path: pathlib.Path) -> None:
+        """Updates the internal content from a namelist in path."""
+        self._content = f90nml.read(path)
+        self._path = path
 
-    def create_workflow_namelists(self, folder=None):
-        self.init_core_namelists()
-        self.update_core_namelists_from_config()
-        self.update_core_namelists_from_workflow()
-        self.dump_core_namelists(folder=folder)
+    def update_from_specs(self, specs: dict[str, Any]) -> None:
+        """Updates the internal content from the specs."""
+        for section, params in specs.items():
+            section_name, k = self.section_index(section)
+            # Create section if non-existent
+            if section_name not in self.content:
+                # NOTE: f90nml will automatially create the corresponding nested f90nml.Namelist
+                #       objects, no need to explicitly use the f90nml.Namelist class constructor
+                self.content[section_name] = {} if k is None else [{}]
+            # Update namelist with user input
+            # NOTE: unlike FORTRAN convention, user index starts at 0 as in Python
+            if k == len(self.content[section_name]) + 1:
+                # Create additional section if required
+                self.content[section_name][k] = f90nml.Namelist()
+            nml_section = self.content[section_name] if k is None else self.content[section_name][k]
+            nml_section.update(params)
+
+    def dump_content(self, path: pathlib.Path):
+        import io
+        with io.StringIO() as buffer:
+            self.content.write(buffer)
+            path.write_text(buffer.getvalue())
 
     @staticmethod
     def section_index(section_name) -> tuple[str, int | None]:
@@ -95,6 +79,87 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             return m.group(1), int(m.group(2)) - 1
         return section_name, None
 
+@dataclass(kw_only=True)
+class IconTask(models.ConfigIconTaskSpecs, Task):
+    _MASTER_NAMELIST_NAME: ClassVar[str] = "icon_master.namelist"
+    _AIIDA_ICON_RESTART_FILE_PORT_NAME: ClassVar[str] = "restart_file"
+    namelists: InitVar[list[Namelist]]
+
+    def __post_init__(self, namelists: list[Namelist]):
+        super().__post_init__()
+        self._namelists = namelists
+
+        index_master_namelist = None
+        for i, namelist in enumerate(self._namelists):
+            if namelist.name == self._MASTER_NAMELIST_NAME:
+                index_master_namelist = i
+        if index_master_namelist is None:
+            msg = f"Failed to read master namelists. Could not find {self._MASTER_NAMELIST_NAME!r} in namelists {self._namelists}"
+            raise ValueError(msg)
+        self._index_master_namelist = index_master_namelist
+
+        # TODO check with Matthieu if only way to specify model namelist, then make them ClassVar
+        if (master_model_nml := self.master_namelist.content.get("master_model_nml", None)) is None:
+            msg = "No model filename specified in master namelist. Could not find section '&master_model_nml'"
+            raise ValueError(msg)
+        if (model_namelist_filename := master_model_nml.get("model_namelist_filename")) is None:
+            msg = "No model filename specified in master namelist. Could not find entry 'model_namelist_filename' under section '&master_model_nml'"
+            raise ValueError(msg)
+
+        index_model_namelist = None
+        for i, namelist in enumerate(self._namelists):
+            if namelist.name == model_namelist_filename:
+                index_model_namelist = i
+        if index_model_namelist is None:
+            msg = f"Failed to read model namelist. Could not find {model_namelist_filename!r} in namelists {self._namelists}"
+            raise ValueError(msg)
+        self._index_model_namelist = index_model_namelist
+
+    @property # type: ignore[no-redef]
+    def namelists(self) -> list[Namelist]: # type: ignore[override]
+        return self._namelists
+
+    @property
+    def master_namelist(self) -> Namelist:
+        return self._namelists[self._index_master_namelist]
+
+    @property
+    def model_namelist(self) -> Namelist:
+        return self._namelists[self._index_model_namelist]
+
+    @property
+    def is_restart(self) -> bool:
+        """Check if the icon task starts from the restart file."""
+        return self._AIIDA_ICON_RESTART_FILE_PORT_NAME in self.inputs
+
+    def update_namelists_from_workflow(self):
+        if not isinstance(self.cycle_point, DateCyclePoint):
+            msg = "ICON task must have a DateCyclePoint"
+            raise TypeError(msg)
+        self.master_namelist.update_from_specs({
+            "master_time_control_nml": {
+                    "experimentStartDate": self.cycle_point.start_date.isoformat() + "Z",
+                    "experimentStopDate": self.cycle_point.stop_date.isoformat() + "Z",
+            },
+            'master_nml': {
+                "lrestart": self.is_restart,
+                "read_restart_namelists": self.is_restart
+            }
+        })
+
+    def dump_namelists(self, path: pathlib.Path):
+        if not path.exists():
+            msg = f"Dumping path {path} does not exist."
+            raise OSError(msg)
+        if not path.is_dir():
+            msg = f"Dumping path {path} is not directory."
+            raise OSError(msg)
+
+        for namelist in self._namelists:
+            suffix = ("_".join([str(p) for p in self.coordinates.values()])).replace(" ", "_")
+            filename = namelist.name + "_" + suffix
+            namelist.dump_content(path / filename)
+
     @classmethod
     def build_from_config(cls: type[Self], config: models.ConfigTask, **kwargs: Any) -> Self:
         config_kwargs = dict(config)
@@ -104,9 +169,27 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         # We guarantee elsewhere this is called with the correct type at runtime
         if not isinstance(config, models.ConfigIconTask):
             raise TypeError
-        config_kwargs["namelists"] = {
-            nml.path.name: models.NamelistSpec(**nml.model_dump()) for nml in config.namelists
-        }
+
+        def validate_config_namelist_path(config_namelist_path: pathlib.Path, rootdir: pathlib.Path) -> pathlib.Path:
+            namelist_path =  rootdir / config_namelist_path if config_namelist_path.is_relative_to(".") else config_namelist_path
+            if not namelist_path.exists():
+                msg = f"Namelist in path {namelist_path} does not exist."
+                raise FileNotFoundError(msg)
+            if not namelist_path.is_file():
+                msg = f"Namelist in path {namelist_path} is not a file."
+                raise OSError(msg)
+            return namelist_path
+
+
+        config_rootdir = kwargs['config_rootdir'] # TODO need to make config rootdir readonly otherwise a change affects all classes
+        namelists = []
+        for config_namelist in config_kwargs['namelists']:
+            namelist_path = validate_config_namelist_path(config_namelist.path, config_rootdir)
+            namelist = Namelist(path=namelist_path)
+            namelist.update_from_specs(config_namelist.specs)
+            namelists.append(namelist)
+        config_kwargs['namelists'] = namelists
+
         return cls(
             **kwargs,
             **config_kwargs,

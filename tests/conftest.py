@@ -101,7 +101,7 @@ def serialize_nml(config_paths: dict[str, pathlib.Path], workflow: workflow.Work
     nml_refdir = config_paths["txt"].parent / "ICON_namelists"
     for task in workflow.tasks:
         if isinstance(task, core_tasks.icon_task.IconTask):
-            task.create_workflow_namelists(folder=nml_refdir)
+            task.dump_namelists(path=nml_refdir)
 
 
 def pytest_configure(config):

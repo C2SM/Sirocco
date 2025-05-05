@@ -87,6 +87,9 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
             raise ValueError(msg)
         Task.plugin_classes[cls.plugin] = cls
 
+    def __post_init__(self):
+        pass
+
     def input_data_nodes(self) -> Iterator[Data]:
         yield from chain(*self.inputs.values())
 
