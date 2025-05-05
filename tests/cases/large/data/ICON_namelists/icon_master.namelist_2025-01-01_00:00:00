@@ -5,10 +5,10 @@
 
 &master_time_control_nml
     calendar = 'proleptic gregorian'
-    experimentstartdate = '2025-01-01T00:00:00Z'
+    experimentstartdate = '2000-01-01T00:00:00Z'
     restarttimeintval = 'PT1M'
     checkpointtimeintval = 'PT1M'
-    experimentstopdate = '2027-01-01T00:00:00Z'
+    experimentstopdate = '2000-01-01T00:02:00Z'
 /
 
 &time_nml

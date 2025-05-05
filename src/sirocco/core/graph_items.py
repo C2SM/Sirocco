@@ -78,6 +78,9 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
 
     _wait_on_specs: list[ConfigCycleTaskWaitOn] = field(default_factory=list, repr=False)
 
+    def __post_init__(self):
+        pass
+
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         if cls.plugin in Task.plugin_classes:

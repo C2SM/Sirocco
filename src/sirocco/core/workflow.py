@@ -35,7 +35,7 @@ class Workflow:
         parameters: dict[str, list],
     ) -> None:
         self.name: str = name
-        self.config_rootdir: Path = config_rootdir
+        self._config_rootdir: Path = config_rootdir
 
         self.tasks: Store[Task] = Store()
         self.data: Store[Data] = Store()
@@ -78,7 +78,7 @@ class Workflow:
                     for coordinates in iter_coordinates(cycle_point, task_config.parameters):
                         task = Task.from_config(
                             config=task_config,
-                            config_rootdir=self.config_rootdir,
+                            config_rootdir=self._config_rootdir,
                             cycle_point=cycle_point,
                             coordinates=coordinates,
                             datastore=self.data,
@@ -99,6 +99,10 @@ class Workflow:
         # 4 - Link wait on tasks
         for task in self.tasks:
             task.link_wait_on_tasks(self.tasks)
+
+    @property
+    def config_rootdir(self) -> Path:
+        return self._config_rootdir
 
     @classmethod
     def from_config_file(cls: type[Self], config_path: str) -> Self:

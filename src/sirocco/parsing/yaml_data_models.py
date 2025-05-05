@@ -281,7 +281,7 @@ class ConfigShellTaskSpecs:
     plugin: ClassVar[Literal["shell"]] = "shell"
     port_pattern: ClassVar[re.Pattern] = field(default=re.compile(r"{PORT(\[sep=.+\])?::(.+?)}"), repr=False)
     sep_pattern: ClassVar[re.Pattern] = field(default=re.compile(r"\[sep=(.+)\]"), repr=False)
-    src: str | None = None
+    src: Path | None = None
     command: str
     env_source_files: list[str] = field(default_factory=list)
 
@@ -373,7 +373,7 @@ class ConfigShellTask(ConfigBaseTask, ConfigShellTaskSpecs):
 
 
 @dataclass(kw_only=True)
-class NamelistSpec:
+class ConfigNamelistSpec:
     """Class for namelist specifications
 
     - path is the path to the namelist file considered as template
@@ -383,18 +383,13 @@ class NamelistSpec:
     Example:
 
         >>> path = "/some/path/to/icon.nml"
-        >>> specs = {
-        ...     "first_nml_block": {"first_param": "a string value", "second_param": 0},
-        ...     "second_nml_block": {"third_param": False},
-        ... }
-        >>> nml_info = NamelistSpec(path=path, specs=specs)
+        >>> nml_info = ConfigNamelistSpec(path=Path(path))
     """
 
-    path: Path
-    specs: dict[str, Any] = field(default_factory=dict)
+    path: Path = field(repr=False)
 
 
-class ConfigNamelist(BaseModel, NamelistSpec):
+class ConfigNamelist(BaseModel, ConfigNamelistSpec):
     """
     Validated namelist specifications.
 
@@ -420,7 +415,7 @@ class ConfigNamelist(BaseModel, NamelistSpec):
         >>> no_spec_yml = validate_yaml_content(ConfigNamelist, "/path/to/some.nml")
     """
 
-    specs: dict[str, Any] = {}
+    specs: dict[str, Any] = field(default_factory=dict)
 
     @model_validator(mode="before")
     @classmethod
@@ -437,7 +432,6 @@ class ConfigNamelist(BaseModel, NamelistSpec):
 @dataclass(kw_only=True)
 class ConfigIconTaskSpecs:
     plugin: ClassVar[Literal["icon"]] = "icon"
-    namelists: dict[str, NamelistSpec]
 
 
 class ConfigIconTask(ConfigBaseTask):
@@ -484,7 +478,7 @@ class DataType(enum.StrEnum):
 @dataclass(kw_only=True)
 class ConfigBaseDataSpecs:
     type: DataType
-    src: str
+    src: Path
     format: str | None = None
     computer: str | None = None
 
@@ -506,13 +500,13 @@ class ConfigBaseData(_NamedBaseModel, ConfigBaseDataSpecs):
             ...     '''
             ... )
             >>> validate_yaml_content(ConfigBaseData, snippet)
-            ConfigBaseData(type=<DataType.FILE: 'file'>, src='foo.txt', format=None, computer=None, name='foo', parameters=[])
+            ConfigBaseData(type=<DataType.FILE: 'file'>, src=PosixPath('foo.txt'), format=None, computer=None, name='foo', parameters=[])
 
 
         from python:
 
             >>> ConfigBaseData(name="foo", type=DataType.FILE, src="foo.txt")
-            ConfigBaseData(type=<DataType.FILE: 'file'>, src='foo.txt', format=None, computer=None, name='foo', parameters=[])
+            ConfigBaseData(type=<DataType.FILE: 'file'>, src=PosixPath('foo.txt'), format=None, computer=None, name='foo', parameters=[])
     """
 
     parameters: list[str] = []
