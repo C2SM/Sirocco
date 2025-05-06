@@ -56,7 +56,11 @@ class Workflow:
         # 1 - create availalbe data nodes
         for available_data_config in config_data.available:
             for coordinates in iter_coordinates(OneOffPoint(), available_data_config.parameters):
-                self.data.add(Data.from_config(config=available_data_config, coordinates=coordinates))
+                self.data.add(
+                    Data.from_config(
+                        config=available_data_config, config_rootdir=config_rootdir, coordinates=coordinates
+                    )
+                )
 
         # 2 - create output data nodes
         for cycle_config in config_cycles:
@@ -65,7 +69,11 @@ class Workflow:
                     for data_ref in task_ref.outputs:
                         data_config = config_data_dict[data_ref.name]
                         for coordinates in iter_coordinates(cycle_point, data_config.parameters):
-                            self.data.add(Data.from_config(config=data_config, coordinates=coordinates))
+                            self.data.add(
+                                Data.from_config(
+                                    config=data_config, config_rootdir=config_rootdir, coordinates=coordinates
+                                )
+                            )
 
         # 3 - create cycles and tasks
         for cycle_config in config_cycles:

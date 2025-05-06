@@ -1,0 +1,69 @@
+cycles:
+  - bimonthly_tasks [date: 2026-01-01 00:00:00]:
+      tasks:
+        - icon [date: 2026-01-01 00:00:00]:
+            input:
+              - ecrad_data
+              - ECHAM6_CldOptProps
+              - rrtmg_sw
+              - icon_grid_simple
+              - dmin_wetgrowth_lookup
+            output:
+              - finish [date: 2026-01-01 00:00:00]
+              - restart [date: 2026-01-01 00:00:00]
+            name: 'icon'
+            coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
+            computer: 'localhost'
+            cycle point: [2026-01-01 00:00:00 -- 2026-03-01 00:00:00]
+            plugin: 'icon'
+            namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='model.namelist')]
+  - bimonthly_tasks [date: 2026-03-01 00:00:00]:
+      tasks:
+        - icon [date: 2026-03-01 00:00:00]:
+            input:
+              - ecrad_data
+              - ECHAM6_CldOptProps
+              - rrtmg_sw
+              - icon_grid_simple
+              - dmin_wetgrowth_lookup
+              - restart [date: 2026-01-01 00:00:00]
+            output:
+              - finish [date: 2026-03-01 00:00:00]
+              - restart [date: 2026-03-01 00:00:00]
+            name: 'icon'
+            coordinates: {'date': datetime.datetime(2026, 3, 1, 0, 0)}
+            computer: 'localhost'
+            cycle point: [2026-03-01 00:00:00 -- 2026-05-01 00:00:00]
+            plugin: 'icon'
+            namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='model.namelist')]
+  - bimonthly_tasks [date: 2026-05-01 00:00:00]:
+      tasks:
+        - icon [date: 2026-05-01 00:00:00]:
+            input:
+              - ecrad_data
+              - ECHAM6_CldOptProps
+              - rrtmg_sw
+              - icon_grid_simple
+              - dmin_wetgrowth_lookup
+              - restart [date: 2026-03-01 00:00:00]
+            output:
+              - finish [date: 2026-05-01 00:00:00]
+              - restart [date: 2026-05-01 00:00:00]
+            name: 'icon'
+            coordinates: {'date': datetime.datetime(2026, 5, 1, 0, 0)}
+            computer: 'localhost'
+            cycle point: [2026-05-01 00:00:00 -- 2026-06-01 00:00:00]
+            plugin: 'icon'
+            namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='model.namelist')]
+  - lastly:
+      tasks:
+        - cleanup:
+            wait on:
+              - icon [date: 2026-05-01 00:00:00]
+            name: 'cleanup'
+            coordinates: {}
+            cycle point: []
+            plugin: 'shell'
+            src: scripts/cleanup.py
+            command: 'cleanup.py'
+            env source files: []

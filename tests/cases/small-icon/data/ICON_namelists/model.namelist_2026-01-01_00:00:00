@@ -1,0 +1,26 @@
+&run_nml
+    dtime = 1209600
+/
+
+&grid_nml
+    dynamics_grid_filename = 'icon_grid_simple.nc'
+/
+
+&radiation_nml
+    ecrad_data_path = './ecrad_data'
+/
+
+&io_nml
+    write_last_restart = .true.
+    restart_write_mode = 'joint procs multifile'
+/
+
+&output_nml
+    output_filename = './simple_icon_run_atm_2d/'
+    steps_per_file = 1
+/
+
+&output_nml
+    output_filename = './simple_icon_run_atm_3d_pl/'
+    steps_per_file = 1
+/

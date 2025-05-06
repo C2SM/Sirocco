@@ -1,0 +1,63 @@
+cycles:
+  - bimonthly_tasks [date: 2026-01-01 00:00:00]:
+      tasks:
+        - icon [date: 2026-01-01 00:00:00]:
+            input:
+              - icon_namelist
+              - initial_conditions
+            output:
+              - icon_output [date: 2026-01-01 00:00:00]
+              - icon_restart [date: 2026-01-01 00:00:00]
+            name: 'icon'
+            coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
+            start date: 2026-01-01 00:00:00
+            end date: 2026-06-01 00:00:00
+            plugin: 'shell'
+            command: 'scripts/icon.py'
+            cli arguments: '{--restart icon_restart} {--init initial_conditions} {icon_namelist}'
+            env source files: []
+  - bimonthly_tasks [date: 2026-03-01 00:00:00]:
+      tasks:
+        - icon [date: 2026-03-01 00:00:00]:
+            input:
+              - icon_namelist
+              - icon_restart [date: 2026-01-01 00:00:00]
+            output:
+              - icon_output [date: 2026-03-01 00:00:00]
+              - icon_restart [date: 2026-03-01 00:00:00]
+            name: 'icon'
+            coordinates: {'date': datetime.datetime(2026, 3, 1, 0, 0)}
+            start date: 2026-01-01 00:00:00
+            end date: 2026-06-01 00:00:00
+            plugin: 'shell'
+            command: 'scripts/icon.py'
+            cli arguments: '{--restart icon_restart} {--init initial_conditions} {icon_namelist}'
+            env source files: []
+  - bimonthly_tasks [date: 2026-05-01 00:00:00]:
+      tasks:
+        - icon [date: 2026-05-01 00:00:00]:
+            input:
+              - icon_namelist
+              - icon_restart [date: 2026-03-01 00:00:00]
+            output:
+              - icon_output [date: 2026-05-01 00:00:00]
+              - icon_restart [date: 2026-05-01 00:00:00]
+            name: 'icon'
+            coordinates: {'date': datetime.datetime(2026, 5, 1, 0, 0)}
+            start date: 2026-01-01 00:00:00
+            end date: 2026-06-01 00:00:00
+            plugin: 'shell'
+            command: 'scripts/icon.py'
+            cli arguments: '{--restart icon_restart} {--init initial_conditions} {icon_namelist}'
+            env source files: []
+  - lastly:
+      tasks:
+        - cleanup:
+            wait on:
+              - icon [date: 2026-05-01 00:00:00]
+            name: 'cleanup'
+            coordinates: {}
+            plugin: 'shell'
+            command: 'scripts/cleanup.py'
+            cli arguments: ''
+            env source files: []

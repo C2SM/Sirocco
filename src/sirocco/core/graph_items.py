@@ -45,22 +45,60 @@ class Data(ConfigBaseDataSpecs, GraphItem):
     color: ClassVar[str] = field(default="light_blue", repr=False)
 
     @classmethod
-    def from_config(cls, config: ConfigBaseData, coordinates: dict) -> AvailableData | GeneratedData:
+    def from_config(
+        cls, config: ConfigBaseData, config_rootdir: Path, coordinates: dict
+    ) -> AvailableData | GeneratedData:
         data_class = AvailableData if isinstance(config, ConfigAvailableData) else GeneratedData
-        return data_class(
-            name=config.name,
-            type=config.type,
-            src=config.src,
+
+        return data_class.from_config(
+            config=config,
+            config_rootdir=config_rootdir,
             coordinates=coordinates,
         )
 
 
 class AvailableData(Data):
-    pass
+    src: Path
+
+    @classmethod
+    def from_config(cls, config: ConfigBaseData, config_rootdir: Path, coordinates: dict) -> Self:
+        src = cls._validate_src(config.name, config.src, config_rootdir)
+        return cls(
+            name=config.name,
+            computer=config.computer,
+            type=config.type,
+            src=src,
+            coordinates=coordinates,
+        )
+
+    @staticmethod
+    def _validate_src(name: str, config_src: Path | None, config_rootdir: Path | None = None) -> Path | None:
+        if config_src is None:
+            return None
+        if config_rootdir is None and not config_src.is_absolute():
+            msg = f"Cannot specify relative path {config_src} for namelist while the rootdir is None"
+            raise ValueError(msg)
+
+        src = config_src if config_rootdir is None else (config_rootdir / config_src)
+        if not src.exists():
+            msg = f"Data {name} in path {src} does not exist."
+            raise FileNotFoundError(msg)
+        if not src.is_file():
+            msg = f"Data {name} in path {src} is not a file."
+            raise OSError(msg)
+        return src
 
 
 class GeneratedData(Data):
-    pass
+    @classmethod
+    def from_config(cls, config: ConfigBaseData, config_rootdir: Path, coordinates: dict) -> Self:  # noqa: ARG003 # we need to keep same signature as for AvailableData
+        return cls(
+            name=config.name,
+            computer=config.computer,
+            type=config.type,
+            src=config.src,
+            coordinates=coordinates,
+        )
 
 
 @dataclass(kw_only=True)
@@ -91,8 +129,14 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     def input_data_nodes(self) -> Iterator[Data]:
         yield from chain(*self.inputs.values())
 
+    def input_data_items(self) -> Iterator[tuple[str, Data]]:
+        yield from ((key, value) for key, values in self.inputs.items() for value in values)
+
     def output_data_nodes(self) -> Iterator[Data]:
         yield from chain(*self.outputs.values())
+
+    def output_data_items(self) -> Iterator[tuple[str | None, Data]]:
+        yield from ((key, value) for key, values in self.outputs.items() for value in values)
 
     @classmethod
     def from_config(

@@ -22,7 +22,6 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
 
     def __post_init__(self):
         super().__post_init__()
-
         # detect master namelist
         master_namelist = None
         for namelist in self.namelists:
@@ -33,6 +32,7 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             msg = f"Failed to read master namelists. Could not find {self._MASTER_NAMELIST_NAME!r} in namelists {self.namelists}"
             raise ValueError(msg)
         self._master_namelist = master_namelist
+        self.src = self._validate_src(self.src, self.config_rootdir)
 
         # retrieve model namelist name from master namelist
         if (master_model_nml := self._master_namelist.namelist.get(self._MASTER_MODEL_NML_SECTION, None)) is None:
@@ -64,7 +64,8 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
     @property
     def is_restart(self) -> bool:
         """Check if the icon task starts from the restart file."""
-        return self._AIIDA_ICON_RESTART_FILE_PORT_NAME in self.inputs
+        # restart port must be present and nonempty
+        return bool(self.inputs.get(self._AIIDA_ICON_RESTART_FILE_PORT_NAME, None))
 
     def update_icon_namelists_from_workflow(self):
         if not isinstance(self.cycle_point, DateCyclePoint):
@@ -115,3 +116,18 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         )
         self.update_icon_namelists_from_workflow()
         return self
+
+    @staticmethod
+    def _validate_src(config_src: Path, config_rootdir: Path | None = None) -> Path:
+        if config_rootdir is None and not config_src.is_absolute():
+            msg = f"Cannot specify relative path {config_src} for namelist while the rootdir is None"
+            raise ValueError(msg)
+
+        src = config_src if config_rootdir is None else (config_rootdir / config_src)
+        if not src.exists():
+            msg = f"Icon executable in path {src} does not exist."
+            raise FileNotFoundError(msg)
+        if not src.is_file():
+            msg = f"Icon executable in path {src} is not a file."
+            raise OSError(msg)
+        return src

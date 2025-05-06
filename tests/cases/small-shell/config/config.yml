@@ -50,7 +50,7 @@ data:
          src: data/input
      - initial_conditions:
          type: file
-         computer: localhost
+         #computer: localhost # TODO requires fix from PR #136
          src: data/initial_conditions
   generated:
      - icon_output:

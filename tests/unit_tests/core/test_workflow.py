@@ -12,7 +12,7 @@ def test_minimal_workflow(minimal_config):
 
     assert len(list(testee.tasks)) == 1
     assert len(list(testee.cycles)) == 1
-    assert isinstance(testee.data[("foo", {})], AvailableData)
+    assert isinstance(testee.data[("available", {})], AvailableData)
     assert testee.config_rootdir == minimal_config.rootdir
 
 

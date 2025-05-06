@@ -24,7 +24,7 @@ def test_vizgraph(config_paths):
 
 
 @pytest.mark.requires_icon
-@pytest.mark.usefixtures("icon_filepath_executable", "icon_grid_simple_path")
+@pytest.mark.usefixtures("icon_filepath_executable", "icon_grid_path")
 def test_icon():
     # Test is performed by fixtures
     pass
@@ -32,22 +32,20 @@ def test_icon():
 
 # configs that are tested for running workgraph
 @pytest.mark.slow
+@pytest.mark.usefixtures("config_case", "aiida_localhost")
 @pytest.mark.parametrize(
     "config_case",
     [
-        "small",
+        "small-shell",
         "parameters",
     ],
 )
-def test_run_workgraph(config_case, config_paths, aiida_computer):  # noqa: ARG001  # config_case is overridden
+def test_run_workgraph(config_paths):
     """Tests end-to-end the parsing from file up to running the workgraph.
 
     Automatically uses the aiida_profile fixture to create a new profile. Note to debug the test with your profile
     please run this in a separate file as the profile is deleted after test finishes.
     """
-    # some configs reference computer "localhost" which we need to create beforehand
-    aiida_computer("localhost").store()
-
     core_workflow = Workflow.from_config_file(str(config_paths["yml"]))
     aiida_workflow = AiidaWorkGraph(core_workflow)
     output_node = aiida_workflow.run()
@@ -56,12 +54,45 @@ def test_run_workgraph(config_case, config_paths, aiida_computer):  # noqa: ARG0
     ), f"Not successful run. Got exit code {output_node.exit_code} with message {output_node.exit_message}."
 
 
+@pytest.mark.requires_icon
+@pytest.mark.usefixtures("config_case", "aiida_localhost")
+@pytest.mark.parametrize(
+    "config_case",
+    [
+        "small-icon",
+    ],
+)
+def test_run_workgraph_with_icon(icon_filepath_executable, config_paths, tmp_path):
+    """Tests end-to-end the parsing from file up to running the workgraph.
+
+    Automatically uses the aiida_profile fixture to create a new profile. Note to debug the test with your profile
+    please run this in a separate file as the profile is deleted after test finishes.
+    """
+    config_rootdir = config_paths["yml"].parent.absolute()
+    tmp_config_rootdir = tmp_path / config_rootdir.name
+    tmp_config_rootdir.symlink_to(config_rootdir)
+
+    # we link the icon executable to the test case path
+    tmp_icon_bin_path = tmp_config_rootdir / "./ICON/bin/icon"
+    if tmp_icon_bin_path.exists():
+        tmp_icon_bin_path.unlink()
+    tmp_icon_bin_path.symlink_to(Path(icon_filepath_executable))
+
+    core_workflow = Workflow.from_config_file(tmp_config_rootdir / config_paths["yml"].name)
+    aiida_workflow = AiidaWorkGraph(core_workflow)
+    output_node = aiida_workflow.run()
+    assert (
+        output_node.is_finished_ok
+    ), f"Not successful run. Got exit code {output_node.exit_code} with message {output_node.exit_message}."
+
+
 # configs containing task using icon plugin
+@pytest.mark.usefixtures("config_case")
 @pytest.mark.parametrize(
     "config_case",
     ["large"],
 )
-def test_nml_mod(config_case, config_paths, tmp_path):  # noqa: ARG001  # config_case is overridden
+def test_nml_mod(config_paths, tmp_path):
     nml_refdir = config_paths["txt"].parent / "ICON_namelists"
     wf = Workflow.from_config_file(config_paths["yml"])
     # Create core mamelists
