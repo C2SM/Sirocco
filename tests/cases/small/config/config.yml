@@ -10,20 +10,25 @@ cycles:
       tasks:
         - icon:
             inputs:
-              - icon_namelist:
-                  port: UNUSED
-              - initial_conditions:
-                  when:
-                    at: *root_start_date
-                  port:
-                    init
-              - icon_restart:
+              - ECHAM6_CldOptProps:
+                  port: cloud_opt_props # aiida-icon port
+              - rrtmg_sw:
+                  port: rrtmg_sw # aiida-icon port
+              - icon_grid_simple:
+                  port: dynamics_grid_file
+              - dmin_wetgrowth_lookup:
+                  port: dmin_wetgrowth_lookup # aiida-icon port
+              - restart:
                   when:
                     after: *root_start_date
                   target_cycle:
                     lag: -P2M
-                  port: restart
-            outputs: [icon_output, icon_restart]
+                  port: restart_file
+            outputs:
+              - finish:
+                  port: finish_status
+              - restart:
+                  port: restart_file
   - lastly:
       tasks:
         - cleanup:
@@ -33,11 +38,12 @@ cycles:
                     date: 2026-05-01T00:00
 tasks:
   - icon:
+      plugin: icon
+      src: ./ICON/bin/icon
       computer: localhost
-      plugin: shell
-      src: scripts/icon.py
-      command: "icon.py --restart {PORT::restart} --init {PORT::init}"
-      env_source_files: data/dummy_source_file.sh
+      namelists:
+        - ./ICON/icon_master.namelist
+        - ./ICON/model.namelist
   - cleanup:
       computer: localhost
       plugin: shell
@@ -45,17 +51,24 @@ tasks:
       command: "cleanup.py"
 data:
   available:
-     - icon_namelist:
+     - icon_grid_simple:
          type: file
-         src: data/input
-     - initial_conditions:
-         type: file
+         src: ICON/icon_grid_simple.nc
          computer: localhost
-         src: data/initial_conditions
+     - ECHAM6_CldOptProps:
+         type: file
+         src: ICON/ECHAM6_CldOptProps.nc
+         computer: localhost
+     - rrtmg_sw:
+         type: file
+         src: ICON/rrtmg_sw.nc
+         computer: localhost
+     - dmin_wetgrowth_lookup:
+         type: file
+         src: ICON/dmin_wetgrowth_lookup.nc
+         computer: localhost
   generated:
-     - icon_output:
+     - finish:
          type: file
-         src: icon_output
-     - icon_restart:
+     - restart:
          type: file
-         src: restart

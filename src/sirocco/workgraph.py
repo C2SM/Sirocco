@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import functools
+import io
+import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeAlias
 
@@ -93,13 +95,13 @@ class AiidaWorkGraph:
         for task in self._core_workflow.tasks:
             self.create_task_node(task)
             # Create and link corresponding output sockets
-            for output in task.output_data_nodes():
-                self._link_output_node_to_task(task, output)
+            for port, output in task.output_data_items():
+                self._link_output_node_to_task(task, port, output)
 
         # link input nodes to workgraph tasks
         for task in self._core_workflow.tasks:
-            for input_ in task.input_data_nodes():
-                self._link_input_node_to_task(task, input_)
+            for port, input_ in task.input_data_items():
+                self._link_input_node_to_task(task, port, input_)
 
         # set shelljob arguments
         for task in self._core_workflow.tasks:
@@ -260,7 +262,53 @@ class AiidaWorkGraph:
 
         self._aiida_task_nodes[label] = workgraph_task
 
-    def _link_output_node_to_task(self, task: core.Task, output: core.Data):
+    @create_task_node.register
+    def _create_icon_task_node(self, task: core.IconTask):
+        IconCalculation = aiida.plugins.CalculationFactory('icon.icon')
+        task_label = self.get_aiida_label_from_graph_item(task)
+
+        try:
+            computer = aiida.orm.Computer.collection.get(label=task.computer)
+        except NotExistent:
+            raise ValueError(f"Could not find computer {task.computer!r} in AiiDA database. One needs to create and configure the computer before running a workflow.")
+
+
+        label_uuid = str(uuid.uuid4())
+        icon_code = aiida.orm.InstalledCode(
+            label=f"icon-{label_uuid}",
+            description="aiida_icon",
+            default_calc_job_plugin="icon.icon",
+            computer=computer,
+            filepath_executable=str(task.src),
+            with_mpi=True
+        ).store()
+
+        builder = IconCalculation.get_builder()
+        builder.code = icon_code
+
+        task.update_namelists_from_workflow() # updates datetime
+
+        with io.StringIO() as buffer:
+            task.master_namelist.content.write(buffer)
+            buffer.seek(0)
+            builder.master_namelist = aiida.orm.SinglefileData(buffer, task.master_namelist.name)
+
+        with io.StringIO() as buffer:
+            task.model_namelist.content.write(buffer)
+            buffer.seek(0)
+            builder.model_namelist = aiida.orm.SinglefileData(buffer, task.model_namelist.name)
+
+        self._aiida_task_nodes[task_label] = self._workgraph.add_task(builder)
+
+    @functools.singledispatchmethod
+    def _link_output_node_to_task(self, task: core.Task, port: str, output: core.Data):  # noqa: ARG002
+        """Dispatch linking input to task based on task type."""
+
+        msg = f"method not implemented for task type {type(task)}"
+        raise NotImplementedError(msg)
+
+    @_link_output_node_to_task.register
+    def _link_output_node_to_shell_task(self, task: core.ShellTask, _: str, output: core.Data):
         """Links the output to the workgraph task."""
 
         workgraph_task = self.task_from_core(task)
@@ -268,15 +316,22 @@ class AiidaWorkGraph:
         output_socket = workgraph_task.add_output("workgraph.any", str(output.src))
         self._aiida_socket_nodes[output_label] = output_socket
 
+    @_link_output_node_to_task.register
+    def _link_output_node_to_icon_task(self, task: core.IconTask, port: str, output: core.Data):
+        workgraph_task = self.task_from_core(task)
+        output_label = self.get_aiida_label_from_graph_item(output)
+        output_socket = workgraph_task.outputs._sockets.get(port)
+        self._aiida_socket_nodes[output_label] = output_socket
+
     @functools.singledispatchmethod
-    def _link_input_node_to_task(self, task: core.Task, input_: core.Data):  # noqa: ARG002
+    def _link_input_node_to_task(self, task: core.Task, port: str, input_: core.Data):  # noqa: ARG002
         """ "Dispatch linking input to task based on task type"""
 
         msg = f"method not implemented for task type {type(task)}"
         raise NotImplementedError(msg)
 
     @_link_input_node_to_task.register
-    def _link_input_node_to_shelltask(self, task: core.ShellTask, input_: core.Data):
+    def _link_input_node_to_shell_task(self, task: core.ShellTask, _: str, input_: core.Data):
         """Links the input to the workgraph shell task."""
 
         workgraph_task = self.task_from_core(task)
@@ -292,6 +347,20 @@ class AiidaWorkGraph:
             socket.value = self.data_from_core(input_)
         elif isinstance(input_, core.GeneratedData):
             self._workgraph.add_link(self.socket_from_core(input_), workgraph_task.inputs[f"nodes.{input_label}"])
+        else:
+            raise TypeError
+
+    @_link_input_node_to_task.register
+    def _link_input_node_to_icon_task(self, task: core.IconTask, port: str, input_: core.Data):
+        """Links the input to the workgraph shell task."""
+
+        workgraph_task = self.task_from_core(task)
+
+        # resolve data
+        if isinstance(input_, core.AvailableData):
+            setattr(workgraph_task.inputs, f"{port}", self.data_from_core(input_))
+        elif isinstance(input_, core.GeneratedData):
+            setattr(workgraph_task.inputs, f"{port}", self.socket_from_core(input_))
         else:
             raise TypeError
 

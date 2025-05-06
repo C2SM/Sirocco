@@ -5,16 +5,13 @@
 &master_time_control_nml
  calendar             = 'proleptic gregorian'
  experimentStartDate  = '2000-01-01T00:00:00Z'
- restartTimeIntval    = 'PT1M'
- checkpointTimeIntval = 'PT1M'
- experimentStopDate = '2000-01-01T00:02:00Z'
-/
-&time_nml
- is_relative_time     = .false.
+ experimentStopDate = '2000-01-01T02:00:00Z'
+ restartTimeIntval    = 'PT1H'
+ checkpointTimeIntval = 'PT1H'
 /
 &master_model_nml
   model_name="atm"
-  model_namelist_filename="NAMELIST_exclaim_ape_R02B04"
+  model_namelist_filename="model.namelist"
   model_type=1
   model_min_rank=0
   model_max_rank=65535

@@ -433,9 +433,10 @@ class ConfigNamelist(BaseModel, ConfigNamelistSpec):
 @dataclass(kw_only=True)
 class ConfigIconTaskSpecs:
     plugin: ClassVar[Literal["icon"]] = "icon"
+    src: Path
 
 
-class ConfigIconTask(ConfigBaseTask):
+class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
     """Class representing an ICON task configuration from a workflow file
 
     Examples:
@@ -457,7 +458,6 @@ class ConfigIconTask(ConfigBaseTask):
         >>> icon_task_cfg = validate_yaml_content(ConfigIconTask, snippet)
     """
 
-    plugin: ClassVar[Literal["icon"]] = "icon"
     namelists: list[ConfigNamelist]
 
     @field_validator("namelists", mode="after")
@@ -479,7 +479,7 @@ class DataType(enum.StrEnum):
 @dataclass(kw_only=True)
 class ConfigBaseDataSpecs:
     type: DataType
-    src: Path # TODO also in ConfigShellTaskSpecs but not None, maybe we can merge? I also don't see why its there None
+    src: Path | None = None
     format: str | None = None
     computer: str | None = None
 

@@ -30,7 +30,8 @@ dependencies = [
   "isoduration",
   "pydantic",
   "ruamel.yaml",
-  "aiida-core>=2.5",
+  "aiida-core>=2.5", 
+  "aiida-icon @ git+https://github.com/aiida-icon/aiida-icon.git@icon-ci", # TODO use release at the end
   "aiida-workgraph==0.4.10",
   "termcolor",
   "pygraphviz",
@@ -129,6 +130,10 @@ extra-dependencies = [
   "types-colorama",
   "types-Pygments"
 ]
+
+# TODO remove at the end
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.envs.types.scripts]
 check = "mypy --no-incremental {args:.}"

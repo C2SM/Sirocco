@@ -93,8 +93,18 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     def input_data_nodes(self) -> Iterator[Data]:
         yield from chain(*self.inputs.values())
 
+    def input_data_items(self) -> Iterator[tuple[str, Data]]:
+        yield from ((key, value)
+            for key, values in self.inputs.items()
+                for value in values)
+
     def output_data_nodes(self) -> Iterator[Data]:
         yield from chain(*self.outputs.values())
+
+    def output_data_items(self) -> Iterator[tuple[str, Data]]:
+        yield from ((key, value)
+            for key, values in self.outputs.items()
+                for value in values)
 
     @classmethod
     def from_config(
