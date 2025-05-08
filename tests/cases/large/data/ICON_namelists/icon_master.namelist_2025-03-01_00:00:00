@@ -1,6 +1,6 @@
 &master_nml
-    lrestart = .false.
-    read_restart_namelists = .false.
+    lrestart = .true.
+    read_restart_namelists = .true.
 /
 
 &master_time_control_nml
