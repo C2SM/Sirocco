@@ -22,6 +22,11 @@ def test_parse_config_file(config_paths, pprinter):
 def test_vizgraph(config_paths):
     VizGraph.from_config_file(config_paths["yml"]).draw(file_path=config_paths["svg"])
 
+@pytest.mark.requires_icon
+@pytest.mark.usefixtures('icon_filepath_executable', 'icon_grid_simple_path')
+def test_icon():
+    # Test is performed by fixtures
+    pass
 
 # configs that are tested for running workgraph
 @pytest.mark.slow
