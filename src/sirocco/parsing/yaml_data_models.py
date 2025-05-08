@@ -373,7 +373,7 @@ class ConfigShellTask(ConfigBaseTask, ConfigShellTaskSpecs):
 
 
 @dataclass(kw_only=True)
-class ConfigNamelistSpec:
+class ConfigIconNamelistSpec:
     """Class for namelist specifications
 
     - path is the path to the namelist file considered as template
@@ -383,24 +383,24 @@ class ConfigNamelistSpec:
     Example:
 
         >>> path = "/some/path/to/icon.nml"
-        >>> nml_info = ConfigNamelistSpec(path=Path(path))
+        >>> nml_info = ConfigIconNamelistSpec(path=Path(path))
     """
 
     path: Path = field(repr=False)
 
 
-class ConfigNamelist(BaseModel, ConfigNamelistSpec):
+class ConfigIconNamelist(BaseModel, ConfigIconNamelistSpec):
     """
     Validated namelist specifications.
 
     Example:
 
         >>> import textwrap
-        >>> from_init = ConfigNamelist(
+        >>> from_init = ConfigIconNamelist(
         ...     path="/path/to/some.nml", specs={"block": {"key": "value"}}
         ... )
         >>> from_yml = validate_yaml_content(
-        ...     ConfigNamelist,
+        ...     ConfigIconNamelist,
         ...     textwrap.dedent(
         ...         '''
         ...         /path/to/some.nml:
@@ -411,8 +411,8 @@ class ConfigNamelist(BaseModel, ConfigNamelistSpec):
         ... )
         >>> from_init == from_yml
         True
-        >>> no_spec = ConfigNamelist(path="/path/to/some.nml")
-        >>> no_spec_yml = validate_yaml_content(ConfigNamelist, "/path/to/some.nml")
+        >>> no_spec = ConfigIconNamelist(path="/path/to/some.nml")
+        >>> no_spec_yml = validate_yaml_content(ConfigIconNamelist, "/path/to/some.nml")
     """
 
     specs: dict[str, Any] = field(default_factory=dict)
@@ -457,11 +457,11 @@ class ConfigIconTask(ConfigBaseTask):
     """
 
     plugin: ClassVar[Literal["icon"]] = "icon"
-    namelists: list[ConfigNamelist]
+    namelists: list[ConfigIconNamelist]
 
     @field_validator("namelists", mode="after")
     @classmethod
-    def check_nmls(cls, nmls: list[ConfigNamelist]) -> list[ConfigNamelist]:
+    def check_nmls(cls, nmls: list[ConfigIconNamelist]) -> list[ConfigIconNamelist]:
         # Make validator idempotent even if not used yet
         names = [nml.path.name for nml in nmls]
         if "icon_master.namelist" not in names:
