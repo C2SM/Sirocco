@@ -281,7 +281,7 @@ class ConfigShellTaskSpecs:
     plugin: ClassVar[Literal["shell"]] = "shell"
     port_pattern: ClassVar[re.Pattern] = field(default=re.compile(r"{PORT(\[sep=.+\])?::(.+?)}"), repr=False)
     sep_pattern: ClassVar[re.Pattern] = field(default=re.compile(r"\[sep=(.+)\]"), repr=False)
-    src: str | None = None
+    src: Path | None = None
     command: str
     env_source_files: list[str] = field(default_factory=list)
 
@@ -478,7 +478,7 @@ class DataType(enum.StrEnum):
 @dataclass(kw_only=True)
 class ConfigBaseDataSpecs:
     type: DataType
-    src: str
+    src: Path
     format: str | None = None
     computer: str | None = None
 
@@ -500,13 +500,13 @@ class ConfigBaseData(_NamedBaseModel, ConfigBaseDataSpecs):
             ...     '''
             ... )
             >>> validate_yaml_content(ConfigBaseData, snippet)
-            ConfigBaseData(type=<DataType.FILE: 'file'>, src='foo.txt', format=None, computer=None, name='foo', parameters=[])
+            ConfigBaseData(type=<DataType.FILE: 'file'>, src=PosixPath('foo.txt'), format=None, computer=None, name='foo', parameters=[])
 
 
         from python:
 
             >>> ConfigBaseData(name="foo", type=DataType.FILE, src="foo.txt")
-            ConfigBaseData(type=<DataType.FILE: 'file'>, src='foo.txt', format=None, computer=None, name='foo', parameters=[])
+            ConfigBaseData(type=<DataType.FILE: 'file'>, src=PosixPath('foo.txt'), format=None, computer=None, name='foo', parameters=[])
     """
 
     parameters: list[str] = []

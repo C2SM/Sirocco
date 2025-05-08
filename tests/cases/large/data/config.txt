@@ -13,7 +13,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: []
             plugin: 'shell'
-            src: 'scripts/extpar'
+            src: scripts/extpar
             command: 'extpar --verbose --input {PORT::obs}'
             env source files: []
   - icon_bimonthly [date: 2025-01-01 00:00:00]:
@@ -32,7 +32,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-01-01 00:00:00 -- 2025-03-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/cleanup.sh'
+            src: scripts/cleanup.sh
             command: 'cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
             env source files: ['data/dummy_source_file.sh']
         - icon [date: 2025-01-01 00:00:00]:
@@ -63,7 +63,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-01-01 00:00:00 -- 2025-03-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/main_script_ocn.sh'
+            src: scripts/main_script_ocn.sh
             command: 'main_script_ocn.sh {PORT::None}'
             env source files: []
         - store_and_clean_1 [date: 2025-01-01 00:00:00]:
@@ -79,7 +79,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-01-01 00:00:00 -- 2025-03-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/post_clean.sh'
+            src: scripts/post_clean.sh
             command: 'post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
             env source files: []
   - icon_bimonthly [date: 2025-03-01 00:00:00]:
@@ -98,7 +98,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-03-01 00:00:00 -- 2025-05-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/cleanup.sh'
+            src: scripts/cleanup.sh
             command: 'cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
             env source files: ['data/dummy_source_file.sh']
         - icon [date: 2025-03-01 00:00:00]:
@@ -130,7 +130,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-03-01 00:00:00 -- 2025-05-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/main_script_ocn.sh'
+            src: scripts/main_script_ocn.sh
             command: 'main_script_ocn.sh {PORT::None}'
             env source files: []
         - store_and_clean_1 [date: 2025-03-01 00:00:00]:
@@ -146,7 +146,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-03-01 00:00:00 -- 2025-05-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/post_clean.sh'
+            src: scripts/post_clean.sh
             command: 'post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
             env source files: []
   - icon_bimonthly [date: 2025-05-01 00:00:00]:
@@ -167,7 +167,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-05-01 00:00:00 -- 2025-07-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/cleanup.sh'
+            src: scripts/cleanup.sh
             command: 'cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
             env source files: ['data/dummy_source_file.sh']
         - icon [date: 2025-05-01 00:00:00]:
@@ -199,7 +199,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-05-01 00:00:00 -- 2025-07-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/main_script_ocn.sh'
+            src: scripts/main_script_ocn.sh
             command: 'main_script_ocn.sh {PORT::None}'
             env source files: []
         - store_and_clean_1 [date: 2025-05-01 00:00:00]:
@@ -215,7 +215,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-05-01 00:00:00 -- 2025-07-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/post_clean.sh'
+            src: scripts/post_clean.sh
             command: 'post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
             env source files: []
   - icon_bimonthly [date: 2025-07-01 00:00:00]:
@@ -236,7 +236,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-07-01 00:00:00 -- 2025-09-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/cleanup.sh'
+            src: scripts/cleanup.sh
             command: 'cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
             env source files: ['data/dummy_source_file.sh']
         - icon [date: 2025-07-01 00:00:00]:
@@ -268,7 +268,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-07-01 00:00:00 -- 2025-09-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/main_script_ocn.sh'
+            src: scripts/main_script_ocn.sh
             command: 'main_script_ocn.sh {PORT::None}'
             env source files: []
         - store_and_clean_1 [date: 2025-07-01 00:00:00]:
@@ -284,7 +284,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-07-01 00:00:00 -- 2025-09-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/post_clean.sh'
+            src: scripts/post_clean.sh
             command: 'post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
             env source files: []
   - icon_bimonthly [date: 2025-09-01 00:00:00]:
@@ -305,7 +305,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-09-01 00:00:00 -- 2025-11-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/cleanup.sh'
+            src: scripts/cleanup.sh
             command: 'cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
             env source files: ['data/dummy_source_file.sh']
         - icon [date: 2025-09-01 00:00:00]:
@@ -337,7 +337,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-09-01 00:00:00 -- 2025-11-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/main_script_ocn.sh'
+            src: scripts/main_script_ocn.sh
             command: 'main_script_ocn.sh {PORT::None}'
             env source files: []
         - store_and_clean_1 [date: 2025-09-01 00:00:00]:
@@ -353,7 +353,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-09-01 00:00:00 -- 2025-11-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/post_clean.sh'
+            src: scripts/post_clean.sh
             command: 'post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
             env source files: []
   - icon_bimonthly [date: 2025-11-01 00:00:00]:
@@ -374,7 +374,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-11-01 00:00:00 -- 2026-01-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/cleanup.sh'
+            src: scripts/cleanup.sh
             command: 'cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
             env source files: ['data/dummy_source_file.sh']
         - icon [date: 2025-11-01 00:00:00]:
@@ -406,7 +406,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-11-01 00:00:00 -- 2026-01-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/main_script_ocn.sh'
+            src: scripts/main_script_ocn.sh
             command: 'main_script_ocn.sh {PORT::None}'
             env source files: []
         - store_and_clean_1 [date: 2025-11-01 00:00:00]:
@@ -422,7 +422,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-11-01 00:00:00 -- 2026-01-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/post_clean.sh'
+            src: scripts/post_clean.sh
             command: 'post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
             env source files: []
   - icon_bimonthly [date: 2026-01-01 00:00:00]:
@@ -443,7 +443,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-01-01 00:00:00 -- 2026-03-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/cleanup.sh'
+            src: scripts/cleanup.sh
             command: 'cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
             env source files: ['data/dummy_source_file.sh']
         - icon [date: 2026-01-01 00:00:00]:
@@ -475,7 +475,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-01-01 00:00:00 -- 2026-03-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/main_script_ocn.sh'
+            src: scripts/main_script_ocn.sh
             command: 'main_script_ocn.sh {PORT::None}'
             env source files: []
         - store_and_clean_1 [date: 2026-01-01 00:00:00]:
@@ -491,7 +491,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-01-01 00:00:00 -- 2026-03-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/post_clean.sh'
+            src: scripts/post_clean.sh
             command: 'post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
             env source files: []
   - icon_bimonthly [date: 2026-03-01 00:00:00]:
@@ -512,7 +512,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-03-01 00:00:00 -- 2026-05-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/cleanup.sh'
+            src: scripts/cleanup.sh
             command: 'cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
             env source files: ['data/dummy_source_file.sh']
         - icon [date: 2026-03-01 00:00:00]:
@@ -544,7 +544,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-03-01 00:00:00 -- 2026-05-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/main_script_ocn.sh'
+            src: scripts/main_script_ocn.sh
             command: 'main_script_ocn.sh {PORT::None}'
             env source files: []
         - store_and_clean_1 [date: 2026-03-01 00:00:00]:
@@ -560,7 +560,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-03-01 00:00:00 -- 2026-05-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/post_clean.sh'
+            src: scripts/post_clean.sh
             command: 'post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
             env source files: []
   - icon_bimonthly [date: 2026-05-01 00:00:00]:
@@ -581,7 +581,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-05-01 00:00:00 -- 2026-07-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/cleanup.sh'
+            src: scripts/cleanup.sh
             command: 'cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
             env source files: ['data/dummy_source_file.sh']
         - icon [date: 2026-05-01 00:00:00]:
@@ -613,7 +613,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-05-01 00:00:00 -- 2026-07-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/main_script_ocn.sh'
+            src: scripts/main_script_ocn.sh
             command: 'main_script_ocn.sh {PORT::None}'
             env source files: []
         - store_and_clean_1 [date: 2026-05-01 00:00:00]:
@@ -629,7 +629,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-05-01 00:00:00 -- 2026-07-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/post_clean.sh'
+            src: scripts/post_clean.sh
             command: 'post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
             env source files: []
   - icon_bimonthly [date: 2026-07-01 00:00:00]:
@@ -650,7 +650,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-07-01 00:00:00 -- 2026-09-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/cleanup.sh'
+            src: scripts/cleanup.sh
             command: 'cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
             env source files: ['data/dummy_source_file.sh']
         - icon [date: 2026-07-01 00:00:00]:
@@ -682,7 +682,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-07-01 00:00:00 -- 2026-09-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/main_script_ocn.sh'
+            src: scripts/main_script_ocn.sh
             command: 'main_script_ocn.sh {PORT::None}'
             env source files: []
         - store_and_clean_1 [date: 2026-07-01 00:00:00]:
@@ -698,7 +698,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-07-01 00:00:00 -- 2026-09-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/post_clean.sh'
+            src: scripts/post_clean.sh
             command: 'post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
             env source files: []
   - icon_bimonthly [date: 2026-09-01 00:00:00]:
@@ -719,7 +719,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-09-01 00:00:00 -- 2026-11-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/cleanup.sh'
+            src: scripts/cleanup.sh
             command: 'cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
             env source files: ['data/dummy_source_file.sh']
         - icon [date: 2026-09-01 00:00:00]:
@@ -751,7 +751,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-09-01 00:00:00 -- 2026-11-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/main_script_ocn.sh'
+            src: scripts/main_script_ocn.sh
             command: 'main_script_ocn.sh {PORT::None}'
             env source files: []
         - store_and_clean_1 [date: 2026-09-01 00:00:00]:
@@ -767,7 +767,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-09-01 00:00:00 -- 2026-11-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/post_clean.sh'
+            src: scripts/post_clean.sh
             command: 'post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
             env source files: []
   - icon_bimonthly [date: 2026-11-01 00:00:00]:
@@ -788,7 +788,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-11-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/cleanup.sh'
+            src: scripts/cleanup.sh
             command: 'cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
             env source files: ['data/dummy_source_file.sh']
         - icon [date: 2026-11-01 00:00:00]:
@@ -820,7 +820,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-11-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/main_script_ocn.sh'
+            src: scripts/main_script_ocn.sh
             command: 'main_script_ocn.sh {PORT::None}'
             env source files: []
         - store_and_clean_1 [date: 2026-11-01 00:00:00]:
@@ -836,7 +836,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-11-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/post_clean.sh'
+            src: scripts/post_clean.sh
             command: 'post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
             env source files: []
   - yearly [date: 2025-01-01 00:00:00]:
@@ -858,7 +858,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-01-01 00:00:00 -- 2026-01-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/main_script_atm.sh'
+            src: scripts/main_script_atm.sh
             command: 'main_script_atm.sh --input {PORT::streams}'
             env source files: []
         - store_and_clean_2 [date: 2025-01-01 00:00:00]:
@@ -878,7 +878,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-01-01 00:00:00 -- 2026-01-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/post_clean.sh'
+            src: scripts/post_clean.sh
             command: 'post_clean.sh --archive {PORT::archive} --clean {PORT::clean}'
             env source files: []
   - yearly [date: 2026-01-01 00:00:00]:
@@ -900,7 +900,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-01-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/main_script_atm.sh'
+            src: scripts/main_script_atm.sh
             command: 'main_script_atm.sh --input {PORT::streams}'
             env source files: []
         - store_and_clean_2 [date: 2026-01-01 00:00:00]:
@@ -920,6 +920,6 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-01-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/post_clean.sh'
+            src: scripts/post_clean.sh
             command: 'post_clean.sh --archive {PORT::archive} --clean {PORT::clean}'
             env source files: []
