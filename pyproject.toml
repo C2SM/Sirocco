@@ -49,7 +49,8 @@ Changelog = "https://github.com/C2SM/Sirocco/blob/main/CHANGELOG.md"
 addopts = "--pdbcls=IPython.terminal.debugger:TerminalPdb"
 norecursedirs = "tests/cases"
 markers = [
-  "slow: slow integration tests which are not recommended to run locally for normal development"
+  "slow: slow integration tests which are not recommended to run locally for normal development",
+  "requires_icon: marks test to require icon installation"
 ]
 filterwarnings = [
   "error",
@@ -93,7 +94,7 @@ extra-dependencies = [
     "ipdb"
 ]
 default-args = []
-extra-args = ["--doctest-modules", '-m not slow']
+extra-args = ["--doctest-modules", '-m not slow', '-m not requires_icon']
 
 [[tool.hatch.envs.hatch-test.matrix]]
 python = ["3.12"]
@@ -128,7 +129,8 @@ extra-dependencies = [
   "types-docutils",
   "types-colorama",
   "types-Pygments",
-  "types-termcolor"
+  "types-termcolor",
+  "types-requests"
 ]
 
 [tool.hatch.envs.types.scripts]
