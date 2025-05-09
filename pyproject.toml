@@ -37,7 +37,9 @@ dependencies = [
   "pygraphviz",
   "lxml",
   "f90nml",
-  "aiida-shell>=0.8.1",
+  "aiida-shell>=0.8.1",,
+  "rich",
+  "typer[all]"
 ]
 license = {file = "LICENSE"}
 
@@ -45,6 +47,9 @@ license = {file = "LICENSE"}
 Repository = "https://github.com/C2SM/Sirocco.git"
 Documentation = "https://c2sm.github.io/Sirocco/"
 Changelog = "https://github.com/C2SM/Sirocco/blob/main/CHANGELOG.md"
+
+[project.scripts]
+sirocco = "sirocco.cli:app"
 
 [tool.pytest.ini_options]
 # Configuration for [pytest](https://docs.pytest.org)
