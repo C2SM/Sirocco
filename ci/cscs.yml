@@ -1,0 +1,8 @@
+include:
+  - remote: 'https://gitlab.com/cscs-ci/recipes/-/raw/master/templates/v2/.ci-ext.yml'
+
+job:
+  extends: .f7t-controller
+  script:
+    - CLUSTER=santis
+    - firecrest filesystems --system $CLUSTER --account $CSCS_CI_DEFAULT_SLURM_ACCOUNT
