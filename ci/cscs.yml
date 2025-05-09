@@ -5,4 +5,4 @@ job:
   extends: .f7t-controller
   script:
     - CLUSTER=santis
-    - firecrest filesystems --system $CLUSTER --account $CSCS_CI_DEFAULT_SLURM_ACCOUNT
+    - firecrest filesystems --system $CLUSTER
