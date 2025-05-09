@@ -28,7 +28,7 @@ cycles:
               - finish:
                   port: finish_status
               - restart:
-                  port: restart_file
+                  port: latest_restart_file
   - lastly:
       tasks:
         - cleanup:
