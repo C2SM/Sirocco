@@ -4,5 +4,6 @@ include:
 job:
   extends: .f7t-controller
   script:
+    - FIRECREST_URL=https://api.cscs.ch/cw/firecrest/v2
     - CLUSTER=santis
     - firecrest filesystems --system $CLUSTER
