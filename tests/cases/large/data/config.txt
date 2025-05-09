@@ -50,7 +50,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-01-01 00:00:00 -- 2025-03-01 00:00:00]
             plugin: 'icon'
-            namelists: [IconNamelist(name='icon_master.namelist'), IconNamelist(name='NAMELIST_exclaim_ape_R02B04')]
+            namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
         - postproc_1 [date: 2025-01-01 00:00:00]:
             input:
               - stream_1 [date: 2025-01-01 00:00:00]
@@ -117,7 +117,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-03-01 00:00:00 -- 2025-05-01 00:00:00]
             plugin: 'icon'
-            namelists: [IconNamelist(name='icon_master.namelist'), IconNamelist(name='NAMELIST_exclaim_ape_R02B04')]
+            namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
         - postproc_1 [date: 2025-03-01 00:00:00]:
             input:
               - stream_1 [date: 2025-03-01 00:00:00]
@@ -186,7 +186,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-05-01 00:00:00 -- 2025-07-01 00:00:00]
             plugin: 'icon'
-            namelists: [IconNamelist(name='icon_master.namelist'), IconNamelist(name='NAMELIST_exclaim_ape_R02B04')]
+            namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
         - postproc_1 [date: 2025-05-01 00:00:00]:
             input:
               - stream_1 [date: 2025-05-01 00:00:00]
@@ -255,7 +255,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-07-01 00:00:00 -- 2025-09-01 00:00:00]
             plugin: 'icon'
-            namelists: [IconNamelist(name='icon_master.namelist'), IconNamelist(name='NAMELIST_exclaim_ape_R02B04')]
+            namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
         - postproc_1 [date: 2025-07-01 00:00:00]:
             input:
               - stream_1 [date: 2025-07-01 00:00:00]
@@ -324,7 +324,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-09-01 00:00:00 -- 2025-11-01 00:00:00]
             plugin: 'icon'
-            namelists: [IconNamelist(name='icon_master.namelist'), IconNamelist(name='NAMELIST_exclaim_ape_R02B04')]
+            namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
         - postproc_1 [date: 2025-09-01 00:00:00]:
             input:
               - stream_1 [date: 2025-09-01 00:00:00]
@@ -393,7 +393,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-11-01 00:00:00 -- 2026-01-01 00:00:00]
             plugin: 'icon'
-            namelists: [IconNamelist(name='icon_master.namelist'), IconNamelist(name='NAMELIST_exclaim_ape_R02B04')]
+            namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
         - postproc_1 [date: 2025-11-01 00:00:00]:
             input:
               - stream_1 [date: 2025-11-01 00:00:00]
@@ -462,7 +462,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-01-01 00:00:00 -- 2026-03-01 00:00:00]
             plugin: 'icon'
-            namelists: [IconNamelist(name='icon_master.namelist'), IconNamelist(name='NAMELIST_exclaim_ape_R02B04')]
+            namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
         - postproc_1 [date: 2026-01-01 00:00:00]:
             input:
               - stream_1 [date: 2026-01-01 00:00:00]
@@ -531,7 +531,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-03-01 00:00:00 -- 2026-05-01 00:00:00]
             plugin: 'icon'
-            namelists: [IconNamelist(name='icon_master.namelist'), IconNamelist(name='NAMELIST_exclaim_ape_R02B04')]
+            namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
         - postproc_1 [date: 2026-03-01 00:00:00]:
             input:
               - stream_1 [date: 2026-03-01 00:00:00]
@@ -600,7 +600,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-05-01 00:00:00 -- 2026-07-01 00:00:00]
             plugin: 'icon'
-            namelists: [IconNamelist(name='icon_master.namelist'), IconNamelist(name='NAMELIST_exclaim_ape_R02B04')]
+            namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
         - postproc_1 [date: 2026-05-01 00:00:00]:
             input:
               - stream_1 [date: 2026-05-01 00:00:00]
@@ -669,7 +669,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-07-01 00:00:00 -- 2026-09-01 00:00:00]
             plugin: 'icon'
-            namelists: [IconNamelist(name='icon_master.namelist'), IconNamelist(name='NAMELIST_exclaim_ape_R02B04')]
+            namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
         - postproc_1 [date: 2026-07-01 00:00:00]:
             input:
               - stream_1 [date: 2026-07-01 00:00:00]
@@ -738,7 +738,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-09-01 00:00:00 -- 2026-11-01 00:00:00]
             plugin: 'icon'
-            namelists: [IconNamelist(name='icon_master.namelist'), IconNamelist(name='NAMELIST_exclaim_ape_R02B04')]
+            namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
         - postproc_1 [date: 2026-09-01 00:00:00]:
             input:
               - stream_1 [date: 2026-09-01 00:00:00]
@@ -807,7 +807,7 @@ cycles:
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-11-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'icon'
-            namelists: [IconNamelist(name='icon_master.namelist'), IconNamelist(name='NAMELIST_exclaim_ape_R02B04')]
+            namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
         - postproc_1 [date: 2026-11-01 00:00:00]:
             input:
               - stream_1 [date: 2026-11-01 00:00:00]

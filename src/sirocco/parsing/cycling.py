@@ -34,6 +34,7 @@ class DateCyclePoint(CyclePoint):
     stop_date: datetime
     chunk_start_date: datetime
     chunk_stop_date: datetime
+    period: Duration
 
     def __str__(self) -> str:
         return f"[{self.chunk_start_date} -- {self.chunk_stop_date}]"
@@ -74,6 +75,10 @@ class DateCycling(BaseModel, Cycling):
         while begin < self.stop_date:
             end = min(begin + self.period, self.stop_date)
             yield DateCyclePoint(
-                start_date=self.start_date, stop_date=self.stop_date, chunk_start_date=begin, chunk_stop_date=end
+                start_date=self.start_date,
+                stop_date=self.stop_date,
+                chunk_start_date=begin,
+                chunk_stop_date=end,
+                period=self.period,
             )
             begin = end
