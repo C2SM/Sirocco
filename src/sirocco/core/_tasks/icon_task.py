@@ -22,7 +22,6 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
 
     def __post_init__(self):
         super().__post_init__()
-
         # detect master namelist
         master_namelist = None
         for namelist in self.namelists:

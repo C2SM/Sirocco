@@ -31,7 +31,7 @@ dependencies = [
   "pydantic",
   "ruamel.yaml",
   "aiida-core>=2.5", 
-  "aiida-icon @ git+https://github.com/aiida-icon/aiida-icon.git@icon-ci", # TODO use release at the end
+  "aiida-icon>=0.4.0",
   "aiida-workgraph==0.5.2",
   "termcolor",
   "pygraphviz",

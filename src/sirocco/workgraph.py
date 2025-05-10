@@ -11,6 +11,7 @@ import aiida.orm
 import aiida_workgraph  # type: ignore[import-untyped] # does not have proper typing and stubs
 import aiida_workgraph.tasks.factory.shelljob_task  # type: ignore[import-untyped]  # is only for a workaround
 from aiida.common.exceptions import NotExistent
+from aiida_icon.calculations import IconCalculation
 
 from sirocco import core
 
@@ -256,7 +257,6 @@ class AiidaWorkGraph:
 
     @create_task_node.register
     def _create_icon_task_node(self, task: core.IconTask):
-        IconCalculation = aiida.plugins.CalculationFactory('icon.icon')
         task_label = self.get_aiida_label_from_graph_item(task)
 
         try:
