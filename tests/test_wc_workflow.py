@@ -22,17 +22,23 @@ def test_parse_config_file(config_paths, pprinter):
 def test_vizgraph(config_paths):
     VizGraph.from_config_file(config_paths["yml"]).draw(file_path=config_paths["svg"])
 
+@pytest.mark.requires_icon
+@pytest.mark.usefixtures('icon_filepath_executable', 'icon_grid_simple_path')
+def test_icon():
+    # Test is performed by fixtures
+    pass
 
 # configs that are tested for running workgraph
 @pytest.mark.slow
 @pytest.mark.parametrize(
     "config_case",
     [
-        "small",
+        "small-shell",
         "parameters",
     ],
 )
-def test_run_workgraph(config_case, config_paths, aiida_computer):  # noqa: ARG001  # config_case is overridden
+@pytest.mark.usefixtures('config_case')
+def test_run_workgraph(config_case, config_paths, aiida_computer):
     """Tests end-to-end the parsing from file up to running the workgraph.
 
     Automatically uses the aiida_profile fixture to create a new profile. Note to debug the test with your profile
@@ -42,6 +48,35 @@ def test_run_workgraph(config_case, config_paths, aiida_computer):  # noqa: ARG0
     aiida_computer("localhost").store()
 
     core_workflow = Workflow.from_config_file(str(config_paths["yml"]))
+    aiida_workflow = AiidaWorkGraph(core_workflow)
+    output_node = aiida_workflow.run()
+    assert (
+        output_node.is_finished_ok
+    ), f"Not successful run. Got exit code {output_node.exit_code} with message {output_node.exit_message}."
+
+# configs that are tested for running workgraph
+@pytest.mark.slow
+@pytest.mark.requires_icon
+@pytest.mark.parametrize(
+    "config_case",
+    [
+        "small-icon",
+    ],
+)
+@pytest.mark.usefixtures('config_case')
+def test_run_workgraph_with_icon(icon_filepath_executable, config_paths, aiida_computer):  # config_case is overridden
+    """Tests end-to-end the parsing from file up to running the workgraph.
+
+    Automatically uses the aiida_profile fixture to create a new profile. Note to debug the test with your profile
+    please run this in a separate file as the profile is deleted after test finishes.
+    """
+    # some configs reference computer "localhost" which we need to create beforehand
+    aiida_computer("localhost").store()
+    core_workflow = Workflow.from_config_file(str(config_paths["yml"]))
+
+    icon_filepath_executable.symlink_to(core_workflow.config_rootdir / "./ICON/bin/icon")
+    (core_workflow.config_rootdir / "./ICON/bin/icon").symlink_to(icon_filepath_executable)
+
     aiida_workflow = AiidaWorkGraph(core_workflow)
     output_node = aiida_workflow.run()
     assert (

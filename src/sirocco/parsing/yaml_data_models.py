@@ -432,9 +432,10 @@ class ConfigNamelistFile(BaseModel, ConfigNamelistFileSpec):
 @dataclass(kw_only=True)
 class ConfigIconTaskSpecs:
     plugin: ClassVar[Literal["icon"]] = "icon"
+    src: Path
 
 
-class ConfigIconTask(ConfigBaseTask):
+class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
     """Class representing an ICON task configuration from a workflow file
 
     Examples:
@@ -478,7 +479,7 @@ class DataType(enum.StrEnum):
 @dataclass(kw_only=True)
 class ConfigBaseDataSpecs:
     type: DataType
-    src: Path
+    src: Path | None = None
     format: str | None = None
     computer: str | None = None
 
