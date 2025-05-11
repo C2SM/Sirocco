@@ -31,13 +31,13 @@ cycles:
                   port: finish_status
               - restart:
                   port: latest_restart_file
-  - lastly:
-      tasks:
-        - cleanup:
-            wait_on:
-              - icon:
-                  target_cycle:
-                    date: 2026-05-01T00:00
+  #- lastly:
+  #    tasks:
+  #      - cleanup:
+  #          wait_on:
+  #            - icon:
+  #                target_cycle:
+  #                  date: 2026-05-01T00:00
 tasks:
   - icon:
       plugin: icon
