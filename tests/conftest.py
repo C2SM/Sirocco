@@ -29,9 +29,9 @@ def download_file(url: str, file_path: pathlib.Path):
 
 
 @pytest.fixture(scope="module")
-def icon_grid_simple_path(pytestconfig):
+def icon_grid_path(pytestconfig):
     url = "https://github.com/agoscinski/icon-testfiles/raw/refs/heads/main/icon_grid_0013_R02B04_R.nc"
-    filename = "icon_grid_simple.nc"
+    filename = "icon_grid_0013_R02B04_R.nc"
     cache_dir = pytestconfig.cache.mkdir("downloaded_files")
     icon_grid_path = cache_dir / filename
 

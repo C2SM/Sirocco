@@ -64,7 +64,7 @@ def test_run_workgraph(config_paths):
     ],
 )
 @pytest.mark.usefixtures("config_case", "aiida_localhost")
-def test_run_workgraph_with_icon(icon_filepath_executable, config_paths):  # config_case is overridden
+def test_run_workgraph_with_icon(icon_filepath_executable, icon_grid_path, config_paths):  # config_case is overridden
     """Tests end-to-end the parsing from file up to running the workgraph.
 
     Automatically uses the aiida_profile fixture to create a new profile. Note to debug the test with your profile
@@ -73,12 +73,19 @@ def test_run_workgraph_with_icon(icon_filepath_executable, config_paths):  # con
     # some configs reference computer "localhost" which we need to create beforehand
     core_workflow = Workflow.from_config_file(str(config_paths["yml"]))
 
-    # To not change the config we link the icon executable
-    config_icon_bin = Path(core_workflow.config_rootdir / "./ICON/bin/icon")
+    # To not change the config we link the icon executable to the test case path
+    config_icon_bin_path = Path(core_workflow.config_rootdir / "./ICON/bin/icon")
     # We unlink the executable if it already exists
-    if config_icon_bin.exists():
-        config_icon_bin.unlink()
-    (core_workflow.config_rootdir / "./ICON/bin/icon").symlink_to(Path(icon_filepath_executable))
+    if config_icon_bin_path.exists():
+        config_icon_bin_path.unlink()
+    (config_icon_bin_path).symlink_to(Path(icon_filepath_executable))
+
+    # To not change the config we link the icon grid to the test case path
+    config_icon_grid_path = Path(core_workflow.config_rootdir / "./ICON/icon_grid_simple.nc")
+    # We unlink grid if it already exists
+    if config_icon_grid_path.exists():
+        config_icon_grid_path.unlink()
+    (config_icon_grid_path).symlink_to(icon_grid_path)
 
     aiida_workflow = AiidaWorkGraph(core_workflow)
     output_node = aiida_workflow.run()
