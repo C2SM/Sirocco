@@ -3,8 +3,10 @@ cycles:
       tasks:
         - icon [date: 2026-01-01 00:00:00]:
             input:
+              - ecrad_data
               - ECHAM6_CldOptProps
               - rrtmg_sw
+              - rrtmg_lw
               - icon_grid_simple
               - dmin_wetgrowth_lookup
             output:
@@ -21,8 +23,10 @@ cycles:
       tasks:
         - icon [date: 2026-03-01 00:00:00]:
             input:
+              - ecrad_data
               - ECHAM6_CldOptProps
               - rrtmg_sw
+              - rrtmg_lw
               - icon_grid_simple
               - dmin_wetgrowth_lookup
               - restart [date: 2026-01-01 00:00:00]
@@ -40,8 +44,10 @@ cycles:
       tasks:
         - icon [date: 2026-05-01 00:00:00]:
             input:
+              - ecrad_data
               - ECHAM6_CldOptProps
               - rrtmg_sw
+              - rrtmg_lw
               - icon_grid_simple
               - dmin_wetgrowth_lookup
               - restart [date: 2026-03-01 00:00:00]
