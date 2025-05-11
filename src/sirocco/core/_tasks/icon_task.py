@@ -64,7 +64,8 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
     @property
     def is_restart(self) -> bool:
         """Check if the icon task starts from the restart file."""
-        return self._AIIDA_ICON_RESTART_FILE_PORT_NAME in self.inputs
+        # restart_file must be present and nonempty
+        return bool(self.inputs.get(self._AIIDA_ICON_RESTART_FILE_PORT_NAME, None))
 
     def update_icon_namelists_from_workflow(self):
         if not isinstance(self.cycle_point, DateCyclePoint):

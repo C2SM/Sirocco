@@ -275,7 +275,7 @@ class AiidaWorkGraph:
             default_calc_job_plugin="icon.icon",
             computer=computer,
             filepath_executable=str(task.src),
-            with_mpi=True,
+            with_mpi=False,
         ).store()
 
         builder = IconCalculation.get_builder()
