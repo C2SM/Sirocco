@@ -432,7 +432,10 @@ class ConfigNamelistFile(BaseModel, ConfigNamelistFileSpec):
 @dataclass(kw_only=True)
 class ConfigIconTaskSpecs:
     plugin: ClassVar[Literal["icon"]] = "icon"
-    src: Path
+    # PRCOMMENT this is later resolved to an absolute path so we cannot use it for serialization
+    #           as the tests would fail. Since the main purpose of the repr is for regression tests
+    #           I disable its prnting here
+    src: Path = field(repr=False)
 
 
 class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
