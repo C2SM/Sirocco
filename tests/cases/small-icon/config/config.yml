@@ -16,8 +16,6 @@ cycles:
                   port: cloud_opt_props
               - rrtmg_sw:
                   port: rrtmg_sw
-              - rrtmg_lw:
-                  port: rrtmg_lw
               - icon_grid_simple:
                   port: dynamics_grid_file
               - dmin_wetgrowth_lookup:
@@ -70,10 +68,6 @@ data:
      - rrtmg_sw:
          type: file
          src: ICON/rrtmg_sw.nc
-         computer: localhost
-     - rrtmg_lw:
-         type: file
-         src: ICON/rrtmg_lw.nc
          computer: localhost
      - dmin_wetgrowth_lookup:
          type: file
