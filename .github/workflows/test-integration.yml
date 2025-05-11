@@ -1,0 +1,60 @@
+name: test-integration
+
+on:
+  push:
+    # only pushes to main trigger
+    branches: [main]
+  pull_request:
+    # always triggered
+
+jobs:
+  integration_test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120 # when icon needs to be rebuild it can take 70 minutes
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12', '3.13']
+        aiida-version: ['stable']
+
+    permissions:
+      packages: write
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Spack
+      uses: spack/setup-spack@v2
+      with:
+        buildcache: true
+
+    - name: Install Python and ICON
+      env:
+        SPACK_OCI_USER: leclairm
+        SPACK_OCI_TOKEN: ${{ secrets.SPACK_OCI_TOKEN }}
+      run: |
+        sudo apt install gcc-11 g++-11 gfortran-11 graphviz graphviz-dev
+        spack -e . add python@${{matrix.python-version}}
+        spack -e . install
+
+    - name: Push installation to buildcache and update index
+      env:
+        SPACK_OCI_USER: leclairm
+        SPACK_OCI_TOKEN: ${{ secrets.SPACK_OCI_TOKEN }}
+      run: spack -e . buildcache push --base-image ubuntu:latest --update-index local-buildcache
+      if: ${{ !cancelled() }}
+
+    - name: Install hatch
+      shell: spack-bash {0}
+      run: |
+        spack env activate .
+        pip install --upgrade pip 
+        pip install hatch
+        hatch run verdi presto
+
+    - name: Run ICON tests
+      shell: spack-bash {0}
+      env:
+        PYTEST_ADDOPTS: "--durations=0"
+      run: |
+        spack env activate .
+        hatch test -m "requires_icon" --parallel tests
