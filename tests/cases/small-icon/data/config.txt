@@ -58,16 +58,3 @@ cycles:
             plugin: 'icon'
             src: ICON/bin/icon
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='model.namelist')]
-  - lastly:
-      tasks:
-        - cleanup:
-            wait on:
-              - icon [date: 2026-05-01 00:00:00]
-            name: 'cleanup'
-            coordinates: {}
-            computer: 'localhost'
-            cycle point: []
-            plugin: 'shell'
-            src: scripts/cleanup.py
-            command: 'cleanup.py'
-            env source files: []
