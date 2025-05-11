@@ -39,16 +39,13 @@ def test_icon():
         "parameters",
     ],
 )
-@pytest.mark.usefixtures("config_case")
-def test_run_workgraph(config_paths, aiida_computer):
+@pytest.mark.usefixtures("config_case", "aiida_localhost")
+def test_run_workgraph(config_paths):
     """Tests end-to-end the parsing from file up to running the workgraph.
 
     Automatically uses the aiida_profile fixture to create a new profile. Note to debug the test with your profile
     please run this in a separate file as the profile is deleted after test finishes.
     """
-    # some configs reference computer "localhost" which we need to create beforehand
-    aiida_computer("localhost").store()
-
     core_workflow = Workflow.from_config_file(str(config_paths["yml"]))
     aiida_workflow = AiidaWorkGraph(core_workflow)
     output_node = aiida_workflow.run()
