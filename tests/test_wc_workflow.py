@@ -76,6 +76,12 @@ def test_run_workgraph_with_icon(icon_filepath_executable, config_paths, aiida_c
     # some configs reference computer "localhost" which we need to create beforehand
     aiida_computer("localhost").store()
     core_workflow = Workflow.from_config_file(str(config_paths["yml"]))
+
+    # To not change the config we link the icon executable    
+    config_icon_bin = Path(core_workflow.config_rootdir / "./ICON/bin/icon")
+    # We unlink the executable if it already exists
+    if config_icon_bin.exists():
+        config_icon_bin.unlink()
     (core_workflow.config_rootdir / "./ICON/bin/icon").symlink_to(Path(icon_filepath_executable))
 
     aiida_workflow = AiidaWorkGraph(core_workflow)

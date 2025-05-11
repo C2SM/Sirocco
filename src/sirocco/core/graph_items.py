@@ -50,6 +50,7 @@ class Data(ConfigBaseDataSpecs, GraphItem):
 
         return data_class(
             name=config.name,
+            computer=config.computer,
             type=config.type,
             src=config.src,
             coordinates=coordinates,
