@@ -9,6 +9,13 @@ from sirocco.workgraph import AiidaWorkGraph
 
 
 def test_parse_config_file(config_paths, pprinter):
+    config_rootdir = config_paths["yml"].parent.absolute()
+
+    # To not change the config we link the icon executable to the test case path
+    config_icon_bin_path = config_rootdir / "ICON/bin/icon"
+    if not config_icon_bin_path.exists():
+        config_icon_bin_path.touch()
+
     reference_str = config_paths["txt"].read_text()
     test_str = pprinter.format(Workflow.from_config_file(config_paths["yml"]))
     if test_str != reference_str:
@@ -77,14 +84,14 @@ def test_run_workgraph_with_icon(icon_filepath_executable, icon_grid_path, confi
     # We unlink the executable if it already exists
     if config_icon_bin_path.exists():
         config_icon_bin_path.unlink()
-    (config_icon_bin_path).symlink_to(Path(icon_filepath_executable))
+    config_icon_bin_path.symlink_to(Path(icon_filepath_executable))
 
     # To not change the config we link the icon grid to the test case path
     config_icon_grid_path = Path(config_rootdir / "./ICON/icon_grid_simple.nc")
     # We unlink grid if it already exists
     if config_icon_grid_path.exists():
         config_icon_grid_path.unlink()
-    (config_icon_grid_path).symlink_to(icon_grid_path)
+    config_icon_grid_path.symlink_to(icon_grid_path)
 
     # some configs reference computer "localhost" which we need to create beforehand
     core_workflow = Workflow.from_config_file(str(config_paths["yml"]))
@@ -100,7 +107,7 @@ def test_run_workgraph_with_icon(icon_filepath_executable, icon_grid_path, confi
     "config_case",
     ["large"],
 )
-def test_nml_mod(config_case, config_paths, tmp_path):  # noqa: ARG001  # config_case is overridden
+def test_nml_mod(config_paths, tmp_path):  # noqa: ARG001  # config_case is overridden
     nml_refdir = config_paths["txt"].parent / "ICON_namelists"
     wf = Workflow.from_config_file(config_paths["yml"])
     # Create core mamelists

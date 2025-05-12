@@ -95,7 +95,7 @@ extra-dependencies = [
     "ipdb"
 ]
 default-args = []
-extra-args = ["--doctest-modules", '-m "not slow AND not requires_icon"']
+extra-args = ["--doctest-modules", "-m", "not slow and not requires_icon"]
 
 [[tool.hatch.envs.hatch-test.matrix]]
 python = ["3.12"]
@@ -133,10 +133,6 @@ extra-dependencies = [
   "types-termcolor",
   "types-requests"
 ]
-
-# TODO remove at the end
-[tool.hatch.metadata]
-allow-direct-references = true
 
 [tool.hatch.envs.types.scripts]
 check = "mypy --no-incremental {args:.}"

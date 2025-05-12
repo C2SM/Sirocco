@@ -117,8 +117,6 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         self.update_icon_namelists_from_workflow()
         return self
 
-    # PRCOMMENT this is a copy of `_validate_namelist_path`, seems like a
-    #           repeating pattern, should I put it into utils class?
     @staticmethod
     def _validate_src(config_src: Path, config_rootdir: Path | None = None) -> Path:
         if config_rootdir is None and not config_src.is_absolute():
@@ -127,9 +125,9 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
 
         src = config_src if config_rootdir is None else (config_rootdir / config_src)
         if not src.exists():
-            msg = f"Namelist in path {src} does not exist."
+            msg = f"Icon executable in path {src} does not exist."
             raise FileNotFoundError(msg)
         if not src.is_file():
-            msg = f"Namelist in path {src} is not a file."
+            msg = f"Icon executable in path {src} is not a file."
             raise OSError(msg)
         return src
