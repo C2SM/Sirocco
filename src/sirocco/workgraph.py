@@ -97,6 +97,7 @@ class AiidaWorkGraph:
         for task in self._core_workflow.tasks:
             if isinstance(task, core.ShellTask):
                 self._set_shelljob_arguments(task)
+                self._set_shelljob_filenames(task)
 
         # link wait on to workgraph tasks
         for task in self._core_workflow.tasks:
@@ -229,6 +230,8 @@ class AiidaWorkGraph:
         ]
         prepend_text = "\n".join([f"source {env_source_path}" for env_source_path in env_source_paths])
         metadata["options"] = {"prepend_text": prepend_text}
+        # NOTE: Hardcoded for now, possibly make user-facing option
+        metadata["options"]["use_symlinks"] = True
 
         ## computer
         if task.computer is not None:
@@ -283,7 +286,10 @@ class AiidaWorkGraph:
             socket = getattr(workgraph_task.inputs.nodes, f"{input_label}")
             socket.value = self.data_from_core(input_)
         elif isinstance(input_, core.GeneratedData):
-            self._workgraph.add_link(self.socket_from_core(input_), workgraph_task.inputs[f"nodes.{input_label}"])
+            self._workgraph.add_link(
+                self.socket_from_core(input_),
+                workgraph_task.inputs[f"nodes.{input_label}"],
+            )
         else:
             raise TypeError
 
@@ -307,6 +313,33 @@ class AiidaWorkGraph:
         input_labels = {port: list(map(self.label_placeholder, task.inputs[port])) for port in task.inputs}
         _, arguments = self.split_cmd_arg(task.resolve_ports(input_labels))
         workgraph_task_arguments.value = arguments
+
+    def _set_shelljob_filenames(self, task: core.ShellTask):
+        """set AiiDA ShellJob filenames for AvailableData entities"""
+
+        filenames = {}
+        workgraph_task = self.task_from_core(task)
+        if not workgraph_task.inputs.filenames:
+            return
+
+        for input_ in task.input_data_nodes():
+            if task.computer and input_.computer and isinstance(input_, core.AvailableData):
+                filename = Path(input_.src).name
+                filenames[input_.name] = filename
+            # NOTE: GeneratedData has no explicit Computer attribute
+            # elif task.computer and isinstance(input_, core.GeneratedData):
+            #     for input_k, input_v in task.inputs.items():
+            #         if not input_v:
+            #             continue
+            #         if input_ == input_v[0]:
+            #             filename = self.label_placeholder(input_).strip('{').strip('}')
+            #             if input_k == "None":
+            #                 filenames[input_.src] = filename
+            #             else:
+            #                 filenames[input_k] = filename
+
+        workgraph_task.inputs.filenames.value = filenames
+        # import ipdb; ipdb.set_trace()
 
     def run(
         self,

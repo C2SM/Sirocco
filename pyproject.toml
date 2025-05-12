@@ -35,7 +35,8 @@ dependencies = [
   "termcolor",
   "pygraphviz",
   "lxml",
-  "f90nml"
+  "f90nml",
+  "aiida-shell @ git+https://github.com/sphuber/aiida-shell.git@fix/105/handle-remote-data-argument-placeholders",
 ]
 license = {file = "LICENSE"}
 
@@ -75,6 +76,9 @@ ignore = [
 ]
 
 ## Hatch configurations
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -148,4 +152,8 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = ["aiida_workgraph.sockets.builtins"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["termcolor._types"]
 ignore_missing_imports = true
