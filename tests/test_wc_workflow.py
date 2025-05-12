@@ -14,6 +14,7 @@ def test_parse_config_file(config_paths, pprinter):
     # To not change the config we link the icon executable to the test case path
     config_icon_bin_path = config_rootdir / "ICON/bin/icon"
     if not config_icon_bin_path.exists():
+        config_icon_bin_path.parent.mkdir(exist_ok=True)
         config_icon_bin_path.touch()
 
     reference_str = config_paths["txt"].read_text()
