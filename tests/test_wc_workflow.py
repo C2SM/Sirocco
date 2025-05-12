@@ -108,7 +108,8 @@ def test_run_workgraph_with_icon(icon_filepath_executable, icon_grid_path, confi
     "config_case",
     ["large"],
 )
-def test_nml_mod(config_paths, tmp_path):  # noqa: ARG001  # config_case is overridden
+@pytest.mark.usefixtures("config_case")
+def test_nml_mod(config_paths, tmp_path):
     nml_refdir = config_paths["txt"].parent / "ICON_namelists"
     wf = Workflow.from_config_file(config_paths["yml"])
     # Create core mamelists
