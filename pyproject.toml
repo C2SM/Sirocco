@@ -135,7 +135,7 @@ extra-dependencies = [
 ]
 
 [tool.hatch.envs.types.scripts]
-check = "mypy --no-incremental {args:.}"
+check = "mypy --exclude 'tests/cases/*' --no-incremental {args:.}"
 
 [[tool.mypy.overrides]]
 module = ["isoduration", "isoduration.*"]
