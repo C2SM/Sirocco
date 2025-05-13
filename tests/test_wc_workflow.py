@@ -9,6 +9,14 @@ from sirocco.workgraph import AiidaWorkGraph
 
 
 def test_parse_config_file(config_paths, pprinter):
+    config_rootdir = config_paths["yml"].parent.absolute()
+
+    # To not change the config we link the icon executable to the test case path
+    config_icon_bin_path = config_rootdir / "ICON/bin/icon"
+    if not config_icon_bin_path.exists():
+        config_icon_bin_path.parent.mkdir(exist_ok=True)
+        config_icon_bin_path.touch()
+
     reference_str = config_paths["txt"].read_text()
     test_str = pprinter.format(Workflow.from_config_file(config_paths["yml"]))
     if test_str != reference_str:
@@ -23,24 +31,70 @@ def test_vizgraph(config_paths):
     VizGraph.from_config_file(config_paths["yml"]).draw(file_path=config_paths["svg"])
 
 
+@pytest.mark.requires_icon
+@pytest.mark.usefixtures("icon_filepath_executable", "icon_grid_path")
+def test_icon():
+    # Test is performed by fixtures
+    pass
+
+
 # configs that are tested for running workgraph
 @pytest.mark.slow
 @pytest.mark.parametrize(
     "config_case",
     [
-        "small",
+        "small-shell",
         "parameters",
     ],
 )
-def test_run_workgraph(config_case, config_paths, aiida_computer):  # noqa: ARG001  # config_case is overridden
+@pytest.mark.usefixtures("config_case", "aiida_localhost")
+def test_run_workgraph(config_paths):
     """Tests end-to-end the parsing from file up to running the workgraph.
 
     Automatically uses the aiida_profile fixture to create a new profile. Note to debug the test with your profile
     please run this in a separate file as the profile is deleted after test finishes.
     """
-    # some configs reference computer "localhost" which we need to create beforehand
-    aiida_computer("localhost").store()
+    core_workflow = Workflow.from_config_file(str(config_paths["yml"]))
+    aiida_workflow = AiidaWorkGraph(core_workflow)
+    output_node = aiida_workflow.run()
+    assert (
+        output_node.is_finished_ok
+    ), f"Not successful run. Got exit code {output_node.exit_code} with message {output_node.exit_message}."
 
+
+# configs that are tested for running workgraph
+@pytest.mark.slow
+@pytest.mark.requires_icon
+@pytest.mark.parametrize(
+    "config_case",
+    [
+        "small-icon",
+    ],
+)
+@pytest.mark.usefixtures("config_case", "aiida_localhost")
+def test_run_workgraph_with_icon(icon_filepath_executable, icon_grid_path, config_paths):  # config_case is overridden
+    """Tests end-to-end the parsing from file up to running the workgraph.
+
+    Automatically uses the aiida_profile fixture to create a new profile. Note to debug the test with your profile
+    please run this in a separate file as the profile is deleted after test finishes.
+    """
+    config_rootdir = config_paths["yml"].parent.absolute()
+
+    # To not change the config we link the icon executable to the test case path
+    config_icon_bin_path = Path(config_rootdir / "./ICON/bin/icon")
+    # We unlink the executable if it already exists
+    if config_icon_bin_path.exists():
+        config_icon_bin_path.unlink()
+    config_icon_bin_path.symlink_to(Path(icon_filepath_executable))
+
+    # To not change the config we link the icon grid to the test case path
+    config_icon_grid_path = Path(config_rootdir / "./ICON/icon_grid_simple.nc")
+    # We unlink grid if it already exists
+    if config_icon_grid_path.exists():
+        config_icon_grid_path.unlink()
+    config_icon_grid_path.symlink_to(icon_grid_path)
+
+    # some configs reference computer "localhost" which we need to create beforehand
     core_workflow = Workflow.from_config_file(str(config_paths["yml"]))
     aiida_workflow = AiidaWorkGraph(core_workflow)
     output_node = aiida_workflow.run()
@@ -54,7 +108,8 @@ def test_run_workgraph(config_case, config_paths, aiida_computer):  # noqa: ARG0
     "config_case",
     ["large"],
 )
-def test_nml_mod(config_case, config_paths, tmp_path):  # noqa: ARG001  # config_case is overridden
+@pytest.mark.usefixtures("config_case")
+def test_nml_mod(config_paths, tmp_path):
     nml_refdir = config_paths["txt"].parent / "ICON_namelists"
     wf = Workflow.from_config_file(config_paths["yml"])
     # Create core mamelists

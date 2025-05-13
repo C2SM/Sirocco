@@ -114,6 +114,7 @@ tasks:
         mount_point: runtime/mount/point
   - icon:
       plugin: icon
+      src: ./ICON/bin/icon
       nodes: 40
       walltime: 23:59:59
       namelists:

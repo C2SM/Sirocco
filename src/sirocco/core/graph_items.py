@@ -47,8 +47,10 @@ class Data(ConfigBaseDataSpecs, GraphItem):
     @classmethod
     def from_config(cls, config: ConfigBaseData, coordinates: dict) -> AvailableData | GeneratedData:
         data_class = AvailableData if isinstance(config, ConfigAvailableData) else GeneratedData
+
         return data_class(
             name=config.name,
+            computer=config.computer,
             type=config.type,
             src=config.src,
             coordinates=coordinates,
@@ -56,7 +58,7 @@ class Data(ConfigBaseDataSpecs, GraphItem):
 
 
 class AvailableData(Data):
-    pass
+    src: Path
 
 
 class GeneratedData(Data):
@@ -91,8 +93,14 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     def input_data_nodes(self) -> Iterator[Data]:
         yield from chain(*self.inputs.values())
 
+    def input_data_items(self) -> Iterator[tuple[str, Data]]:
+        yield from ((key, value) for key, values in self.inputs.items() for value in values)
+
     def output_data_nodes(self) -> Iterator[Data]:
         yield from chain(*self.outputs.values())
+
+    def output_data_items(self) -> Iterator[tuple[str | None, Data]]:
+        yield from ((key, value) for key, values in self.outputs.items() for value in values)
 
     @classmethod
     def from_config(
