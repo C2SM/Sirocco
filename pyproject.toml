@@ -35,7 +35,9 @@ dependencies = [
   "termcolor",
   "pygraphviz",
   "lxml",
-  "f90nml"
+  "f90nml",
+  "rich",
+  "typer"
 ]
 license = {file = "LICENSE"}
 
@@ -43,6 +45,9 @@ license = {file = "LICENSE"}
 Repository = "https://github.com/C2SM/Sirocco.git"
 Documentation = "https://c2sm.github.io/Sirocco/"
 Changelog = "https://github.com/C2SM/Sirocco/blob/main/CHANGELOG.md"
+
+[project.scripts]
+sirocco = "sirocco.cli:app"
 
 [tool.pytest.ini_options]
 # Configuration for [pytest](https://docs.pytest.org)
@@ -86,6 +91,7 @@ path = "src/sirocco/__init__.py"
 
 [tool.hatch.envs.default]
 installer = "uv"
+python = "3.12"
 
 [tool.hatch.envs.hatch-test]
 installer = "uv"
