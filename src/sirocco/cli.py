@@ -19,7 +19,7 @@ install_rich_traceback(show_locals=False)
 # Create the Typer app instance
 app = typer.Typer(
     help="Sirocco Weather and Climate Workflow Management Tool.",
-    add_completion=True,  # Optional: disable shell completion installation prompts
+    add_completion=True,
 )
 
 # Create a Rich console instance for printing
@@ -29,8 +29,8 @@ console = Console()
 # --- Helper functions ---
 def load_aiida_profile(profile: Optional[str] = None):
     try:
-        aiida.load_profile(profile=profile, allow_switch=True)  # Allow switch for flexibility
-        # console.print(f"ℹ️ AiiDA profile [green]'{aiida.get_profile().name}'[/green] loaded.")
+        aiida.load_profile(profile=profile, allow_switch=True)
+        console.print(f"ℹ️ AiiDA profile [green]'{aiida.get_profile().name}'[/green] loaded.")
     except Exception as e:
         console.print(f"[bold red]Failed to load AiiDA profile '{profile if profile else 'default'}': {e}[/bold red]")
         console.print("Ensure an AiiDA profile exists and the AiiDA daemon is configured if submitting.")
@@ -58,7 +58,7 @@ def _prepare_aiida_workgraph(workflow_file_str: str, aiida_profile_name: Optiona
 @app.command()
 def verify(
     workflow_file: Path = typer.Argument(
-        ...,  # Ellipsis indicates a required argument
+        ...,
         exists=True,
         file_okay=True,
         dir_okay=False,
@@ -95,7 +95,7 @@ def visualize(
         None,  # Default value is None, making it optional
         "--output",
         "-o",
-        writable=True,  # Check if the path (or its parent dir) is writable
+        writable=True,
         file_okay=True,
         dir_okay=False,
         help="Optional path to save the output SVG file.",
@@ -183,7 +183,7 @@ def run(
     aiida_wg = _prepare_aiida_workgraph(str(workflow_file), aiida_profile)
     try:
         console.print(f"▶️ Running workflow [magenta]'{aiida_wg._core_workflow.name}'[/magenta] directly (blocking)...")
-        results = aiida_wg.run(inputs=None)  # No metadata
+        results = aiida_wg.run(inputs=None)
         console.print("[green]✅ Workflow execution finished.[/green]")
         console.print("Results:")
         if isinstance(results, dict):
@@ -211,7 +211,7 @@ def submit(
         None, "--aiida-profile", "-P", help="AiiDA profile to use (defaults to current active)."
     ),
     wait: bool = typer.Option(False, "--wait", "-w", help="Wait for the workflow to complete after submission."),
-    timeout: int = typer.Option(  # Default AiiDA timeout for wait is often very long or infinite
+    timeout: int = typer.Option(
         3600, "--timeout", "-t", help="Timeout in seconds when waiting (if --wait is used)."
     ),
 ):
@@ -220,7 +220,6 @@ def submit(
     aiida_wg = _prepare_aiida_workgraph(str(workflow_file), aiida_profile)
     try:
         console.print(f"🚀 Submitting workflow [magenta]'{aiida_wg._core_workflow.name}'[/magenta] to AiiDA daemon...")
-        # No metadata passed to submit
         results_node = aiida_wg.submit(inputs=None, wait=wait, timeout=timeout if wait else None)
 
         if isinstance(results_node, aiida.orm.WorkChainNode):
@@ -233,7 +232,7 @@ def submit(
                     console.print(
                         "[yellow]Inspect the workchain for more details (e.g., `verdi process report PK`).[/yellow]"
                     )
-        else:  # Should typically be a WorkChainNode
+        else:
             console.print(f"[green]✅ Submission initiated. Result: {results_node}[/green]")
 
     except Exception as e:

@@ -39,7 +39,7 @@ dependencies = [
   "f90nml",
   "aiida-shell>=0.8.1",,
   "rich",
-  "typer[all]"
+  "typer"
 ]
 license = {file = "LICENSE"}
 
