@@ -13,7 +13,7 @@ cycles:
             computer: 'localhost'
             cycle point: [2026-01-01 00:00:00 -- 2026-03-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/icon.py'
+            src: scripts/icon.py
             command: 'icon.py --restart {PORT::restart} --init {PORT::init}'
             env source files: ['data/dummy_source_file.sh']
   - bimonthly_tasks [date: 2026-03-01 00:00:00]:
@@ -30,7 +30,7 @@ cycles:
             computer: 'localhost'
             cycle point: [2026-03-01 00:00:00 -- 2026-05-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/icon.py'
+            src: scripts/icon.py
             command: 'icon.py --restart {PORT::restart} --init {PORT::init}'
             env source files: ['data/dummy_source_file.sh']
   - bimonthly_tasks [date: 2026-05-01 00:00:00]:
@@ -47,7 +47,7 @@ cycles:
             computer: 'localhost'
             cycle point: [2026-05-01 00:00:00 -- 2026-06-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/icon.py'
+            src: scripts/icon.py
             command: 'icon.py --restart {PORT::restart} --init {PORT::init}'
             env source files: ['data/dummy_source_file.sh']
   - lastly:
@@ -60,6 +60,6 @@ cycles:
             computer: 'localhost'
             cycle point: []
             plugin: 'shell'
-            src: 'scripts/cleanup.py'
+            src: scripts/cleanup.py
             command: 'cleanup.py'
             env source files: []

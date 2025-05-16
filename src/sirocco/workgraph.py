@@ -176,8 +176,7 @@ class AiidaWorkGraph:
         Create an `aiida.orm.Data` instance from the provided graph item.
         """
         label = self.get_aiida_label_from_graph_item(data)
-        data_path = Path(data.src)
-        data_full_path = data.src if data_path.is_absolute() else self._core_workflow.config_rootdir / data_path
+        data_full_path = data.src if data.src.is_absolute() else self._core_workflow.config_rootdir / data.src
 
         if data.computer is not None:
             try:
@@ -258,7 +257,7 @@ class AiidaWorkGraph:
 
         workgraph_task = self.task_from_core(task)
         output_label = self.get_aiida_label_from_graph_item(output)
-        output_socket = workgraph_task.add_output("workgraph.any", output.src)
+        output_socket = workgraph_task.add_output("workgraph.any", str(output.src))
         self._aiida_socket_nodes[output_label] = output_socket
 
     @functools.singledispatchmethod

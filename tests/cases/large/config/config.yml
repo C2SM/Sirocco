@@ -41,14 +41,14 @@ cycles:
                     after: *root_start_date
                   target_cycle:
                     lag: '-P2M'
-                  port: restart
+                  port: restart_file
             outputs:
               - stream_1:
                   port: stream1
               - stream_2:
                   port: stream2
               - icon_restart:
-                  port: restart_file
+                  port: latest_restart_file
         - postproc_1:
             inputs:
               - stream_1:
@@ -117,7 +117,9 @@ tasks:
       nodes: 40
       walltime: 23:59:59
       namelists:
-        - ./ICON/icon_master.namelist
+        - ./ICON/icon_master.namelist:
+            master_time_control_nml:
+              checkpointtimeintval: 'P2M'
         - ./ICON/NAMELIST_exclaim_ape_R02B04:
             parallel_nml:
               nproma: 96

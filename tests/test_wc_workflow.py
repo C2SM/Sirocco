@@ -60,7 +60,7 @@ def test_nml_mod(config_case, config_paths, tmp_path):  # noqa: ARG001  # config
     # Create core mamelists
     for task in wf.tasks:
         if isinstance(task, IconTask):
-            task.create_workflow_namelists(folder=tmp_path)
+            task.dump_namelists(directory=tmp_path)
     # Compare against reference
     for nml in nml_refdir.glob("*"):
         ref_nml = nml.read_text()

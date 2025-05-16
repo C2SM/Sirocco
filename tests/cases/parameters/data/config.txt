@@ -12,7 +12,7 @@ cycles:
             coordinates: {'foo': 0, 'bar': 3.0, 'date': datetime.datetime(2026, 1, 1, 0, 0)}
             cycle point: [2026-01-01 00:00:00 -- 2026-07-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/icon.py'
+            src: scripts/icon.py
             command: 'icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
             env source files: []
         - icon [foo: 1, bar: 3.0, date: 2026-01-01 00:00:00]:
@@ -26,7 +26,7 @@ cycles:
             coordinates: {'foo': 1, 'bar': 3.0, 'date': datetime.datetime(2026, 1, 1, 0, 0)}
             cycle point: [2026-01-01 00:00:00 -- 2026-07-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/icon.py'
+            src: scripts/icon.py
             command: 'icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
             env source files: []
         - statistics_foo [bar: 3.0, date: 2026-01-01 00:00:00]:
@@ -39,7 +39,7 @@ cycles:
             coordinates: {'bar': 3.0, 'date': datetime.datetime(2026, 1, 1, 0, 0)}
             cycle point: [2026-01-01 00:00:00 -- 2026-07-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/statistics.py'
+            src: scripts/statistics.py
             command: 'statistics.py {PORT::None}'
             env source files: []
         - statistics_foo_bar [date: 2026-01-01 00:00:00]:
@@ -51,7 +51,7 @@ cycles:
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
             cycle point: [2026-01-01 00:00:00 -- 2026-07-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/statistics.py'
+            src: scripts/statistics.py
             command: 'statistics.py {PORT::None}'
             env source files: []
   - bimonthly_tasks [date: 2026-07-01 00:00:00]:
@@ -67,7 +67,7 @@ cycles:
             coordinates: {'foo': 0, 'bar': 3.0, 'date': datetime.datetime(2026, 7, 1, 0, 0)}
             cycle point: [2026-07-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/icon.py'
+            src: scripts/icon.py
             command: 'icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
             env source files: []
         - icon [foo: 1, bar: 3.0, date: 2026-07-01 00:00:00]:
@@ -81,7 +81,7 @@ cycles:
             coordinates: {'foo': 1, 'bar': 3.0, 'date': datetime.datetime(2026, 7, 1, 0, 0)}
             cycle point: [2026-07-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/icon.py'
+            src: scripts/icon.py
             command: 'icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
             env source files: []
         - statistics_foo [bar: 3.0, date: 2026-07-01 00:00:00]:
@@ -94,7 +94,7 @@ cycles:
             coordinates: {'bar': 3.0, 'date': datetime.datetime(2026, 7, 1, 0, 0)}
             cycle point: [2026-07-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/statistics.py'
+            src: scripts/statistics.py
             command: 'statistics.py {PORT::None}'
             env source files: []
         - statistics_foo_bar [date: 2026-07-01 00:00:00]:
@@ -106,7 +106,7 @@ cycles:
             coordinates: {'date': datetime.datetime(2026, 7, 1, 0, 0)}
             cycle point: [2026-07-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/statistics.py'
+            src: scripts/statistics.py
             command: 'statistics.py {PORT::None}'
             env source files: []
   - bimonthly_tasks [date: 2027-01-01 00:00:00]:
@@ -122,7 +122,7 @@ cycles:
             coordinates: {'foo': 0, 'bar': 3.0, 'date': datetime.datetime(2027, 1, 1, 0, 0)}
             cycle point: [2027-01-01 00:00:00 -- 2027-07-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/icon.py'
+            src: scripts/icon.py
             command: 'icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
             env source files: []
         - icon [foo: 1, bar: 3.0, date: 2027-01-01 00:00:00]:
@@ -136,7 +136,7 @@ cycles:
             coordinates: {'foo': 1, 'bar': 3.0, 'date': datetime.datetime(2027, 1, 1, 0, 0)}
             cycle point: [2027-01-01 00:00:00 -- 2027-07-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/icon.py'
+            src: scripts/icon.py
             command: 'icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
             env source files: []
         - statistics_foo [bar: 3.0, date: 2027-01-01 00:00:00]:
@@ -149,7 +149,7 @@ cycles:
             coordinates: {'bar': 3.0, 'date': datetime.datetime(2027, 1, 1, 0, 0)}
             cycle point: [2027-01-01 00:00:00 -- 2027-07-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/statistics.py'
+            src: scripts/statistics.py
             command: 'statistics.py {PORT::None}'
             env source files: []
         - statistics_foo_bar [date: 2027-01-01 00:00:00]:
@@ -161,7 +161,7 @@ cycles:
             coordinates: {'date': datetime.datetime(2027, 1, 1, 0, 0)}
             cycle point: [2027-01-01 00:00:00 -- 2027-07-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/statistics.py'
+            src: scripts/statistics.py
             command: 'statistics.py {PORT::None}'
             env source files: []
   - bimonthly_tasks [date: 2027-07-01 00:00:00]:
@@ -177,7 +177,7 @@ cycles:
             coordinates: {'foo': 0, 'bar': 3.0, 'date': datetime.datetime(2027, 7, 1, 0, 0)}
             cycle point: [2027-07-01 00:00:00 -- 2028-01-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/icon.py'
+            src: scripts/icon.py
             command: 'icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
             env source files: []
         - icon [foo: 1, bar: 3.0, date: 2027-07-01 00:00:00]:
@@ -191,7 +191,7 @@ cycles:
             coordinates: {'foo': 1, 'bar': 3.0, 'date': datetime.datetime(2027, 7, 1, 0, 0)}
             cycle point: [2027-07-01 00:00:00 -- 2028-01-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/icon.py'
+            src: scripts/icon.py
             command: 'icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
             env source files: []
         - statistics_foo [bar: 3.0, date: 2027-07-01 00:00:00]:
@@ -204,7 +204,7 @@ cycles:
             coordinates: {'bar': 3.0, 'date': datetime.datetime(2027, 7, 1, 0, 0)}
             cycle point: [2027-07-01 00:00:00 -- 2028-01-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/statistics.py'
+            src: scripts/statistics.py
             command: 'statistics.py {PORT::None}'
             env source files: []
         - statistics_foo_bar [date: 2027-07-01 00:00:00]:
@@ -216,7 +216,7 @@ cycles:
             coordinates: {'date': datetime.datetime(2027, 7, 1, 0, 0)}
             cycle point: [2027-07-01 00:00:00 -- 2028-01-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/statistics.py'
+            src: scripts/statistics.py
             command: 'statistics.py {PORT::None}'
             env source files: []
   - yearly [date: 2026-01-01 00:00:00]:
@@ -231,7 +231,7 @@ cycles:
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
             cycle point: [2026-01-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/merge.py'
+            src: scripts/merge.py
             command: 'merge.py {PORT::None}'
             env source files: []
   - yearly [date: 2027-01-01 00:00:00]:
@@ -246,6 +246,6 @@ cycles:
             coordinates: {'date': datetime.datetime(2027, 1, 1, 0, 0)}
             cycle point: [2027-01-01 00:00:00 -- 2028-01-01 00:00:00]
             plugin: 'shell'
-            src: 'scripts/merge.py'
+            src: scripts/merge.py
             command: 'merge.py {PORT::None}'
             env source files: []

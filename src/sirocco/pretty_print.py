@@ -97,6 +97,7 @@ class PrettyPrinter:
         ...                 stop_date=datetime(1000, 1, 2),
         ...                 chunk_start_date=datetime(1000, 1, 1),
         ...                 chunk_stop_date=datetime(1000, 1, 2),
+        ...                 period="P1D",
         ...             ),
         ...             coordinates={"date": datetime(1000, 1, 1).date()},
         ...         )
