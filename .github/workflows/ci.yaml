@@ -38,7 +38,7 @@ jobs:
       env:
         PYTEST_ADDOPTS: "--durations=0"
       run: |
-        hatch test -m "slow or not requires_icon" --parallel --cover
+        hatch test -m "not requires_icon" --parallel --cover
 
   docs:
     runs-on: ubuntu-latest
