@@ -3,7 +3,7 @@ spack:
   specs:
   - icon ~aes ~jsbach ~ocean ~coupling ~rte-rrtmgp
 
-  'compilers:':
+  compilers:
   - compiler:
       spec: gcc@11.4.0
       paths:
