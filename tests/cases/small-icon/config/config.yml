@@ -1,0 +1,79 @@
+---
+start_date: &root_start_date '2026-01-01T00:00'
+stop_date: &root_stop_date '2026-06-01T00:00'
+cycles:
+  - bimonthly_tasks:
+      cycling:
+        start_date: *root_start_date
+        stop_date: *root_stop_date
+        period: P2M
+      tasks:
+        - icon:
+            inputs:
+              - ecrad_data:
+                  port: ecrad_data
+              - ECHAM6_CldOptProps:
+                  port: cloud_opt_props
+              - rrtmg_sw:
+                  port: rrtmg_sw
+              - icon_grid_simple:
+                  port: dynamics_grid_file
+              - dmin_wetgrowth_lookup:
+                  port: dmin_wetgrowth_lookup
+              - restart:
+                  when:
+                    after: *root_start_date
+                  target_cycle:
+                    lag: -P2M
+                  port: restart_file
+            outputs:
+              - finish:
+                  port: finish_status
+              - restart:
+                  port: latest_restart_file
+  - lastly:
+      tasks:
+        - cleanup:
+            wait_on:
+              - icon:
+                  target_cycle:
+                    date: 2026-05-01T00:00
+tasks:
+  - icon:
+      plugin: icon
+      src: ./ICON/bin/icon
+      computer: localhost
+      namelists:
+        - ./ICON/icon_master.namelist
+        - ./ICON/model.namelist
+  - cleanup:
+      plugin: shell
+      src: scripts/cleanup.py
+      command: "cleanup.py"
+data:
+  available:
+     - icon_grid_simple:
+         type: file
+         src: ICON/icon_grid_simple.nc
+         computer: localhost
+     - ecrad_data:
+         type: file
+         src: ICON/ecrad_data
+         computer: localhost
+     - ECHAM6_CldOptProps:
+         type: file
+         src: ICON/ECHAM6_CldOptProps.nc
+         computer: localhost
+     - rrtmg_sw:
+         type: file
+         src: ICON/rrtmg_sw.nc
+         computer: localhost
+     - dmin_wetgrowth_lookup:
+         type: file
+         src: ICON/dmin_wetgrowth_lookup.nc
+         computer: localhost
+  generated:
+     - finish:
+         type: file
+     - restart:
+         type: file
