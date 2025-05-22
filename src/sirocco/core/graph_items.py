@@ -49,6 +49,7 @@ class Data(ConfigBaseDataSpecs, GraphItem):
         data_class = AvailableData if isinstance(config, ConfigAvailableData) else GeneratedData
         return data_class(
             name=config.name,
+            computer=config.computer,
             type=config.type,
             src=config.src,
             coordinates=coordinates,
