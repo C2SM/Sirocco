@@ -91,6 +91,7 @@ class PrettyPrinter:
         ...     PrettyPrinter().format_basic(
         ...         core.Task(
         ...             name="foo",
+        ...             computer="localhost",
         ...             config_rootdir=pathlib.Path("."),
         ...             cycle_point=DateCyclePoint(
         ...                 start_date=datetime(1000, 1, 1),

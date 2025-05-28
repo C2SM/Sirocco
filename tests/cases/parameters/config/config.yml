@@ -56,35 +56,35 @@ cycles:
 tasks:
   - icon:
       plugin: shell
-      # FIXME
-      # Relative path -> except if this cannot be resolved to a registered code
-      # Probably either enforce absolute path, or provide a code argument
-      # See: https://github.com/C2SM/Sirocco/pull/153
-      src: scripts/icon.py
+      computer: localhost
+      src: $TEST_ROOTDIR/tests/cases/parameters/config/scripts/icon.py
       command: "icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}"
       parameters: [foo, bar]
   - statistics_foo:
       plugin: shell
-      src: scripts/statistics.py
+      computer: localhost
+      src: $TEST_ROOTDIR/tests/cases/parameters/config/scripts/statistics.py
       command: "statistics.py {PORT::None}"
       parameters: [bar]
   - statistics_foo_bar:
       plugin: shell
-      src: scripts/statistics.py
+      computer: localhost
+      src: $TEST_ROOTDIR/tests/cases/parameters/config/scripts/statistics.py
       command: "statistics.py {PORT::None}"
   - merge:
       plugin: shell
-      src: scripts/merge.py
+      computer: localhost
+      src: $TEST_ROOTDIR/tests/cases/parameters/config/scripts/merge.py
       command: "merge.py {PORT::None}"
 
 data:
   available:
     - initial_conditions:
         type: file
-        src: data/initial_conditions
+        src: $TEST_ROOTDIR/tests/cases/parameters/config/data/initial_conditions
     - forcing:
         type: file
-        src: data/forcing
+        src: $TEST_ROOTDIR/tests/cases/parameters/config/data/forcing
   generated:
     - icon_output:
         type: file

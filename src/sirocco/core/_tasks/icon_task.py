@@ -32,7 +32,6 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             msg = f"Failed to read master namelists. Could not find {self._MASTER_NAMELIST_NAME!r} in namelists {self.namelists}"
             raise ValueError(msg)
         self._master_namelist = master_namelist
-        self.src = self._validate_src(self.src, self.config_rootdir)
 
         # retrieve model namelist name from master namelist
         if (master_model_nml := self._master_namelist.namelist.get(self._MASTER_MODEL_NML_SECTION, None)) is None:
@@ -106,8 +105,7 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             raise TypeError
 
         config_kwargs["namelists"] = [
-            NamelistFile.from_config(config=config_namelist, config_rootdir=kwargs["config_rootdir"])
-            for config_namelist in config_kwargs["namelists"]
+            NamelistFile.from_config(config=config_namelist) for config_namelist in config_kwargs["namelists"]
         ]
 
         self = cls(
@@ -116,18 +114,3 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         )
         self.update_icon_namelists_from_workflow()
         return self
-
-    @staticmethod
-    def _validate_src(config_src: Path, config_rootdir: Path | None = None) -> Path:
-        if config_rootdir is None and not config_src.is_absolute():
-            msg = f"Cannot specify relative path {config_src} for namelist while the rootdir is None"
-            raise ValueError(msg)
-
-        src = config_src if config_rootdir is None else (config_rootdir / config_src)
-        if not src.exists():
-            msg = f"Icon executable in path {src} does not exist."
-            raise FileNotFoundError(msg)
-        if not src.is_file():
-            msg = f"Icon executable in path {src} is not a file."
-            raise OSError(msg)
-        return src

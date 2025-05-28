@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import functools
 import io
+import os
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeAlias
@@ -188,7 +189,6 @@ class AiidaWorkGraph:
         Create an `aiida.orm.Data` instance from the provided graph item.
         """
         label = self.get_aiida_label_from_graph_item(data)
-        data_full_path = data.src if data.src.is_absolute() else self._core_workflow.config_rootdir / data.src
 
         if data.computer is not None:
             try:
@@ -199,12 +199,12 @@ class AiidaWorkGraph:
             # `remote_path` must be str not PosixPath to be JSON-serializable
             # FIXME: should not use resolved relative path, will be fixed in PR #153
             self._aiida_data_nodes[label] = aiida.orm.RemoteData(
-                remote_path=str(data_full_path), label=label, computer=computer
+                remote_path=str(data.src), label=label, computer=computer
             )
-        elif data.type == "file":
-            self._aiida_data_nodes[label] = aiida.orm.SinglefileData(label=label, file=data_full_path)
-        elif data.type == "dir":
-            self._aiida_data_nodes[label] = aiida.orm.FolderData(label=label, tree=data_full_path)
+        elif data.computer is None and data.type == "file":
+            self._aiida_data_nodes[label] = aiida.orm.SinglefileData(label=label, file=os.path.expandvars(data.src))
+        elif data.computer is None and data.type == "dir":
+            self._aiida_data_nodes[label] = aiida.orm.FolderData(label=label, tree=os.path.expandvars(data.src))
         else:
             msg = f"Data type {data.type!r} not supported. Please use 'file' or 'dir'."
             raise ValueError(msg)
@@ -232,18 +232,25 @@ class AiidaWorkGraph:
             if task.src is None:
                 msg = "src must be specified when command path is relative"
                 raise ValueError(msg)
-            command = str((task.config_rootdir / task.src).parent / cmd_path)
+            command = str(task.src.parent / cmd_path)
 
-        # metadata
+        from aiida_shell import ShellCode
+
+        label_uuid = str(uuid.uuid4())
+        # PRCOMMENT aiida-shell created the code before from the command we passed but this only works if it can resolve commands. Since we now want to support environment variables that possibly cannot be resoved until submission (because it uses environment variables in one of the source files)
+        code = ShellCode(
+            label=f"{command}-{label_uuid}",
+            computer=aiida.orm.load_computer(task.computer),
+            filepath_executable=command,
+            default_calc_job_plugin="core.shell",
+            use_double_quotes=True,
+        ).store()
+
         metadata: dict[str, Any] = {}
-        ## Source file
-        env_source_paths = [
-            env_source_path
-            if (env_source_path := Path(env_source_file)).is_absolute()
-            else (task.config_rootdir / env_source_path)
-            for env_source_file in task.env_source_files
-        ]
+        # Files that are sourced before the execution of the script
+        env_source_paths = [Path(env_source_file) for env_source_file in task.env_source_files]
         prepend_text = "\n".join([f"source {env_source_path}" for env_source_path in env_source_paths])
+
         metadata["options"] = {"prepend_text": prepend_text}
         # NOTE: Hardcoded for now, possibly make user-facing option (see issue #159)
         metadata["options"]["use_symlinks"] = True
@@ -262,7 +269,7 @@ class AiidaWorkGraph:
         workgraph_task = self._workgraph.add_task(
             "workgraph.shelljob",
             name=label,
-            command=command,
+            command=code,
             arguments="",
             outputs=[],
             metadata=metadata,
@@ -289,6 +296,7 @@ class AiidaWorkGraph:
             computer=computer,
             filepath_executable=str(task.src),
             with_mpi=False,
+            use_double_quotes=True,
         ).store()
 
         builder = IconCalculation.get_builder()
