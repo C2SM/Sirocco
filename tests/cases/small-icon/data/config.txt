@@ -62,8 +62,9 @@ cycles:
               - icon [date: 2026-05-01 00:00:00]
             name: 'cleanup'
             coordinates: {}
+            computer: 'localhost'
             cycle point: []
             plugin: 'shell'
-            src: scripts/cleanup.py
+            src: $TEST_ROOTDIR/tests/cases/small-icon/config/scripts/cleanup.py
             command: 'cleanup.py'
             env source files: []

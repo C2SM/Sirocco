@@ -33,25 +33,25 @@ cycles:
                     date: 2026-05-01T00:00
 tasks:
   - icon:
-      computer: localhost
       plugin: shell
-      src: scripts/icon.py
+      computer: localhost
+      src: $TEST_ROOTDIR/tests/cases/small-shell/config/scripts/icon.py
       command: "icon.py --restart {PORT::restart} --init {PORT::init}"
-      env_source_files: data/dummy_source_file.sh
+      env_source_files: $TEST_ROOTDIR/tests/cases/small-shell/config/data/dummy_source_file.sh
   - cleanup:
-      computer: localhost
       plugin: shell
-      src: scripts/cleanup.py
+      computer: localhost
+      src: $TEST_ROOTDIR/tests/cases/small-shell/config/scripts/cleanup.py
       command: "cleanup.py"
 data:
   available:
      - icon_namelist:
          type: file
-         src: data/input
+         src: $TEST_ROOTDIR/tests/cases/small-shell/config/data/input
      - initial_conditions:
          type: file
          #computer: localhost # TODO requires fix from PR #136
-         src: data/initial_conditions
+         src: $TEST_ROOTDIR/tests/cases/small-shell/config/data/initial_conditions
   generated:
      - icon_output:
          type: file

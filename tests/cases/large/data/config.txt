@@ -8,6 +8,7 @@ cycles:
               - extpar_file
             name: 'extpar'
             coordinates: {}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
@@ -27,12 +28,13 @@ cycles:
               - icon_input [date: 2025-01-01 00:00:00]
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2025, 1, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-01-01 00:00:00 -- 2025-03-01 00:00:00]
             plugin: 'shell'
-            src: scripts/cleanup.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/cleanup.sh
             command: 'cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
             env source files: ['data/dummy_source_file.sh']
         - icon [date: 2025-01-01 00:00:00]:
@@ -45,6 +47,7 @@ cycles:
               - icon_restart [date: 2025-01-01 00:00:00]
             name: 'icon'
             coordinates: {'date': datetime.datetime(2025, 1, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
@@ -58,12 +61,13 @@ cycles:
               - postout_1 [date: 2025-01-01 00:00:00]
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2025, 1, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-01-01 00:00:00 -- 2025-03-01 00:00:00]
             plugin: 'shell'
-            src: scripts/main_script_ocn.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/main_script_ocn.sh
             command: 'main_script_ocn.sh {PORT::None}'
             env source files: []
         - store_and_clean_1 [date: 2025-01-01 00:00:00]:
@@ -75,11 +79,12 @@ cycles:
               - stored_data_1 [date: 2025-01-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2025, 1, 1, 0, 0)}
+            computer: 'localhost'
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-01-01 00:00:00 -- 2025-03-01 00:00:00]
             plugin: 'shell'
-            src: scripts/post_clean.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/scripts/post_clean.sh
             command: 'post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
             env source files: []
   - icon_bimonthly [date: 2025-03-01 00:00:00]:
@@ -93,12 +98,13 @@ cycles:
               - icon_input [date: 2025-03-01 00:00:00]
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2025, 3, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-03-01 00:00:00 -- 2025-05-01 00:00:00]
             plugin: 'shell'
-            src: scripts/cleanup.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/cleanup.sh
             command: 'cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
             env source files: ['data/dummy_source_file.sh']
         - icon [date: 2025-03-01 00:00:00]:
@@ -112,6 +118,7 @@ cycles:
               - icon_restart [date: 2025-03-01 00:00:00]
             name: 'icon'
             coordinates: {'date': datetime.datetime(2025, 3, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
@@ -125,12 +132,13 @@ cycles:
               - postout_1 [date: 2025-03-01 00:00:00]
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2025, 3, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-03-01 00:00:00 -- 2025-05-01 00:00:00]
             plugin: 'shell'
-            src: scripts/main_script_ocn.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/main_script_ocn.sh
             command: 'main_script_ocn.sh {PORT::None}'
             env source files: []
         - store_and_clean_1 [date: 2025-03-01 00:00:00]:
@@ -142,11 +150,12 @@ cycles:
               - stored_data_1 [date: 2025-03-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2025, 3, 1, 0, 0)}
+            computer: 'localhost'
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-03-01 00:00:00 -- 2025-05-01 00:00:00]
             plugin: 'shell'
-            src: scripts/post_clean.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/scripts/post_clean.sh
             command: 'post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
             env source files: []
   - icon_bimonthly [date: 2025-05-01 00:00:00]:
@@ -162,12 +171,13 @@ cycles:
               - icon [date: 2025-01-01 00:00:00]
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2025, 5, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-05-01 00:00:00 -- 2025-07-01 00:00:00]
             plugin: 'shell'
-            src: scripts/cleanup.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/cleanup.sh
             command: 'cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
             env source files: ['data/dummy_source_file.sh']
         - icon [date: 2025-05-01 00:00:00]:
@@ -181,6 +191,7 @@ cycles:
               - icon_restart [date: 2025-05-01 00:00:00]
             name: 'icon'
             coordinates: {'date': datetime.datetime(2025, 5, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
@@ -194,12 +205,13 @@ cycles:
               - postout_1 [date: 2025-05-01 00:00:00]
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2025, 5, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-05-01 00:00:00 -- 2025-07-01 00:00:00]
             plugin: 'shell'
-            src: scripts/main_script_ocn.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/main_script_ocn.sh
             command: 'main_script_ocn.sh {PORT::None}'
             env source files: []
         - store_and_clean_1 [date: 2025-05-01 00:00:00]:
@@ -211,11 +223,12 @@ cycles:
               - stored_data_1 [date: 2025-05-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2025, 5, 1, 0, 0)}
+            computer: 'localhost'
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-05-01 00:00:00 -- 2025-07-01 00:00:00]
             plugin: 'shell'
-            src: scripts/post_clean.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/scripts/post_clean.sh
             command: 'post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
             env source files: []
   - icon_bimonthly [date: 2025-07-01 00:00:00]:
@@ -231,12 +244,13 @@ cycles:
               - icon [date: 2025-03-01 00:00:00]
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2025, 7, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-07-01 00:00:00 -- 2025-09-01 00:00:00]
             plugin: 'shell'
-            src: scripts/cleanup.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/cleanup.sh
             command: 'cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
             env source files: ['data/dummy_source_file.sh']
         - icon [date: 2025-07-01 00:00:00]:
@@ -250,6 +264,7 @@ cycles:
               - icon_restart [date: 2025-07-01 00:00:00]
             name: 'icon'
             coordinates: {'date': datetime.datetime(2025, 7, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
@@ -263,12 +278,13 @@ cycles:
               - postout_1 [date: 2025-07-01 00:00:00]
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2025, 7, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-07-01 00:00:00 -- 2025-09-01 00:00:00]
             plugin: 'shell'
-            src: scripts/main_script_ocn.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/main_script_ocn.sh
             command: 'main_script_ocn.sh {PORT::None}'
             env source files: []
         - store_and_clean_1 [date: 2025-07-01 00:00:00]:
@@ -280,11 +296,12 @@ cycles:
               - stored_data_1 [date: 2025-07-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2025, 7, 1, 0, 0)}
+            computer: 'localhost'
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-07-01 00:00:00 -- 2025-09-01 00:00:00]
             plugin: 'shell'
-            src: scripts/post_clean.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/scripts/post_clean.sh
             command: 'post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
             env source files: []
   - icon_bimonthly [date: 2025-09-01 00:00:00]:
@@ -300,12 +317,13 @@ cycles:
               - icon [date: 2025-05-01 00:00:00]
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2025, 9, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-09-01 00:00:00 -- 2025-11-01 00:00:00]
             plugin: 'shell'
-            src: scripts/cleanup.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/cleanup.sh
             command: 'cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
             env source files: ['data/dummy_source_file.sh']
         - icon [date: 2025-09-01 00:00:00]:
@@ -319,6 +337,7 @@ cycles:
               - icon_restart [date: 2025-09-01 00:00:00]
             name: 'icon'
             coordinates: {'date': datetime.datetime(2025, 9, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
@@ -332,12 +351,13 @@ cycles:
               - postout_1 [date: 2025-09-01 00:00:00]
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2025, 9, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-09-01 00:00:00 -- 2025-11-01 00:00:00]
             plugin: 'shell'
-            src: scripts/main_script_ocn.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/main_script_ocn.sh
             command: 'main_script_ocn.sh {PORT::None}'
             env source files: []
         - store_and_clean_1 [date: 2025-09-01 00:00:00]:
@@ -349,11 +369,12 @@ cycles:
               - stored_data_1 [date: 2025-09-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2025, 9, 1, 0, 0)}
+            computer: 'localhost'
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-09-01 00:00:00 -- 2025-11-01 00:00:00]
             plugin: 'shell'
-            src: scripts/post_clean.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/scripts/post_clean.sh
             command: 'post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
             env source files: []
   - icon_bimonthly [date: 2025-11-01 00:00:00]:
@@ -369,12 +390,13 @@ cycles:
               - icon [date: 2025-07-01 00:00:00]
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2025, 11, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-11-01 00:00:00 -- 2026-01-01 00:00:00]
             plugin: 'shell'
-            src: scripts/cleanup.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/cleanup.sh
             command: 'cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
             env source files: ['data/dummy_source_file.sh']
         - icon [date: 2025-11-01 00:00:00]:
@@ -388,6 +410,7 @@ cycles:
               - icon_restart [date: 2025-11-01 00:00:00]
             name: 'icon'
             coordinates: {'date': datetime.datetime(2025, 11, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
@@ -401,12 +424,13 @@ cycles:
               - postout_1 [date: 2025-11-01 00:00:00]
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2025, 11, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-11-01 00:00:00 -- 2026-01-01 00:00:00]
             plugin: 'shell'
-            src: scripts/main_script_ocn.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/main_script_ocn.sh
             command: 'main_script_ocn.sh {PORT::None}'
             env source files: []
         - store_and_clean_1 [date: 2025-11-01 00:00:00]:
@@ -418,11 +442,12 @@ cycles:
               - stored_data_1 [date: 2025-11-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2025, 11, 1, 0, 0)}
+            computer: 'localhost'
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-11-01 00:00:00 -- 2026-01-01 00:00:00]
             plugin: 'shell'
-            src: scripts/post_clean.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/scripts/post_clean.sh
             command: 'post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
             env source files: []
   - icon_bimonthly [date: 2026-01-01 00:00:00]:
@@ -438,12 +463,13 @@ cycles:
               - icon [date: 2025-09-01 00:00:00]
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-01-01 00:00:00 -- 2026-03-01 00:00:00]
             plugin: 'shell'
-            src: scripts/cleanup.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/cleanup.sh
             command: 'cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
             env source files: ['data/dummy_source_file.sh']
         - icon [date: 2026-01-01 00:00:00]:
@@ -457,6 +483,7 @@ cycles:
               - icon_restart [date: 2026-01-01 00:00:00]
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
@@ -470,12 +497,13 @@ cycles:
               - postout_1 [date: 2026-01-01 00:00:00]
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-01-01 00:00:00 -- 2026-03-01 00:00:00]
             plugin: 'shell'
-            src: scripts/main_script_ocn.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/main_script_ocn.sh
             command: 'main_script_ocn.sh {PORT::None}'
             env source files: []
         - store_and_clean_1 [date: 2026-01-01 00:00:00]:
@@ -487,11 +515,12 @@ cycles:
               - stored_data_1 [date: 2026-01-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
+            computer: 'localhost'
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-01-01 00:00:00 -- 2026-03-01 00:00:00]
             plugin: 'shell'
-            src: scripts/post_clean.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/scripts/post_clean.sh
             command: 'post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
             env source files: []
   - icon_bimonthly [date: 2026-03-01 00:00:00]:
@@ -507,12 +536,13 @@ cycles:
               - icon [date: 2025-11-01 00:00:00]
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2026, 3, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-03-01 00:00:00 -- 2026-05-01 00:00:00]
             plugin: 'shell'
-            src: scripts/cleanup.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/cleanup.sh
             command: 'cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
             env source files: ['data/dummy_source_file.sh']
         - icon [date: 2026-03-01 00:00:00]:
@@ -526,6 +556,7 @@ cycles:
               - icon_restart [date: 2026-03-01 00:00:00]
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 3, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
@@ -539,12 +570,13 @@ cycles:
               - postout_1 [date: 2026-03-01 00:00:00]
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2026, 3, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-03-01 00:00:00 -- 2026-05-01 00:00:00]
             plugin: 'shell'
-            src: scripts/main_script_ocn.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/main_script_ocn.sh
             command: 'main_script_ocn.sh {PORT::None}'
             env source files: []
         - store_and_clean_1 [date: 2026-03-01 00:00:00]:
@@ -556,11 +588,12 @@ cycles:
               - stored_data_1 [date: 2026-03-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2026, 3, 1, 0, 0)}
+            computer: 'localhost'
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-03-01 00:00:00 -- 2026-05-01 00:00:00]
             plugin: 'shell'
-            src: scripts/post_clean.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/scripts/post_clean.sh
             command: 'post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
             env source files: []
   - icon_bimonthly [date: 2026-05-01 00:00:00]:
@@ -576,12 +609,13 @@ cycles:
               - icon [date: 2026-01-01 00:00:00]
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2026, 5, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-05-01 00:00:00 -- 2026-07-01 00:00:00]
             plugin: 'shell'
-            src: scripts/cleanup.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/cleanup.sh
             command: 'cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
             env source files: ['data/dummy_source_file.sh']
         - icon [date: 2026-05-01 00:00:00]:
@@ -595,6 +629,7 @@ cycles:
               - icon_restart [date: 2026-05-01 00:00:00]
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 5, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
@@ -608,12 +643,13 @@ cycles:
               - postout_1 [date: 2026-05-01 00:00:00]
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2026, 5, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-05-01 00:00:00 -- 2026-07-01 00:00:00]
             plugin: 'shell'
-            src: scripts/main_script_ocn.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/main_script_ocn.sh
             command: 'main_script_ocn.sh {PORT::None}'
             env source files: []
         - store_and_clean_1 [date: 2026-05-01 00:00:00]:
@@ -625,11 +661,12 @@ cycles:
               - stored_data_1 [date: 2026-05-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2026, 5, 1, 0, 0)}
+            computer: 'localhost'
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-05-01 00:00:00 -- 2026-07-01 00:00:00]
             plugin: 'shell'
-            src: scripts/post_clean.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/scripts/post_clean.sh
             command: 'post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
             env source files: []
   - icon_bimonthly [date: 2026-07-01 00:00:00]:
@@ -645,12 +682,13 @@ cycles:
               - icon [date: 2026-03-01 00:00:00]
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2026, 7, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-07-01 00:00:00 -- 2026-09-01 00:00:00]
             plugin: 'shell'
-            src: scripts/cleanup.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/cleanup.sh
             command: 'cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
             env source files: ['data/dummy_source_file.sh']
         - icon [date: 2026-07-01 00:00:00]:
@@ -664,6 +702,7 @@ cycles:
               - icon_restart [date: 2026-07-01 00:00:00]
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 7, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
@@ -677,12 +716,13 @@ cycles:
               - postout_1 [date: 2026-07-01 00:00:00]
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2026, 7, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-07-01 00:00:00 -- 2026-09-01 00:00:00]
             plugin: 'shell'
-            src: scripts/main_script_ocn.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/main_script_ocn.sh
             command: 'main_script_ocn.sh {PORT::None}'
             env source files: []
         - store_and_clean_1 [date: 2026-07-01 00:00:00]:
@@ -694,11 +734,12 @@ cycles:
               - stored_data_1 [date: 2026-07-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2026, 7, 1, 0, 0)}
+            computer: 'localhost'
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-07-01 00:00:00 -- 2026-09-01 00:00:00]
             plugin: 'shell'
-            src: scripts/post_clean.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/scripts/post_clean.sh
             command: 'post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
             env source files: []
   - icon_bimonthly [date: 2026-09-01 00:00:00]:
@@ -714,12 +755,13 @@ cycles:
               - icon [date: 2026-05-01 00:00:00]
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2026, 9, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-09-01 00:00:00 -- 2026-11-01 00:00:00]
             plugin: 'shell'
-            src: scripts/cleanup.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/cleanup.sh
             command: 'cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
             env source files: ['data/dummy_source_file.sh']
         - icon [date: 2026-09-01 00:00:00]:
@@ -733,6 +775,7 @@ cycles:
               - icon_restart [date: 2026-09-01 00:00:00]
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 9, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
@@ -746,12 +789,13 @@ cycles:
               - postout_1 [date: 2026-09-01 00:00:00]
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2026, 9, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-09-01 00:00:00 -- 2026-11-01 00:00:00]
             plugin: 'shell'
-            src: scripts/main_script_ocn.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/main_script_ocn.sh
             command: 'main_script_ocn.sh {PORT::None}'
             env source files: []
         - store_and_clean_1 [date: 2026-09-01 00:00:00]:
@@ -763,11 +807,12 @@ cycles:
               - stored_data_1 [date: 2026-09-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2026, 9, 1, 0, 0)}
+            computer: 'localhost'
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-09-01 00:00:00 -- 2026-11-01 00:00:00]
             plugin: 'shell'
-            src: scripts/post_clean.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/scripts/post_clean.sh
             command: 'post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
             env source files: []
   - icon_bimonthly [date: 2026-11-01 00:00:00]:
@@ -783,12 +828,13 @@ cycles:
               - icon [date: 2026-07-01 00:00:00]
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2026, 11, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-11-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
-            src: scripts/cleanup.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/cleanup.sh
             command: 'cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
             env source files: ['data/dummy_source_file.sh']
         - icon [date: 2026-11-01 00:00:00]:
@@ -802,6 +848,7 @@ cycles:
               - icon_restart [date: 2026-11-01 00:00:00]
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 11, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
@@ -815,12 +862,13 @@ cycles:
               - postout_1 [date: 2026-11-01 00:00:00]
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2026, 11, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-11-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
-            src: scripts/main_script_ocn.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/main_script_ocn.sh
             command: 'main_script_ocn.sh {PORT::None}'
             env source files: []
         - store_and_clean_1 [date: 2026-11-01 00:00:00]:
@@ -832,11 +880,12 @@ cycles:
               - stored_data_1 [date: 2026-11-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2026, 11, 1, 0, 0)}
+            computer: 'localhost'
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-11-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
-            src: scripts/post_clean.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/scripts/post_clean.sh
             command: 'post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
             env source files: []
   - yearly [date: 2025-01-01 00:00:00]:
@@ -853,12 +902,13 @@ cycles:
               - postout_2 [date: 2025-01-01 00:00:00]
             name: 'postproc_2'
             coordinates: {'date': datetime.datetime(2025, 1, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-01-01 00:00:00 -- 2026-01-01 00:00:00]
             plugin: 'shell'
-            src: scripts/main_script_atm.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/scripts/main_script_atm.sh
             command: 'main_script_atm.sh --input {PORT::streams}'
             env source files: []
         - store_and_clean_2 [date: 2025-01-01 00:00:00]:
@@ -874,11 +924,12 @@ cycles:
               - stored_data_2 [date: 2025-01-01 00:00:00]
             name: 'store_and_clean_2'
             coordinates: {'date': datetime.datetime(2025, 1, 1, 0, 0)}
+            computer: 'localhost'
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-01-01 00:00:00 -- 2026-01-01 00:00:00]
             plugin: 'shell'
-            src: scripts/post_clean.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/scripts/post_clean.sh
             command: 'post_clean.sh --archive {PORT::archive} --clean {PORT::clean}'
             env source files: []
   - yearly [date: 2026-01-01 00:00:00]:
@@ -895,12 +946,13 @@ cycles:
               - postout_2 [date: 2026-01-01 00:00:00]
             name: 'postproc_2'
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
+            computer: 'localhost'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-01-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
-            src: scripts/main_script_atm.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/scripts/main_script_atm.sh
             command: 'main_script_atm.sh --input {PORT::streams}'
             env source files: []
         - store_and_clean_2 [date: 2026-01-01 00:00:00]:
@@ -916,10 +968,11 @@ cycles:
               - stored_data_2 [date: 2026-01-01 00:00:00]
             name: 'store_and_clean_2'
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
+            computer: 'localhost'
             nodes: 1
             walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-01-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
-            src: scripts/post_clean.sh
+            src: $TEST_ROOTDIR/tests/cases/large/config/scripts/scripts/post_clean.sh
             command: 'post_clean.sh --archive {PORT::archive} --clean {PORT::clean}'
             env source files: []

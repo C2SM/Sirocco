@@ -250,7 +250,7 @@ class ConfigBaseTaskSpecs:
     Any of these keys can be None, in which case they are inherited from the root task.
     """
 
-    computer: str | None = None
+    computer: str
     host: str | None = None
     account: str | None = None
     uenv: dict | None = None
@@ -360,6 +360,7 @@ class ConfigShellTask(ConfigBaseTask, ConfigShellTaskSpecs):
         ...         '''
         ...     my_task:
         ...       plugin: shell
+        ...       computer: localhost
         ...       command: "my_script.sh -n 1024 {PORT::current_sim_output}"
         ...       src: post_run_scripts/my_script.sh
         ...       env_source_files: "env.sh"
@@ -459,6 +460,7 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
         ...     '''
         ...       ICON:
         ...         plugin: icon
+        ...         computer: localhost
         ...         namelists:
         ...           - path/to/icon_master.namelist
         ...           - path/to/case_nml:
@@ -632,6 +634,7 @@ class ConfigWorkflow(BaseModel):
             ...     tasks:
             ...       - task_a:
             ...           plugin: shell
+            ...           computer: localhost
             ...           command: "some_command"
             ...     data:
             ...       available:
@@ -653,7 +656,13 @@ class ConfigWorkflow(BaseModel):
             ...     rootdir=Path("/location/of/config/file"),
             ...     cycles=[ConfigCycle(minimal_cycle={"tasks": [ConfigCycleTask(task_a={})]})],
             ...     tasks=[
-            ...         ConfigShellTask(task_a={"plugin": "shell", "command": "some_command"})
+            ...         ConfigShellTask(
+            ...             task_a={
+            ...                 "plugin": "shell",
+            ...                 "computer": "localhost",
+            ...                 "command": "some_command",
+            ...             }
+            ...         )
             ...     ],
             ...     data=ConfigData(
             ...         available=[

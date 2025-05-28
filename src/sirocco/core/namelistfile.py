@@ -1,3 +1,4 @@
+import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -23,8 +24,8 @@ class NamelistFile(models.ConfigNamelistFileSpec):
         self._namelist = f90nml.read(self.path)
 
     @classmethod
-    def from_config(cls: type[Self], config: models.ConfigNamelistFile, config_rootdir: Path) -> Self:
-        path = cls._validate_namelist_path(config.path, config_rootdir)
+    def from_config(cls: type[Self], config: models.ConfigNamelistFile) -> Self:
+        path = cls._validate_namelist_path(config.path)
         self = cls(path=path)
         self.update_from_specs(config.specs)
         return self
@@ -59,17 +60,15 @@ class NamelistFile(models.ConfigNamelistFileSpec):
         self.namelist.write(path)
 
     @staticmethod
-    def _validate_namelist_path(config_namelist_path: Path, config_rootdir: Path | None = None) -> Path:
-        if config_rootdir is None and not config_namelist_path.is_absolute():
-            msg = f"Cannot specify relative path {config_namelist_path} for namelist while the rootdir is None"
-            raise ValueError(msg)
-
-        namelist_path = config_namelist_path if config_rootdir is None else (config_rootdir / config_namelist_path)
+    def _validate_namelist_path(config_namelist_path: Path) -> Path:
+        namelist_path = Path(os.path.expandvars(config_namelist_path))
+        if not namelist_path.is_absolute():
+            msg = f"Namelist in path {config_namelist_path} expanded to {namelist_path} is not absolute path."
         if not namelist_path.exists():
-            msg = f"Namelist in path {namelist_path} does not exist."
+            msg = f"Namelist in path {config_namelist_path} expanded to {namelist_path} does not exist."
             raise FileNotFoundError(msg)
         if not namelist_path.is_file():
-            msg = f"Namelist in path {namelist_path} is not a file."
+            msg = f"Namelist in path {config_namelist_path} expanded to {namelist_path} is not a file."
             raise OSError(msg)
         return namelist_path
 
