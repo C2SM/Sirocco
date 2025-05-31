@@ -95,7 +95,7 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             namelist.dump(directory / filename)
 
     @classmethod
-    def build_from_config(cls: type[Self], config: models.ConfigTask, **kwargs: Any) -> Self:
+    def build_from_config(cls: type[Self], config: models.ConfigTask, config_rootdir: Path, **kwargs: Any) -> Self:
         config_kwargs = dict(config)
         del config_kwargs["parameters"]
         # The following check is here for type checkers.
@@ -105,10 +105,12 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             raise TypeError
 
         config_kwargs["namelists"] = [
-            NamelistFile.from_config(config=config_namelist) for config_namelist in config_kwargs["namelists"]
+            NamelistFile.from_config(config=config_namelist, config_rootdir=config_rootdir)
+            for config_namelist in config_kwargs["namelists"]
         ]
 
         self = cls(
+            config_rootdir=config_rootdir,
             **kwargs,
             **config_kwargs,
         )
