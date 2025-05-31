@@ -140,10 +140,10 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
         return new
 
     @classmethod
-    def build_from_config(cls: type[Self], config: ConfigTask, **kwargs: Any) -> Self:
+    def build_from_config(cls: type[Self], config: ConfigTask, config_rootdir: Path, **kwargs: Any) -> Self:
         config_kwargs = dict(config)
         del config_kwargs["parameters"]
-        return cls(**kwargs, **config_kwargs)
+        return cls(config_rootdir=config_rootdir, **kwargs, **config_kwargs)
 
     def link_wait_on_tasks(self, taskstore: Store[Task]) -> None:
         self.wait_on = list(

@@ -44,8 +44,8 @@ tasks:
       computer: localhost
       src: $TEST_ROOTDIR/tests/cases/small-icon/config/ICON/bin/icon
       namelists:
-        - $TEST_ROOTDIR/tests/cases/small-icon/config/ICON/icon_master.namelist
-        - $TEST_ROOTDIR/tests/cases/small-icon/config/ICON/model.namelist
+        - ./ICON/icon_master.namelist
+        - ./ICON/model.namelist
   - cleanup:
       plugin: shell
       computer: localhost
