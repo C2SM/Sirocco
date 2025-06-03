@@ -53,7 +53,7 @@ sirocco = "sirocco.cli:app"
 
 [tool.pytest.ini_options]
 # Configuration for [pytest](https://docs.pytest.org)
-addopts = "--pdbcls=IPython.terminal.debugger:TerminalPdb"
+addopts = "-s --pdbcls=IPython.terminal.debugger:TerminalPdb"
 norecursedirs = "tests/cases"
 markers = [
   "slow: slow integration tests which are not recommended to run locally for normal development",
