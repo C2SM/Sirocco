@@ -38,7 +38,7 @@ jobs:
       env:
         PYTEST_ADDOPTS: "--durations=0"
       run: |
-        hatch test -m "" --parallel --cover # override default exclusion of slow tests with -m ""
+        hatch test -m "not requires_icon" --parallel --cover
 
   docs:
     runs-on: ubuntu-latest
