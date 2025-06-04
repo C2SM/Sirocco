@@ -53,6 +53,15 @@ def test_run_workgraph(config_paths):
     assert (
         output_node.is_finished_ok
     ), f"Not successful run. Got exit code {output_node.exit_code} with message {output_node.exit_message}."
+    breakpoint()
+    # How to expose these debug utils properly?
+    from aiida.cmdline.utils.common import get_workchain_report, get_calcjob_report
+    # overall report but often not enough to really find the bug, one has to go to calcjob
+    print(get_workchain_report(output_node, levelname='REPORT'))
+    # the calcjobs are typically stored in 'called_descendants'
+    for node in output_node.called_descendants:
+        print(f"{node.process_label} workdir:", node.get_remote_workdir())
+        print(f"{node.process_label} report:\n", get_calcjob_report(node))
 
 
 # configs containing task using icon plugin
