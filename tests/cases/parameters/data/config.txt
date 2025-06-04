@@ -14,7 +14,7 @@ cycles:
             cycle point: [2026-01-01 00:00:00 -- 2026-07-01 00:00:00]
             plugin: 'shell'
             src: /TESTS_ROOTDIR/tests/cases/parameters/config/scripts/icon.py
-            command: 'icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
+            command: 'python icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
             env source files: []
         - icon [foo: 1, bar: 3.0, date: 2026-01-01 00:00:00]:
             input:
@@ -29,7 +29,7 @@ cycles:
             cycle point: [2026-01-01 00:00:00 -- 2026-07-01 00:00:00]
             plugin: 'shell'
             src: /TESTS_ROOTDIR/tests/cases/parameters/config/scripts/icon.py
-            command: 'icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
+            command: 'python icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
             env source files: []
         - statistics_foo [bar: 3.0, date: 2026-01-01 00:00:00]:
             input:
@@ -43,7 +43,7 @@ cycles:
             cycle point: [2026-01-01 00:00:00 -- 2026-07-01 00:00:00]
             plugin: 'shell'
             src: /TESTS_ROOTDIR/tests/cases/parameters/config/scripts/statistics.py
-            command: 'statistics.py {PORT::None}'
+            command: 'python statistics.py {PORT::None}'
             env source files: []
         - statistics_foo_bar [date: 2026-01-01 00:00:00]:
             input:
@@ -56,7 +56,7 @@ cycles:
             cycle point: [2026-01-01 00:00:00 -- 2026-07-01 00:00:00]
             plugin: 'shell'
             src: /TESTS_ROOTDIR/tests/cases/parameters/config/scripts/statistics.py
-            command: 'statistics.py {PORT::None}'
+            command: 'python statistics.py {PORT::None}'
             env source files: []
   - bimonthly_tasks [date: 2026-07-01 00:00:00]:
       tasks:
@@ -73,7 +73,7 @@ cycles:
             cycle point: [2026-07-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
             src: /TESTS_ROOTDIR/tests/cases/parameters/config/scripts/icon.py
-            command: 'icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
+            command: 'python icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
             env source files: []
         - icon [foo: 1, bar: 3.0, date: 2026-07-01 00:00:00]:
             input:
@@ -88,7 +88,7 @@ cycles:
             cycle point: [2026-07-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
             src: /TESTS_ROOTDIR/tests/cases/parameters/config/scripts/icon.py
-            command: 'icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
+            command: 'python icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
             env source files: []
         - statistics_foo [bar: 3.0, date: 2026-07-01 00:00:00]:
             input:
@@ -102,7 +102,7 @@ cycles:
             cycle point: [2026-07-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
             src: /TESTS_ROOTDIR/tests/cases/parameters/config/scripts/statistics.py
-            command: 'statistics.py {PORT::None}'
+            command: 'python statistics.py {PORT::None}'
             env source files: []
         - statistics_foo_bar [date: 2026-07-01 00:00:00]:
             input:
@@ -115,7 +115,7 @@ cycles:
             cycle point: [2026-07-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
             src: /TESTS_ROOTDIR/tests/cases/parameters/config/scripts/statistics.py
-            command: 'statistics.py {PORT::None}'
+            command: 'python statistics.py {PORT::None}'
             env source files: []
   - bimonthly_tasks [date: 2027-01-01 00:00:00]:
       tasks:
@@ -132,7 +132,7 @@ cycles:
             cycle point: [2027-01-01 00:00:00 -- 2027-07-01 00:00:00]
             plugin: 'shell'
             src: /TESTS_ROOTDIR/tests/cases/parameters/config/scripts/icon.py
-            command: 'icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
+            command: 'python icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
             env source files: []
         - icon [foo: 1, bar: 3.0, date: 2027-01-01 00:00:00]:
             input:
@@ -147,7 +147,7 @@ cycles:
             cycle point: [2027-01-01 00:00:00 -- 2027-07-01 00:00:00]
             plugin: 'shell'
             src: /TESTS_ROOTDIR/tests/cases/parameters/config/scripts/icon.py
-            command: 'icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
+            command: 'python icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
             env source files: []
         - statistics_foo [bar: 3.0, date: 2027-01-01 00:00:00]:
             input:
@@ -161,7 +161,7 @@ cycles:
             cycle point: [2027-01-01 00:00:00 -- 2027-07-01 00:00:00]
             plugin: 'shell'
             src: /TESTS_ROOTDIR/tests/cases/parameters/config/scripts/statistics.py
-            command: 'statistics.py {PORT::None}'
+            command: 'python statistics.py {PORT::None}'
             env source files: []
         - statistics_foo_bar [date: 2027-01-01 00:00:00]:
             input:
@@ -174,7 +174,7 @@ cycles:
             cycle point: [2027-01-01 00:00:00 -- 2027-07-01 00:00:00]
             plugin: 'shell'
             src: /TESTS_ROOTDIR/tests/cases/parameters/config/scripts/statistics.py
-            command: 'statistics.py {PORT::None}'
+            command: 'python statistics.py {PORT::None}'
             env source files: []
   - bimonthly_tasks [date: 2027-07-01 00:00:00]:
       tasks:
@@ -191,7 +191,7 @@ cycles:
             cycle point: [2027-07-01 00:00:00 -- 2028-01-01 00:00:00]
             plugin: 'shell'
             src: /TESTS_ROOTDIR/tests/cases/parameters/config/scripts/icon.py
-            command: 'icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
+            command: 'python icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
             env source files: []
         - icon [foo: 1, bar: 3.0, date: 2027-07-01 00:00:00]:
             input:
@@ -206,7 +206,7 @@ cycles:
             cycle point: [2027-07-01 00:00:00 -- 2028-01-01 00:00:00]
             plugin: 'shell'
             src: /TESTS_ROOTDIR/tests/cases/parameters/config/scripts/icon.py
-            command: 'icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
+            command: 'python icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
             env source files: []
         - statistics_foo [bar: 3.0, date: 2027-07-01 00:00:00]:
             input:
@@ -220,7 +220,7 @@ cycles:
             cycle point: [2027-07-01 00:00:00 -- 2028-01-01 00:00:00]
             plugin: 'shell'
             src: /TESTS_ROOTDIR/tests/cases/parameters/config/scripts/statistics.py
-            command: 'statistics.py {PORT::None}'
+            command: 'python statistics.py {PORT::None}'
             env source files: []
         - statistics_foo_bar [date: 2027-07-01 00:00:00]:
             input:
@@ -233,7 +233,7 @@ cycles:
             cycle point: [2027-07-01 00:00:00 -- 2028-01-01 00:00:00]
             plugin: 'shell'
             src: /TESTS_ROOTDIR/tests/cases/parameters/config/scripts/statistics.py
-            command: 'statistics.py {PORT::None}'
+            command: 'python statistics.py {PORT::None}'
             env source files: []
   - yearly [date: 2026-01-01 00:00:00]:
       tasks:
@@ -249,7 +249,7 @@ cycles:
             cycle point: [2026-01-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
             src: /TESTS_ROOTDIR/tests/cases/parameters/config/scripts/merge.py
-            command: 'merge.py {PORT::None}'
+            command: 'python merge.py {PORT::None}'
             env source files: []
   - yearly [date: 2027-01-01 00:00:00]:
       tasks:
@@ -265,5 +265,5 @@ cycles:
             cycle point: [2027-01-01 00:00:00 -- 2028-01-01 00:00:00]
             plugin: 'shell'
             src: /TESTS_ROOTDIR/tests/cases/parameters/config/scripts/merge.py
-            command: 'merge.py {PORT::None}'
+            command: 'python merge.py {PORT::None}'
             env source files: []

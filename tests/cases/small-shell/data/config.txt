@@ -14,7 +14,7 @@ cycles:
             cycle point: [2026-01-01 00:00:00 -- 2026-03-01 00:00:00]
             plugin: 'shell'
             src: /TESTS_ROOTDIR/tests/cases/small-shell/config/scripts/icon.py
-            command: 'icon.py --restart {PORT::restart} --init {PORT::init}'
+            command: 'python icon.py --restart {PORT::restart} --init {PORT::init}'
             env source files: ['/TESTS_ROOTDIR/tests/cases/small-shell/config/data/dummy_source_file.sh']
   - bimonthly_tasks [date: 2026-03-01 00:00:00]:
       tasks:
@@ -31,7 +31,7 @@ cycles:
             cycle point: [2026-03-01 00:00:00 -- 2026-05-01 00:00:00]
             plugin: 'shell'
             src: /TESTS_ROOTDIR/tests/cases/small-shell/config/scripts/icon.py
-            command: 'icon.py --restart {PORT::restart} --init {PORT::init}'
+            command: 'python icon.py --restart {PORT::restart} --init {PORT::init}'
             env source files: ['/TESTS_ROOTDIR/tests/cases/small-shell/config/data/dummy_source_file.sh']
   - bimonthly_tasks [date: 2026-05-01 00:00:00]:
       tasks:
@@ -48,7 +48,7 @@ cycles:
             cycle point: [2026-05-01 00:00:00 -- 2026-06-01 00:00:00]
             plugin: 'shell'
             src: /TESTS_ROOTDIR/tests/cases/small-shell/config/scripts/icon.py
-            command: 'icon.py --restart {PORT::restart} --init {PORT::init}'
+            command: 'python icon.py --restart {PORT::restart} --init {PORT::init}'
             env source files: ['/TESTS_ROOTDIR/tests/cases/small-shell/config/data/dummy_source_file.sh']
   - lastly:
       tasks:
@@ -61,5 +61,5 @@ cycles:
             cycle point: []
             plugin: 'shell'
             src: /TESTS_ROOTDIR/tests/cases/small-shell/config/scripts/cleanup.py
-            command: 'cleanup.py'
+            command: 'python cleanup.py'
             env source files: []

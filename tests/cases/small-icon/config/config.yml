@@ -50,7 +50,7 @@ tasks:
       plugin: shell
       computer: localhost
       src: /TESTS_ROOTDIR/tests/cases/small-icon/config/scripts/cleanup.py
-      command: "cleanup.py"
+      command: "python cleanup.py"
 data:
   available:
      - icon_grid_simple:

@@ -211,24 +211,17 @@ class AiidaWorkGraph:
     def _create_shell_task_node(self, task: core.ShellTask):
         label = self.get_aiida_label_from_graph_item(task)
         # Split command line between command and arguments (this is required by aiida internals)
+
         cmd, _ = self.split_cmd_arg(task.command)
-        cmd_path = Path(cmd)
-        # FIXME: https://github.com/C2SM/Sirocco/issues/127
-        if cmd_path.is_absolute():
-            command = str(cmd_path)
-        else:
-            if task.src is None:
-                msg = "src must be specified when command path is relative"
-                raise ValueError(msg)
-            command = str(task.src.parent / cmd_path)
 
         from aiida_shell import ShellCode
 
         label_uuid = str(uuid.uuid4())
+
         code = ShellCode(
-            label=f"{command}-{label_uuid}",
+            label=f"{cmd}-{label_uuid}",
             computer=aiida.orm.load_computer(task.computer),
-            filepath_executable=command,
+            filepath_executable=cmd,
             default_calc_job_plugin="core.shell",
             use_double_quotes=True,
         ).store()
@@ -250,12 +243,16 @@ class AiidaWorkGraph:
                 msg = f"Could not find computer {task.computer} for task {task}."
                 raise ValueError(msg) from err
 
-        # NOTE: We don't pass the `nodes` dictionary here, as then we would need to have the sockets available when
-        # we create the task. Instead, they are being updated via the WG internals when linking inputs/outputs to
-        # tasks
+        # NOTE: The input and output nodes of the task are populated in a separate function
+        nodes = {}
+        # We need to add the files to nodes to copy it to remote
+        if task.src is not None:
+            nodes[f"SCRIPT__{label}"] = aiida.orm.SinglefileData(str(task.src))
+
         workgraph_task = self._workgraph.add_task(
             "workgraph.shelljob",
             name=label,
+            nodes=nodes,
             command=code,
             arguments="",
             outputs=[],
