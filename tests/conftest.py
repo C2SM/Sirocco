@@ -189,29 +189,29 @@ export TEST_ROOTDIR={test_rootdir}
 # Expand environment variables in symlink targets and update them to resolved paths
 
 for link in *; do
-if [ -L "$link" ]; then
-target=$(readlink "$link")
+    if [ -L "$link" ]; then
+        target=$(readlink "$link")
 
-echo "Found symlink: $link -> $target"
+        echo "Found symlink: $link -> $target"
 
-# Only process if target includes a variable
-if [[ "$target" =~ \\$[A-Za-z_][A-Za-z0-9_]* ]]; then
-# Use eval to expand environment variables
-eval "expanded=\\"$target\\""
+        # Only process if target includes a variable
+        if [[ "$target" =~ \\$[A-Za-z_][A-Za-z0-9_]* ]]; then
+            # Use eval to expand environment variables
+            eval "expanded=\\"$target\\""
 
-# Resolve to absolute path
-resolved=$(readlink -f "$expanded")
+            # Resolve to absolute path
+            resolved=$(readlink -f "$expanded")
 
-if [ -e "$resolved" ]; then
-echo " -> Expanding to: $resolved"
-rm "$link"
-ln -s "$resolved" "$link"
-else
-echo " !! Expanded path does not exist: $resolved"
-fi
-else
-echo " -> No environment variable to expand."
-fi
-fi
+            if [ -e "$resolved" ]; then
+                echo " -> Expanding to: $resolved"
+                rm "$link"
+                ln -s "$resolved" "$link"
+            else
+                echo " !! Expanded path does not exist: $resolved"
+            fi
+        else
+            echo " -> No environment variable to expand."
+        fi
+    fi
 done"""
     aiida_localhost.set_prepend_text(prepend_text)
