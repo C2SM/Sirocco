@@ -104,10 +104,3 @@ def test_shell_filenames_nodes_arguments(config_paths):
     assert arguments_list == expected_arguments_list
     assert filenames_list == expected_filenames_list
     assert nodes_list == expected_nodes_list
-
-    # PRCOMMENT: Introduce this once we can automatically create the codes in a reasonable way.
-    # Currently, it still fails...
-    # output_node = aiida_wf.run()
-    # assert (
-    #     output_node.is_finished_ok
-    # ), f"Not successful run. Got exit code {output_node.exit_code} with message {output_node.exit_message}."

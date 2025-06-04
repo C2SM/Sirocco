@@ -76,6 +76,8 @@ ignore = [
   "TRY003", # write custom error messages for formatting
 ]
 
+## Hatch configurations
+
 [tool.hatch.build.targets.sdist]
 include = [
   "src/sirocco/",
