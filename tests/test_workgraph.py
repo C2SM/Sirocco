@@ -13,7 +13,7 @@ from sirocco.workgraph import AiidaWorkGraph
         "parameters",
     ],
 )
-def test_comprehensive_parameterized_explicit(config_paths):
+def test_shell_filenames_nodes_arguments(config_paths):
     from sirocco.parsing.yaml_data_models import ConfigWorkflow
     import datetime
 
