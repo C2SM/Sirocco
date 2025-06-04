@@ -359,9 +359,9 @@ class AiidaWorkGraph:
                 # Count how many inputs have the same base name
                 same_name_count = sum(1 for inp in task.input_data_nodes() if inp.name == input_.name)
 
-# NOTE: One could also always use the `input_label` consistently here and remove the if-else
-# to obtain more predictable labels, which, however, might be unnecessarily lengthy.
-# To be thought about...
+                # NOTE: One could also always use the `input_label` consistently here and remove the if-else
+                # to obtain more predictable labels, which, however, might be unnecessarily lengthy.
+                # To be thought about...
                 if same_name_count > 1:
                     # Multiple data nodes with same base name - use full label as filename
                     # to ensure uniqueness in working directory
