@@ -52,10 +52,13 @@ class Data(ConfigBaseDataSpecs, GraphItem):
         return data_class(coordinates=coordinates, **config_kwargs)
 
 
+@dataclass(kw_only=True)
 class AvailableData(Data):
     src: Path
+    computer: str
 
 
+@dataclass(kw_only=True)
 class GeneratedData(Data):
     pass
 

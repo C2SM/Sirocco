@@ -1,25 +1,12 @@
 import textwrap
 
 import pytest
-from pydantic import ValidationError
 
 from sirocco.parsing import yaml_data_models as models
 
 
-@pytest.mark.parametrize("data_type", ["file", "dir"])
-def test_base_data(data_type):
-    testee = models.ConfigBaseData(name="name", type=data_type, src="foo.txt", format=None)
-
-    assert testee.type == data_type
-
-
-@pytest.mark.parametrize("data_type", [None, "invalid", 1.42])
-def test_base_data_invalid_type(data_type):
-    with pytest.raises(ValidationError):
-        _ = models.ConfigBaseData(name="name", src="foo", format="nml")
-
-    with pytest.raises(ValidationError):
-        _ = models.ConfigBaseData(name="name", type=data_type, src="foo", format="nml")
+def test_base_data():
+    models.ConfigBaseData(name="name", src="foo.txt", format=None)
 
 
 @pytest.fixture
@@ -38,11 +25,10 @@ def minimal_config_path(tmp_path):
         data:
           available:
             - c:
-                type: "file"
+                computer: "localhost"
                 src: "c.txt"
           generated:
             - d:
-                type: "dir"
                 src: "d"
         """
     )

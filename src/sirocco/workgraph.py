@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import functools
 import io
-import os
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeAlias
@@ -190,22 +189,13 @@ class AiidaWorkGraph:
         """
         label = self.get_aiida_label_from_graph_item(data)
 
-        if data.computer is not None:
-            try:
-                computer = aiida.orm.load_computer(data.computer)
-            except NotExistent as err:
-                msg = f"Could not find computer {data.computer!r} for input {data}."
-                raise ValueError(msg) from err
-            self._aiida_data_nodes[label] = aiida.orm.RemoteData(
-                remote_path=str(data.src), label=label, computer=computer
-            )
-        elif data.computer is None and data.type == "file":
-            self._aiida_data_nodes[label] = aiida.orm.SinglefileData(label=label, file=os.path.expandvars(data.src))
-        elif data.computer is None and data.type == "dir":
-            self._aiida_data_nodes[label] = aiida.orm.FolderData(label=label, tree=os.path.expandvars(data.src))
-        else:
-            msg = f"Data type {data.type!r} not supported. Please use 'file' or 'dir'."
-            raise ValueError(msg)
+        try:
+            computer = aiida.orm.load_computer(data.computer)
+        except NotExistent as err:
+            msg = f"Could not find computer {data.computer!r} for input {data}."
+            raise ValueError(msg) from err
+        # `remote_path` must be str not PosixPath to be JSON-serializable
+        self._aiida_data_nodes[label] = aiida.orm.RemoteData(remote_path=str(data.src), label=label, computer=computer)
 
     @functools.singledispatchmethod
     def create_task_node(self, task: core.Task):
@@ -422,7 +412,7 @@ class AiidaWorkGraph:
         for input_ in task.input_data_nodes():
             input_label = self.get_aiida_label_from_graph_item(input_)
 
-            if task.computer and input_.computer and isinstance(input_, core.AvailableData):
+            if task.computer and isinstance(input_, core.AvailableData) and input_.computer:
                 # For RemoteData on the same computer, use just the filename
                 filename = input_.src.name
                 filenames[input_.name] = filename

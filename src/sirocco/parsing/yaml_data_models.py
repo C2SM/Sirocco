@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import enum
 import itertools
 import re
 import time
@@ -483,17 +482,10 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
         return nmls
 
 
-class DataType(enum.StrEnum):
-    FILE = enum.auto()
-    DIR = enum.auto()
-
-
 @dataclass(kw_only=True)
 class ConfigBaseDataSpecs:
-    type: DataType
     src: Path | None = None
     format: str | None = None
-    computer: str | None = None
 
 
 class ConfigBaseData(_NamedBaseModel, ConfigBaseDataSpecs):
@@ -508,18 +500,17 @@ class ConfigBaseData(_NamedBaseModel, ConfigBaseDataSpecs):
             >>> snippet = textwrap.dedent(
             ...     '''
             ...       foo:
-            ...         type: "file"
             ...         src: "foo.txt"
             ...     '''
             ... )
             >>> validate_yaml_content(ConfigBaseData, snippet)
-            ConfigBaseData(type=<DataType.FILE: 'file'>, src=PosixPath('foo.txt'), format=None, computer=None, name='foo', parameters=[])
+            ConfigBaseData(src=PosixPath('foo.txt'), format=None, name='foo', parameters=[])
 
 
         from python:
 
-            >>> ConfigBaseData(name="foo", type=DataType.FILE, src="foo.txt")
-            ConfigBaseData(type=<DataType.FILE: 'file'>, src=PosixPath('foo.txt'), format=None, computer=None, name='foo', parameters=[])
+            >>> ConfigBaseData(name="foo", src="foo.txt")
+            ConfigBaseData(src=PosixPath('foo.txt'), format=None, name='foo', parameters=[])
     """
 
     parameters: list[str] = []
@@ -527,16 +518,10 @@ class ConfigBaseData(_NamedBaseModel, ConfigBaseDataSpecs):
 
 class ConfigAvailableData(ConfigBaseData):
     src: Path
+    computer: str
 
 
-class ConfigGeneratedData(ConfigBaseData):
-    @field_validator("computer")
-    @classmethod
-    def invalid_field(cls, value: str | None) -> str | None:
-        if value is not None:
-            msg = "The field 'computer' can only be specified for available data."
-            raise ValueError(msg)
-        return value
+class ConfigGeneratedData(ConfigBaseData): ...
 
 
 class ConfigData(BaseModel):
@@ -552,11 +537,10 @@ class ConfigData(BaseModel):
             ...     '''
             ...     available:
             ...       - foo:
-            ...           type: "file"
+            ...           computer: "localhost"
             ...           src: "foo.txt"
             ...     generated:
             ...       - bar:
-            ...           type: "file"
             ...           src: "bar.txt"
             ...     '''
             ... )
@@ -636,11 +620,10 @@ class ConfigWorkflow(BaseModel):
             ...     data:
             ...       available:
             ...         - foo:
-            ...             type: file
+            ...             computer: localhost
             ...             src: foo.txt
             ...       generated:
             ...         - bar:
-            ...             type: dir
             ...             src: bar
             ...     '''
             ... )
@@ -663,11 +646,13 @@ class ConfigWorkflow(BaseModel):
             ...     ],
             ...     data=ConfigData(
             ...         available=[
-            ...             ConfigAvailableData(name="foo", type=DataType.FILE, src="foo.txt")
+            ...             ConfigAvailableData(
+            ...                 name="foo",
+            ...                 computer="localhost",
+            ...                 src="foo.txt",
+            ...             )
             ...         ],
-            ...         generated=[
-            ...             ConfigGeneratedData(name="bar", type=DataType.DIR, src="bar")
-            ...         ],
+            ...         generated=[ConfigGeneratedData(name="bar", src="bar")],
             ...     ),
             ...     parameters={},
             ... )

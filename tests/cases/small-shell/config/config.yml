@@ -46,16 +46,13 @@ tasks:
 data:
   available:
      - icon_namelist:
-         type: file
+         computer: localhost
          src: $TEST_ROOTDIR/tests/cases/small-shell/config/data/input
      - initial_conditions:
-         type: file
-         #computer: localhost # TODO requires fix from PR #136
+         computer: localhost
          src: $TEST_ROOTDIR/tests/cases/small-shell/config/data/initial_conditions
   generated:
      - icon_output:
-         type: file
          src: icon_output
      - icon_restart:
-         type: file
          src: restart
