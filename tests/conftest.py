@@ -99,11 +99,7 @@ def minimal_invert_task_io_config() -> models.ConfigWorkflow:
         ],
         data=models.ConfigData(
             available=[
-                models.ConfigAvailableData(
-                    name="available",
-                    type=models.DataType.FILE,
-                    src=pathlib.Path("foo.txt"),
-                )
+                models.ConfigAvailableData(name="available", type=models.DataType.FILE, src=pathlib.Path("foo.txt"))
             ],
             generated=[
                 models.ConfigGeneratedData(name="output_a", type=models.DataType.DIR, src=pathlib.Path("bar")),
@@ -158,7 +154,7 @@ def serialize_nml(config_paths: dict[str, pathlib.Path], workflow: workflow.Work
 
 def pytest_configure(config):
     if config.getoption("reserialize"):
-        print("Regenerating serialized references")  # this is actual UX, not a debug print
+        LOGGER.info("Regenerating serialized references")
         for config_case in ALL_CONFIG_CASES:
             config_paths = generate_config_paths(config_case)
             wf = workflow.Workflow.from_config_file(str(config_paths["yml"]))
