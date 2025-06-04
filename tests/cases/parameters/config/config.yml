@@ -80,29 +80,24 @@ tasks:
 data:
   available:
     - initial_conditions:
-        type: file
+        computer: localhost
         src: $TEST_ROOTDIR/tests/cases/parameters/config/data/initial_conditions
     - forcing:
-        type: file
+        computer: localhost
         src: $TEST_ROOTDIR/tests/cases/parameters/config/data/forcing
   generated:
     - icon_output:
-        type: file
         src: icon_output
         parameters: [foo, bar]
     - icon_restart:
-        type: file
         src: restart
         parameters: [foo, bar]
     - analysis_foo:
-        type: file
         src: analysis
         parameters: [bar]
     - analysis_foo_bar:
-        type: file
         src: analysis
     - yearly_analysis:
-        type: file
         src: analysis
 
 parameters:
