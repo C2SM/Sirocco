@@ -87,7 +87,7 @@ def minimal_invert_task_io_config() -> models.ConfigWorkflow:
                     ),
                     models.ConfigCycleTask(
                         name="task_a",
-                        inputs=[models.ConfigCycleTaskInput(name="availalble", port="None")],
+                        inputs=[models.ConfigCycleTaskInput(name="available", port="None")],
                         outputs=[models.ConfigCycleTaskOutput(name="output_a")],
                     ),
                 ],
@@ -99,7 +99,7 @@ def minimal_invert_task_io_config() -> models.ConfigWorkflow:
         ],
         data=models.ConfigData(
             available=[
-                models.ConfigAvailableData(name="availalble", type=models.DataType.FILE, src=pathlib.Path("foo.txt"))
+                models.ConfigAvailableData(name="available", type=models.DataType.FILE, src=pathlib.Path("foo.txt"))
             ],
             generated=[
                 models.ConfigGeneratedData(name="output_a", type=models.DataType.DIR, src=pathlib.Path("bar")),
