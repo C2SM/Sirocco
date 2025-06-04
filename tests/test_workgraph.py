@@ -1,4 +1,3 @@
-
 import pytest
 
 from sirocco.core import Workflow
@@ -14,26 +13,32 @@ from sirocco.workgraph import AiidaWorkGraph
     ],
 )
 def test_shell_filenames_nodes_arguments(config_paths):
-    from sirocco.parsing.yaml_data_models import ConfigWorkflow
     import datetime
+
+    from sirocco.parsing.yaml_data_models import ConfigWorkflow
 
     config_workflow = ConfigWorkflow.from_config_file(str(config_paths["yml"]))
 
     # Update the stop_date for both cycles to make the result shorter
-    config_workflow.cycles[0].cycling.stop_date = datetime.datetime(2027, 1, 1, 0, 0)
-    config_workflow.cycles[1].cycling.stop_date = datetime.datetime(2027, 1, 1, 0, 0)
+    # NOTE: We currently don't use timezone-aware times in config YAML, thus ignora DTZ001 for now.
+    # See https://github.com/C2SM/Sirocco/issues/161
+    config_workflow.cycles[0].cycling.stop_date = datetime.datetime(2027, 1, 1, 0, 0)  # noqa: DTZ001
+    config_workflow.cycles[1].cycling.stop_date = datetime.datetime(2027, 1, 1, 0, 0)  # noqa: DTZ001
     core_workflow = Workflow.from_config_workflow(config_workflow)
     aiida_workflow = AiidaWorkGraph(core_workflow)
 
+    # NOTE: SLF001 will be fixed with https://github.com/C2SM/Sirocco/issues/82
     filenames_list = [
-        task.inputs.filenames.value for task in aiida_workflow._workgraph.tasks
+        task.inputs.filenames.value
+        for task in aiida_workflow._workgraph.tasks  # noqa: SLF001
     ]
     arguments_list = [
-        task.inputs.arguments.value for task in aiida_workflow._workgraph.tasks
+        task.inputs.arguments.value
+        for task in aiida_workflow._workgraph.tasks  # noqa: SLF001
     ]
     nodes_list = [
-        list(task.inputs.nodes._sockets.keys())
-        for task in aiida_workflow._workgraph.tasks
+        list(task.inputs.nodes._sockets.keys())  # noqa: SLF001
+        for task in aiida_workflow._workgraph.tasks  # noqa: SLF001
     ]
 
     expected_filenames_list = [
