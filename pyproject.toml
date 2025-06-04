@@ -35,7 +35,9 @@ dependencies = [
   "termcolor",
   "pygraphviz",
   "lxml",
-  "f90nml"
+  "f90nml",
+  "rich",
+  "typer"
 ]
 license = {file = "LICENSE"}
 
@@ -44,9 +46,12 @@ Repository = "https://github.com/C2SM/Sirocco.git"
 Documentation = "https://c2sm.github.io/Sirocco/"
 Changelog = "https://github.com/C2SM/Sirocco/blob/main/CHANGELOG.md"
 
+[project.scripts]
+sirocco = "sirocco.cli:app"
+
 [tool.pytest.ini_options]
 # Configuration for [pytest](https://docs.pytest.org)
-addopts = "--pdbcls=IPython.terminal.debugger:TerminalPdb"
+addopts = "-s --pdbcls=IPython.terminal.debugger:TerminalPdb"
 norecursedirs = "tests/cases"
 markers = [
   "slow: slow integration tests which are not recommended to run locally for normal development",
@@ -87,6 +92,7 @@ path = "src/sirocco/__init__.py"
 
 [tool.hatch.envs.default]
 installer = "uv"
+python = "3.12"
 
 [tool.hatch.envs.hatch-test]
 installer = "uv"
