@@ -67,7 +67,7 @@ filterwarnings = [
 source = ["sirocco"]
 
 [tool.ruff]
-include = ["src/*py", "tests/*py"] 
+include = ["src/*py", "tests/*py"]
 target-version = "py310"
 
 [tool.ruff.lint]
@@ -75,9 +75,6 @@ ignore = [
   "TID252", # prefer relative import over absolute
   "TRY003", # write custom error messages for formatting
 ]
-
-[tool.ruff.lint.per-file-ignores]
-## Hatch configurations
 
 [tool.hatch.build.targets.sdist]
 include = [
