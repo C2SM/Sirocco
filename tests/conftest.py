@@ -2,6 +2,7 @@ import logging
 import os
 import pathlib
 import subprocess
+import textwrap
 
 import pytest
 import requests
@@ -215,3 +216,39 @@ for link in *; do
     fi
 done"""
     aiida_localhost.set_prepend_text(prepend_text)
+
+
+@pytest.fixture
+def sample_workflow_file(tmp_path):
+    """Create a minimal valid workflow file for testing."""
+    workflow_content = textwrap.dedent(
+        """
+        name: test_workflow
+        cycles:
+          - test_cycle:
+              tasks:
+                - test_task:
+        tasks:
+          - test_task:
+              plugin: shell
+              command: "/usr/bin/echo hello"
+        data:
+          available:
+            - input_data:
+                type: file
+                src: test_input.txt
+          generated:
+            - output_data:
+                type: file
+                src: test_output.txt
+        """
+    )
+
+    workflow_file = tmp_path / "test_workflow.yml"
+    workflow_file.write_text(workflow_content)
+
+    # Create a dummy input file referenced in the workflow
+    input_file = tmp_path / "test_input.txt"
+    input_file.write_text("test input")
+
+    return workflow_file
