@@ -171,40 +171,31 @@ tasks:
 data:
   available:
     - grid_file:
-        type: file
+        computer: localhost
         src: $TEST_ROOTDIR/tests/cases/large/config/data/grid
     - obs_data:
-        type: file
+        computer: localhost
         src: $TEST_ROOTDIR/tests/cases/large/config/data/obs_data
     - ERA5:
-        type: file
+        computer: localhost
         src: $TEST_ROOTDIR/tests/cases/large/config/data/era5
   generated:
     - extpar_file:
-        type: file
         src: output
     - icon_input:
-        type: file
         src: output
     - icon_restart:
-        type: file
         format: ncdf
         src: restart
     - stream_1:
-        type: file
         src: output_1
     - stream_2:
-        type: file
         src: output_2
     - postout_1:
-        type: file
         src: postout
     - postout_2:
-        type: file
         src: postout
     - stored_data_1:
-        type: file
         src: stored_data
     - stored_data_2:
-        type: file
         src: stored_data
