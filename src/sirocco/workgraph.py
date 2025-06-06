@@ -292,7 +292,7 @@ class AiidaWorkGraph:
             default_calc_job_plugin="icon.icon",
             computer=computer,
             filepath_executable=str(task.src),
-            with_mpi=False,
+            with_mpi=True,
             use_double_quotes=True,
         ).store()
 
