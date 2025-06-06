@@ -64,6 +64,6 @@ jobs:
         spack env activate .
         hatch test -s -m "requires_icon" --parallel tests
 
-      - name: Setup upterm session
-        uses: lhotari/action-upterm@v1
-        if: failure()
+    - name: Setup upterm session
+      uses: lhotari/action-upterm@v1
+      if: failure()
