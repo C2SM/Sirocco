@@ -18,7 +18,6 @@ class NamelistFile(models.ConfigNamelistFileSpec):
     name: str = field(init=False)
 
     def __post_init__(self) -> None:
-        self.path = self._validate_namelist_path(self.path)
         self.name = self.path.name
         self._namelist = f90nml.read(self.path)
 
@@ -59,11 +58,9 @@ class NamelistFile(models.ConfigNamelistFileSpec):
         self.namelist.write(path)
 
     @staticmethod
-    def _validate_namelist_path(config_namelist_path: Path, config_rootdir: Path | None = None) -> Path:
-        if config_rootdir is None and not config_namelist_path.is_absolute():
-            msg = f"Cannot specify relative path {config_namelist_path} for namelist while the rootdir is None"
-            raise ValueError(msg)
-
+    def _validate_namelist_path(config_namelist_path: Path, config_rootdir: Path) -> Path:
+        if config_namelist_path.is_absolute():
+            msg = f"Namelist path {config_namelist_path} must be relative with respect to config file."
         namelist_path = config_namelist_path if config_rootdir is None else (config_rootdir / config_namelist_path)
         if not namelist_path.exists():
             msg = f"Namelist in path {namelist_path} does not exist."

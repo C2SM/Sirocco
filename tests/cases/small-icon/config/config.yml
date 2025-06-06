@@ -41,36 +41,37 @@ cycles:
 tasks:
   - icon:
       plugin: icon
-      src: ./ICON/bin/icon
       computer: localhost
+      src: $TEST_ROOTDIR/tests/cases/small-icon/config/ICON/bin/icon
       namelists:
         - ./ICON/icon_master.namelist
         - ./ICON/model.namelist
   - cleanup:
       plugin: shell
-      src: scripts/cleanup.py
+      computer: localhost
+      src: $TEST_ROOTDIR/tests/cases/small-icon/config/scripts/cleanup.py
       command: "cleanup.py"
 data:
   available:
      - icon_grid_simple:
          type: file
-         src: ICON/icon_grid_simple.nc
+         src: $TEST_ROOTDIR/tests/cases/small-icon/config/ICON/icon_grid_simple.nc
          computer: localhost
      - ecrad_data:
          type: file
-         src: ICON/ecrad_data
+         src: $TEST_ROOTDIR/tests/cases/small-icon/config/ICON/ecrad_data
          computer: localhost
      - ECHAM6_CldOptProps:
          type: file
-         src: ICON/ECHAM6_CldOptProps.nc
+         src: $TEST_ROOTDIR/tests/cases/small-icon/config/ICON/ECHAM6_CldOptProps.nc
          computer: localhost
      - rrtmg_sw:
          type: file
-         src: ICON/rrtmg_sw.nc
+         src: $TEST_ROOTDIR/tests/cases/small-icon/config/ICON/rrtmg_sw.nc
          computer: localhost
      - dmin_wetgrowth_lookup:
          type: file
-         src: ICON/dmin_wetgrowth_lookup.nc
+         src: $TEST_ROOTDIR/tests/cases/small-icon/config/ICON/dmin_wetgrowth_lookup.nc
          computer: localhost
   generated:
      - finish:

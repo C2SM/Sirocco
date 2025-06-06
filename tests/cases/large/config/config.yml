@@ -92,9 +92,11 @@ tasks:
   - ROOT:
       # All tasks inherit the root task properties
       host: santis
+      computer: localhost # TODO root task does not pass specs currently, see C2SM/Sirocco/issues/7 
       account: g110
   - extpar:
       plugin: shell  # no extpar plugin available yet
+      computer: localhost
       src: scripts/extpar
       command: "extpar --verbose --input {PORT::obs}"
       uenv:
@@ -104,7 +106,8 @@ tasks:
       walltime: 00:02:00
   - preproc:
       plugin: shell
-      src: scripts/cleanup.sh
+      computer: localhost
+      src: $TEST_ROOTDIR/tests/cases/large/config/scripts/cleanup.sh
       command: "cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}"
       env_source_files: data/dummy_source_file.sh
       nodes: 4
@@ -114,7 +117,8 @@ tasks:
         mount_point: runtime/mount/point
   - icon:
       plugin: icon
-      src: ./ICON/bin/icon
+      computer: localhost
+      src: $TEST_ROOTDIR/tests/cases/large/config/ICON/bin/icon
       nodes: 40
       walltime: 23:59:59
       namelists:
@@ -131,7 +135,8 @@ tasks:
         mount_point: runtime/mount/point
   - postproc_1:
       plugin: shell
-      src: scripts/main_script_ocn.sh
+      computer: localhost
+      src: $TEST_ROOTDIR/tests/cases/large/config/scripts/main_script_ocn.sh
       command: "main_script_ocn.sh {PORT::None}"
       nodes: 2
       walltime: 00:05:00
@@ -140,7 +145,8 @@ tasks:
         mount_point: runtime/mount/point
   - postproc_2:
       plugin: shell
-      src: scripts/main_script_atm.sh
+      computer: localhost
+      src: $TEST_ROOTDIR/tests/cases/large/config/scripts/scripts/main_script_atm.sh
       command: "main_script_atm.sh --input {PORT::streams}"
       multi_arg_sep: ","
       nodes: 2
@@ -150,13 +156,15 @@ tasks:
         mount_point: runtime/mount/point
   - store_and_clean_1:
       plugin: shell
-      src: scripts/post_clean.sh
+      computer: localhost
+      src: $TEST_ROOTDIR/tests/cases/large/config/scripts/scripts/post_clean.sh
       command: "post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}"
       nodes: 1
       walltime: 00:01:00
   - store_and_clean_2:
       plugin: shell
-      src: scripts/post_clean.sh
+      computer: localhost
+      src: $TEST_ROOTDIR/tests/cases/large/config/scripts/scripts/post_clean.sh
       command: "post_clean.sh --archive {PORT::archive} --clean {PORT::clean}"
       nodes: 1
       walltime: 00:01:00
@@ -164,13 +172,13 @@ data:
   available:
     - grid_file:
         type: file
-        src: data/grid
+        src: $TEST_ROOTDIR/tests/cases/large/config/data/grid
     - obs_data:
         type: file
-        src: data/obs_data
+        src: $TEST_ROOTDIR/tests/cases/large/config/data/obs_data
     - ERA5:
         type: file
-        src: data/era5
+        src: $TEST_ROOTDIR/tests/cases/large/config/data/era5
   generated:
     - extpar_file:
         type: file
