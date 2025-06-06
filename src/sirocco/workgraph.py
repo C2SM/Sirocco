@@ -196,8 +196,6 @@ class AiidaWorkGraph:
             except NotExistent as err:
                 msg = f"Could not find computer {data.computer!r} for input {data}."
                 raise ValueError(msg) from err
-            # `remote_path` must be str not PosixPath to be JSON-serializable
-            # FIXME: should not use resolved relative path, will be fixed in PR #153
             self._aiida_data_nodes[label] = aiida.orm.RemoteData(
                 remote_path=str(data.src), label=label, computer=computer
             )
