@@ -216,3 +216,14 @@ for link in *; do
 done"""
     aiida_localhost.set_prepend_text(prepend_text)
     # aiida_localhost.set_mpirun_command(['mpirun', '-np', '1'])
+
+@pytest.fixture
+def aiida_localhost_slurm(aiida_computer):
+    """Return a localhost Computer instance representing with a SLURM scheduler."""
+
+    return aiida_computer(
+        label='localhost-slurm',
+        hostname='localhost',
+        scheduler_type='core.slurm',
+        transport_type='core.local'
+    )
