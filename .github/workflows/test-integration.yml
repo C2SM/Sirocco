@@ -62,6 +62,33 @@ jobs:
         pip install hatch
         hatch run verdi presto
 
+    - name: Setup SLURM computer
+      shell: spack-bash {0}
+      run: |
+        spack env activate .
+        
+        echo "Setting up SLURM computer for CI tests..."
+        CONFIG="${GITHUB_WORKSPACE}/.github/config"
+        
+        # Copy the SLURM SSH key
+        cp "${CONFIG}/slurm_rsa" "${HOME}/.ssh/slurm_rsa"
+        chmod 600 "${HOME}/.ssh/slurm_rsa"
+        
+        # Replace placeholders in config files
+        sed -i "s|PLACEHOLDER_SSH_KEY|${HOME}/.ssh/slurm_rsa|" "${CONFIG}/slurm-ssh-config.yaml"
+        
+        # Setup SLURM computer in AiiDA
+        echo "Setting up SLURM computer..."
+        verdi computer setup --non-interactive --config "${CONFIG}/slurm-ssh.yaml"
+        
+        echo "Configuring SLURM computer..."
+        verdi computer configure core.ssh slurm-ssh --non-interactive --config "${CONFIG}/slurm-ssh-config.yaml" -n
+        
+        echo "Testing SLURM computer connection..."
+        verdi computer test slurm-ssh --print-traceback
+        
+        echo "SLURM setup completed successfully!"
+
     - name: Run ICON tests
       shell: spack-bash {0}
       env:
