@@ -378,6 +378,7 @@ class AiidaWorkGraph:
         if isinstance(input_, core.AvailableData):
             setattr(workgraph_task.inputs, f"{port}", self.data_from_core(input_))
         elif isinstance(input_, core.GeneratedData):
+            input_label = self.get_aiida_label_from_graph_item(input_)
             self._workgraph.add_link(
                 self.socket_from_core(input_),
                 workgraph_task.inputs[f"nodes.{input_label}"],
