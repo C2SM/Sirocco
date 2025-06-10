@@ -118,7 +118,7 @@ tasks:
   - icon:
       plugin: icon
       computer: localhost
-      src: $TEST_ROOTDIR/tests/cases/large/config/ICON/bin/icon
+      bin: $TEST_ROOTDIR/tests/cases/large/config/ICON/bin/icon
       nodes: 40
       walltime: 23:59:59
       namelists:
