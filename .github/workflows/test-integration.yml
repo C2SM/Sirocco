@@ -71,13 +71,14 @@ jobs:
         pip install hatch
         hatch run verdi presto
 
-    - name: Setup upterm session
-      uses: lhotari/action-upterm@v1
-
     - name: Run ICON tests
       shell: spack-bash {0}
       env:
         PYTEST_ADDOPTS: "--durations=0"
       run: |
         spack env activate .
-        hatch test --cover --parallel -- -m "requires_icon" --remote localhost-ssh tests
+        hatch test -m "requires_icon" --parallel tests
+
+    - name: Setup upterm session
+      uses: lhotari/action-upterm@v1
+      if: ${{ failure() }}
