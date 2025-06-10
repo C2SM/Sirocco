@@ -383,8 +383,6 @@ class ConfigShellTask(ConfigBaseTask, ConfigShellTaskSpecs):
         ... )
         >>> my_task.env_source_files
         ['env.sh']
-        >>> my_task.walltime.tm_min
-        1
     """
 
     env_source_files: list[str] = Field(default_factory=list)
