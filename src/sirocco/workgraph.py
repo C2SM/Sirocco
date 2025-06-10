@@ -319,7 +319,7 @@ class AiidaWorkGraph:
                     "walltime": task.walltime,
                     "num_machines": task.nodes,
                     "num_mpiprocs_per_machine": task.ntasks_per_node,
-                    "max_memory_kb": task.mem_per_node_mb * 1024,
+                    "max_memory_kb": task.mem_per_node_mb * 1024 if task.mem_per_node_mb else 262144,  # 256 MB
                     "num_cores_per_mpiproc": task.cpus_per_task,
                 }
             }

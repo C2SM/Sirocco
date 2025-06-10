@@ -215,3 +215,4 @@ for link in *; do
     fi
 done"""
     aiida_localhost.set_prepend_text(prepend_text)
+    # aiida_localhost.set_mpirun_command(['mpirun', '-np', '1'])

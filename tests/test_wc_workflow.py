@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 import pytest
@@ -6,6 +7,8 @@ from sirocco.core import Workflow
 from sirocco.core._tasks.icon_task import IconTask
 from sirocco.vizgraph import VizGraph
 from sirocco.workgraph import AiidaWorkGraph
+
+logger = logging.getLogger(__name__)
 
 
 def test_parse_config_file(config_paths, pprinter):
@@ -84,12 +87,13 @@ def test_run_workgraph_with_icon(icon_filepath_executable, config_paths, tmp_pat
     output_node = aiida_workflow.run()
     if not output_node.is_finished_ok:
         from aiida.cmdline.utils.common import get_calcjob_report, get_workchain_report
+
         # overall report but often not enough to really find the bug, one has to go to calcjob
-        print(get_workchain_report(output_node, levelname='REPORT'))
+        logger.info("Workchain report:\n%s", get_workchain_report(output_node, levelname="REPORT"))
         # the calcjobs are typically stored in 'called_descendants'
         for node in output_node.called_descendants:
-            print(f"{node.process_label} workdir:", node.get_remote_workdir())
-            print(f"{node.process_label} report:\n", get_calcjob_report(node))
+            logger.info("%s workdir: %s", node.process_label, node.get_remote_workdir())
+            logger.info("%s report:\n%s", node.process_label, get_calcjob_report(node))
 
     assert (
         output_node.is_finished_ok
