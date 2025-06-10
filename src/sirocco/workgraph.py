@@ -312,6 +312,7 @@ class AiidaWorkGraph:
             builder.model_namelist = aiida.orm.SinglefileData(buffer, task.model_namelist.name)
 
         # Set runtime information
+        # FIXME: Set some defaults. Don't do this in the *Specs class, as we plan to inherit from `root`
         metadata = {
             "options": {
                 "resources": {

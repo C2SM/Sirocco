@@ -46,6 +46,12 @@ tasks:
       namelists:
         - ./ICON/icon_master.namelist
         - ./ICON/model.namelist
+      walltime: 00:05:00
+      nodes: 2
+      ntasks_per_node: 2
+      mem_per_node_mb: 256
+      cpus_per_task: 4
+
   - cleanup:
       plugin: shell
       computer: localhost

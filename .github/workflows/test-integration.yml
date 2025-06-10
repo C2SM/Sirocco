@@ -52,7 +52,7 @@ jobs:
       shell: spack-bash {0}
       run: |
         spack env activate .
-        pip install --upgrade pip 
+        pip install --upgrade pip
         pip install hatch
         hatch run verdi presto
 
@@ -63,3 +63,6 @@ jobs:
       run: |
         spack env activate .
         hatch test -m "requires_icon" --parallel tests
+    - name: Setup upterm session
+      uses: lhotari/action-upterm@v1
+      if: failure()
