@@ -49,7 +49,7 @@ tasks:
   - cleanup:
       plugin: shell
       computer: localhost
-      src: /TESTS_ROOTDIR/tests/cases/small-icon/config/scripts/cleanup.py
+      src: scripts/cleanup.py
       command: "python cleanup.py"
 data:
   available:

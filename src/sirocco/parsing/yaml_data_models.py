@@ -281,14 +281,7 @@ class ConfigShellTaskSpecs:
     port_pattern: ClassVar[re.Pattern] = field(default=re.compile(r"{PORT(\[sep=.+\])?::(.+?)}"), repr=False)
     sep_pattern: ClassVar[re.Pattern] = field(default=re.compile(r"\[sep=(.+)\]"), repr=False)
     src: Path | None = field(
-        default=None,
-        metadata={
-            "description": (
-                "If `src` not absolute, this ends up to be relative to the root directory of the config file."
-                "This should also be solved by registering `Code`s in AiiDA for the required scripts."
-                "See issues #60 and #127."
-            )
-        },
+        default=None, metadata={"description": ("Script file relative to the config directory.")}, repr=False
     )
     command: str
     env_source_files: list[str] = field(default_factory=list)
@@ -379,6 +372,14 @@ class ConfigShellTask(ConfigBaseTask, ConfigShellTaskSpecs):
     @classmethod
     def validate_env_source_files(cls, value: str | list[str]) -> list[str]:
         return [value] if isinstance(value, str) else value
+
+    @field_validator("src")
+    @classmethod
+    def validate_is_relative(cls, value: Path | None) -> Path | None:
+        if value is not None and value.is_absolute():
+            msg = "The field 'src' must be relative path."
+            raise ValueError(msg)
+        return value
 
 
 @dataclass(kw_only=True)
