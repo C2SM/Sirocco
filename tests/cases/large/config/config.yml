@@ -62,7 +62,9 @@ cycles:
                   port: streams
               - icon_input:
                   port: icon_input
-            outputs: [stored_data_1]
+            outputs:
+              - stored_data_1
+              - atmo_log
   - yearly:
       cycling:
         start_date: *root_start_date
@@ -198,3 +200,6 @@ data:
         src: stored_data
     - stored_data_2:
         src: stored_data
+    - atmo_log:
+        type: file
+        src: nml.atmo.log
