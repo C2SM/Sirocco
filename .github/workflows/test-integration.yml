@@ -19,6 +19,12 @@ jobs:
     permissions:
       packages: write
 
+    services:
+      slurm:
+        image: xenonmiddleware/slurm:17
+        ports:
+        - 5001:22
+
     steps:
     - name: Check access to GitHub secrets
       run: echo "Pull request that trigger this workflow need to be on upstream repo to access GitHub secrets."; exit 1

@@ -10,6 +10,7 @@ from sirocco import pretty_print
 from sirocco.core import _tasks as core_tasks
 from sirocco.core import workflow
 from sirocco.parsing import yaml_data_models as models
+from aiida.orm import Computer
 
 pytest_plugins = ["aiida.tools.pytest_fixtures"]
 
@@ -218,12 +219,19 @@ done"""
     # aiida_localhost.set_mpirun_command(['mpirun', '-np', '1'])
 
 @pytest.fixture
-def aiida_localhost_slurm(aiida_computer):
-    """Return a localhost Computer instance representing with a SLURM scheduler."""
+def aiida_localhost_slurm(aiida_computer) -> 'Computer':
+    """Return a :class:`aiida.orm.computers.Computer` instance representing SLURM container."""
+    from aiida.common.exceptions import NotExistent
+    from aiida.orm import Computer
 
-    return aiida_computer(
-        label='localhost-slurm',
-        hostname='localhost',
-        scheduler_type='core.slurm',
-        transport_type='core.local'
-    )
+    # Try to get the pre-configured SLURM computer from CI setup
+    try:
+        return Computer.collection.get(label='slurm-ssh')
+    except NotExistent:
+        # Fallback for local testing - create a minimal SLURM computer
+        return aiida_computer(
+            label='localhost-slurm',
+            hostname='localhost',
+            scheduler_type='core.slurm',
+            transport_type='core.local'  # Use local transport for simplicity in local tests
+        )
