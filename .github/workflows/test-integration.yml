@@ -19,12 +19,6 @@ jobs:
     permissions:
       packages: write
 
-    services:
-      slurm:
-        image: xenonmiddleware/slurm:17
-        ports:
-        - 5001:22
-
     steps:
     - name: Check access to GitHub secrets
       run: echo "Pull request that trigger this workflow need to be on upstream repo to access GitHub secrets."; exit 1
@@ -61,33 +55,81 @@ jobs:
         pip install --upgrade pip
         pip install hatch
         hatch run verdi presto
-
-    - name: Setup SLURM computer
-      shell: spack-bash {0}
+    - name: Install and Configure SLURM
       run: |
-        spack env activate .
-        
-        echo "Setting up SLURM computer for CI tests..."
-        CONFIG="${GITHUB_WORKSPACE}/.github/config"
-        
-        # Copy the SLURM SSH key
-        cp "${CONFIG}/slurm_rsa" "${HOME}/.ssh/slurm_rsa"
-        chmod 600 "${HOME}/.ssh/slurm_rsa"
-        
-        # Replace placeholders in config files
-        sed -i "s|PLACEHOLDER_SSH_KEY|${HOME}/.ssh/slurm_rsa|" "${CONFIG}/slurm-ssh-config.yaml"
-        
-        # Setup SLURM computer in AiiDA
-        echo "Setting up SLURM computer..."
-        verdi computer setup --non-interactive --config "${CONFIG}/slurm-ssh.yaml"
-        
-        echo "Configuring SLURM computer..."
-        verdi computer configure core.ssh slurm-ssh --non-interactive --config "${CONFIG}/slurm-ssh-config.yaml" -n
-        
-        echo "Testing SLURM computer connection..."
-        verdi computer test slurm-ssh --print-traceback
-        
-        echo "SLURM setup completed successfully!"
+        echo "Installing SLURM..."
+        sudo apt-get update
+        sudo apt-get install -y slurm-wlm slurm-wlm-doc munge
+
+        # Get the runner hostname
+        HOSTNAME=$(hostname)
+        echo "Hostname: $HOSTNAME"
+
+        # Configure munge (authentication service)
+        sudo systemctl enable munge
+        sudo systemctl start munge
+
+        # Create SLURM user if it doesn't exist
+        sudo id slurm &>/dev/null || sudo useradd --system --shell /bin/false slurm
+
+        # Create necessary directories
+        sudo mkdir -p /var/spool/slurm-llnl
+        sudo mkdir -p /var/log/slurm-llnl
+        sudo chown slurm:slurm /var/spool/slurm-llnl
+        sudo chown slurm:slurm /var/log/slurm-llnl
+
+        # Create SLURM configuration
+        sudo tee /etc/slurm-llnl/slurm.conf > /dev/null << EOF
+        # SLURM configuration for CI testing
+        ClusterName=ci-cluster
+        ControlMachine=$HOSTNAME
+        ControlAddr=$HOSTNAME
+
+        # Authentication
+        AuthType=auth/munge
+
+        # Scheduling
+        SchedulerType=sched/backfill
+        SelectType=select/cons_tres
+        SelectTypeParameters=CR_Core
+
+        # Logging
+        SlurmctldLogFile=/var/log/slurm-llnl/slurmctld.log
+        SlurmdLogFile=/var/log/slurm-llnl/slurmd.log
+
+        # Process tracking
+        ProctrackType=proctrack/cgroup
+        TaskPlugin=task/affinity,task/cgroup
+
+        # Node and partition configuration
+        NodeName=$HOSTNAME CPUs=2 Sockets=1 CoresPerSocket=2 ThreadsPerCore=1 RealMemory=7000 State=UNKNOWN
+        PartitionName=debug Nodes=$HOSTNAME Default=YES MaxTime=INFINITE State=UP
+        EOF
+
+        # Create cgroup configuration
+        sudo tee /etc/slurm-llnl/cgroup.conf > /dev/null << EOF
+        CgroupAutomount=yes
+        ConstrainCores=yes
+        ConstrainRAMSpace=yes
+        EOF
+
+        # Start SLURM services
+        echo "Starting SLURM services..."
+        sudo systemctl enable slurmctld
+        sudo systemctl start slurmctld
+        sudo systemctl enable slurmd
+        sudo systemctl start slurmd
+
+        # Wait for services to be ready
+        echo "Waiting for SLURM services to be ready..."
+        timeout 30 bash -c 'until sinfo &>/dev/null; do sleep 1; done'
+
+        # Check SLURM status
+        echo "SLURM Status:"
+        sinfo
+        squeue
+
+        echo "SLURM installation and configuration complete!"
 
     - name: Run ICON tests
       shell: spack-bash {0}
