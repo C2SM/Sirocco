@@ -311,6 +311,20 @@ class AiidaWorkGraph:
             buffer.seek(0)
             builder.model_namelist = aiida.orm.SinglefileData(buffer, task.model_namelist.name)
 
+        # Set runtime information
+        metadata = {
+            "options": {
+                "resources": {
+                    "walltime": task.walltime,
+                    "num_machines": task.nodes,
+                    "num_mpiprocs_per_machine": task.ntasks_per_node,
+                    "max_memory_kb": task.mem_per_node_mb * 1024,
+                    "num_cores_per_mpiproc": task.cpus_per_task,
+                }
+            }
+        }
+        builder.metadata = metadata
+
         self._aiida_task_nodes[task_label] = self._workgraph.add_task(builder)
 
     @functools.singledispatchmethod

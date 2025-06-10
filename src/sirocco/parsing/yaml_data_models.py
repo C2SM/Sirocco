@@ -254,8 +254,11 @@ class ConfigBaseTaskSpecs:
     host: str | None = None
     account: str | None = None
     uenv: dict | None = None
-    nodes: int | None = None
+    nodes: int | None = None            # SLURM option `--nodes`, AiiDA option `num_machines`
     walltime: str | None = None
+    ntasks_per_node: int | None = None  # SLURM option `--ntasks-per-node`, AiiDA option `num_mpiprocs_per_machine`
+    mem_per_node_mb: int | None = None  # SLURM option `--mem` in MB, AiiDA option `max_memory_kb` in KB
+    cpus_per_task: int | None = None    # SLURM option `--cpus_per_task`, AiiDA option `num_cores_per_mpiproc`
 
 
 class ConfigBaseTask(_NamedBaseModel, ConfigBaseTaskSpecs):
