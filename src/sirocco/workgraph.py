@@ -328,14 +328,25 @@ class AiidaWorkGraph:
 
         workgraph_task = self.task_from_core(task)
         output_label = self.get_aiida_label_from_graph_item(output)
-        output_socket = workgraph_task.add_output("workgraph.any", str(output.src))
+        # We split this into two steps because workgraph interprets "." in the name as nested namespace
+        output_socket = workgraph_task.add_output("workgraph.any", "PLACHOLDER")
+        output_socket.name = str(output.src)
         self._aiida_socket_nodes[output_label] = output_socket
 
     @_link_output_node_to_task.register
-    def _link_output_node_to_icon_task(self, task: core.IconTask, port: str, output: core.Data):
+    def _link_output_node_to_icon_task(self, task: core.IconTask, port: str | None, output: core.Data):
         workgraph_task = self.task_from_core(task)
         output_label = self.get_aiida_label_from_graph_item(output)
-        output_socket = workgraph_task.outputs._sockets.get(port)  # noqa SLF001 # there so public accessor
+        if port is None:
+            # We split this into two steps because workgraph interprets "." in the name as nested namespace
+            output_socket = workgraph_task.add_output("workgraph.any", "PLACEHOLDER")
+            output_socket.name = str(output.src)
+        else:
+            output_socket = workgraph_task.outputs._sockets.get(port)  # noqa SLF001 # there so public accessor
+
+        if output_socket is None:
+            msg = f"Output socket {output_label!r} was not successfully created. Please contact a developer."
+            raise ValueError(msg)
         self._aiida_socket_nodes[output_label] = output_socket
 
     @functools.singledispatchmethod
@@ -378,11 +389,7 @@ class AiidaWorkGraph:
         if isinstance(input_, core.AvailableData):
             setattr(workgraph_task.inputs, f"{port}", self.data_from_core(input_))
         elif isinstance(input_, core.GeneratedData):
-            input_label = self.get_aiida_label_from_graph_item(input_)
-            self._workgraph.add_link(
-                self.socket_from_core(input_),
-                workgraph_task.inputs[f"nodes.{input_label}"],
-            )
+            setattr(workgraph_task.inputs, f"{port}", self.socket_from_core(input_))
         else:
             raise TypeError
 
