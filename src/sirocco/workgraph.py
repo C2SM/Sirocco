@@ -235,7 +235,6 @@ class AiidaWorkGraph:
         from aiida_shell import ShellCode
 
         label_uuid = str(uuid.uuid4())
-        # PRCOMMENT aiida-shell created the code before from the command we passed but this only works if it can resolve commands. Since we now want to support environment variables that possibly cannot be resoved until submission (because it uses environment variables in one of the source files)
         code = ShellCode(
             label=f"{command}-{label_uuid}",
             computer=aiida.orm.load_computer(task.computer),
