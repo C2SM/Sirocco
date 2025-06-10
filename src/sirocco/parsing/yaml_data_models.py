@@ -443,6 +443,14 @@ class ConfigIconTaskSpecs:
     plugin: ClassVar[Literal["icon"]] = "icon"
     bin: Path = field(repr=False)
 
+    @field_validator("bin")
+    @classmethod
+    def validate_is_absolute(cls, value: Path) -> Path:
+        if not value.is_absolute():
+            msg = "The field 'src' must be absolute path."
+            raise ValueError(msg)
+        return value
+
 
 class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
     """Class representing an ICON task configuration from a workflow file
@@ -462,7 +470,7 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
         ...           - path/to/case_nml:
         ...               block_1:
         ...                 param_name: param_value
-        ...         bin: path/to/icon
+        ...         bin: /path/to/icon
         ...     '''
         ... )
         >>> icon_task_cfg = validate_yaml_content(ConfigIconTask, snippet)
@@ -520,6 +528,14 @@ class ConfigAvailableData(ConfigBaseData):
     src: Path
     computer: str
 
+    @field_validator("src")
+    @classmethod
+    def validate_is_absolute(cls, value: Path) -> Path:
+        if not value.is_absolute():
+            msg = "The field 'src' must be absolute path."
+            raise ValueError(msg)
+        return value
+
 
 class ConfigGeneratedData(ConfigBaseData): ...
 
@@ -538,7 +554,7 @@ class ConfigData(BaseModel):
             ...     available:
             ...       - foo:
             ...           computer: "localhost"
-            ...           src: "foo.txt"
+            ...           src: "/foo.txt"
             ...     generated:
             ...       - bar:
             ...           src: "bar.txt"
@@ -621,7 +637,7 @@ class ConfigWorkflow(BaseModel):
             ...       available:
             ...         - foo:
             ...             computer: localhost
-            ...             src: foo.txt
+            ...             src: /foo.txt
             ...       generated:
             ...         - bar:
             ...             src: bar
@@ -649,7 +665,7 @@ class ConfigWorkflow(BaseModel):
             ...             ConfigAvailableData(
             ...                 name="foo",
             ...                 computer="localhost",
-            ...                 src="foo.txt",
+            ...                 src="/foo.txt",
             ...             )
             ...         ],
             ...         generated=[ConfigGeneratedData(name="bar", src="bar")],

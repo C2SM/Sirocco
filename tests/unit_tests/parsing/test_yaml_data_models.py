@@ -26,7 +26,7 @@ def minimal_config_path(tmp_path):
           available:
             - c:
                 computer: "localhost"
-                src: "c.txt"
+                src: "/c.txt"
           generated:
             - d:
                 src: "d"
