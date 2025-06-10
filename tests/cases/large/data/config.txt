@@ -74,6 +74,7 @@ cycles:
               - icon_input [date: 2025-01-01 00:00:00]
             output:
               - stored_data_1 [date: 2025-01-01 00:00:00]
+              - atmo_log [date: 2025-01-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2025, 1, 1, 0, 0)}
             computer: 'remote'
@@ -142,6 +143,7 @@ cycles:
               - icon_input [date: 2025-03-01 00:00:00]
             output:
               - stored_data_1 [date: 2025-03-01 00:00:00]
+              - atmo_log [date: 2025-03-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2025, 3, 1, 0, 0)}
             computer: 'remote'
@@ -212,6 +214,7 @@ cycles:
               - icon_input [date: 2025-05-01 00:00:00]
             output:
               - stored_data_1 [date: 2025-05-01 00:00:00]
+              - atmo_log [date: 2025-05-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2025, 5, 1, 0, 0)}
             computer: 'remote'
@@ -282,6 +285,7 @@ cycles:
               - icon_input [date: 2025-07-01 00:00:00]
             output:
               - stored_data_1 [date: 2025-07-01 00:00:00]
+              - atmo_log [date: 2025-07-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2025, 7, 1, 0, 0)}
             computer: 'remote'
@@ -352,6 +356,7 @@ cycles:
               - icon_input [date: 2025-09-01 00:00:00]
             output:
               - stored_data_1 [date: 2025-09-01 00:00:00]
+              - atmo_log [date: 2025-09-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2025, 9, 1, 0, 0)}
             computer: 'remote'
@@ -422,6 +427,7 @@ cycles:
               - icon_input [date: 2025-11-01 00:00:00]
             output:
               - stored_data_1 [date: 2025-11-01 00:00:00]
+              - atmo_log [date: 2025-11-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2025, 11, 1, 0, 0)}
             computer: 'remote'
@@ -492,6 +498,7 @@ cycles:
               - icon_input [date: 2026-01-01 00:00:00]
             output:
               - stored_data_1 [date: 2026-01-01 00:00:00]
+              - atmo_log [date: 2026-01-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
             computer: 'remote'
@@ -562,6 +569,7 @@ cycles:
               - icon_input [date: 2026-03-01 00:00:00]
             output:
               - stored_data_1 [date: 2026-03-01 00:00:00]
+              - atmo_log [date: 2026-03-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2026, 3, 1, 0, 0)}
             computer: 'remote'
@@ -632,6 +640,7 @@ cycles:
               - icon_input [date: 2026-05-01 00:00:00]
             output:
               - stored_data_1 [date: 2026-05-01 00:00:00]
+              - atmo_log [date: 2026-05-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2026, 5, 1, 0, 0)}
             computer: 'remote'
@@ -702,6 +711,7 @@ cycles:
               - icon_input [date: 2026-07-01 00:00:00]
             output:
               - stored_data_1 [date: 2026-07-01 00:00:00]
+              - atmo_log [date: 2026-07-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2026, 7, 1, 0, 0)}
             computer: 'remote'
@@ -772,6 +782,7 @@ cycles:
               - icon_input [date: 2026-09-01 00:00:00]
             output:
               - stored_data_1 [date: 2026-09-01 00:00:00]
+              - atmo_log [date: 2026-09-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2026, 9, 1, 0, 0)}
             computer: 'remote'
@@ -842,6 +853,7 @@ cycles:
               - icon_input [date: 2026-11-01 00:00:00]
             output:
               - stored_data_1 [date: 2026-11-01 00:00:00]
+              - atmo_log [date: 2026-11-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2026, 11, 1, 0, 0)}
             computer: 'remote'
