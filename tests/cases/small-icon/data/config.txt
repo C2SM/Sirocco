@@ -14,6 +14,11 @@ cycles:
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
             computer: 'localhost'
+            nodes: 2
+            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            ntasks per node: 2
+            mem per node mb: 256
+            cpus per task: 4
             cycle point: [2026-01-01 00:00:00 -- 2026-03-01 00:00:00]
             plugin: 'icon'
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='model.namelist')]
@@ -33,6 +38,11 @@ cycles:
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 3, 1, 0, 0)}
             computer: 'localhost'
+            nodes: 2
+            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            ntasks per node: 2
+            mem per node mb: 256
+            cpus per task: 4
             cycle point: [2026-03-01 00:00:00 -- 2026-05-01 00:00:00]
             plugin: 'icon'
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='model.namelist')]
@@ -52,6 +62,11 @@ cycles:
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 5, 1, 0, 0)}
             computer: 'localhost'
+            nodes: 2
+            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            ntasks per node: 2
+            mem per node mb: 256
+            cpus per task: 4
             cycle point: [2026-05-01 00:00:00 -- 2026-06-01 00:00:00]
             plugin: 'icon'
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='model.namelist')]
