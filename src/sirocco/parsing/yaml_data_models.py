@@ -442,7 +442,7 @@ class ConfigNamelistFile(BaseModel, ConfigNamelistFileSpec):
 @dataclass(kw_only=True)
 class ConfigIconTaskSpecs:
     plugin: ClassVar[Literal["icon"]] = "icon"
-    src: Path = field(repr=False)
+    bin: Path = field(repr=False)
 
 
 class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
@@ -463,7 +463,7 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
         ...           - path/to/case_nml:
         ...               block_1:
         ...                 param_name: param_value
-        ...         src: path/to/icon
+        ...         bin: path/to/icon
         ...     '''
         ... )
         >>> icon_task_cfg = validate_yaml_content(ConfigIconTask, snippet)

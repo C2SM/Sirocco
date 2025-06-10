@@ -42,7 +42,7 @@ tasks:
   - icon:
       plugin: icon
       computer: localhost
-      src: $TEST_ROOTDIR/tests/cases/small-icon/config/ICON/bin/icon
+      bin: $TEST_ROOTDIR/tests/cases/small-icon/config/ICON/bin/icon
       namelists:
         - ./ICON/icon_master.namelist
         - ./ICON/model.namelist
