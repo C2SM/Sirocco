@@ -31,13 +31,19 @@ cycles:
                   port: finish_status
               - restart:
                   port: latest_restart_file
+              - atmo_log
   - lastly:
+      cycling:
+        start_date: '2026-03-01T00:00' # TODO change to 05-06 later
+        stop_date: '2026-04-01T00:00'
+        period: P1M
       tasks:
         - cleanup:
-            wait_on:
-              - icon:
+            inputs:
+              - atmo_log:
                   target_cycle:
-                    date: 2026-05-01T00:00
+                    lag: ['P0M']
+                  port: None
 tasks:
   - icon:
       plugin: icon
@@ -71,3 +77,7 @@ data:
   generated:
      - finish:
      - restart:
+         type: file
+     - atmo_log:
+         type: file
+         src: nml.atmo.log
