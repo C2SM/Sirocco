@@ -218,7 +218,6 @@ done"""
     aiida_localhost.set_prepend_text(prepend_text)
     # aiida_localhost.set_mpirun_command(['mpirun', '-np', '1'])
 
-
 @pytest.fixture
 def aiida_localhost_slurm(aiida_computer) -> Computer:
     """Return a :class:`aiida.orm.computers.Computer` instance representing local SLURM."""
@@ -228,13 +227,11 @@ def aiida_localhost_slurm(aiida_computer) -> Computer:
     try:
         return Computer.collection.get(label="localhost-slurm")
     except NotExistent:
-        # Fallback for local testing - create a local SLURM computer
-        computer = aiida_computer(
+        # Use the base aiida_computer factory with SLURM scheduler
+        return aiida_computer(
             label="localhost-slurm",
             hostname="localhost",
-            scheduler_type="core.slurm",
             transport_type="core.local",
+            scheduler_type="core.slurm",
+            configuration_kwargs={},  # This will call computer.configure()
         )
-        computer.configure()
-
-        return computer
