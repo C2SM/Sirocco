@@ -226,7 +226,7 @@ def aiida_localhost_slurm(aiida_computer) -> Computer:
 
     # Try to get the local SLURM computer from CI setup
     try:
-        return Computer.collection.get(label="slurm-local")
+        return Computer.collection.get(label="localhost-slurm")
     except NotExistent:
         # Fallback for local testing - create a local SLURM computer
         return aiida_computer(

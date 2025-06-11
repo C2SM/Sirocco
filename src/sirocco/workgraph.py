@@ -13,6 +13,7 @@ import aiida_workgraph  # type: ignore[import-untyped] # does not have proper ty
 import aiida_workgraph.tasks.factory.shelljob_task  # type: ignore[import-untyped]  # is only for a workaround
 from aiida.common.exceptions import NotExistent
 from aiida_icon.calculations import IconCalculation
+from sirocco.parsing._utils import TimeUtils
 
 from sirocco import core
 
@@ -315,11 +316,11 @@ class AiidaWorkGraph:
         # FIXME: Set some defaults. Don't do this in the *Specs class, as we plan to inherit from `root`
         metadata = {
             "options": {
+                "max_wallclock_seconds": TimeUtils.walltime_to_seconds(task.walltime),
+                "max_memory_kb": task.mem_per_node_mb * 1024 if task.mem_per_node_mb else 262144,  # 256 MB
                 "resources": {
-                    "walltime": task.walltime,
                     "num_machines": task.nodes,
                     "num_mpiprocs_per_machine": task.ntasks_per_node,
-                    "max_memory_kb": task.mem_per_node_mb * 1024 if task.mem_per_node_mb else 262144,  # 256 MB
                     "num_cores_per_mpiproc": task.cpus_per_task,
                 }
             }
