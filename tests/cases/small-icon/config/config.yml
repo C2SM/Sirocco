@@ -75,6 +75,4 @@ data:
          computer: localhost
   generated:
      - finish:
-         type: file
      - restart:
-         type: file

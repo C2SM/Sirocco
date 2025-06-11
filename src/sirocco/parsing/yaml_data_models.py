@@ -93,6 +93,7 @@ class _NamedBaseModel(BaseModel):
         _NamedBaseModel(name='foo')
     """
 
+    model_config = ConfigDict(extra='forbid')
     name: str
 
     @model_validator(mode="before")
@@ -152,7 +153,7 @@ class TargetNodesBaseModel(_NamedBaseModel):
 
     """
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra='forbid')
 
     target_cycle: Annotated[TargetCycle, BeforeValidator(select_target_cycle)] = NoTargetCycle()
     when: Annotated[When, BeforeValidator(select_when)] = AnyWhen()
