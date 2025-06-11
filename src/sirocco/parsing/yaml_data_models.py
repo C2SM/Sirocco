@@ -447,7 +447,7 @@ class ConfigIconTaskSpecs:
     @classmethod
     def validate_is_absolute(cls, value: Path) -> Path:
         if not value.is_absolute():
-            msg = "The field 'src' must be absolute path."
+            msg = "The field 'bin' must be absolute path."
             raise ValueError(msg)
         return value
 
