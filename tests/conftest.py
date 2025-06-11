@@ -229,9 +229,12 @@ def aiida_localhost_slurm(aiida_computer) -> Computer:
         return Computer.collection.get(label="localhost-slurm")
     except NotExistent:
         # Fallback for local testing - create a local SLURM computer
-        return aiida_computer(
+        computer = aiida_computer(
             label="localhost-slurm",
             hostname="localhost",
             scheduler_type="core.slurm",
             transport_type="core.local",
         )
+        computer.configure()
+
+        return computer
