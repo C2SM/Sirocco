@@ -24,7 +24,7 @@ class TestCLICommands:
 
     def test_cli_module_loads(self):
         """Test that the CLI module can be imported and shows expected commands."""
-        result = subprocess.run(["python", "-m", "sirocco.cli", "--help"], capture_output=True, text=True)
+        result = subprocess.run(["python", "-m", "sirocco.cli", "--help"], capture_output=True, text=True, check=False)
         assert result.returncode == 0
         # Verify expected commands are listed
         assert "verify" in result.stdout
@@ -142,7 +142,7 @@ class TestCLICommands:
         """Test run command with custom AiiDA profile."""
         with patch("sirocco.cli._prepare_aiida_workgraph") as mock_prepare:
             mock_aiida_wg = Mock()
-            mock_aiida_wg._core_workflow.name = "test"
+            mock_aiida_wg._core_workflow.name = "test" # noqa: SLF001
             mock_aiida_wg.run.return_value = {"result": "success"}
             mock_prepare.return_value = mock_aiida_wg
 
@@ -159,7 +159,7 @@ class TestCLICommands:
         # Mock the entire submit process to avoid all validation
         with patch("sirocco.cli._prepare_aiida_workgraph") as mock_prepare:
             mock_aiida_wg = Mock()
-            mock_aiida_wg._core_workflow.name = "minimal_submit_test"
+            mock_aiida_wg._core_workflow.name = "minimal_submit_test"  # noqa: SLF001
 
             # Create a simple mock result that bypasses isinstance checks
             mock_result = "WorkChain<12345>"  # Simple string result
@@ -177,7 +177,7 @@ class TestCLICommands:
         """Test the submit command with wait option."""
         with patch("sirocco.cli._prepare_aiida_workgraph") as mock_prepare:
             mock_aiida_wg = Mock()
-            mock_aiida_wg._core_workflow.name = "test_workflow"
+            mock_aiida_wg._core_workflow.name = "test_workflow"  # noqa: SLF001
             mock_result = Mock()
             mock_result.pk = 12345
             mock_aiida_wg.submit.return_value = mock_result

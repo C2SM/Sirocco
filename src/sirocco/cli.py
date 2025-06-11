@@ -1,15 +1,15 @@
-import typer
 from pathlib import Path
-from typing import Optional
+
+import typer
+from aiida import orm
+from aiida.manage.configuration import load_profile
 from rich.console import Console
 from rich.traceback import install as install_rich_traceback
 
-from sirocco import parsing
-from sirocco import core
-from sirocco import vizgraph
-from sirocco import pretty_print
+from sirocco import core, parsing, pretty_print, vizgraph
 from sirocco.workgraph import AiidaWorkGraph
-import aiida
+
+# TODO: More fine-grained exception handling
 
 
 # --- Typer App and Rich Console Setup ---
@@ -27,19 +27,25 @@ console = Console()
 
 
 # --- Helper functions ---
-def load_aiida_profile(profile: Optional[str] = None):
+def load_aiida_profile(profile: str) -> None:
     try:
-        aiida.load_profile(profile=profile, allow_switch=True)
-        console.print(f"ℹ️ AiiDA profile [green]'{aiida.get_profile().name}'[/green] loaded.")
+        load_profile(profile=profile, allow_switch=True)
+        # loaded_profile = get_profile()
+        # assert loaded_profile is not None
+        console.print(f"ℹ️ AiiDA profile [green]'{profile}'[/green] loaded.")
     except Exception as e:
-        console.print(f"[bold red]Failed to load AiiDA profile '{profile if profile else 'default'}': {e}[/bold red]")
-        console.print("Ensure an AiiDA profile exists and the AiiDA daemon is configured if submitting.")
-        raise typer.Exit(code=1)
+        console.print(f"[bold red]Failed to load AiiDA profile '{profile}': {e}[/bold red]")
+        console.print("Ensure an AiiDA profile exists.")
+        raise typer.Exit(code=1) from e
 
 
-def _prepare_aiida_workgraph(workflow_file_str: str, aiida_profile_name: Optional[str]) -> AiidaWorkGraph:
+def _prepare_aiida_workgraph(workflow_file_str: str, aiida_profile_name: str | None) -> AiidaWorkGraph:
     """Helper to load profile, config, and prepare AiidaWorkGraph."""
-    load_aiida_profile(aiida_profile_name)
+    if aiida_profile_name:
+        load_aiida_profile(aiida_profile_name)
+    else:
+        load_profile()
+
     try:
         config_workflow = parsing.ConfigWorkflow.from_config_file(workflow_file_str)
         core_wf = core.Workflow.from_config_workflow(config_workflow)
@@ -49,7 +55,7 @@ def _prepare_aiida_workgraph(workflow_file_str: str, aiida_profile_name: Optiona
     except Exception as e:
         console.print(f"[bold red]❌ Failed to prepare workflow for AiiDA: {e}[/bold red]")
         console.print_exception()
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
 
 
 # --- CLI Commands ---
@@ -78,7 +84,7 @@ def verify(
         console.print("[bold red]❌ Workflow validation failed:[/bold red]")
         # Rich traceback handles printing the exception nicely
         console.print_exception()
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
 
 
 @app.command()
@@ -91,7 +97,7 @@ def visualize(
         readable=True,
         help="Path to the workflow definition YAML file.",
     ),
-    output_file: Optional[Path] = typer.Option(
+    output_file: Path | None = typer.Option(
         None,  # Default value is None, making it optional
         "--output",
         "-o",
@@ -106,16 +112,16 @@ def visualize(
     """
     console.print(f"📊 Visualizing workflow from: [cyan]{workflow_file}[/cyan]")
     try:
-        # 1. Load configuration
+        # Load configuration
         config_workflow = parsing.ConfigWorkflow.from_config_file(str(workflow_file))
 
-        # 2. Create the core workflow representation (unrolls parameters/cycles)
+        # Create the core workflow representation (unrolls parameters/cycles)
         core_workflow = core.Workflow.from_config_workflow(config_workflow)
 
-        # 3. Create the visualization graph
+        # Create the visualization graph
         viz_graph = vizgraph.VizGraph.from_core_workflow(core_workflow)
 
-        # 4. Determine output path
+        # Determine output path
         if output_file is None:
             # Default output name based on workflow name in the same directory
             output_path = workflow_file.parent / f"{core_workflow.name}.svg"
@@ -125,7 +131,7 @@ def visualize(
         # Ensure the output directory exists
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # 5. Draw the graph
+        # Draw the graph
         viz_graph.draw(file_path=output_path)
 
         console.print(f"[green]✅ Visualization saved to:[/green] [cyan]{output_path.resolve()}[/cyan]")
@@ -133,7 +139,7 @@ def visualize(
     except Exception:
         console.print("[bold red]❌ Failed to generate visualization:[/bold red]")
         console.print_exception()
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
 
 
 @app.command()
@@ -163,7 +169,7 @@ def represent(
     except Exception:
         console.print("[bold red]❌ Failed to represent workflow:[/bold red]")
         console.print_exception()
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
 
 
 @app.command(help="Run the workflow in a blocking fashion.")
@@ -176,13 +182,13 @@ def run(
         readable=True,
         help="Path to the workflow definition YAML file.",
     ),
-    aiida_profile: Optional[str] = typer.Option(
+    aiida_profile: str | None = typer.Option(
         None, "--aiida-profile", "-P", help="AiiDA profile to use (defaults to current active)."
     ),
 ):
     aiida_wg = _prepare_aiida_workgraph(str(workflow_file), aiida_profile)
     try:
-        console.print(f"▶️ Running workflow [magenta]'{aiida_wg._core_workflow.name}'[/magenta] directly (blocking)...")
+        console.print(f"▶️ Running workflow [magenta]'{aiida_wg._core_workflow.name}'[/magenta] directly (blocking)...")  # noqa: SLF001
         results = aiida_wg.run(inputs=None)
         console.print("[green]✅ Workflow execution finished.[/green]")
         console.print("Results:")
@@ -194,7 +200,7 @@ def run(
     except Exception as e:
         console.print(f"[bold red]❌ Workflow execution failed during run: {e}[/bold red]")
         console.print_exception()
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
 
 
 @app.command(help="Submit the workflow to the AiiDA daemon.")
@@ -207,7 +213,7 @@ def submit(
         readable=True,
         help="Path to the workflow definition YAML file.",
     ),
-    aiida_profile: Optional[str] = typer.Option(
+    aiida_profile: str | None = typer.Option(
         None, "--aiida-profile", "-P", help="AiiDA profile to use (defaults to current active)."
     ),
     wait: bool = typer.Option(False, "--wait", "-w", help="Wait for the workflow to complete after submission."),
@@ -219,10 +225,10 @@ def submit(
 
     aiida_wg = _prepare_aiida_workgraph(str(workflow_file), aiida_profile)
     try:
-        console.print(f"🚀 Submitting workflow [magenta]'{aiida_wg._core_workflow.name}'[/magenta] to AiiDA daemon...")
+        console.print(f"🚀 Submitting workflow [magenta]'{aiida_wg._core_workflow.name}'[/magenta] to AiiDA daemon...")  # noqa: SLF001
         results_node = aiida_wg.submit(inputs=None, wait=wait, timeout=timeout if wait else None)
 
-        if isinstance(results_node, aiida.orm.WorkChainNode):
+        if isinstance(results_node, orm.WorkChainNode):
             console.print(f"[green]✅ Workflow submitted. PK: {results_node.pk}[/green]")
             if wait:
                 console.print(
@@ -238,7 +244,7 @@ def submit(
     except Exception as e:
         console.print(f"[bold red]❌ Workflow submission failed: {e}[/bold red]")
         console.print_exception()
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
 
 
 # --- Main entry point for the script ---
