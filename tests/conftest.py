@@ -178,7 +178,7 @@ def pytest_configure(config):
         for config_case in ALL_CONFIG_CASES:
             config_paths = generate_config_paths(config_case)
             for key, value in config_paths.items():
-                config_paths[key] = config.rootdir / value
+                config_paths[key] = pathlib.Path(config.rootdir) / value
             wf = workflow.Workflow.from_config_file(str(config_paths["yml"]))
             serialize_worklfow(config_paths=config_paths, workflow=wf)
             serialize_nml(config_paths=config_paths, workflow=wf)
