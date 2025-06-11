@@ -80,6 +80,6 @@ cycles:
             computer: 'localhost-slurm'
             cycle point: []
             plugin: 'shell'
-            src: $TEST_ROOTDIR/tests/cases/small-icon/config/scripts/cleanup.py
-            command: 'cleanup.py'
+            src: /TESTS_ROOTDIR/tests/cases/small-icon/config/scripts/cleanup.py
+            command: 'python cleanup.py'
             env source files: []

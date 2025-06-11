@@ -35,8 +35,7 @@ def test_icon():
 
 # configs that are tested for running workgraph
 @pytest.mark.slow
-@pytest.mark.usefixtures("aiida_localhost")
-@pytest.mark.usefixtures("config_case")
+@pytest.mark.usefixtures("config_case", "aiida_localhost")
 @pytest.mark.parametrize(
     "config_case",
     [

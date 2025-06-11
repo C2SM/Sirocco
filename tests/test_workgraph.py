@@ -69,33 +69,44 @@ def test_shell_filenames_nodes_arguments(config_paths):
     ]
 
     expected_arguments_list = [
-        "--restart  --init {initial_conditions} --forcing {forcing}",
-        "--restart  --init {initial_conditions} --forcing {forcing}",
-        "--restart {icon_restart_foo_0___bar_3_0___date_2026_01_01_00_00_00} --init  --forcing {forcing}",
-        "--restart {icon_restart_foo_1___bar_3_0___date_2026_01_01_00_00_00} --init  --forcing {forcing}",
-        "{icon_output_foo_0___bar_3_0___date_2026_01_01_00_00_00} {icon_output_foo_1___bar_3_0___date_2026_01_01_00_00_00}",
-        "{icon_output_foo_0___bar_3_0___date_2026_07_01_00_00_00} {icon_output_foo_1___bar_3_0___date_2026_07_01_00_00_00}",
-        "{analysis_foo_bar_3_0___date_2026_01_01_00_00_00}",
-        "{analysis_foo_bar_3_0___date_2026_07_01_00_00_00}",
-        "{analysis_foo_bar_date_2026_01_01_00_00_00} {analysis_foo_bar_date_2026_07_01_00_00_00}",
+        "icon.py --restart  --init {initial_conditions} --forcing {forcing}",
+        "icon.py --restart  --init {initial_conditions} --forcing {forcing}",
+        "icon.py --restart {icon_restart_foo_0___bar_3_0___date_2026_01_01_00_00_00} --init  --forcing {forcing}",
+        "icon.py --restart {icon_restart_foo_1___bar_3_0___date_2026_01_01_00_00_00} --init  --forcing {forcing}",
+        "statistics.py {icon_output_foo_0___bar_3_0___date_2026_01_01_00_00_00} {icon_output_foo_1___bar_3_0___date_2026_01_01_00_00_00}",
+        "statistics.py {icon_output_foo_0___bar_3_0___date_2026_07_01_00_00_00} {icon_output_foo_1___bar_3_0___date_2026_07_01_00_00_00}",
+        "statistics.py {analysis_foo_bar_3_0___date_2026_01_01_00_00_00}",
+        "statistics.py {analysis_foo_bar_3_0___date_2026_07_01_00_00_00}",
+        "merge.py {analysis_foo_bar_date_2026_01_01_00_00_00} {analysis_foo_bar_date_2026_07_01_00_00_00}",
     ]
 
     expected_nodes_list = [
-        ["initial_conditions", "forcing"],
-        ["initial_conditions", "forcing"],
-        ["icon_restart_foo_0___bar_3_0___date_2026_01_01_00_00_00", "forcing"],
-        ["icon_restart_foo_1___bar_3_0___date_2026_01_01_00_00_00", "forcing"],
+        ["SCRIPT__icon_foo_0___bar_3_0___date_2026_01_01_00_00_00", "initial_conditions", "forcing"],
+        ["SCRIPT__icon_foo_1___bar_3_0___date_2026_01_01_00_00_00", "initial_conditions", "forcing"],
         [
+            "SCRIPT__icon_foo_0___bar_3_0___date_2026_07_01_00_00_00",
+            "icon_restart_foo_0___bar_3_0___date_2026_01_01_00_00_00",
+            "forcing",
+        ],
+        [
+            "SCRIPT__icon_foo_1___bar_3_0___date_2026_07_01_00_00_00",
+            "icon_restart_foo_1___bar_3_0___date_2026_01_01_00_00_00",
+            "forcing",
+        ],
+        [
+            "SCRIPT__statistics_foo_bar_3_0___date_2026_01_01_00_00_00",
             "icon_output_foo_0___bar_3_0___date_2026_01_01_00_00_00",
             "icon_output_foo_1___bar_3_0___date_2026_01_01_00_00_00",
         ],
         [
+            "SCRIPT__statistics_foo_bar_3_0___date_2026_07_01_00_00_00",
             "icon_output_foo_0___bar_3_0___date_2026_07_01_00_00_00",
             "icon_output_foo_1___bar_3_0___date_2026_07_01_00_00_00",
         ],
-        ["analysis_foo_bar_3_0___date_2026_01_01_00_00_00"],
-        ["analysis_foo_bar_3_0___date_2026_07_01_00_00_00"],
+        ["SCRIPT__statistics_foo_bar_date_2026_01_01_00_00_00", "analysis_foo_bar_3_0___date_2026_01_01_00_00_00"],
+        ["SCRIPT__statistics_foo_bar_date_2026_07_01_00_00_00", "analysis_foo_bar_3_0___date_2026_07_01_00_00_00"],
         [
+            "SCRIPT__merge_date_2026_01_01_00_00_00",
             "analysis_foo_bar_date_2026_01_01_00_00_00",
             "analysis_foo_bar_date_2026_07_01_00_00_00",
         ],
