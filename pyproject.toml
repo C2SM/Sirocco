@@ -37,7 +37,7 @@ dependencies = [
   "pygraphviz",
   "lxml",
   "f90nml",
-  "aiida-shell>=0.8.1",,
+  "aiida-shell>=0.8.1",
   "rich",
   "typer"
 ]
