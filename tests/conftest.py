@@ -228,10 +228,13 @@ def aiida_localhost_slurm(aiida_computer) -> Computer:
         return Computer.collection.get(label="localhost-slurm")
     except NotExistent:
         # Use the base aiida_computer factory with SLURM scheduler
-        return aiida_computer(
+        comp = aiida_computer(
             label="localhost-slurm",
             hostname="localhost",
             transport_type="core.local",
             scheduler_type="core.slurm",
-            configuration_kwargs={},  # This will call computer.configure()
+            configuration_kwargs={},  # This will call computer.configure() ... no it wont't...
         )
+        comp.configure()
+
+        return comp
