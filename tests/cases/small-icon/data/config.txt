@@ -13,7 +13,7 @@ cycles:
               - restart [date: 2026-01-01 00:00:00]
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
-            computer: 'localhost'
+            computer: 'localhost-slurm'
             nodes: 2
             walltime: '00:05:00'
             ntasks per node: 2
@@ -37,7 +37,7 @@ cycles:
               - restart [date: 2026-03-01 00:00:00]
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 3, 1, 0, 0)}
-            computer: 'localhost'
+            computer: 'localhost-slurm'
             nodes: 2
             walltime: '00:05:00'
             ntasks per node: 2
@@ -61,7 +61,7 @@ cycles:
               - restart [date: 2026-05-01 00:00:00]
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 5, 1, 0, 0)}
-            computer: 'localhost'
+            computer: 'localhost-slurm'
             nodes: 2
             walltime: '00:05:00'
             ntasks per node: 2
@@ -77,7 +77,7 @@ cycles:
               - icon [date: 2026-05-01 00:00:00]
             name: 'cleanup'
             coordinates: {}
-            computer: 'localhost'
+            computer: 'localhost-slurm'
             cycle point: []
             plugin: 'shell'
             src: $TEST_ROOTDIR/tests/cases/small-icon/config/scripts/cleanup.py
