@@ -61,94 +61,67 @@ jobs:
         echo "Installing SLURM on Ubuntu 24..."
         sudo apt-get update
         sudo apt-get install -y slurm-wlm slurm-wlm-doc munge
-        
+
         # Get the runner hostname
         HOSTNAME=$(hostname)
         echo "Hostname: $HOSTNAME"
-        
-        # Debug: Check what SLURM installed
-        echo "=== SLURM Package Files ==="
-        dpkg -L slurm-wlm | grep -E "(etc|var)" | grep slurm || true
-        
-        echo "=== Existing directories ==="
-        ls -la /etc/ | grep slurm || echo "No slurm directories in /etc"
-        ls -la /var/spool/ | grep slurm || echo "No slurm directories in /var/spool"
-        ls -la /var/log/ | grep slurm || echo "No slurm directories in /var/log"
-        
+
         # Create SLURM user first
         sudo useradd --system --shell /bin/false slurm || true
-        
-        # Create all possible SLURM directories that might be needed
+
+        # Create all necessary SLURM directories with proper permissions
         sudo mkdir -p /etc/slurm /etc/slurm-llnl /etc/slurm-wlm
         sudo mkdir -p /var/spool/slurm /var/spool/slurmd /var/spool/slurm-llnl
         sudo mkdir -p /var/log/slurm /var/log/slurm-llnl
+        sudo mkdir -p /var/spool/slurmctld  # Add dedicated state save directory
+
+        # Set proper ownership for all SLURM directories
         sudo chown -R slurm:slurm /var/spool/slurm* /var/log/slurm*
-        
-        echo "=== Created directories ==="
-        ls -la /etc/ | grep slurm
-        ls -la /var/spool/ | grep slurm
-        ls -la /var/log/ | grep slurm
-        
-        # Try to find where SLURM actually expects its config
-        echo "=== SLURM Binary Analysis ==="
-        if command -v slurmctld >/dev/null 2>&1; then
-            echo "slurmctld found at: $(which slurmctld)"
-            # Look for default config paths in the binary
-            strings $(which slurmctld) | grep -E "(etc.*slurm|slurm.*conf)" | head -5 || true
-        fi
-        
-        if command -v slurmd >/dev/null 2>&1; then
-            echo "slurmd found at: $(which slurmd)"
-        fi
-        
-        # Check systemd service files to see what they expect
-        echo "=== Systemd Service Files ==="
-        if [ -f /lib/systemd/system/slurmctld.service ]; then
-            echo "slurmctld.service:"
-            cat /lib/systemd/system/slurmctld.service
-        fi
-        
+        sudo chmod 755 /var/spool/slurmctld
+
         # Start with the most common path and create config there
         SLURM_CONF_DIR="/etc/slurm"
-        
-        # Create SLURM configuration
+
+        # Create SLURM configuration with StateSaveLocation
         echo "Creating SLURM configuration in $SLURM_CONF_DIR"
         sudo tee ${SLURM_CONF_DIR}/slurm.conf > /dev/null << EOF
+
         # SLURM configuration for CI testing
         ClusterName=ci-cluster
         ControlMachine=$HOSTNAME
         ControlAddr=$HOSTNAME
-        
+
         # Authentication
         AuthType=auth/munge
-        
+
         # Scheduling
         SchedulerType=sched/backfill
         SelectType=select/cons_tres
         SelectTypeParameters=CR_Core
-        
-        # Logging
+
+        # State and logging
+        StateSaveLocation=/var/spool/slurmctld
         SlurmctldLogFile=/var/log/slurm/slurmctld.log
         SlurmdLogFile=/var/log/slurm/slurmd.log
         SlurmctldPidFile=/var/run/slurmctld.pid
         SlurmdPidFile=/var/run/slurmd.pid
-        
+
         # Process tracking
         ProctrackType=proctrack/cgroup
         TaskPlugin=task/affinity,task/cgroup
-        
+
         # Node and partition configuration
         NodeName=$HOSTNAME CPUs=2 Sockets=1 CoresPerSocket=2 ThreadsPerCore=1 RealMemory=7000 State=UNKNOWN
         PartitionName=debug Nodes=$HOSTNAME Default=YES MaxTime=INFINITE State=UP
         EOF
-        
+
         # Create cgroup configuration
         sudo tee ${SLURM_CONF_DIR}/cgroup.conf > /dev/null << EOF
         CgroupAutomount=yes
         ConstrainCores=yes
         ConstrainRAMSpace=yes
         EOF
-        
+
         # Copy config to all possible locations
         for dir in /etc/slurm-llnl /etc/slurm-wlm; do
             if [ -d "$dir" ]; then
@@ -156,28 +129,28 @@ jobs:
                 sudo cp "${SLURM_CONF_DIR}/cgroup.conf" "$dir/"
             fi
         done
-        
+
         echo "=== Configuration Files Created ==="
         find /etc -name "slurm.conf" 2>/dev/null || true
-        
+
         # Configure and start munge
         echo "Starting munge..."
         sudo systemctl enable munge
         sudo systemctl start munge
         sudo systemctl status munge --no-pager || true
-        
+
         # Start SLURM services
         echo "Starting SLURM services..."
         sudo systemctl enable slurmctld || true
         sudo systemctl start slurmctld || true
         sudo systemctl enable slurmd || true
         sudo systemctl start slurmd || true
-        
+
         # Check service status
         echo "=== Service Status ==="
         sudo systemctl status slurmctld --no-pager || true
         sudo systemctl status slurmd --no-pager || true
-        
+
         # Test SLURM functionality
         echo "Testing SLURM..."
         sleep 5
