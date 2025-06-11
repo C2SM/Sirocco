@@ -42,7 +42,7 @@ class TimeUtils:
             ValueError: If the time format is invalid
         """
         try:
-            time_obj = datetime.strptime(walltime_str, '%H:%M:%S')
+            time_obj = datetime.strptime(walltime_str, "%H:%M:%S")  # noqa: DTZ007
             return time_obj.hour * 3600 + time_obj.minute * 60 + time_obj.second
         except ValueError as e:
             msg = f"Invalid time format '{walltime_str}'. Expected HH:MM:SS format."
