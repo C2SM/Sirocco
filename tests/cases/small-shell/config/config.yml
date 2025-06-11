@@ -35,22 +35,22 @@ tasks:
   - icon:
       plugin: shell
       computer: localhost
-      src: $TEST_ROOTDIR/tests/cases/small-shell/config/scripts/icon.py
+      src: /TESTS_ROOTDIR/tests/cases/small-shell/config/scripts/icon.py
       command: "icon.py --restart {PORT::restart} --init {PORT::init}"
-      env_source_files: $TEST_ROOTDIR/tests/cases/small-shell/config/data/dummy_source_file.sh
+      env_source_files: /TESTS_ROOTDIR/tests/cases/small-shell/config/data/dummy_source_file.sh
   - cleanup:
       plugin: shell
       computer: localhost
-      src: $TEST_ROOTDIR/tests/cases/small-shell/config/scripts/cleanup.py
+      src: /TESTS_ROOTDIR/tests/cases/small-shell/config/scripts/cleanup.py
       command: "cleanup.py"
 data:
   available:
      - icon_namelist:
          computer: localhost
-         src: $TEST_ROOTDIR/tests/cases/small-shell/config/data/input
+         src: /TESTS_ROOTDIR/tests/cases/small-shell/config/data/input
      - initial_conditions:
          computer: localhost
-         src: $TEST_ROOTDIR/tests/cases/small-shell/config/data/initial_conditions
+         src: /TESTS_ROOTDIR/tests/cases/small-shell/config/data/initial_conditions
   generated:
      - icon_output:
          src: icon_output

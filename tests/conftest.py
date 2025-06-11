@@ -144,9 +144,9 @@ def config_paths(config_case, icon_grid_path, tmp_path, test_rootdir) -> dict[st
     for key, value in config.items():
         config[key] = tmp_path / value
 
-    # Expand $TEST_ROOTDIR to directory where config is located
+    # Expand /TESTS_ROOTDIR to directory where config is located
     for key in ["yml", "txt"]:
-        config[key].write_text(config[key].read_text().replace("$TEST_ROOTDIR", str(tmp_path)))
+        config[key].write_text(config[key].read_text().replace("/TESTS_ROOTDIR", str(tmp_path)))
 
     if config_case == "small-icon":
         config_rootdir = config["yml"].parent
@@ -177,6 +177,8 @@ def pytest_configure(config):
         LOGGER.info("Regenerating serialized references")
         for config_case in ALL_CONFIG_CASES:
             config_paths = generate_config_paths(config_case)
+            for key, value in config_paths.items():
+                config_paths[key] = config.rootdir / value
             wf = workflow.Workflow.from_config_file(str(config_paths["yml"]))
             serialize_worklfow(config_paths=config_paths, workflow=wf)
             serialize_nml(config_paths=config_paths, workflow=wf)
