@@ -62,12 +62,10 @@ jobs:
         pip install hatch
         hatch run verdi presto
 
-    - name: Setup upterm session
-      uses: lhotari/action-upterm@v1
-      if: always()
-
     - name: Setup environment
-      run: .github/workflows/setup.sh
+      run: |
+        spack env activate .
+        .github/workflows/setup.sh
 
     - name: Run ICON tests
       shell: spack-bash {0}
@@ -76,3 +74,7 @@ jobs:
       run: |
         spack env activate .
         hatch test --parallel -- -m "requires_icon" -s tests
+
+    - name: Setup upterm session
+      uses: lhotari/action-upterm@v1
+      if: always()
