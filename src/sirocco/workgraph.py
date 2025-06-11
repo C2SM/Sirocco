@@ -211,7 +211,6 @@ class AiidaWorkGraph:
     def _create_shell_task_node(self, task: core.ShellTask):
         label = self.get_aiida_label_from_graph_item(task)
         # Split command line between command and arguments (this is required by aiida internals)
-
         cmd, _ = self.split_cmd_arg(task.command)
 
         from aiida_shell import ShellCode
