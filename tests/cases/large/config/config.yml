@@ -97,7 +97,7 @@ tasks:
   - extpar:
       plugin: shell  # no extpar plugin available yet
       computer: localhost
-      src: scripts/extpar
+      src: $TEST_ROOTDIR/tests/cases/large/config/scripts/extpar
       command: "extpar --verbose --input {PORT::obs}"
       uenv:
         squashfs: path/to/squashfs
