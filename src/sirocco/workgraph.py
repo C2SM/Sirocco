@@ -332,13 +332,19 @@ class AiidaWorkGraph:
     def _link_output_node_to_icon_task(self, task: core.IconTask, port: str | None, output: core.Data):
         workgraph_task = self.task_from_core(task)
         output_label = self.get_aiida_label_from_graph_item(output)
+
         if port is None:
-            # We manually create the socket because workgraph interprets "." in the
-            # name as nested namespace when using `add_output`
-            output_socket = workgraph_task.add_output("workgraph.any", "PLACEHOLDER")
-            del workgraph_task.outputs._sockets["PLACEHOLDER"]
-            #output_socket = SocketAny(name=str(output.src))
-            workgraph_task.outputs._sockets[str(output.src)] = output_socket
+            from aiida_shell.parsers.shell import ShellParser
+            output_socket = workgraph_task.add_output("workgraph.any", ShellParser.format_link_label(str(output.src)))
+
+            ## We manually create the socket because workgraph interprets "." in the
+            ## name as nested namespace when using `add_output`
+            #output_socket = workgraph_task.add_output("workgraph.any", "PLACEHOLDER")
+            #del workgraph_task.outputs._sockets["PLACEHOLDER"]
+            ##output_socket = SocketAny(name=str(output.src))
+            #workgraph_task.outputs._sockets[str(output.src)] = output_socket
+
+            workgraph_task.inputs.metadata.options.additional_retrieve_list.value.append(str(output.src))
         else:
             output_socket = workgraph_task.outputs._sockets.get(port)  # noqa SLF001 # there so public accessor
 
@@ -387,11 +393,7 @@ class AiidaWorkGraph:
         if isinstance(input_, core.AvailableData):
             setattr(workgraph_task.inputs, f"{port}", self.data_from_core(input_))
         elif isinstance(input_, core.GeneratedData):
-            if port in workgraph_task.inputs:
-                setattr(workgraph_task.inputs, f"{port}", self.socket_from_core(input_))
-            else:
-                breakpoint()
-                #workgraph_task.inputs.metadata.options.additional_retrieve_list = 
+            setattr(workgraph_task.inputs, f"{port}", self.socket_from_core(input_))
         else:
             raise TypeError
 
