@@ -62,6 +62,30 @@ jobs:
         pip install hatch
         hatch run verdi presto
 
+    # - name: Create SSH keys for AiiDA slurm SSH computer
+    #   run: |
+    #     # Create .ssh directory if it doesn't exist
+    #     mkdir -p "${HOME}/.ssh"
+
+    #     # Generate key WITHOUT -m PEM (this was the main issue)
+    #     ssh-keygen -t rsa -b 2048 -N "" -f "${HOME}/.ssh/slurm_rsa"
+
+    #     # Set correct permissions
+    #     chmod 600 "${HOME}/.ssh/slurm_rsa"
+    #     chmod 644 "${HOME}/.ssh/slurm_rsa.pub"
+
+    #     # Add localhost:5001 to known_hosts (your original approach was correct)
+    #     ssh-keyscan -H -p 5001 localhost >> "${HOME}/.ssh/known_hosts"
+
+    #     # Copy the public key INTO the container (this is what was missing)
+    #     docker exec $(docker ps -q --filter ancestor=xenonmiddleware/slurm:17) bash -c "
+    #       mkdir -p /home/xenon/.ssh &&
+    #       chmod 700 /home/xenon/.ssh &&
+    #       echo '$(cat ${HOME}/.ssh/slurm_rsa.pub)' >> /home/xenon/.ssh/authorized_keys &&
+    #       chmod 600 /home/xenon/.ssh/authorized_keys &&
+    #       chown -R xenon:xenon /home/xenon/.ssh
+    #     "
+
     - name: Create SSH keys for AiiDA slurm SSH computer
       run: |
         # Create .ssh directory if it doesn't exist

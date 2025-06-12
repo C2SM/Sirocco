@@ -220,7 +220,7 @@ def aiida_localhost_slurm(aiida_computer_ssh) -> Computer:
         ssh_key_path = os.path.expanduser("~/.ssh/slurm_key")
         comp.configure(
             username="xenon",
-            port=22,
+            port=5001,
             look_for_keys=True,
             key_filename=ssh_key_path,
             key_policy="AutoAddPolicy",
