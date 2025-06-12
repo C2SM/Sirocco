@@ -54,8 +54,8 @@ tasks:
 
   - cleanup:
       plugin: shell
-      computer: slurm-ssh
-      src: /TESTS_ROOTDIR/tests/cases/small-icon/config/scripts/cleanup.py
+      computer: localhost
+      src: scripts/cleanup.py
       command: "python cleanup.py"
       walltime: 00:05:00
       nodes: 1
