@@ -97,7 +97,7 @@ tasks:
   - extpar:
       plugin: shell  # no extpar plugin available yet
       computer: localhost
-      src: scripts/extpar
+      relpath: scripts/extpar
       command: "extpar --verbose --input {PORT::obs}"
       uenv:
         squashfs: path/to/squashfs
@@ -107,7 +107,7 @@ tasks:
   - preproc:
       plugin: shell
       computer: localhost
-      src: scripts/cleanup.sh
+      relpath: scripts/cleanup.sh
       command: "bash cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}"
       env_source_files: data/dummy_source_file.sh
       nodes: 4
@@ -136,7 +136,7 @@ tasks:
   - postproc_1:
       plugin: shell
       computer: localhost
-      src: scripts/main_script_ocn.sh
+      relpath: scripts/main_script_ocn.sh
       command: "bash main_script_ocn.sh {PORT::None}"
       nodes: 2
       walltime: 00:05:00
@@ -156,14 +156,14 @@ tasks:
   - store_and_clean_1:
       plugin: shell
       computer: localhost
-      src: scripts/post_clean.sh
+      relpath: scripts/post_clean.sh
       command: "bash post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}"
       nodes: 1
       walltime: 00:01:00
   - store_and_clean_2:
       plugin: shell
       computer: localhost
-      src: scripts/post_clean.sh
+      relpath: scripts/post_clean.sh
       command: "bash post_clean.sh --archive {PORT::archive} --clean {PORT::clean}"
       nodes: 1
       walltime: 00:01:00
@@ -171,30 +171,30 @@ data:
   available:
     - grid_file:
         computer: localhost
-        src: /TESTS_ROOTDIR/tests/cases/large/config/data/grid
+        path: /TESTS_ROOTDIR/tests/cases/large/config/data/grid
     - obs_data:
         computer: localhost
-        src: /TESTS_ROOTDIR/tests/cases/large/config/data/obs_data
+        path: /TESTS_ROOTDIR/tests/cases/large/config/data/obs_data
     - ERA5:
         computer: localhost
-        src: /TESTS_ROOTDIR/tests/cases/large/config/data/era5
+        path: /TESTS_ROOTDIR/tests/cases/large/config/data/era5
   generated:
     - extpar_file:
-        src: output
+        relpath: output
     - icon_input:
-        src: output
+        relpath: output
     - icon_restart:
         format: ncdf
-        src: restart
+        relpath: restart
     - stream_1:
-        src: output_1
+        relpath: output_1
     - stream_2:
-        src: output_2
+        relpath: output_2
     - postout_1:
-        src: postout
+        relpath: postout
     - postout_2:
-        src: postout
+        relpath: postout
     - stored_data_1:
-        src: stored_data
+        relpath: stored_data
     - stored_data_2:
-        src: stored_data
+        relpath: stored_data

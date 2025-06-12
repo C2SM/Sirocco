@@ -16,6 +16,7 @@ cycles:
             computer: 'localhost'
             cycle point: [2026-01-01 00:00:00 -- 2026-03-01 00:00:00]
             plugin: 'icon'
+            bin: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/bin/icon
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='model.namelist')]
   - bimonthly_tasks [date: 2026-03-01 00:00:00]:
       tasks:
@@ -35,6 +36,7 @@ cycles:
             computer: 'localhost'
             cycle point: [2026-03-01 00:00:00 -- 2026-05-01 00:00:00]
             plugin: 'icon'
+            bin: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/bin/icon
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='model.namelist')]
   - bimonthly_tasks [date: 2026-05-01 00:00:00]:
       tasks:
@@ -54,6 +56,7 @@ cycles:
             computer: 'localhost'
             cycle point: [2026-05-01 00:00:00 -- 2026-06-01 00:00:00]
             plugin: 'icon'
+            bin: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/bin/icon
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='model.namelist')]
   - lastly:
       tasks:

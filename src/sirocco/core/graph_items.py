@@ -7,8 +7,10 @@ from typing import TYPE_CHECKING, Any, ClassVar, Self, TypeVar, cast
 from sirocco.parsing.target_cycle import DateList, LagList, NoTargetCycle
 from sirocco.parsing.yaml_data_models import (
     ConfigAvailableData,
+    ConfigAvailableDataSpecs,
     ConfigBaseDataSpecs,
     ConfigBaseTaskSpecs,
+    ConfigGeneratedDataSpecs,
 )
 
 if TYPE_CHECKING:
@@ -53,14 +55,12 @@ class Data(ConfigBaseDataSpecs, GraphItem):
 
 
 @dataclass(kw_only=True)
-class AvailableData(Data):
-    src: Path
+class AvailableData(Data, ConfigAvailableDataSpecs):
     computer: str
 
 
 @dataclass(kw_only=True)
-class GeneratedData(Data):
-    pass
+class GeneratedData(Data, ConfigGeneratedDataSpecs): ...
 
 
 @dataclass(kw_only=True)

@@ -16,6 +16,7 @@ class NamelistFile(models.ConfigNamelistFileSpec):
     - adds the update_from_specs method"""
 
     name: str = field(init=False)
+    path: Path = field(repr=False)
 
     def __post_init__(self) -> None:
         self.name = self.path.name
@@ -23,7 +24,7 @@ class NamelistFile(models.ConfigNamelistFileSpec):
 
     @classmethod
     def from_config(cls: type[Self], config: models.ConfigNamelistFile, config_rootdir: Path) -> Self:
-        path = cls._validate_namelist_path(config.path, config_rootdir)
+        path = cls._validate_namelist_path(config.relpath, config_rootdir)
         self = cls(path=path)
         self.update_from_specs(config.specs)
         return self

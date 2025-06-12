@@ -14,6 +14,7 @@ from aiida.common.exceptions import NotExistent
 from aiida_icon.calculations import IconCalculation
 
 from sirocco import core
+from sirocco.core.graph_items import GeneratedData
 
 if TYPE_CHECKING:
     from aiida_workgraph.socket import TaskSocket  # type: ignore[import-untyped]
@@ -197,10 +198,10 @@ class AiidaWorkGraph:
         # `remote_path` must be str not PosixPath to be JSON-serializable
         transport = computer.get_transport()
         with transport:
-            if not transport.path_exists(str(data.src)):
-                msg = f"Could not find available data {data.name} in path {data.src} on computer {data.computer}."
+            if not transport.path_exists(str(data.path)):
+                msg = f"Could not find available data {data.name} in path {data.path} on computer {data.computer}."
                 raise FileNotFoundError(msg)
-        self._aiida_data_nodes[label] = aiida.orm.RemoteData(remote_path=str(data.src), label=label, computer=computer)
+        self._aiida_data_nodes[label] = aiida.orm.RemoteData(remote_path=str(data.path), label=label, computer=computer)
 
     @functools.singledispatchmethod
     def create_task_node(self, task: core.Task):
@@ -250,8 +251,8 @@ class AiidaWorkGraph:
         # NOTE: The input and output nodes of the task are populated in a separate function
         nodes = {}
         # We need to add the files to nodes to copy it to remote
-        if task.src is not None:
-            nodes[f"SCRIPT__{label}"] = aiida.orm.SinglefileData(str(task.src))
+        if task.path is not None:
+            nodes[f"SCRIPT__{label}"] = aiida.orm.SinglefileData(str(task.path))
 
         workgraph_task = self._workgraph.add_task(
             "workgraph.shelljob",
@@ -317,7 +318,13 @@ class AiidaWorkGraph:
 
         workgraph_task = self.task_from_core(task)
         output_label = self.get_aiida_label_from_graph_item(output)
-        output_socket = workgraph_task.add_output("workgraph.any", str(output.src))
+
+        if isinstance(output, GeneratedData):
+            output_path = str(output.relpath)
+        else:
+            msg = f"Only generated data may be specified as output but found output {output} of type {type(output)}"
+            raise TypeError(msg)
+        output_socket = workgraph_task.add_output("workgraph.any", output_path)
         self._aiida_socket_nodes[output_label] = output_socket
 
     @_link_output_node_to_task.register
@@ -416,7 +423,7 @@ class AiidaWorkGraph:
             input_label = self.get_aiida_label_from_graph_item(input_)
 
             if isinstance(input_, core.AvailableData):
-                filename = input_.src.name
+                filename = input_.path.name
                 filenames[input_.name] = filename
             elif isinstance(input_, core.GeneratedData):
                 # We need to handle parameterized data in this case.
@@ -435,7 +442,7 @@ class AiidaWorkGraph:
                     filename = input_label
                 else:
                     # Single data node with this name - can use simple filename
-                    filename = input_.src.name if input_.src is not None else input_.name
+                    filename = input_.relpath.name if input_.relpath is not None else input_.name
 
                 # The key in filenames dict should be the input label (what's used in nodes dict)
                 filenames[input_label] = filename

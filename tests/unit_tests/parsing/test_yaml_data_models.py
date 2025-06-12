@@ -6,7 +6,7 @@ from sirocco.parsing import yaml_data_models as models
 
 
 def test_base_data():
-    models.ConfigBaseData(name="name", src="foo.txt", format=None)
+    models.ConfigBaseData(name="name", format=None)
 
 
 @pytest.fixture
@@ -26,10 +26,10 @@ def minimal_config_path(tmp_path):
           available:
             - c:
                 computer: "localhost"
-                src: "/c.txt"
+                path: "/c.txt"
           generated:
             - d:
-                src: "d"
+                relpath: "d"
         """
     )
     minimal = tmp_path / "minimal.yml"
