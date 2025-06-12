@@ -66,6 +66,7 @@ jobs:
       run: |
         # Create .ssh directory if it doesn't exist
         mkdir -p "${HOME}/.ssh"
+        ssh-keygen -m PEM -t rsa -b 2048 -f "${HOME}/.ssh/slurm_rsa"
 
         # Copy the private key from the repository
         CONFIG="${GITHUB_WORKSPACE}/.github/config"
