@@ -106,7 +106,7 @@ jobs:
       run: |
         mkdir -p "${HOME}/.ssh"
         # Copy the pre-existing key from your repo (you'd need to add this file)
-        cp .github/config/slurm_rsa "${HOME}/.ssh/slurm_key"
+        cp .github/config/slurm_key "${HOME}/.ssh/slurm_key"
         chmod 600 "${HOME}/.ssh/slurm_key"
         ssh-keyscan -H -p 5001 localhost >> "${HOME}/.ssh/known_hosts"
 
