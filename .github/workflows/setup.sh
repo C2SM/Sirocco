@@ -11,8 +11,6 @@ sed -i "s|PLACEHOLDER_WORK_DIR|${GITHUB_WORKSPACE}|" "${CONFIG}/localhost.yaml"
 sed -i "s|PLACEHOLDER_REMOTE_ABS_PATH_DOUBLER|${CONFIG}/doubler.sh|" "${CONFIG}/doubler.yaml"
 sed -i "s|PLACEHOLDER_SSH_KEY|${HOME}/.ssh/slurm_rsa|" "${CONFIG}/slurm-ssh-config.yaml"
 
-hatch run verdi setup --non-interactive --config "${CONFIG}/profile.yaml"
-
 # set up localhost computer
 hatch run verdi computer setup --non-interactive --config "${CONFIG}/localhost.yaml"
 hatch run verdi computer configure core.local localhost --config "${CONFIG}/localhost-config.yaml"
