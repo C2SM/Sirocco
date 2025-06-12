@@ -62,21 +62,8 @@ jobs:
         pip install hatch
         hatch run verdi presto
 
-    - name: Create upterm SSH key
-      run: |
-        mkdir -p ~/.ssh
-        ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519
-        chmod 700 ~/.ssh
-        chmod 600 ~/.ssh/id_ed25519
-        chmod 644 ~/.ssh/id_ed25519.pub
-        echo "Created upterm SSH key:"
-        ls -la ~/.ssh/id_ed25519*
-
     - name: Create SSH keys for AiiDA
-      shell: spack-bash {0}
       run: |
-        spack env activate .
-
         ssh-keygen -q -t rsa -b 4096 -N "" -f "${HOME}/.ssh/aiida_rsa"
         ssh-keygen -y -f "${HOME}/.ssh/aiida_rsa" >> "${HOME}/.ssh/authorized_keys"
         ssh-keyscan -H localhost >> "${HOME}/.ssh/known_hosts"
