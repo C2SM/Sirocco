@@ -35,11 +35,11 @@ class ShellTask(models.ConfigShellTaskSpecs, Task):
     def _validate_src(config_src: Path, config_rootdir: Path) -> Path:
         if config_src.is_absolute():
             msg = f"Namelist path {config_src} must be relative with respect to config file."
-        src = config_src if config_rootdir is None else (config_rootdir / config_src)
+        src = config_rootdir / config_src
         if not src.exists():
-            msg = f"Namelist in path {src} does not exist."
+            msg = f"Script in path {src} does not exist."
             raise FileNotFoundError(msg)
         if not src.is_file():
-            msg = f"Namelist in path {src} is not a file."
+            msg = f"Script in path {src} is not a file."
             raise OSError(msg)
         return src
