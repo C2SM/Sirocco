@@ -87,9 +87,6 @@ jobs:
         # Replace the placeholders in configuration files with actual values
         CONFIG="${GITHUB_WORKSPACE}/.github/config"
         cp "${CONFIG}/slurm_rsa" "${HOME}/.ssh/slurm_rsa"
-        sed -i "s|PLACEHOLDER_WORK_DIR|${GITHUB_WORKSPACE}|" "${CONFIG}/localhost.yaml"
-        sed -i "s|PLACEHOLDER_REMOTE_ABS_PATH_DOUBLER|${CONFIG}/doubler.sh|" "${CONFIG}/doubler.yaml"
-        sed -i "s|PLACEHOLDER_SSH_KEY|${HOME}/.ssh/slurm_rsa|" "${CONFIG}/slurm-ssh-config.yaml"
 
     - name: Run ICON tests (slurm-ssh computer created by fixture)
       shell: spack-bash {0}
