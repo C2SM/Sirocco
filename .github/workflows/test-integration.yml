@@ -91,21 +91,12 @@ jobs:
         sed -i "s|PLACEHOLDER_REMOTE_ABS_PATH_DOUBLER|${CONFIG}/doubler.sh|" "${CONFIG}/doubler.yaml"
         sed -i "s|PLACEHOLDER_SSH_KEY|${HOME}/.ssh/slurm_rsa|" "${CONFIG}/slurm-ssh-config.yaml"
 
-    - name: Set up slurm-ssh computer and run ICON tests
+    - name: Run ICON tests (slurm-ssh computer created by fixture)
       shell: spack-bash {0}
       env:
         PYTEST_ADDOPTS: "--durations=0"
       run: |
         spack env activate .
-
-        CONFIG="${GITHUB_WORKSPACE}/.github/config"
-        hatch run verdi computer setup --non-interactive --config "${CONFIG}/slurm-ssh.yaml"
-        hatch run verdi computer configure core.ssh slurm-ssh --non-interactive --config "${CONFIG}/slurm-ssh-config.yaml" -n  # needs slurm container
-        hatch run verdi computer test slurm-ssh --print-traceback
-
-        hatch run verdi config set runner.poll.interval 0
-        hatch run verdi config set warnings.development_version False
-        hatch run verdi config set warnings.rabbitmq_version False
 
         hatch test --parallel -- -m "requires_icon" -s tests
 
