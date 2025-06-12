@@ -1,5 +1,4 @@
 safe_interval: 0
-username: xenon
 look_for_keys: true
 key_filename: PLACEHOLDER_SSH_KEY
 key_policy: AutoAddPolicy
