@@ -35,24 +35,24 @@ tasks:
   - icon:
       plugin: shell
       computer: remote
-      src: scripts/icon.py
+      path: scripts/icon.py
       command: "python icon.py --restart {PORT::restart} --init {PORT::init}"
   - cleanup:
       plugin: shell
       computer: remote
-      src: scripts/cleanup.py
+      path: scripts/cleanup.py
       command: "python cleanup.py"
 data:
   available:
      - icon_namelist:
          # Different computer between task and available data
          computer: localhost
-         src: /TESTS_ROOTDIR/tests/cases/small-shell/config/data/input
+         path: /TESTS_ROOTDIR/tests/cases/small-shell/config/data/input
      - initial_conditions:
          computer: localhost
-         src: /TESTS_ROOTDIR/tests/cases/small-shell/config/data/initial_conditions
+         path: /TESTS_ROOTDIR/tests/cases/small-shell/config/data/initial_conditions
   generated:
      - icon_output:
-         src: icon_output
+         path: icon_output
      - icon_restart:
-         src: restart
+         path: restart

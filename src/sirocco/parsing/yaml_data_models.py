@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Annotated, Any, ClassVar, Literal, Self
 
 from pydantic import (
+    AfterValidator,
     BaseModel,
     BeforeValidator,
     ConfigDict,
@@ -32,6 +33,20 @@ ITEM_T = typing.TypeVar("ITEM_T")
 def list_not_empty(value: list[ITEM_T]) -> list[ITEM_T]:
     if len(value) < 1:
         msg = "At least one element is required."
+        raise ValueError(msg)
+    return value
+
+
+def is_absolute_path(value: Path) -> Path:
+    if not value.is_absolute():
+        msg = "The field must be an absolute path."
+        raise ValueError(msg)
+    return value
+
+
+def is_relative_path(value: Path | None) -> Path | None:
+    if value is not None and value.is_absolute():
+        msg = "The field must be a relative path wrt. config directory."
         raise ValueError(msg)
     return value
 
@@ -309,9 +324,7 @@ class ConfigShellTaskSpecs:
     plugin: ClassVar[Literal["shell"]] = "shell"
     port_pattern: ClassVar[re.Pattern] = field(default=re.compile(r"{PORT(\[sep=.+\])?::(.+?)}"), repr=False)
     sep_pattern: ClassVar[re.Pattern] = field(default=re.compile(r"\[sep=(.+)\]"), repr=False)
-    src: Path | None = field(
-        default=None, metadata={"description": ("Script file relative to the config directory.")}, repr=False
-    )
+
     command: str
 
     def resolve_ports(self, input_labels: dict[str, list[str]]) -> str:
@@ -382,7 +395,7 @@ class ConfigShellTask(ConfigBaseTask, ConfigShellTaskSpecs):
         ...       plugin: shell
         ...       computer: localhost
         ...       command: "my_script.sh -n 1024 {PORT::current_sim_output}"
-        ...       src: post_run_scripts/my_script.sh
+        ...       path: post_run_scripts/my_script.sh
         ...       walltime: 00:01:00
         ...     '''
         ...     ),
@@ -393,19 +406,18 @@ class ConfigShellTask(ConfigBaseTask, ConfigShellTaskSpecs):
 
     # We need to loosen up the extra='forbid' flag because of the plugin class var
     model_config = ConfigDict(**ConfigBaseTask.model_config | {"extra": "ignore"})
-
-    @field_validator("src")
-    @classmethod
-    def validate_is_relative(cls, value: Path | None) -> Path | None:
-        if value is not None and value.is_absolute():
-            msg = "The field 'src' must be relative path."
-            raise ValueError(msg)
-        return value
+    path: Annotated[Path | None, AfterValidator(is_relative_path)] = field(
+        default=None, metadata={"description": ("Script file relative to the config directory.")}, repr=False
+    )
 
 
 @dataclass(kw_only=True)
-class ConfigNamelistFileSpec:
-    """Class for namelist specifications
+class ConfigNamelistFileSpec: ...
+
+
+class ConfigNamelistFile(BaseModel, ConfigNamelistFileSpec):
+    """
+    Validated namelist specifications.
 
     - path is the path to the namelist file considered as template
     - specs is a dictionnary containing the specifications of parameters
@@ -413,28 +425,15 @@ class ConfigNamelistFileSpec:
 
     Example:
 
-        >>> path = "/some/path/to/icon.nml"
-        >>> nml_info = ConfigNamelistFileSpec(path=Path(path))
-    """
-
-    path: Path = field(repr=False)
-
-
-class ConfigNamelistFile(BaseModel, ConfigNamelistFileSpec):
-    """
-    Validated namelist specifications.
-
-    Example:
-
         >>> import textwrap
         >>> from_init = ConfigNamelistFile(
-        ...     path="/path/to/some.nml", specs={"block": {"key": "value"}}
+        ...     path="path/to/some.nml", specs={"block": {"key": "value"}}
         ... )
         >>> from_yml = validate_yaml_content(
         ...     ConfigNamelistFile,
         ...     textwrap.dedent(
         ...         '''
-        ...         /path/to/some.nml:
+        ...         path/to/some.nml:
         ...           block:
         ...             key: value
         ...         '''
@@ -442,11 +441,12 @@ class ConfigNamelistFile(BaseModel, ConfigNamelistFileSpec):
         ... )
         >>> from_init == from_yml
         True
-        >>> no_spec = ConfigNamelistFile(path="/path/to/some.nml")
-        >>> no_spec_yml = validate_yaml_content(ConfigNamelistFile, "/path/to/some.nml")
+        >>> no_spec = ConfigNamelistFile(path="path/to/some.nml")
+        >>> no_spec_yml = validate_yaml_content(ConfigNamelistFile, "path/to/some.nml")
     """
 
     specs: dict[str, Any] = field(default_factory=dict)
+    path: Annotated[Path, AfterValidator(is_relative_path)] = field(repr=False)
 
     @model_validator(mode="before")
     @classmethod
@@ -463,15 +463,7 @@ class ConfigNamelistFile(BaseModel, ConfigNamelistFileSpec):
 @dataclass(kw_only=True)
 class ConfigIconTaskSpecs:
     plugin: ClassVar[Literal["icon"]] = "icon"
-    bin: Path = field(repr=False)
-
-    @field_validator("bin")
-    @classmethod
-    def validate_is_absolute(cls, value: Path) -> Path:
-        if not value.is_absolute():
-            msg = "The field 'bin' must be absolute path."
-            raise ValueError(msg)
-        return value
+    bin: Annotated[Path, AfterValidator(is_absolute_path)] = field(repr=True)
 
 
 class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
@@ -515,7 +507,6 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
 
 @dataclass(kw_only=True)
 class ConfigBaseDataSpecs:
-    src: Path | None = None
     format: str | None = None
 
 
@@ -531,36 +522,36 @@ class ConfigBaseData(_NamedBaseModel, ConfigBaseDataSpecs):
             >>> snippet = textwrap.dedent(
             ...     '''
             ...       foo:
-            ...         src: "foo.txt"
             ...     '''
             ... )
             >>> validate_yaml_content(ConfigBaseData, snippet)
-            ConfigBaseData(src=PosixPath('foo.txt'), format=None, name='foo', parameters=[])
+            ConfigBaseData(format=None, name='foo', parameters=[])
 
 
         from python:
 
-            >>> ConfigBaseData(name="foo", src="foo.txt")
-            ConfigBaseData(src=PosixPath('foo.txt'), format=None, name='foo', parameters=[])
+            >>> ConfigBaseData(name="foo")
+            ConfigBaseData(format=None, name='foo', parameters=[])
     """
 
     parameters: list[str] = []
 
 
-class ConfigAvailableData(ConfigBaseData):
-    src: Path
+@dataclass(kw_only=True)
+class ConfigAvailableDataSpecs:
+    path: Annotated[Path, AfterValidator(is_absolute_path)]
+
+
+class ConfigAvailableData(ConfigBaseData, ConfigAvailableDataSpecs):
     computer: str
 
-    @field_validator("src")
-    @classmethod
-    def validate_is_absolute(cls, value: Path) -> Path:
-        if not value.is_absolute():
-            msg = "The field 'src' must be absolute path."
-            raise ValueError(msg)
-        return value
+
+@dataclass(kw_only=True)
+class ConfigGeneratedDataSpecs:
+    path: Path | None = None
 
 
-class ConfigGeneratedData(ConfigBaseData): ...
+class ConfigGeneratedData(ConfigBaseData, ConfigGeneratedDataSpecs): ...
 
 
 class ConfigData(BaseModel):
@@ -577,10 +568,10 @@ class ConfigData(BaseModel):
             ...     available:
             ...       - foo:
             ...           computer: "localhost"
-            ...           src: "/foo.txt"
+            ...           path: "/foo.txt"
             ...     generated:
             ...       - bar:
-            ...           src: "bar.txt"
+            ...           path: "bar.txt"
             ...     '''
             ... )
             >>> data = validate_yaml_content(ConfigData, snippet)
@@ -660,10 +651,10 @@ class ConfigWorkflow(BaseModel):
             ...       available:
             ...         - foo:
             ...             computer: localhost
-            ...             src: /foo.txt
+            ...             path: /foo.txt
             ...       generated:
             ...         - bar:
-            ...             src: bar
+            ...             path: bar
             ...     '''
             ... )
             >>> wf = validate_yaml_content(ConfigWorkflow, content)
@@ -688,10 +679,10 @@ class ConfigWorkflow(BaseModel):
             ...             ConfigAvailableData(
             ...                 name="foo",
             ...                 computer="localhost",
-            ...                 src="/foo.txt",
+            ...                 path="/foo.txt",
             ...             )
             ...         ],
-            ...         generated=[ConfigGeneratedData(name="bar", src="bar")],
+            ...         generated=[ConfigGeneratedData(name="bar", path="bar")],
             ...     ),
             ...     parameters={},
             ... )

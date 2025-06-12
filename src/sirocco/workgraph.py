@@ -15,6 +15,7 @@ from aiida_icon.calculations import IconCalculation
 from aiida_shell.parsers.shell import ShellParser
 
 from sirocco import core
+from sirocco.core.graph_items import GeneratedData
 from sirocco.parsing._utils import TimeUtils
 
 if TYPE_CHECKING:
@@ -199,19 +200,19 @@ class AiidaWorkGraph:
         # `remote_path` must be str not PosixPath to be JSON-serializable
         transport = computer.get_transport()
         with transport:
-            if not transport.path_exists(str(data.src)):
-                msg = f"Could not find available data {data.name} in path {data.src} on computer {data.computer}."
+            if not transport.path_exists(str(data.path)):
+                msg = f"Could not find available data {data.name} in path {data.path} on computer {data.computer}."
                 raise FileNotFoundError(msg)
 
         if computer.get_transport_class() is aiida.transports.plugins.local.LocalTransport:
-            if data.src.is_file():
-                self._aiida_data_nodes[label] = aiida.orm.SinglefileData(file=str(data.src), label=label)
+            if data.path.is_file():
+                self._aiida_data_nodes[label] = aiida.orm.SinglefileData(file=str(data.path), label=label)
             else:
-                self._aiida_data_nodes[label] = aiida.orm.FolderData(tree=str(data.src), label=label)
+                self._aiida_data_nodes[label] = aiida.orm.FolderData(tree=str(data.path), label=label)
 
         else:
             self._aiida_data_nodes[label] = aiida.orm.RemoteData(
-                remote_path=str(data.src), label=label, computer=computer
+                remote_path=str(data.path), label=label, computer=computer
             )
 
     @functools.singledispatchmethod
@@ -276,8 +277,8 @@ class AiidaWorkGraph:
         # NOTE: The input and output nodes of the task are populated in a separate function
         nodes = {}
         # We need to add the files to nodes to copy it to remote
-        if task.src is not None:
-            nodes[f"SCRIPT__{label}"] = aiida.orm.SinglefileData(str(task.src))
+        if task.path is not None:
+            nodes[f"SCRIPT__{label}"] = aiida.orm.SinglefileData(str(task.path))
 
         workgraph_task = self._workgraph.add_task(
             "workgraph.shelljob",
@@ -374,31 +375,37 @@ class AiidaWorkGraph:
         return options
 
     @functools.singledispatchmethod
-    def _link_output_node_to_task(self, task: core.Task, port: str, output: core.Data):  # noqa: ARG002
+    def _link_output_node_to_task(self, task: core.Task, port: str, output: core.GeneratedData):  # noqa: ARG002
         """Dispatch linking input to task based on task type."""
 
         msg = f"method not implemented for task type {type(task)}"
         raise NotImplementedError(msg)
 
     @_link_output_node_to_task.register
-    def _link_output_node_to_shell_task(self, task: core.ShellTask, _: str, output: core.Data):
+    def _link_output_node_to_shell_task(self, task: core.ShellTask, _: str, output: core.GeneratedData):
         """Links the output to the workgraph task."""
 
         workgraph_task = self.task_from_core(task)
         output_label = self.get_aiida_label_from_graph_item(output)
-        output_socket = workgraph_task.add_output("workgraph.any", str(output.src))
+
+        if isinstance(output, GeneratedData):
+            output_path = str(output.path)
+        else:
+            msg = f"Only generated data may be specified as output but found output {output} of type {type(output)}"
+            raise TypeError(msg)
+        output_socket = workgraph_task.add_output("workgraph.any", output_path)
         self._aiida_socket_nodes[output_label] = output_socket
 
     @_link_output_node_to_task.register
-    def _link_output_node_to_icon_task(self, task: core.IconTask, port: str | None, output: core.Data):
+    def _link_output_node_to_icon_task(self, task: core.IconTask, port: str | None, output: core.GeneratedData):
         workgraph_task = self.task_from_core(task)
         output_label = self.get_aiida_label_from_graph_item(output)
 
         if port is None:
             # To avoid nested namespaces due to dots in name
-            output_socket = workgraph_task.add_output("workgraph.any", ShellParser.format_link_label(str(output.src)))
+            output_socket = workgraph_task.add_output("workgraph.any", ShellParser.format_link_label(str(output.path)))
 
-            workgraph_task.inputs.metadata.options.additional_retrieve_list.value.append(str(output.src))
+            workgraph_task.inputs.metadata.options.additional_retrieve_list.value.append(str(output.path))
         else:
             output_socket = workgraph_task.outputs._sockets.get(port)  # noqa SLF001 # there so public accessor
 
@@ -512,7 +519,7 @@ class AiidaWorkGraph:
             input_label = self.get_aiida_label_from_graph_item(input_)
 
             if isinstance(input_, core.AvailableData):
-                filename = input_.src.name
+                filename = input_.path.name
                 filenames[input_.name] = filename
             elif isinstance(input_, core.GeneratedData):
                 # We need to handle parameterized data in this case.
@@ -531,7 +538,7 @@ class AiidaWorkGraph:
                     filename = input_label
                 else:
                     # Single data node with this name - can use simple filename
-                    filename = input_.src.name if input_.src is not None else input_.name
+                    filename = input_.path.name if input_.path is not None else input_.name
 
                 # The key in filenames dict should be the input label (what's used in nodes dict)
                 filenames[input_label] = filename

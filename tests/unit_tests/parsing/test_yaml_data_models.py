@@ -4,7 +4,7 @@ from sirocco.parsing import yaml_data_models as models
 
 
 def test_base_data():
-    models.ConfigBaseData(name="name", src="foo.txt", format=None)
+    models.ConfigBaseData(name="name", format=None)
 
 
 def test_load_workflow_config(minimal_config_path):

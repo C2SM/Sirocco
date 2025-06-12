@@ -72,9 +72,9 @@ def minimal_config() -> models.ConfigWorkflow:
         tasks=[models.ConfigShellTask(name="some_task", command="some_command", computer="localhost")],
         data=models.ConfigData(
             available=[
-                models.ConfigAvailableData(name="available", computer="localhost", src=pathlib.Path("/foo.txt"))
+                models.ConfigAvailableData(name="available", computer="localhost", path=pathlib.Path("/foo.txt"))
             ],
-            generated=[models.ConfigGeneratedData(name="bar", src=pathlib.Path("bar"))],
+            generated=[models.ConfigGeneratedData(name="bar", path=pathlib.Path("bar"))],
         ),
         parameters={},
     )
@@ -108,11 +108,11 @@ def minimal_invert_task_io_config() -> models.ConfigWorkflow:
         ],
         data=models.ConfigData(
             available=[
-                models.ConfigAvailableData(name="available", computer="localhost", src=pathlib.Path("/foo.txt"))
+                models.ConfigAvailableData(name="available", computer="localhost", path=pathlib.Path("/foo.txt"))
             ],
             generated=[
-                models.ConfigGeneratedData(name="output_a", src=pathlib.Path("bar")),
-                models.ConfigGeneratedData(name="output_b", src=pathlib.Path("bar")),
+                models.ConfigGeneratedData(name="output_a", path=pathlib.Path("bar")),
+                models.ConfigGeneratedData(name="output_b", path=pathlib.Path("bar")),
             ],
         ),
         parameters={},
@@ -326,10 +326,10 @@ def minimal_config_path(tmp_path):
           available:
             - c:
                 computer: "localhost"
-                src: "/c.txt"
+                path: "/c.txt"
           generated:
             - d:
-                src: "d"
+                path: "d"
         """
     )
     minimal = tmp_path / "minimal.yml"

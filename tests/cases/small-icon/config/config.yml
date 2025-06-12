@@ -56,7 +56,7 @@ tasks:
   - cleanup:
       plugin: shell
       computer: remote
-      src: scripts/cleanup.py
+      path: scripts/cleanup.py
       command: "python cleanup.py"
       mpi_cmd: "mpirun -np {MPI_TOTAL_PROCS}" 
       walltime: 00:05:00
@@ -66,22 +66,22 @@ tasks:
 data:
   available:
      - icon_grid_simple:
-         src: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/icon_grid_simple.nc
+         path: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/icon_grid_simple.nc
          computer: remote
      - ecrad_data:
-         src: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/ecrad_data
+         path: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/ecrad_data
          computer: remote
      - ECHAM6_CldOptProps:
-         src: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/ECHAM6_CldOptProps.nc
+         path: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/ECHAM6_CldOptProps.nc
          computer: remote
      - rrtmg_sw:
-         src: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/rrtmg_sw.nc
+         path: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/rrtmg_sw.nc
          computer: remote
      - dmin_wetgrowth_lookup:
-         src: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/dmin_wetgrowth_lookup.nc
+         path: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/dmin_wetgrowth_lookup.nc
          computer: remote
   generated:
      - finish: {}
      - restart: {}
      - atmo_log:
-         src: nml.atmo.log
+         path: nml.atmo.log

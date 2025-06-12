@@ -16,6 +16,7 @@ class NamelistFile(models.ConfigNamelistFileSpec):
     - adds the update_from_specs method"""
 
     name: str = field(init=False)
+    path: Path = field(repr=False)
 
     def __post_init__(self) -> None:
         self.name = self.path.name

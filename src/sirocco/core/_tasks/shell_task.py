@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Self
 
 from sirocco.core.graph_items import Task
@@ -12,10 +12,13 @@ if TYPE_CHECKING:
 
 @dataclass(kw_only=True)
 class ShellTask(models.ConfigShellTaskSpecs, Task):
+    path: Path | None = field(default=None, repr=False)
+
     @classmethod
     def build_from_config(cls: type[Self], config: models.ConfigTask, config_rootdir: Path, **kwargs: Any) -> Self:
         config_kwargs = dict(config)
         del config_kwargs["parameters"]
+        del config_kwargs["path"]
         # The following check is here for type checkers.
         # We don't want to narrow the type in the signature, as that would break liskov substitution.
         # We guarantee elsewhere this is called with the correct type at runtime
@@ -27,19 +30,19 @@ class ShellTask(models.ConfigShellTaskSpecs, Task):
             **kwargs,
             **config_kwargs,
         )
-        if self.src is not None:
-            self.src = self._validate_src(self.src, config_rootdir)
+        if config.path is not None:
+            self.path = self._validate_path(config.path, config_rootdir)
         return self
 
     @staticmethod
-    def _validate_src(config_src: Path, config_rootdir: Path) -> Path:
-        if config_src.is_absolute():
-            msg = f"Namelist path {config_src} must be relative with respect to config file."
-        src = config_rootdir / config_src
-        if not src.exists():
-            msg = f"Script in path {src} does not exist."
+    def _validate_path(path: Path, config_rootdir: Path) -> Path:
+        if path.is_absolute():
+            msg = f"Script path {path} must be relative with respect to config file."
+        path = config_rootdir / path
+        if not path.exists():
+            msg = f"Script in path {path} does not exist."
             raise FileNotFoundError(msg)
-        if not src.is_file():
-            msg = f"Script in path {src} is not a file."
+        if not path.is_file():
+            msg = f"Script in path {path} is not a file."
             raise OSError(msg)
-        return src
+        return path
