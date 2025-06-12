@@ -3,6 +3,8 @@ import pathlib
 import shutil
 import subprocess
 
+from aiida.common import NotExistent
+from aiida.orm import load_computer
 import pytest
 import requests
 
@@ -56,6 +58,15 @@ def icon_filepath_executable() -> str:
         raise FileNotFoundError(msg)
 
     return which_icon.stdout.decode().strip()
+
+
+@pytest.fixture
+def aiida_localhost_ssh(aiida_computer_ssh):
+    try:
+        computer = load_computer("localhost_ssh")
+    except NotExistent:
+        computer = aiida_computer_ssh(label="localhost_ssh")
+    yield computer
 
 
 @pytest.fixture(scope="session")

@@ -55,7 +55,7 @@ def test_run_workgraph(config_paths):
 
 
 @pytest.mark.requires_icon
-@pytest.mark.usefixtures("config_case", "aiida_localhost")
+@pytest.mark.usefixtures("config_case", "aiida_localhost", "aiida_localhost_ssh")
 @pytest.mark.parametrize(
     "config_case",
     [
