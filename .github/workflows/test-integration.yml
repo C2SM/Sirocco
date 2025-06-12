@@ -66,7 +66,7 @@ jobs:
       shell: spack-bash {0}
       run: |
         spack env activate .
-        ssh-keygen -t ed25519 -N "" -f ~/.ssh/upterm_key
+        ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519
 
         ssh-keygen -q -t rsa -b 4096 -N "" -f "${HOME}/.ssh/id_rsa"
         ssh-keygen -y -f "${HOME}/.ssh/id_rsa" >> "${HOME}/.ssh/authorized_keys"
