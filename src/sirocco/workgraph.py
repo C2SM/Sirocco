@@ -203,7 +203,11 @@ class AiidaWorkGraph:
                 raise FileNotFoundError(msg)
 
         if computer.get_transport_class() is aiida.transports.plugins.local.LocalTransport:
-            self._aiida_data_nodes[label] = aiida.orm.SinglefileData(file=str(data.src), label=label)
+            if data.src.is_file():
+                self._aiida_data_nodes[label] = aiida.orm.SinglefileData(file=str(data.src), label=label)
+            else:
+                self._aiida_data_nodes[label] = aiida.orm.FolderData(tree=str(data.src), label=label)
+
         else:
             self._aiida_data_nodes[label] = aiida.orm.RemoteData(
                 remote_path=str(data.src), label=label, computer=computer
