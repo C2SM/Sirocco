@@ -313,8 +313,8 @@ def aiida_localhost_slurm(aiida_computer_ssh) -> Computer:
         comp.description = "slurm container"
 
         # Get the username for work_dir
-        username = os.environ.get('USER', 'xenon')
-        comp.set_workdir(f"/home/{username}/workdir")
+        # username = os.environ.get('USER', 'xenon')
+        comp.set_workdir("/home/xenon/workdir")
 
         # Set minimum job poll interval and default MPI procs per machine
         comp.set_minimum_job_poll_interval(0)
