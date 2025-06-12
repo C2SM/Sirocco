@@ -82,8 +82,10 @@ jobs:
         sed -i "s|PLACEHOLDER_REMOTE_ABS_PATH_DOUBLER|${CONFIG}/doubler.sh|" "${CONFIG}/doubler.yaml"
         sed -i "s|PLACEHOLDER_SSH_KEY|${HOME}/.ssh/slurm_rsa|" "${CONFIG}/slurm-ssh-config.yaml"
 
-    - name: Set up slurm-ssh computer
+    - name: Set up slurm-ssh computer and run ICON tests
       shell: spack-bash {0}
+      env:
+        PYTEST_ADDOPTS: "--durations=0"
       run: |
         spack env activate .
 
@@ -96,12 +98,6 @@ jobs:
         hatch run verdi config set warnings.development_version False
         hatch run verdi config set warnings.rabbitmq_version False
 
-    - name: Run ICON tests
-      shell: spack-bash {0}
-      env:
-        PYTEST_ADDOPTS: "--durations=0"
-      run: |
-        spack env activate .
         hatch test --parallel -- -m "requires_icon" -s tests
 
     - name: Setup upterm session
