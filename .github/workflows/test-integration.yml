@@ -66,7 +66,7 @@ jobs:
       run: |
         # Create .ssh directory if it doesn't exist
         mkdir -p "${HOME}/.ssh"
-        ssh-keygen -t rsa -b 2048 -f "${HOME}/.ssh/slurm_key"
+        ssh-keygen -t rsa -b 2048 -N "" -f "${HOME}/.ssh/slurm_key"
 
         # Set correct permissions (SSH is strict about this)
         chmod 600 "${HOME}/.ssh/slurm_key"
