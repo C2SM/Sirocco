@@ -302,6 +302,8 @@ class AiidaWorkGraph:
             buffer.seek(0)
             builder.model_namelist = aiida.orm.SinglefileData(buffer, task.model_namelist.name)
 
+        builder.metadata.options.additional_retrieve_list = [] 
+
         self._aiida_task_nodes[task_label] = self._workgraph.add_task(builder)
 
     @functools.singledispatchmethod
@@ -385,7 +387,11 @@ class AiidaWorkGraph:
         if isinstance(input_, core.AvailableData):
             setattr(workgraph_task.inputs, f"{port}", self.data_from_core(input_))
         elif isinstance(input_, core.GeneratedData):
-            setattr(workgraph_task.inputs, f"{port}", self.socket_from_core(input_))
+            if port in workgraph_task.inputs:
+                setattr(workgraph_task.inputs, f"{port}", self.socket_from_core(input_))
+            else:
+                breakpoint()
+                #workgraph_task.inputs.metadata.options.additional_retrieve_list = 
         else:
             raise TypeError
 
