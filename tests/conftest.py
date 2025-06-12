@@ -234,7 +234,7 @@ def setup_hpc_data_environment(config_rootdir, computer_label="slurm-ssh"):
     import subprocess
     import os
 
-    ssh_key = os.path.expanduser("~/.ssh/slurm_key")
+    ssh_key = os.path.expanduser("~/.ssh/slurm_rsa")
     hpc_data_path = "/scratch/icon_data"
 
     # Copy data to container
