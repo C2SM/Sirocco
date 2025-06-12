@@ -47,8 +47,8 @@ tasks:
         - ./ICON/icon_master.namelist
         - ./ICON/model.namelist
       walltime: 00:05:00
-      nodes: 2
-      ntasks_per_node: 2
+      nodes: 1
+      ntasks_per_node: 1
       mem_per_node_mb: 24
       cpus_per_task: 1
 

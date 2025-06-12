@@ -99,4 +99,4 @@ jobs:
 
     - name: Setup upterm session
       uses: lhotari/action-upterm@v1
-      if: failure()
+      if: always()
