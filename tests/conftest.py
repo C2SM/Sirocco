@@ -255,6 +255,45 @@ def test_rootdir(pytestconfig):
 
 #         return comp
 
+# @pytest.fixture
+# def aiida_localhost_slurm(aiida_computer_ssh) -> Computer:
+#     """Return a :class:`aiida.orm.computers.Computer` instance representing local SLURM."""
+#     from aiida.common.exceptions import NotExistent
+#     from aiida.orm import Computer
+#     import os
+
+#     # Try to get the local SLURM computer from CI setup
+#     try:
+#         return Computer.collection.get(label="slurm-ssh")
+#     except NotExistent:
+#         # Use the aiida_computer_ssh factory but customize for SLURM
+#         comp = aiida_computer_ssh(label="slurm-ssh", configure=False)
+
+#         # Update the scheduler to SLURM (the factory creates it with core.direct by default)
+#         comp.scheduler_type = "core.slurm"
+#         comp.description = "slurm container"
+
+#         # Get the username for work_dir
+#         username = os.environ.get('USER', 'xenon')
+#         comp.set_workdir(f"/home/{username}/workdir")
+
+#         # Set minimum job poll interval and default MPI procs per machine
+#         comp.set_minimum_job_poll_interval(0)
+#         comp.set_default_mpiprocs_per_machine(1)
+
+#         # Configure with custom SSH settings for the SLURM container
+#         ssh_key_path = os.path.expanduser("~/.ssh/slurm_rsa")
+#         comp.configure(
+#             username="xenon",
+#             port=5001,
+#             look_for_keys=True,
+#             key_filename=ssh_key_path,
+#             key_policy="AutoAddPolicy",
+#             safe_interval=0,
+#         )
+
+#         return comp
+
 @pytest.fixture
 def aiida_localhost_slurm(aiida_computer_ssh) -> Computer:
     """Return a :class:`aiida.orm.computers.Computer` instance representing local SLURM."""
