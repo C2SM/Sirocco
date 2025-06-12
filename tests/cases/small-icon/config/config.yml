@@ -62,6 +62,7 @@ tasks:
       ntasks_per_node: 1
       mem_per_node_mb: 1024
       cpus_per_task: 1
+
 data:
   available:
      - icon_grid_simple:
