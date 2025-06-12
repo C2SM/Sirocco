@@ -57,6 +57,11 @@ tasks:
       computer: slurm-ssh
       src: /TESTS_ROOTDIR/tests/cases/small-icon/config/scripts/cleanup.py
       command: "python cleanup.py"
+      walltime: 00:05:00
+      nodes: 1
+      ntasks_per_node: 1
+      mem_per_node_mb: 1024
+      cpus_per_task: 1
 data:
   available:
      - icon_grid_simple:
