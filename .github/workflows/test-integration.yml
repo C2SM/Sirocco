@@ -77,8 +77,8 @@ jobs:
       run: |
         spack env activate .
 
-        ssh-keygen -q -t rsa -b 4096 -N "" -f "${HOME}/.ssh/id_rsa"
-        ssh-keygen -y -f "${HOME}/.ssh/id_rsa" >> "${HOME}/.ssh/authorized_keys"
+        ssh-keygen -q -t rsa -b 4096 -N "" -f "${HOME}/.ssh/aiida_rsa"
+        ssh-keygen -y -f "${HOME}/.ssh/aiida_rsa" >> "${HOME}/.ssh/authorized_keys"
         ssh-keyscan -H localhost >> "${HOME}/.ssh/known_hosts"
 
         # The permissions on the GitHub runner are 777 which will cause SSH to refuse the keys and cause authentication to fail
