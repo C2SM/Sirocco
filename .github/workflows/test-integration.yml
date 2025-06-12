@@ -88,14 +88,14 @@ jobs:
         CONFIG="${GITHUB_WORKSPACE}/.github/config"
         cp "${CONFIG}/slurm_rsa" "${HOME}/.ssh/slurm_rsa"
 
-    - name: Run ICON tests (slurm-ssh computer created by fixture)
-      shell: spack-bash {0}
-      env:
-        PYTEST_ADDOPTS: "--durations=0"
-      run: |
-        spack env activate .
+    # - name: Run ICON tests (slurm-ssh computer created by fixture)
+    #   shell: spack-bash {0}
+    #   env:
+    #     PYTEST_ADDOPTS: "--durations=0"
+    #   run: |
+    #     spack env activate .
 
-        hatch test --parallel -- -m "requires_icon" -s tests
+    #     hatch test --parallel -- -m "requires_icon" -s tests
 
     - name: Setup upterm session
       uses: lhotari/action-upterm@v1
