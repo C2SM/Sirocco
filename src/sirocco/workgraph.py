@@ -415,12 +415,11 @@ class AiidaWorkGraph:
         for input_ in task.input_data_nodes():
             input_label = self.get_aiida_label_from_graph_item(input_)
 
-            if task.computer and isinstance(input_, core.AvailableData) and input_.computer:
-                # For RemoteData on the same computer, use just the filename
+            if isinstance(input_, core.AvailableData):
                 filename = input_.src.name
                 filenames[input_.name] = filename
-            else:
-                # For other cases (including GeneratedData), we need to handle parameterized data
+            elif isinstance(input_, core.GeneratedData):
+                # We need to handle parameterized data in this case.
                 # Importantly, multiple data nodes with the same base name but different
                 # coordinates need unique filenames to avoid conflicts in the working directory
 
@@ -440,6 +439,9 @@ class AiidaWorkGraph:
 
                 # The key in filenames dict should be the input label (what's used in nodes dict)
                 filenames[input_label] = filename
+            else:
+                msg = f"Found output {input_} of type {type(input_)} but only 'AvailableData' and 'GeneratedData' are supported."
+                raise TypeError(msg)
 
         workgraph_task.inputs.filenames.value = filenames
 
