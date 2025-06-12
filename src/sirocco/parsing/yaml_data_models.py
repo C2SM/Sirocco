@@ -93,6 +93,7 @@ class _NamedBaseModel(BaseModel):
         _NamedBaseModel(name='foo')
     """
 
+    model_config = ConfigDict(extra="forbid")
     name: str
 
     @model_validator(mode="before")
@@ -152,7 +153,7 @@ class TargetNodesBaseModel(_NamedBaseModel):
 
     """
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(**_NamedBaseModel.model_config | {"arbitrary_types_allowed": True})
 
     target_cycle: Annotated[TargetCycle, BeforeValidator(select_target_cycle)] = NoTargetCycle()
     when: Annotated[When, BeforeValidator(select_when)] = AnyWhen()
@@ -234,7 +235,7 @@ class ConfigCycle(_NamedBaseModel):
     To create an instance of a cycle defined in a workflow file.
     """
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(**_NamedBaseModel.model_config | {"arbitrary_types_allowed": True})
 
     name: str
     tasks: list[ConfigCycleTask]
@@ -366,6 +367,8 @@ class ConfigShellTask(ConfigBaseTask, ConfigShellTaskSpecs):
         1
     """
 
+    # We need to loosen up the extra='forbid' flag because of the plugin class var
+    model_config = ConfigDict(**ConfigBaseTask.model_config | {"extra": "ignore"})
     env_source_files: list[str] = Field(default_factory=list)
 
     @field_validator("env_source_files", mode="before")
@@ -477,7 +480,8 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
         >>> icon_task_cfg = validate_yaml_content(ConfigIconTask, snippet)
     """
 
-    plugin: ClassVar[Literal["icon"]] = "icon"
+    # We need to loosen up the extra='forbid' flag because of the plugin class var
+    model_config = ConfigDict(**ConfigBaseTask.model_config | {"extra": "ignore"})
     namelists: list[ConfigNamelistFile]
 
     @field_validator("namelists", mode="after")
