@@ -86,22 +86,29 @@ jobs:
     #       chown -R xenon:xenon /home/xenon/.ssh
     #     "
 
-    - name: Create SSH keys for AiiDA slurm SSH computer
+    # - name: Create SSH keys for AiiDA slurm SSH computer
+    #   run: |
+    #     # Create .ssh directory if it doesn't exist
+    #     mkdir -p "${HOME}/.ssh"
+    #     ssh-keygen -t ed25519 -N "" -f "${HOME}/.ssh/slurm_key"
+
+    #     # Set correct permissions (SSH is strict about this)
+    #     chmod 600 "${HOME}/.ssh/slurm_key"
+    #     chmod 755 "${HOME}"
+
+    #     # Extract public key and add to authorized_keys (this enables SSH login with the key)
+    #     ssh-keygen -y -f "${HOME}/.ssh/slurm_key" >> "${HOME}/.ssh/authorized_keys"
+    #     chmod 600 "${HOME}/.ssh/authorized_keys"
+
+    #     # Add localhost to known_hosts (prevents host verification prompts)
+    #     ssh-keyscan -H localhost -p 5001 >> "${HOME}/.ssh/known_hosts"
+    - name: Setup SSH keys for SLURM container
       run: |
-        # Create .ssh directory if it doesn't exist
         mkdir -p "${HOME}/.ssh"
-        ssh-keygen -t ed25519 -N "" -f "${HOME}/.ssh/slurm_key"
-
-        # Set correct permissions (SSH is strict about this)
+        # Copy the pre-existing key from your repo (you'd need to add this file)
+        cp .github/config/slurm_rsa "${HOME}/.ssh/slurm_key"
         chmod 600 "${HOME}/.ssh/slurm_key"
-        chmod 755 "${HOME}"
-
-        # Extract public key and add to authorized_keys (this enables SSH login with the key)
-        ssh-keygen -y -f "${HOME}/.ssh/slurm_key" >> "${HOME}/.ssh/authorized_keys"
-        chmod 600 "${HOME}/.ssh/authorized_keys"
-
-        # Add localhost to known_hosts (prevents host verification prompts)
-        ssh-keyscan -H localhost -p 5001 >> "${HOME}/.ssh/known_hosts"
+        ssh-keyscan -H -p 5001 localhost >> "${HOME}/.ssh/known_hosts"
 
     - name: Run ICON tests (slurm-ssh computer created by fixture)
       shell: spack-bash {0}
