@@ -10,7 +10,6 @@ import aiida.common
 import aiida.orm
 import aiida_workgraph  # type: ignore[import-untyped] # does not have proper typing and stubs
 import aiida_workgraph.tasks.factory.shelljob_task  # type: ignore[import-untyped]  # is only for a workaround
-from aiida_workgraph.sockets.builtins import SocketAny
 from aiida.common.exceptions import NotExistent
 from aiida_icon.calculations import IconCalculation
 
@@ -18,6 +17,7 @@ from sirocco import core
 
 if TYPE_CHECKING:
     from aiida_workgraph.socket import TaskSocket  # type: ignore[import-untyped]
+    from aiida_workgraph.sockets.builtins import SocketAny
 
     WorkgraphDataNode: TypeAlias = aiida.orm.RemoteData | aiida.orm.SinglefileData | aiida.orm.FolderData
 
@@ -319,13 +319,7 @@ class AiidaWorkGraph:
 
         workgraph_task = self.task_from_core(task)
         output_label = self.get_aiida_label_from_graph_item(output)
-        # We manually change the same name of the socket because workgraph interprets "." in the
-        # name as nested namespace when using `add_output`. We have to use the `add_output` function
-        # because it creates also a node, so we remove the socket with the name and replace  
-        output_socket = workgraph_task.add_output("workgraph.any", "PLACEHOLDER")
-        del workgraph_task.outputs._sockets["PLACEHOLDER"]
-        #output_socket = SocketAny(name=str(output.src))
-        workgraph_task.outputs._sockets[str(output.src)] = output_socket
+        output_socket = workgraph_task.add_output("workgraph.any", str(output.src))
         self._aiida_socket_nodes[output_label] = output_socket
 
     @_link_output_node_to_task.register
@@ -336,13 +330,6 @@ class AiidaWorkGraph:
         if port is None:
             from aiida_shell.parsers.shell import ShellParser
             output_socket = workgraph_task.add_output("workgraph.any", ShellParser.format_link_label(str(output.src)))
-
-            ## We manually create the socket because workgraph interprets "." in the
-            ## name as nested namespace when using `add_output`
-            #output_socket = workgraph_task.add_output("workgraph.any", "PLACEHOLDER")
-            #del workgraph_task.outputs._sockets["PLACEHOLDER"]
-            ##output_socket = SocketAny(name=str(output.src))
-            #workgraph_task.outputs._sockets[str(output.src)] = output_socket
 
             workgraph_task.inputs.metadata.options.additional_retrieve_list.value.append(str(output.src))
         else:
