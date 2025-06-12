@@ -65,7 +65,7 @@ def test_run_workgraph(config_paths):
         "small-icon",
     ],
 )
-def test_run_workgraph_with_icon(icon_filepath_executable, config_paths, tmp_path):
+def test_run_workgraph_with_icon(icon_filepath_executable, config_paths, tmp_path, setup_hpc_data_environment):
     """Tests end-to-end the parsing from file up to running the workgraph.
 
     Automatically uses the aiida_profile fixture to create a new profile. Note to debug the test with your profile
@@ -81,7 +81,13 @@ def test_run_workgraph_with_icon(icon_filepath_executable, config_paths, tmp_pat
         tmp_icon_bin_path.unlink()
     tmp_icon_bin_path.symlink_to(Path(icon_filepath_executable))
 
+
+    # Setup HPC-like environment
+    hpc_data_path = setup_hpc_data_environment(config_rootdir)
+
     core_workflow = Workflow.from_config_file(tmp_config_rootdir / config_paths["yml"].name)
+    core_workflow = update_workflow_data_paths(core_workflow, hpc_data_path)
+
     aiida_workflow = AiidaWorkGraph(core_workflow)
     output_node = aiida_workflow.run()
     if not output_node.is_finished_ok:
