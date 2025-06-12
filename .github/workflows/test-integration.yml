@@ -64,10 +64,23 @@ jobs:
 
     - name: Create SSH keys for AiiDA slurm SSH computer
       run: |
+        # Create .ssh directory if it doesn't exist
+        mkdir -p "${HOME}/.ssh"
 
-        # Replace the placeholders in configuration files with actual values
+        # Copy the private key from the repository
         CONFIG="${GITHUB_WORKSPACE}/.github/config"
         cp "${CONFIG}/slurm_rsa" "${HOME}/.ssh/slurm_rsa"
+
+        # Set correct permissions (SSH is strict about this)
+        chmod 600 "${HOME}/.ssh/slurm_rsa"
+        chmod 755 "${HOME}"
+
+        # Extract public key and add to authorized_keys (this enables SSH login with the key)
+        ssh-keygen -y -f "${HOME}/.ssh/slurm_rsa" >> "${HOME}/.ssh/authorized_keys"
+        chmod 600 "${HOME}/.ssh/authorized_keys"
+
+        # Add localhost to known_hosts (prevents host verification prompts)
+        ssh-keyscan -H localhost -p 5001 >> "${HOME}/.ssh/known_hosts"
 
     - name: Run ICON tests (slurm-ssh computer created by fixture)
       shell: spack-bash {0}
