@@ -57,11 +57,6 @@ tasks:
       computer: localhost
       src: scripts/cleanup.py
       command: "python cleanup.py"
-      walltime: 00:05:00
-      nodes: 1
-      ntasks_per_node: 1
-      mem_per_node_mb: 1024
-      cpus_per_task: 1
 
 data:
   available:
