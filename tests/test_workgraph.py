@@ -1,6 +1,7 @@
 import pytest
 
 from sirocco.core import Workflow
+from sirocco.parsing.yaml_data_models import ConfigWorkflow
 from sirocco.workgraph import AiidaWorkGraph
 
 
@@ -14,8 +15,6 @@ from sirocco.workgraph import AiidaWorkGraph
 )
 def test_shell_filenames_nodes_arguments(config_paths):
     import datetime
-
-    from sirocco.parsing.yaml_data_models import ConfigWorkflow
 
     config_workflow = ConfigWorkflow.from_config_file(str(config_paths["yml"]))
 
@@ -115,3 +114,19 @@ def test_shell_filenames_nodes_arguments(config_paths):
     assert arguments_list == expected_arguments_list
     assert filenames_list == expected_filenames_list
     assert nodes_list == expected_nodes_list
+
+
+@pytest.mark.usefixtures("aiida_localhost", "config_case")
+@pytest.mark.parametrize(
+    "config_case",
+    [
+        "small-shell",
+    ],
+)
+def test_waiting_on(config_paths):
+    config_workflow = ConfigWorkflow.from_config_file(str(config_paths["yml"]))
+
+    core_workflow = Workflow.from_config_workflow(config_workflow)
+    aiida_workflow = AiidaWorkGraph(core_workflow)
+
+    assert len(aiida_workflow._workgraph.tasks["cleanup"].waiting_on) == 1  # noqa: SLF001
