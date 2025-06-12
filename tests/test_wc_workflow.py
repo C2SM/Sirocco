@@ -65,7 +65,7 @@ def test_run_workgraph(config_paths):
         "small-icon",
     ],
 )
-def test_run_workgraph_with_icon(icon_filepath_executable, config_paths, tmp_path, setup_hpc_data_environment):
+def test_run_workgraph_with_icon(icon_filepath_executable, config_paths, tmp_path, setup_hpc_data_environment, update_workflow_data_paths):
     """Tests end-to-end the parsing from file up to running the workgraph.
 
     Automatically uses the aiida_profile fixture to create a new profile. Note to debug the test with your profile
