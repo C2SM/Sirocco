@@ -374,7 +374,9 @@ class AiidaWorkGraph:
     def _link_wait_on_to_task(self, task: core.Task):
         """link wait on tasks to workgraph task"""
 
-        self.task_from_core(task).wait = [self.task_from_core(wt) for wt in task.wait_on]
+        workgraph_task = self.task_from_core(task)
+        workgraph_task.waiting_on.clear()
+        workgraph_task.waiting_on.add([self.task_from_core(wt) for wt in task.wait_on])
 
     def _set_shelljob_arguments(self, task: core.ShellTask):
         """Set AiiDA ShellJob arguments by replacing port placeholders with AiiDA labels."""
