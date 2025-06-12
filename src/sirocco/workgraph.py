@@ -300,6 +300,7 @@ class AiidaWorkGraph:
 
         builder = IconCalculation.get_builder()
         builder.code = icon_code
+        builder.metadata.options.additional_retrieve_list = []  # type: ignore[attr-defined] # aiida creates attrs automatically overwriting __getattr__
 
         task.update_icon_namelists_from_workflow()
 
@@ -312,8 +313,6 @@ class AiidaWorkGraph:
             task.model_namelist.namelist.write(buffer)
             buffer.seek(0)
             builder.model_namelist = aiida.orm.SinglefileData(buffer, task.model_namelist.name)
-
-        builder.metadata.options.additional_retrieve_list = [] 
 
         self._aiida_task_nodes[task_label] = self._workgraph.add_task(builder)
 
@@ -340,6 +339,7 @@ class AiidaWorkGraph:
 
         if port is None:
             from aiida_shell.parsers.shell import ShellParser
+
             output_socket = workgraph_task.add_output("workgraph.any", ShellParser.format_link_label(str(output.src)))
 
             workgraph_task.inputs.metadata.options.additional_retrieve_list.value.append(str(output.src))
