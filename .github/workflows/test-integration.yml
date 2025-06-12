@@ -68,10 +68,6 @@ jobs:
         mkdir -p "${HOME}/.ssh"
         ssh-keygen -m PEM -t rsa -b 2048 -f "${HOME}/.ssh/slurm_rsa"
 
-        # Copy the private key from the repository
-        CONFIG="${GITHUB_WORKSPACE}/.github/config"
-        cp "${CONFIG}/slurm_rsa" "${HOME}/.ssh/slurm_rsa"
-
         # Set correct permissions (SSH is strict about this)
         chmod 600 "${HOME}/.ssh/slurm_rsa"
         chmod 755 "${HOME}"
