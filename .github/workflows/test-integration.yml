@@ -72,7 +72,6 @@ jobs:
       shell: spack-bash {0}
       run: |
         spack env activate .
-        ${GITHUB_WORKSPACE}/.github/workflows/setup.sh
 
         # Setup SSH
         ssh-keygen -q -t rsa -b 4096 -N "" -f "${HOME}/.ssh/id_rsa"
