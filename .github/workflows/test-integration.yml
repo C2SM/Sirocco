@@ -62,53 +62,16 @@ jobs:
         pip install hatch
         hatch run verdi presto
 
-    # - name: Create SSH keys for AiiDA slurm SSH computer
-    #   run: |
-    #     # Create .ssh directory if it doesn't exist
-    #     mkdir -p "${HOME}/.ssh"
-
-    #     # Generate key WITHOUT -m PEM (this was the main issue)
-    #     ssh-keygen -t rsa -b 2048 -N "" -f "${HOME}/.ssh/slurm_rsa"
-
-    #     # Set correct permissions
-    #     chmod 600 "${HOME}/.ssh/slurm_rsa"
-    #     chmod 644 "${HOME}/.ssh/slurm_rsa.pub"
-
-    #     # Add localhost:5001 to known_hosts (your original approach was correct)
-    #     ssh-keyscan -H -p 5001 localhost >> "${HOME}/.ssh/known_hosts"
-
-    #     # Copy the public key INTO the container (this is what was missing)
-    #     docker exec $(docker ps -q --filter ancestor=xenonmiddleware/slurm:17) bash -c "
-    #       mkdir -p /home/xenon/.ssh &&
-    #       chmod 700 /home/xenon/.ssh &&
-    #       echo '$(cat ${HOME}/.ssh/slurm_rsa.pub)' >> /home/xenon/.ssh/authorized_keys &&
-    #       chmod 600 /home/xenon/.ssh/authorized_keys &&
-    #       chown -R xenon:xenon /home/xenon/.ssh
-    #     "
-
-    # - name: Create SSH keys for AiiDA slurm SSH computer
-    #   run: |
-    #     # Create .ssh directory if it doesn't exist
-    #     mkdir -p "${HOME}/.ssh"
-    #     ssh-keygen -t ed25519 -N "" -f "${HOME}/.ssh/slurm_key"
-
-    #     # Set correct permissions (SSH is strict about this)
-    #     chmod 600 "${HOME}/.ssh/slurm_key"
-    #     chmod 755 "${HOME}"
-
-    #     # Extract public key and add to authorized_keys (this enables SSH login with the key)
-    #     ssh-keygen -y -f "${HOME}/.ssh/slurm_key" >> "${HOME}/.ssh/authorized_keys"
-    #     chmod 600 "${HOME}/.ssh/authorized_keys"
-
-    #     # Add localhost to known_hosts (prevents host verification prompts)
-    #     ssh-keyscan -H localhost -p 5001 >> "${HOME}/.ssh/known_hosts"
     - name: Setup SSH keys for SLURM container
       run: |
         mkdir -p "${HOME}/.ssh"
         # Copy the pre-existing key from your repo (you'd need to add this file)
-        cp .github/config/slurm_key "${HOME}/.ssh/slurm_key"
-        chmod 600 "${HOME}/.ssh/slurm_key"
+        cp .github/config/slurm_rsa "${HOME}/.ssh/slurm_rsa"
+        chmod 600 "${HOME}/.ssh/slurm_rsa"
         ssh-keyscan -H -p 5001 localhost >> "${HOME}/.ssh/known_hosts"
+
+    - name: Test SSH connection
+      run: ssh -p 5001 -i "${HOME}/.ssh/slurm_rsa" -o StrictHostKeyChecking=no xenon@localhost 'echo "SSH connection successful"'
 
     - name: Run ICON tests (slurm-ssh computer created by fixture)
       shell: spack-bash {0}
