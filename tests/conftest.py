@@ -5,6 +5,7 @@ import subprocess
 
 import pytest
 import requests
+from aiida.orm import Computer
 
 from sirocco import pretty_print
 from sirocco.core import _tasks as core_tasks
@@ -188,3 +189,25 @@ def pytest_configure(config):
 def test_rootdir(pytestconfig):
     """The directory of the project independent from where the tests are started"""
     return pathlib.Path(pytestconfig.rootdir)
+    # aiida_localhost.set_mpirun_command(['mpirun', '-np', '1'])
+
+@pytest.fixture
+def aiida_localhost_slurm(aiida_computer) -> Computer:
+    """Return a :class:`aiida.orm.computers.Computer` instance representing local SLURM."""
+    from aiida.common.exceptions import NotExistent
+
+    # Try to get the local SLURM computer from CI setup
+    try:
+        return Computer.collection.get(label="localhost-slurm")
+    except NotExistent:
+        # Use the base aiida_computer factory with SLURM scheduler
+        comp = aiida_computer(
+            label="localhost-slurm",
+            hostname="localhost",
+            transport_type="core.local",
+            scheduler_type="core.slurm",
+            configuration_kwargs={},  # This will call computer.configure() ... no it wont't...
+        )
+        comp.configure()
+
+        return comp
