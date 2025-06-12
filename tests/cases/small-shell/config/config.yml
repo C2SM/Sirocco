@@ -35,13 +35,13 @@ tasks:
   - icon:
       plugin: shell
       computer: localhost
-      src: /TESTS_ROOTDIR/tests/cases/small-shell/config/scripts/icon.py
+      src: scripts/icon.py
       command: "python icon.py --restart {PORT::restart} --init {PORT::init}"
-      env_source_files: /TESTS_ROOTDIR/tests/cases/small-shell/config/data/dummy_source_file.sh
+      env_source_files: $TEST_ROOTDIR/tests/cases/small-shell/config/data/dummy_source_file.sh
   - cleanup:
       plugin: shell
       computer: localhost
-      src: /TESTS_ROOTDIR/tests/cases/small-shell/config/scripts/cleanup.py
+      src: scripts/cleanup.py
       command: "python cleanup.py"
 data:
   available:

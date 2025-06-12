@@ -57,24 +57,24 @@ tasks:
   - icon:
       plugin: shell
       computer: localhost
-      src: /TESTS_ROOTDIR/tests/cases/parameters/config/scripts/icon.py
+      src: scripts/icon.py
       command: "python icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}"
       parameters: [foo, bar]
   - statistics_foo:
       plugin: shell
       computer: localhost
-      src: /TESTS_ROOTDIR/tests/cases/parameters/config/scripts/statistics.py
+      src: scripts/statistics.py
       command: "python statistics.py {PORT::None}"
       parameters: [bar]
   - statistics_foo_bar:
       plugin: shell
       computer: localhost
-      src: /TESTS_ROOTDIR/tests/cases/parameters/config/scripts/statistics.py
+      src: scripts/statistics.py
       command: "python statistics.py {PORT::None}"
   - merge:
       plugin: shell
       computer: localhost
-      src: /TESTS_ROOTDIR/tests/cases/parameters/config/scripts/merge.py
+      src: scripts/merge.py
       command: "python merge.py {PORT::None}"
 
 data:
