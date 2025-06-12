@@ -66,14 +66,14 @@ jobs:
       run: |
         # Create .ssh directory if it doesn't exist
         mkdir -p "${HOME}/.ssh"
-        ssh-keygen -m PEM -t rsa -b 2048 -f "${HOME}/.ssh/slurm_rsa"
+        ssh-keygen -t rsa -b 2048 -f "${HOME}/.ssh/slurm_key"
 
         # Set correct permissions (SSH is strict about this)
-        chmod 600 "${HOME}/.ssh/slurm_rsa"
+        chmod 600 "${HOME}/.ssh/slurm_key"
         chmod 755 "${HOME}"
 
         # Extract public key and add to authorized_keys (this enables SSH login with the key)
-        ssh-keygen -y -f "${HOME}/.ssh/slurm_rsa" >> "${HOME}/.ssh/authorized_keys"
+        ssh-keygen -y -f "${HOME}/.ssh/slurm_key" >> "${HOME}/.ssh/authorized_keys"
         chmod 600 "${HOME}/.ssh/authorized_keys"
 
         # Add localhost to known_hosts (prevents host verification prompts)
