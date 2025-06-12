@@ -198,13 +198,13 @@ def aiida_localhost_slurm(aiida_computer) -> Computer:
 
     # Try to get the local SLURM computer from CI setup
     try:
-        return Computer.collection.get(label="localhost-slurm")
+        return Computer.collection.get(label="slurm-ssh")
     except NotExistent:
         # Use the base aiida_computer factory with SLURM scheduler
         comp = aiida_computer(
             label="localhost-slurm",
             hostname="localhost",
-            transport_type="core.local",
+            transport_type="core.ssh",
             scheduler_type="core.slurm",
             configuration_kwargs={},  # This will call computer.configure() ... no it wont't...
         )

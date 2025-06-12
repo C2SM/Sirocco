@@ -62,18 +62,12 @@ jobs:
         pip install hatch
         hatch run verdi presto
 
-    - name: Create upterm SSH key
-      run: |
-        ssh-keygen -t ed25519 -N "" -f ~/.ssh/upterm_key
-        chmod 600 ~/.ssh/upterm_key
-        chmod 644 ~/.ssh/upterm_key.pub
-
-    - name: Setup SSH and slurm computer
+    - name: Create SSH keys
       shell: spack-bash {0}
       run: |
         spack env activate .
+        ssh-keygen -t ed25519 -N "" -f ~/.ssh/upterm_key
 
-        # Setup SSH
         ssh-keygen -q -t rsa -b 4096 -N "" -f "${HOME}/.ssh/id_rsa"
         ssh-keygen -y -f "${HOME}/.ssh/id_rsa" >> "${HOME}/.ssh/authorized_keys"
         ssh-keyscan -H localhost >> "${HOME}/.ssh/known_hosts"
@@ -88,7 +82,11 @@ jobs:
         sed -i "s|PLACEHOLDER_REMOTE_ABS_PATH_DOUBLER|${CONFIG}/doubler.sh|" "${CONFIG}/doubler.yaml"
         sed -i "s|PLACEHOLDER_SSH_KEY|${HOME}/.ssh/slurm_rsa|" "${CONFIG}/slurm-ssh-config.yaml"
 
-        # set up slurm-ssh computer
+    - name: Set up slurm-ssh computer
+      shell: spack-bash {0}
+      run: |
+        spack env activate .
+
         hatch run verdi computer setup --non-interactive --config "${CONFIG}/slurm-ssh.yaml"
         hatch run verdi computer configure core.ssh slurm-ssh --non-interactive --config "${CONFIG}/slurm-ssh-config.yaml" -n  # needs slurm container
         hatch run verdi computer test slurm-ssh --print-traceback
