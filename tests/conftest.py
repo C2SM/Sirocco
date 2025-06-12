@@ -217,7 +217,7 @@ def aiida_localhost_slurm(aiida_computer_ssh) -> Computer:
         comp.set_default_mpiprocs_per_machine(1)
 
         # Configure with custom SSH settings for the SLURM container
-        ssh_key_path = os.path.expanduser("~/.ssh/aiida_rsa")
+        ssh_key_path = os.path.expanduser("~/.ssh/slurm_rsa")
         comp.configure(
             username="xenon",
             port=22,

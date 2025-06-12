@@ -64,12 +64,6 @@ jobs:
 
     - name: Create SSH keys for AiiDA slurm SSH computer
       run: |
-        ssh-keygen -q -t rsa -b 4096 -N "" -f "${HOME}/.ssh/aiida_rsa"
-        ssh-keygen -y -f "${HOME}/.ssh/aiida_rsa" >> "${HOME}/.ssh/authorized_keys"
-        ssh-keyscan -H localhost >> "${HOME}/.ssh/known_hosts"
-
-        # The permissions on the GitHub runner are 777 which will cause SSH to refuse the keys and cause authentication to fail
-        chmod 755 "${HOME}"
 
         # Replace the placeholders in configuration files with actual values
         CONFIG="${GITHUB_WORKSPACE}/.github/config"
