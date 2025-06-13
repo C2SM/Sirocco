@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, TypeAlias
 
 import aiida.common
 import aiida.orm
+import aiida.transports
 import aiida_workgraph  # type: ignore[import-untyped] # does not have proper typing and stubs
 import aiida_workgraph.tasks.factory.shelljob_task  # type: ignore[import-untyped]  # is only for a workaround
 from aiida.common.exceptions import NotExistent
@@ -185,7 +186,7 @@ class AiidaWorkGraph:
 
     def _add_aiida_input_data_node(self, data: core.AvailableData):
         """
-        Create an `aiida.orm.Data` instance from the provided graph item.
+        Create an `aiida.orm.Data` instance from the provided `data` that needs to exist on initialization of workflow.
         """
         label = self.get_aiida_label_from_graph_item(data)
 
@@ -200,7 +201,17 @@ class AiidaWorkGraph:
             if not transport.path_exists(str(data.src)):
                 msg = f"Could not find available data {data.name} in path {data.src} on computer {data.computer}."
                 raise FileNotFoundError(msg)
-        self._aiida_data_nodes[label] = aiida.orm.RemoteData(remote_path=str(data.src), label=label, computer=computer)
+
+        if computer.get_transport_class() is aiida.transports.plugins.local.LocalTransport:
+            if data.src.is_file():
+                self._aiida_data_nodes[label] = aiida.orm.SinglefileData(file=str(data.src), label=label)
+            else:
+                self._aiida_data_nodes[label] = aiida.orm.FolderData(tree=str(data.src), label=label)
+
+        else:
+            self._aiida_data_nodes[label] = aiida.orm.RemoteData(
+                remote_path=str(data.src), label=label, computer=computer
+            )
 
     @functools.singledispatchmethod
     def create_task_node(self, task: core.Task):
