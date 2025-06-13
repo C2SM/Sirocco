@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 import pytest
@@ -6,6 +7,8 @@ from sirocco.core import Workflow
 from sirocco.core._tasks.icon_task import IconTask
 from sirocco.vizgraph import VizGraph
 from sirocco.workgraph import AiidaWorkGraph
+
+logger = logging.getLogger(__name__)
 
 
 def test_parse_config_file(config_paths, pprinter):
@@ -55,7 +58,7 @@ def test_run_workgraph(config_paths):
 
 
 @pytest.mark.requires_icon
-@pytest.mark.usefixtures("config_case", "aiida_localhost")
+@pytest.mark.usefixtures("config_case", "aiida_localhost_slurm")
 @pytest.mark.parametrize(
     "config_case",
     [
@@ -68,6 +71,8 @@ def test_run_workgraph_with_icon(icon_filepath_executable, config_paths, tmp_pat
     Automatically uses the aiida_profile fixture to create a new profile. Note to debug the test with your profile
     please run this in a separate file as the profile is deleted after test finishes.
     """
+    from utils import setup_hpc_data_environment, update_workflow_data_paths
+
     config_rootdir = config_paths["yml"].parent.absolute()
     tmp_config_rootdir = tmp_path / config_rootdir.name
     tmp_config_rootdir.symlink_to(config_rootdir)
@@ -78,9 +83,25 @@ def test_run_workgraph_with_icon(icon_filepath_executable, config_paths, tmp_pat
         tmp_icon_bin_path.unlink()
     tmp_icon_bin_path.symlink_to(Path(icon_filepath_executable))
 
+
+    # Setup HPC-like environment
+    hpc_data_path = setup_hpc_data_environment(config_rootdir)
+
     core_workflow = Workflow.from_config_file(tmp_config_rootdir / config_paths["yml"].name)
+    core_workflow = update_workflow_data_paths(core_workflow, hpc_data_path)
+
     aiida_workflow = AiidaWorkGraph(core_workflow)
     output_node = aiida_workflow.run()
+    if not output_node.is_finished_ok:
+        from aiida.cmdline.utils.common import get_calcjob_report, get_workchain_report
+
+        # overall report but often not enough to really find the bug, one has to go to calcjob
+        logger.info("Workchain report:\n%s", get_workchain_report(output_node, levelname="REPORT"))
+        # the calcjobs are typically stored in 'called_descendants'
+        for node in output_node.called_descendants:
+            logger.info("%s workdir: %s", node.process_label, node.get_remote_workdir())
+            logger.info("%s report:\n%s", node.process_label, get_calcjob_report(node))
+
     assert (
         output_node.is_finished_ok
     ), f"Not successful run. Got exit code {output_node.exit_code} with message {output_node.exit_message}."

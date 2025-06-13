@@ -14,6 +14,7 @@ from aiida.common.exceptions import NotExistent
 from aiida_icon.calculations import IconCalculation
 
 from sirocco import core
+from sirocco.parsing._utils import TimeUtils
 
 if TYPE_CHECKING:
     from aiida_workgraph.socket import TaskSocket  # type: ignore[import-untyped]
@@ -283,7 +284,7 @@ class AiidaWorkGraph:
             default_calc_job_plugin="icon.icon",
             computer=computer,
             filepath_executable=str(task.bin),
-            with_mpi=False,
+            with_mpi=True,
             use_double_quotes=True,
         ).store()
 
@@ -301,6 +302,21 @@ class AiidaWorkGraph:
             task.model_namelist.namelist.write(buffer)
             buffer.seek(0)
             builder.model_namelist = aiida.orm.SinglefileData(buffer, task.model_namelist.name)
+
+        # Set runtime information
+        # FIXME: Set some defaults. Don't do this in the *Specs class, as we plan to inherit from `root`
+        metadata = {
+            "options": {
+                "max_wallclock_seconds": TimeUtils.walltime_to_seconds(task.walltime) if task.walltime else None,
+                "max_memory_kb": task.mem_per_node_mb * 1024 if task.mem_per_node_mb else 1024,
+                "resources": {
+                    "num_machines": task.nodes,
+                    "num_mpiprocs_per_machine": task.ntasks_per_node,
+                    "num_cores_per_mpiproc": task.cpus_per_task,
+                },
+            }
+        }
+        builder.metadata = metadata
 
         self._aiida_task_nodes[task_label] = self._workgraph.add_task(builder)
 

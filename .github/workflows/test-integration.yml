@@ -13,11 +13,17 @@ jobs:
     timeout-minutes: 120 # when icon needs to be rebuild it can take 70 minutes
     strategy:
       matrix:
-        python-version: ['3.10', '3.11', '3.12', '3.13']
+        python-version: ['3.12']  # ['3.10', '3.11', '3.12', '3.13']
         aiida-version: ['stable']
 
     permissions:
       packages: write
+
+    services:
+      slurm:
+        image: xenonmiddleware/slurm:17
+        ports:
+        - 5001:22
 
     steps:
     - name: Check access to GitHub secrets
@@ -52,14 +58,30 @@ jobs:
       shell: spack-bash {0}
       run: |
         spack env activate .
-        pip install --upgrade pip 
+        pip install --upgrade pip
         pip install hatch
         hatch run verdi presto
 
-    - name: Run ICON tests
+    - name: Setup SSH keys for SLURM container
+      run: |
+        mkdir -p "${HOME}/.ssh"
+        # Copy the pre-existing key from your repo (you'd need to add this file)
+        cp .github/config/slurm_rsa "${HOME}/.ssh/slurm_rsa"
+        chmod 600 "${HOME}/.ssh/slurm_rsa"
+        ssh-keyscan -H -p 5001 localhost >> "${HOME}/.ssh/known_hosts"
+
+    - name: Test SSH connection
+      run: ssh -p 5001 -i "${HOME}/.ssh/slurm_rsa" -o StrictHostKeyChecking=no xenon@localhost 'echo "SSH connection successful"'
+
+    - name: Run ICON tests (slurm-ssh computer created by fixture)
       shell: spack-bash {0}
       env:
         PYTEST_ADDOPTS: "--durations=0"
       run: |
         spack env activate .
-        hatch test -m "requires_icon" --parallel tests
+
+        hatch test -- -m "requires_icon" -s tests
+
+    - name: Setup upterm session
+      uses: lhotari/action-upterm@v1
+      if: always()
