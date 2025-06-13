@@ -142,7 +142,7 @@ class TestCLICommands:
         """Test run command with custom AiiDA profile."""
         with patch("sirocco.cli._prepare_aiida_workgraph") as mock_prepare:
             mock_aiida_wg = Mock()
-            mock_aiida_wg._core_workflow.name = "test" # noqa: SLF001
+            mock_aiida_wg._core_workflow.name = "test"  # noqa: SLF001
             mock_aiida_wg.run.return_value = {"result": "success"}
             mock_prepare.return_value = mock_aiida_wg
 
