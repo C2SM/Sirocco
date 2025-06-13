@@ -65,12 +65,14 @@ def test_run_workgraph(config_paths):
         "small-icon",
     ],
 )
-def test_run_workgraph_with_icon(icon_filepath_executable, config_paths, tmp_path, setup_hpc_data_environment, update_workflow_data_paths):
+def test_run_workgraph_with_icon(icon_filepath_executable, config_paths, tmp_path):
     """Tests end-to-end the parsing from file up to running the workgraph.
 
     Automatically uses the aiida_profile fixture to create a new profile. Note to debug the test with your profile
     please run this in a separate file as the profile is deleted after test finishes.
     """
+    from utils import setup_hpc_data_environment, update_workflow_data_paths
+
     config_rootdir = config_paths["yml"].parent.absolute()
     tmp_config_rootdir = tmp_path / config_rootdir.name
     tmp_config_rootdir.symlink_to(config_rootdir)
