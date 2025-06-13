@@ -3,10 +3,10 @@ import pathlib
 import shutil
 import subprocess
 
-from aiida.common import NotExistent
-from aiida.orm import load_computer
 import pytest
 import requests
+from aiida.common import NotExistent
+from aiida.orm import load_computer
 
 from sirocco import pretty_print
 from sirocco.core import _tasks as core_tasks
@@ -66,7 +66,7 @@ def aiida_localhost_ssh(aiida_computer_ssh):
         computer = load_computer("localhost_ssh")
     except NotExistent:
         computer = aiida_computer_ssh(label="localhost_ssh")
-    yield computer
+    return computer
 
 
 @pytest.fixture(scope="session")
