@@ -48,13 +48,51 @@ jobs:
       run: spack -e . buildcache push --base-image ubuntu:latest --update-index local-buildcache
       if: ${{ !cancelled() }}
 
+    - name: Set up SSH on localhost
+      # shell: spack-bash {0}
+      run: |
+        # spack env activate .
+        # Start SSH daemon
+        sudo systemctl start ssh
+
+        ssh-keygen -q -t rsa -b 4096 -N "" -f "${HOME}/.ssh/id_rsa"
+        ssh-keygen -y -f "${HOME}/.ssh/id_rsa" >> "${HOME}/.ssh/authorized_keys"
+        ssh-keyscan -H localhost >> "${HOME}/.ssh/known_hosts"
+
+        # The permissions on the GitHub runner are 777 which will cause SSH to refuse the keys and cause authentication to fail
+        chmod 755 "${HOME}"
+
+        # Test SSH connection
+        ssh -o StrictHostKeyChecking=no localhost 'echo "SSH connection successful"'
+
     - name: Install hatch
       shell: spack-bash {0}
       run: |
         spack env activate .
-        pip install --upgrade pip 
+        pip install --upgrade pip
         pip install hatch
         hatch run verdi presto
+
+        # Not needed, as tests have their own, isolated DB instance
+        # # Configure SSH computer for AiiDA (if needed by your tests)
+        # hatch run verdi computer setup --non-interactive \
+        #   --label localhost_ssh \
+        #   --description "localhost via SSH" \
+        #   --hostname localhost \
+        #   --transport core.ssh \
+        #   --scheduler core.direct \
+        #   --work-dir "${HOME}/aiida_work" \
+        #   --mpirun-command "mpirun -np {tot_num_mpiprocs}" \
+        #   --mpiprocs-per-machine 1
+
+        # hatch run verdi computer configure core.ssh localhost_ssh --non-interactive \
+        #   --username "${USER}" \
+        #   --port 22 \
+        #   --look-for-keys true \
+        #   --key-filename "${HOME}/.ssh/id_rsa"
+
+        # # Test the computer
+        # verdi computer test localhost_ssh
 
     - name: Run ICON tests
       shell: spack-bash {0}
