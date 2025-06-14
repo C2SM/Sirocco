@@ -55,24 +55,24 @@ data:
   available:
      - icon_grid_simple:
          type: file
-         src: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/icon_grid_simple.nc
-         computer: localhost
+         src: /DATA_REMOTEDIR/tests/cases/small-icon/config/ICON/icon_grid_simple.nc
+         computer: localhost_ssh
      - ecrad_data:
          type: file
-         src: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/ecrad_data
-         computer: localhost
+         src: /DATA_REMOTEDIR/tests/cases/small-icon/config/ICON/ecrad_data
+         computer: localhost_ssh
      - ECHAM6_CldOptProps:
          type: file
-         src: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/ECHAM6_CldOptProps.nc
-         computer: localhost
+         src: /DATA_REMOTEDIR/tests/cases/small-icon/config/ICON/ECHAM6_CldOptProps.nc
+         computer: localhost_ssh
      - rrtmg_sw:
          type: file
-         src: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/rrtmg_sw.nc
-         computer: localhost
+         src: /DATA_REMOTEDIR/tests/cases/small-icon/config/ICON/rrtmg_sw.nc
+         computer: localhost_ssh
      - dmin_wetgrowth_lookup:
          type: file
-         src: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/dmin_wetgrowth_lookup.nc
-         computer: localhost
+         src: /DATA_REMOTEDIR/tests/cases/small-icon/config/ICON/dmin_wetgrowth_lookup.nc
+         computer: localhost_ssh
   generated:
      - finish:
          type: file

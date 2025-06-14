@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from itertools import chain, product
-from typing import TYPE_CHECKING, Self
+from typing import TYPE_CHECKING, Self 
 
 from sirocco.core.graph_items import Cycle, Data, Store, Task
 from sirocco.parsing.cycling import DateCyclePoint, OneOffPoint
