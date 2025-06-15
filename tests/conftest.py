@@ -159,6 +159,7 @@ def config_paths(config_case, icon_grid_path, tmp_path, test_rootdir) -> dict[st
 
 def pytest_addoption(parser):
     parser.addoption("--reserialize", action="store_true", default=False)
+    parser.addoption("--remote", action="store", default=None, default=False, help="Specify an aiida computer label for a remote machine that has been configured before tests and should be used.")
 
 
 def serialize_worklfow(config_paths: dict[str, pathlib.Path], workflow: workflow.Workflow) -> None:
@@ -183,6 +184,8 @@ def pytest_configure(config):
             serialize_worklfow(config_paths=config_paths, workflow=wf)
             serialize_nml(config_paths=config_paths, workflow=wf)
 
+def aiida_remote_computer(request):
+    request.config.getoption("remote")
 
 @pytest.fixture(scope="session")
 def test_rootdir(pytestconfig):
