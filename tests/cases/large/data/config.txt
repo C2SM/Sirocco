@@ -9,9 +9,6 @@ cycles:
             name: 'extpar'
             coordinates: {}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
-            nodes: 1
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: []
             plugin: 'shell'
             command: 'extpar --verbose --input {PORT::obs}'
@@ -27,9 +24,6 @@ cycles:
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2025, 1, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
-            nodes: 4
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-01-01 00:00:00 -- 2025-03-01 00:00:00]
             plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
@@ -46,7 +40,9 @@ cycles:
             computer: 'remote'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '23:59:59'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2025-01-01 00:00:00 -- 2025-03-01 00:00:00]
             plugin: 'icon'
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
@@ -60,7 +56,9 @@ cycles:
             computer: 'remote'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '00:05:00'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2025-01-01 00:00:00 -- 2025-03-01 00:00:00]
             plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::None}'
@@ -76,7 +74,9 @@ cycles:
             coordinates: {'date': datetime.datetime(2025, 1, 1, 0, 0)}
             computer: 'remote'
             nodes: 1
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '00:01:00'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2025-01-01 00:00:00 -- 2025-03-01 00:00:00]
             plugin: 'shell'
             command: 'bash post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
@@ -92,9 +92,6 @@ cycles:
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2025, 3, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
-            nodes: 4
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-03-01 00:00:00 -- 2025-05-01 00:00:00]
             plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
@@ -112,7 +109,9 @@ cycles:
             computer: 'remote'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '23:59:59'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2025-03-01 00:00:00 -- 2025-05-01 00:00:00]
             plugin: 'icon'
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
@@ -126,7 +125,9 @@ cycles:
             computer: 'remote'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '00:05:00'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2025-03-01 00:00:00 -- 2025-05-01 00:00:00]
             plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::None}'
@@ -142,7 +143,9 @@ cycles:
             coordinates: {'date': datetime.datetime(2025, 3, 1, 0, 0)}
             computer: 'remote'
             nodes: 1
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '00:01:00'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2025-03-01 00:00:00 -- 2025-05-01 00:00:00]
             plugin: 'shell'
             command: 'bash post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
@@ -160,9 +163,6 @@ cycles:
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2025, 5, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
-            nodes: 4
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-05-01 00:00:00 -- 2025-07-01 00:00:00]
             plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
@@ -180,7 +180,9 @@ cycles:
             computer: 'remote'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '23:59:59'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2025-05-01 00:00:00 -- 2025-07-01 00:00:00]
             plugin: 'icon'
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
@@ -194,7 +196,9 @@ cycles:
             computer: 'remote'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '00:05:00'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2025-05-01 00:00:00 -- 2025-07-01 00:00:00]
             plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::None}'
@@ -210,7 +214,9 @@ cycles:
             coordinates: {'date': datetime.datetime(2025, 5, 1, 0, 0)}
             computer: 'remote'
             nodes: 1
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '00:01:00'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2025-05-01 00:00:00 -- 2025-07-01 00:00:00]
             plugin: 'shell'
             command: 'bash post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
@@ -228,9 +234,6 @@ cycles:
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2025, 7, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
-            nodes: 4
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-07-01 00:00:00 -- 2025-09-01 00:00:00]
             plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
@@ -248,7 +251,9 @@ cycles:
             computer: 'remote'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '23:59:59'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2025-07-01 00:00:00 -- 2025-09-01 00:00:00]
             plugin: 'icon'
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
@@ -262,7 +267,9 @@ cycles:
             computer: 'remote'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '00:05:00'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2025-07-01 00:00:00 -- 2025-09-01 00:00:00]
             plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::None}'
@@ -278,7 +285,9 @@ cycles:
             coordinates: {'date': datetime.datetime(2025, 7, 1, 0, 0)}
             computer: 'remote'
             nodes: 1
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '00:01:00'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2025-07-01 00:00:00 -- 2025-09-01 00:00:00]
             plugin: 'shell'
             command: 'bash post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
@@ -296,9 +305,6 @@ cycles:
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2025, 9, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
-            nodes: 4
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-09-01 00:00:00 -- 2025-11-01 00:00:00]
             plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
@@ -316,7 +322,9 @@ cycles:
             computer: 'remote'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '23:59:59'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2025-09-01 00:00:00 -- 2025-11-01 00:00:00]
             plugin: 'icon'
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
@@ -330,7 +338,9 @@ cycles:
             computer: 'remote'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '00:05:00'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2025-09-01 00:00:00 -- 2025-11-01 00:00:00]
             plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::None}'
@@ -346,7 +356,9 @@ cycles:
             coordinates: {'date': datetime.datetime(2025, 9, 1, 0, 0)}
             computer: 'remote'
             nodes: 1
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '00:01:00'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2025-09-01 00:00:00 -- 2025-11-01 00:00:00]
             plugin: 'shell'
             command: 'bash post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
@@ -364,9 +376,6 @@ cycles:
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2025, 11, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
-            nodes: 4
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2025-11-01 00:00:00 -- 2026-01-01 00:00:00]
             plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
@@ -384,7 +393,9 @@ cycles:
             computer: 'remote'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '23:59:59'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2025-11-01 00:00:00 -- 2026-01-01 00:00:00]
             plugin: 'icon'
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
@@ -398,7 +409,9 @@ cycles:
             computer: 'remote'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '00:05:00'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2025-11-01 00:00:00 -- 2026-01-01 00:00:00]
             plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::None}'
@@ -414,7 +427,9 @@ cycles:
             coordinates: {'date': datetime.datetime(2025, 11, 1, 0, 0)}
             computer: 'remote'
             nodes: 1
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '00:01:00'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2025-11-01 00:00:00 -- 2026-01-01 00:00:00]
             plugin: 'shell'
             command: 'bash post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
@@ -432,9 +447,6 @@ cycles:
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
-            nodes: 4
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-01-01 00:00:00 -- 2026-03-01 00:00:00]
             plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
@@ -452,7 +464,9 @@ cycles:
             computer: 'remote'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '23:59:59'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2026-01-01 00:00:00 -- 2026-03-01 00:00:00]
             plugin: 'icon'
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
@@ -466,7 +480,9 @@ cycles:
             computer: 'remote'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '00:05:00'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2026-01-01 00:00:00 -- 2026-03-01 00:00:00]
             plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::None}'
@@ -482,7 +498,9 @@ cycles:
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
             computer: 'remote'
             nodes: 1
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '00:01:00'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2026-01-01 00:00:00 -- 2026-03-01 00:00:00]
             plugin: 'shell'
             command: 'bash post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
@@ -500,9 +518,6 @@ cycles:
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2026, 3, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
-            nodes: 4
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-03-01 00:00:00 -- 2026-05-01 00:00:00]
             plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
@@ -520,7 +535,9 @@ cycles:
             computer: 'remote'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '23:59:59'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2026-03-01 00:00:00 -- 2026-05-01 00:00:00]
             plugin: 'icon'
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
@@ -534,7 +551,9 @@ cycles:
             computer: 'remote'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '00:05:00'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2026-03-01 00:00:00 -- 2026-05-01 00:00:00]
             plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::None}'
@@ -550,7 +569,9 @@ cycles:
             coordinates: {'date': datetime.datetime(2026, 3, 1, 0, 0)}
             computer: 'remote'
             nodes: 1
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '00:01:00'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2026-03-01 00:00:00 -- 2026-05-01 00:00:00]
             plugin: 'shell'
             command: 'bash post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
@@ -568,9 +589,6 @@ cycles:
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2026, 5, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
-            nodes: 4
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-05-01 00:00:00 -- 2026-07-01 00:00:00]
             plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
@@ -588,7 +606,9 @@ cycles:
             computer: 'remote'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '23:59:59'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2026-05-01 00:00:00 -- 2026-07-01 00:00:00]
             plugin: 'icon'
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
@@ -602,7 +622,9 @@ cycles:
             computer: 'remote'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '00:05:00'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2026-05-01 00:00:00 -- 2026-07-01 00:00:00]
             plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::None}'
@@ -618,7 +640,9 @@ cycles:
             coordinates: {'date': datetime.datetime(2026, 5, 1, 0, 0)}
             computer: 'remote'
             nodes: 1
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '00:01:00'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2026-05-01 00:00:00 -- 2026-07-01 00:00:00]
             plugin: 'shell'
             command: 'bash post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
@@ -636,9 +660,6 @@ cycles:
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2026, 7, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
-            nodes: 4
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-07-01 00:00:00 -- 2026-09-01 00:00:00]
             plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
@@ -656,7 +677,9 @@ cycles:
             computer: 'remote'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '23:59:59'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2026-07-01 00:00:00 -- 2026-09-01 00:00:00]
             plugin: 'icon'
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
@@ -670,7 +693,9 @@ cycles:
             computer: 'remote'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '00:05:00'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2026-07-01 00:00:00 -- 2026-09-01 00:00:00]
             plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::None}'
@@ -686,7 +711,9 @@ cycles:
             coordinates: {'date': datetime.datetime(2026, 7, 1, 0, 0)}
             computer: 'remote'
             nodes: 1
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '00:01:00'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2026-07-01 00:00:00 -- 2026-09-01 00:00:00]
             plugin: 'shell'
             command: 'bash post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
@@ -704,9 +731,6 @@ cycles:
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2026, 9, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
-            nodes: 4
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-09-01 00:00:00 -- 2026-11-01 00:00:00]
             plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
@@ -724,7 +748,9 @@ cycles:
             computer: 'remote'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '23:59:59'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2026-09-01 00:00:00 -- 2026-11-01 00:00:00]
             plugin: 'icon'
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
@@ -738,7 +764,9 @@ cycles:
             computer: 'remote'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '00:05:00'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2026-09-01 00:00:00 -- 2026-11-01 00:00:00]
             plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::None}'
@@ -754,7 +782,9 @@ cycles:
             coordinates: {'date': datetime.datetime(2026, 9, 1, 0, 0)}
             computer: 'remote'
             nodes: 1
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '00:01:00'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2026-09-01 00:00:00 -- 2026-11-01 00:00:00]
             plugin: 'shell'
             command: 'bash post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
@@ -772,9 +802,6 @@ cycles:
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2026, 11, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
-            nodes: 4
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=2, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
             cycle point: [2026-11-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}'
@@ -792,7 +819,9 @@ cycles:
             computer: 'remote'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 40
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=23, tm_min=59, tm_sec=59, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '23:59:59'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2026-11-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'icon'
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
@@ -806,7 +835,9 @@ cycles:
             computer: 'remote'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '00:05:00'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2026-11-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::None}'
@@ -822,7 +853,9 @@ cycles:
             coordinates: {'date': datetime.datetime(2026, 11, 1, 0, 0)}
             computer: 'remote'
             nodes: 1
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '00:01:00'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2026-11-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
             command: 'bash post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}'
@@ -843,7 +876,9 @@ cycles:
             computer: 'remote'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '00:05:00'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2025-01-01 00:00:00 -- 2026-01-01 00:00:00]
             plugin: 'shell'
             command: 'bash main_script_atm.sh --input {PORT::streams}'
@@ -862,7 +897,9 @@ cycles:
             coordinates: {'date': datetime.datetime(2025, 1, 1, 0, 0)}
             computer: 'remote'
             nodes: 1
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '00:01:00'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2025-01-01 00:00:00 -- 2026-01-01 00:00:00]
             plugin: 'shell'
             command: 'bash post_clean.sh --archive {PORT::archive} --clean {PORT::clean}'
@@ -883,7 +920,9 @@ cycles:
             computer: 'remote'
             uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=5, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '00:05:00'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2026-01-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
             command: 'bash main_script_atm.sh --input {PORT::streams}'
@@ -902,7 +941,9 @@ cycles:
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
             computer: 'remote'
             nodes: 1
-            walltime: time.struct_time(tm_year=1900, tm_mon=1, tm_mday=1, tm_hour=0, tm_min=1, tm_sec=0, tm_wday=0, tm_yday=1, tm_isdst=-1)
+            walltime: '00:01:00'
+            ntasks per node: 1
+            cpus per task: 1
             cycle point: [2026-01-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
             command: 'bash post_clean.sh --archive {PORT::archive} --clean {PORT::clean}'

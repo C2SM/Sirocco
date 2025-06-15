@@ -254,8 +254,12 @@ class ConfigBaseTaskSpecs:
     host: str | None = None
     account: str | None = None
     uenv: dict | None = None
-    nodes: int | None = None
+    nodes: int | None = None  # SLURM option `--nodes`, AiiDA option `num_machines`
     walltime: str | None = None
+    ntasks_per_node: int | None = None  # SLURM option `--ntasks-per-node`, AiiDA option `num_mpiprocs_per_machine`
+    mem: int | None = None  # SLURM option `--mem` in MB, AiiDA option `max_memory_kb` in KB
+    cpus_per_task: int | None = None  # SLURM option `--cpus_per_task`, AiiDA option `num_cores_per_mpiproc`
+    mpi_cmd: str | None = None
 
 
 class ConfigBaseTask(_NamedBaseModel, ConfigBaseTaskSpecs):
@@ -267,9 +271,33 @@ class ConfigBaseTask(_NamedBaseModel, ConfigBaseTaskSpecs):
 
     @field_validator("walltime")
     @classmethod
-    def convert_to_struct_time(cls, value: str | None) -> time.struct_time | None:
-        """Converts a string of form "%H:%M:%S" to a time.time_struct"""
-        return None if value is None else time.strptime(value, "%H:%M:%S")
+    def validate_walltime_format(cls, value: str | None) -> str | None:
+        """Validates that walltime string adheres to "%H:%M:%S" format"""
+        if value is None:
+            return None
+
+        try:
+            # This will raise ValueError if format is invalid
+            time.strptime(value, "%H:%M:%S")
+            # Return the original string, not the parsed time object
+            return value  # noqa: TRY300
+        except ValueError as e:
+            msg = f"walltime must be in HH:MM:SS format, got '{value}'"
+            raise ValueError(msg) from e
+
+    @model_validator(mode="after")
+    def validate_scheduler_parameters(self) -> ConfigBaseTask:
+        # we pass these argument to aiida as resource, it performs a check to if it is able to compute the total
+        # number of mpi procs. This triggers when passing any of these arguments to aiida
+        if (self.nodes is not None or self.ntasks_per_node is not None or self.cpus_per_task is not None) and (
+            self.nodes is None or self.ntasks_per_node is None or self.cpus_per_task is None
+        ):
+            msg = (
+                "One of the fields 'nodes', 'ntasks_per_node' and 'cpus_per_task'"
+                f" has been specified therefore all fields need to be specified for task {self}."
+            )
+            raise ValueError(msg)
+        return self
 
 
 class ConfigRootTask(ConfigBaseTask):

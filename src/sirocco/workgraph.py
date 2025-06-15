@@ -3,7 +3,7 @@ from __future__ import annotations
 import functools
 import io
 import uuid
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, Any, TypeAlias, assert_never
 
 import aiida.common
 import aiida.orm
@@ -15,6 +15,7 @@ from aiida_icon.calculations import IconCalculation
 from aiida_shell.parsers.shell import ShellParser
 
 from sirocco import core
+from sirocco.parsing._utils import TimeUtils
 
 if TYPE_CHECKING:
     from aiida_workgraph.socket import TaskSocket  # type: ignore[import-untyped]
@@ -231,11 +232,28 @@ class AiidaWorkGraph:
 
         from aiida_shell import ShellCode
 
+        try:
+            computer = aiida.orm.Computer.collection.get(label=task.computer)
+        except NotExistent as err:
+            msg = f"Could not find computer {task.computer!r} in AiiDA database. One needs to create and configure the computer before running a workflow."
+            raise ValueError(msg) from err
+
         label_uuid = str(uuid.uuid4())
+        # FIXME: create for each workflow and task computer issue #169
+        # we create a computer for each task to override some properties
+
+        from aiida.orm.utils.builders.computer import ComputerBuilder
+
+        computer_builder = ComputerBuilder.from_computer(computer)
+        computer_builder.label = computer.label + f"-{label_uuid}"
+
+        if task.mpi_cmd is not None:
+            # parse options mpi_cmd
+            computer_builder.mpirun_command = self._parse_mpi_cmd_to_aiida(task.mpi_cmd)
 
         code = ShellCode(
             label=f"{cmd}-{label_uuid}",
-            computer=aiida.orm.load_computer(task.computer),
+            computer=computer,
             filepath_executable=cmd,
             default_calc_job_plugin="core.shell",
             use_double_quotes=True,
@@ -243,12 +261,13 @@ class AiidaWorkGraph:
 
         metadata: dict[str, Any] = {}
         # NOTE: Hardcoded for now, possibly make user-facing option (see issue #159)
-        metadata["options"] = {"use_symlinks": True}
-
+        metadata["options"]["use_symlinks"] = True
+        metadata["options"].update(self._from_task_get_scheduler_options(task))
         ## computer
+
         if task.computer is not None:
             try:
-                metadata["computer"] = aiida.orm.load_computer(task.computer)
+                metadata["computer"] = computer
             except NotExistent as err:
                 msg = f"Could not find computer {task.computer} for task {task}."
                 raise ValueError(msg) from err
@@ -276,26 +295,42 @@ class AiidaWorkGraph:
         task_label = self.get_aiida_label_from_graph_item(task)
 
         try:
-            # PRCOMMENT move to parsing? But then it has aiida logic
             computer = aiida.orm.Computer.collection.get(label=task.computer)
         except NotExistent as err:
             msg = f"Could not find computer {task.computer!r} in AiiDA database. One needs to create and configure the computer before running a workflow."
             raise ValueError(msg) from err
 
+        # FIXME: computer needs to only created once per workflow per task, not for every instance of task
+        # Since the mpirun command is part of the computer and two tasks might use
+        # the same computer, we need to create a new computer for each task type
+        # see issue #169
         label_uuid = str(uuid.uuid4())
+        from aiida.orm.utils.builders.computer import ComputerBuilder
+
+        computer_builder = ComputerBuilder.from_computer(computer)
+        computer_builder.label = computer.label + f"-{label_uuid}"
+
+        if task.mpi_cmd is not None:
+            computer_builder.mpirun_command = self._parse_mpi_cmd_to_aiida(task.mpi_cmd)
+        computer_config = computer.get_configuration()
+        # PRCOMMENT I kept the new computer approach because it is actually clearer if for each workflow (with fix #169)
+        #           we have a unique computer as we want to have the parameters to be in the config file
+        computer = computer_builder.new()
+        computer.configure(**computer_config)
+
         icon_code = aiida.orm.InstalledCode(
             label=f"icon-{label_uuid}",
             description="aiida_icon",
             default_calc_job_plugin="icon.icon",
             computer=computer,
             filepath_executable=str(task.bin),
-            with_mpi=False,
+            with_mpi=bool(task.mpi_cmd),
             use_double_quotes=True,
         ).store()
 
         builder = IconCalculation.get_builder()
         builder.code = icon_code
-        builder.metadata.options.additional_retrieve_list = []  # type: ignore[attr-defined] # aiida creates attrs automatically overwriting __getattr__
+        metadata = {}
 
         task.update_icon_namelists_from_workflow()
 
@@ -309,7 +344,33 @@ class AiidaWorkGraph:
             buffer.seek(0)
             builder.model_namelist = aiida.orm.SinglefileData(buffer, task.model_namelist.name)
 
+        # Set runtime information
+        options = {}
+        options.update(self._from_task_get_scheduler_options(task))
+        options["additional_retrieve_list"] = []
+
+        metadata["options"] = options
+        # the builder validation is not working
+        builder.metadata = metadata
+
         self._aiida_task_nodes[task_label] = self._workgraph.add_task(builder)
+
+    def _from_task_get_scheduler_options(self, task: core.Task) -> dict[str, Any]:
+        options: dict[str, Any] = {}
+        if task.walltime is not None:
+            options["max_wallclock_seconds"] = TimeUtils.walltime_to_seconds(task.walltime)
+        if task.mem is not None:
+            options["max_memory_kb"] = task.mem * 1024
+        if task.nodes is not None or task.ntasks_per_node is not None or task.cpus_per_task is not None:
+            resources = {}
+            if task.nodes is not None:
+                resources["num_machines"] = task.nodes
+            if task.ntasks_per_node is not None:
+                resources["num_mpiprocs_per_machine"] = task.ntasks_per_node
+            if task.cpus_per_task is not None:
+                resources["num_cores_per_mpiproc"] = task.cpus_per_task
+            options["resources"] = resources
+        return options
 
     @functools.singledispatchmethod
     def _link_output_node_to_task(self, task: core.Task, port: str, output: core.Data):  # noqa: ARG002
@@ -420,6 +481,22 @@ class AiidaWorkGraph:
         # Resolve the command with port placeholders replaced by input labels
         _, arguments = self.split_cmd_arg(task.resolve_ports(input_labels))
         workgraph_task_arguments.value = arguments
+
+    @staticmethod
+    def _parse_mpi_cmd_to_aiida(mpi_cmd: str) -> str:
+        for placeholder in core.MpiCmdPlaceholder:
+            mpi_cmd = mpi_cmd.replace(
+                f"{{{placeholder.value}}}", f"{{{AiidaWorkGraph._translate_mpi_cmd_placeholder(placeholder)}}}"
+            )
+        return mpi_cmd
+
+    @staticmethod
+    def _translate_mpi_cmd_placeholder(placeholder: core.MpiCmdPlaceholder) -> str:
+        match placeholder:
+            case core.MpiCmdPlaceholder.MPI_TOTAL_PROCS:
+                return "tot_num_mpiprocs"
+            case _:
+                assert_never(placeholder)
 
     def _set_shelljob_filenames(self, task: core.ShellTask):
         """Set AiiDA ShellJob filenames for data entities, including parameterized data."""

@@ -77,4 +77,4 @@ jobs:
         PYTEST_ADDOPTS: "--durations=0"
       run: |
         spack env activate .
-        hatch test --cover --parallel -- -m "requires_icon" --remote localhost-ssh tests
+        hatch test --cover --parallel -- -m "requires_icon" --remote test-integration tests
