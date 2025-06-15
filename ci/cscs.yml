@@ -1,0 +1,51 @@
+---
+# Include external CI template from CSCS
+include:
+  - remote: "https://gitlab.com/cscs-ci/recipes/-/raw/master/templates/v2/.ci-ext.yml"
+
+# Defines the stages for the CI/CD pipeline
+# Jobs in earlier stages are run before jobs in later stages.
+stages:
+  - build
+
+variables:
+  TMPDIR: "/var/tmp"
+
+job:
+  stage: build
+  extends: .f7t-controller
+  script:
+    - FIRECREST_URL=https://api.cscs.ch/cw/firecrest/v1
+    - FIRECREST_SYSTEM=santis
+    - FIRECREST_API_VERSION=1.16.0
+    #- firecrest rm /capstor/scratch/cscs/ricoh/sirocco-tests --force --system $FIRECREST_SYSTEM || true
+    #- firecrest mkdir /capstor/scratch/cscs/ricoh/sirocco-tests --system $FIRECREST_SYSTEM
+    #- firecrest upload tests/cases/small-icon/config/config.yml /capstor/scratch/cscs/ricoh/sirocco-tests config.yml --system $FIRECREST_SYSTEM
+    - firecrest ls --system $FIRECREST_SYSTEM /capstor/scratch/cscs/ricoh
+    - firecrest id --system $FIRECREST_SYSTEM
+    - firecrest filesystems --system $FIRECREST_SYSTEM
+    - firecrest get-partitions --system $FIRECREST_SYSTEM
+    - firecrest get-reservations --system $FIRECREST_SYSTEM
+    #- firecrest filesystems 
+    #- firecrest filesystems -s santis
+    #- firecrest filesystems --system $FIRECREST_SYSTEM
+    - firecrest mkdir /capstor/scratch/cscs/ricoh/sirocco-tmp --system $FIRECREST_SYSTEM || true # ignore if exists TODO i think ifrecrest has an option
+    - apt-get update -y && apt-get install -y --no-install-recommends graphviz graphviz-dev rabbitmq-server
+    - pip install --upgrade pip
+    - pip install . 
+    - whoami
+    #- echo $SCRATCH # here the scratch and everything is not defined
+    - echo $PWD
+    - echo $HOME
+    - firecrest --help
+    #- firecrest --help
+    #- firecrest upload --help
+    #- firecrest ls / --system $FIRECREST_SYSTEM
+    #- firecrest ls --system $FIRECREST_SYSTEM /
+    #- firecrest ls --system $FIRECREST_SYSTEM /capstor/scratch
+    - verdi presto --profile-name "cscs-ci"
+    - verdi computer setup --label remote --hostname unused --transport firecrest --scheduler firecrest --work-dir /capstor/scratch/cscs/ricoh/sirocco-aiida -n
+    - verdi devel launch-add # hacky way to define localhost TODO do properly
+    - verdi computer configure firecrest remote --url $FIRECREST_URL --token-uri https://auth.cscs.ch/auth/realms/firecrest-clients/protocol/openid-connect/token --client-id $FIRECREST_CLIENT_ID --client-secret $FIRECREST_CLIENT_SECRET --compute-resource $FIRECREST_SYSTEM --temp-directory /capstor/scratch/cscs/ricoh/sirocco-tmp --api-version 1.16.0 --small-file-size-mb 4096
+    - verdi computer test --print-traceback remote # TODO does not fail
+    - python ci/preparerun.py

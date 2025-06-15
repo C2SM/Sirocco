@@ -31,48 +31,60 @@ cycles:
                   port: finish_status
               - restart:
                   port: latest_restart_file
-  - lastly:
-      tasks:
-        - cleanup:
-            wait_on:
-              - icon:
-                  target_cycle:
-                    date: 2026-05-01T00:00
+  # TODO bring back once mpi option is in shell task
+  #- lastly:
+  #    tasks:
+  #      - cleanup:
+  #          wait_on:
+  #            - icon:
+  #                target_cycle:
+  #                  date: 2026-05-01T00:00
 tasks:
   - icon:
       plugin: icon
-      computer: localhost
+      computer: remote
       bin: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/bin/icon
       namelists:
         - ./ICON/icon_master.namelist
         - ./ICON/model.namelist
+      walltime: 00:05:00
+      nodes: 1
+      ntasks_per_node: 1
+      mem_per_node_mb: 1024
+      cpus_per_task: 1
   - cleanup:
       plugin: shell
-      computer: localhost
+      computer: remote 
       src: scripts/cleanup.py
       command: "python cleanup.py"
+      # TODO
+      #walltime: 00:05:00
+      #nodes: 1
+      #ntasks_per_node: 1
+      #mem_per_node_mb: 1024
+      #cpus_per_task: 1
 data:
   available:
      - icon_grid_simple:
          type: file
-         src: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/icon_grid_simple.nc
-         computer: localhost
+         src: /DATA_REMOTEDIR/tests/cases/small-icon/config/ICON/icon_grid_simple.nc
+         computer: remote
      - ecrad_data:
          type: file
-         src: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/ecrad_data
-         computer: localhost
+         src: /DATA_REMOTEDIR/tests/cases/small-icon/config/ICON/ecrad_data
+         computer: remote
      - ECHAM6_CldOptProps:
          type: file
-         src: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/ECHAM6_CldOptProps.nc
-         computer: localhost
+         src: /DATA_REMOTEDIR/tests/cases/small-icon/config/ICON/ECHAM6_CldOptProps.nc
+         computer: remote
      - rrtmg_sw:
          type: file
-         src: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/rrtmg_sw.nc
-         computer: localhost
+         src: /DATA_REMOTEDIR/tests/cases/small-icon/config/ICON/rrtmg_sw.nc
+         computer: remote 
      - dmin_wetgrowth_lookup:
          type: file
-         src: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/dmin_wetgrowth_lookup.nc
-         computer: localhost
+         src: /DATA_REMOTEDIR/tests/cases/small-icon/config/ICON/dmin_wetgrowth_lookup.nc
+         computer: remote
   generated:
      - finish:
          type: file

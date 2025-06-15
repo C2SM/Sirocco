@@ -8,12 +8,15 @@ from typing import TYPE_CHECKING, Any, TypeAlias
 
 import aiida.common
 import aiida.orm
+import aiida.transports
+from aiida.transports.plugins.local import LocalTransport  # TODO I don't understand why this is needed
 import aiida_workgraph  # type: ignore[import-untyped] # does not have proper typing and stubs
 import aiida_workgraph.tasks.factory.shelljob_task  # type: ignore[import-untyped]  # is only for a workaround
 from aiida.common.exceptions import NotExistent
 from aiida_icon.calculations import IconCalculation
 
 from sirocco import core
+from sirocco.parsing._utils import TimeUtils
 
 if TYPE_CHECKING:
     from aiida_workgraph.socket import TaskSocket  # type: ignore[import-untyped]
@@ -185,7 +188,7 @@ class AiidaWorkGraph:
 
     def _add_aiida_input_data_node(self, data: core.AvailableData):
         """
-        Create an `aiida.orm.Data` instance from the provided graph item.
+        Create an `aiida.orm.Data` instance from the provided `data` that needs to exist on initialization of workflow.
         """
         label = self.get_aiida_label_from_graph_item(data)
 
@@ -200,7 +203,17 @@ class AiidaWorkGraph:
             if not transport.path_exists(str(data.src)):
                 msg = f"Could not find available data {data.name} in path {data.src} on computer {data.computer}."
                 raise FileNotFoundError(msg)
-        self._aiida_data_nodes[label] = aiida.orm.RemoteData(remote_path=str(data.src), label=label, computer=computer)
+
+        if computer.get_transport_class() is LocalTransport:
+            if data.src.is_file():
+                self._aiida_data_nodes[label] = aiida.orm.SinglefileData(file=str(data.src), label=label)
+            else:
+                self._aiida_data_nodes[label] = aiida.orm.FolderData(tree=str(data.src), label=label)
+
+        else:
+            self._aiida_data_nodes[label] = aiida.orm.RemoteData(
+                remote_path=str(data.src), label=label, computer=computer
+            )
 
     @functools.singledispatchmethod
     def create_task_node(self, task: core.Task):
@@ -283,7 +296,7 @@ class AiidaWorkGraph:
             default_calc_job_plugin="icon.icon",
             computer=computer,
             filepath_executable=str(task.bin),
-            with_mpi=False,
+            with_mpi=True,
             use_double_quotes=True,
         ).store()
 
@@ -301,6 +314,22 @@ class AiidaWorkGraph:
             task.model_namelist.namelist.write(buffer)
             buffer.seek(0)
             builder.model_namelist = aiida.orm.SinglefileData(buffer, task.model_namelist.name)
+
+        # Set runtime information
+        # FIXME: Set some defaults. Don't do this in the *Specs class, as we plan to inherit from `root`
+        # TODO: also support in shelltask
+        metadata = {
+            "options": {
+                "max_wallclock_seconds": TimeUtils.walltime_to_seconds(task.walltime) if task.walltime else None,
+                "max_memory_kb": task.mem * 1024 if task.mem else 1024,
+                "resources": {
+                    "num_machines": task.nodes,
+                    "num_mpiprocs_per_machine": task.ntasks_per_node,
+                    "num_cores_per_mpiproc": task.cpus_per_task,
+                },
+            }
+        }
+        builder.metadata = metadata
 
         self._aiida_task_nodes[task_label] = self._workgraph.add_task(builder)
 
