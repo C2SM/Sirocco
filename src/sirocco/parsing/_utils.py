@@ -28,6 +28,23 @@ class TimeUtils:
             return True
         return False
 
+    @staticmethod
+    def walltime_to_seconds(walltime_str: str) -> int:
+        """Convert HH:MM:SS format to seconds.
+        Args:
+            walltime_str: Time string in HH:MM:SS format (e.g., "00:05:00")
+        Returns:
+            Total seconds as integer
+        Raises:
+            ValueError: If the time format is invalid
+        """
+        try:
+            time_obj = datetime.strptime(walltime_str, "%H:%M:%S")  # noqa: DTZ007
+            return time_obj.hour * 3600 + time_obj.minute * 60 + time_obj.second
+        except ValueError as e:
+            msg = f"Invalid time format '{walltime_str}'. Expected HH:MM:SS format."
+            raise ValueError(msg) from e
+
 
 def convert_to_date(value: Any) -> datetime:
     match value:

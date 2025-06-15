@@ -93,36 +93,40 @@ cycles:
 tasks:
   - ROOT:
       # All tasks inherit the root task properties
-      host: santis
       computer: remote # TODO root task does not pass specs currently, see C2SM/Sirocco/issues/7
-      account: g110
   - extpar:
       plugin: shell  # no extpar plugin available yet
       computer: remote
       src: scripts/extpar
       command: "extpar --verbose --input {PORT::obs}"
-      uenv:
-        squashfs: path/to/squashfs
-        mount_point: runtime/mount/point
-      nodes: 1
-      walltime: 00:02:00
+      resource:
+        nodes: 1
+        ntasks_per_node: 1
+        cpus_per_task: 1
+        mem: 1024
+        walltime: 00:02:00
+        uenv:
+          squashfs: path/to/squashfs
+          mount_point: runtime/mount/point
   - preproc:
       plugin: shell
       computer: remote
       src: scripts/cleanup.sh
       command: "bash cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}"
       env_source_files: data/dummy_source_file.sh
-      nodes: 4
-      walltime: 00:02:00
-      uenv:
-        squashfs: path/to/squashfs
-        mount_point: runtime/mount/point
+      resource:
+        nodes: 4
+        ntasks_per_node: 1
+        cpus_per_task: 1
+        mem: 1024
+        walltime: 00:02:00
+        uenv:
+          squashfs: path/to/squashfs
+          mount_point: runtime/mount/point
   - icon:
       plugin: icon
       computer: remote
       bin: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
-      nodes: 40
-      walltime: 23:59:59
       namelists:
         - ./ICON/icon_master.namelist:
             master_time_control_nml:
@@ -132,6 +136,10 @@ tasks:
               nproma: 96
             output_nml[1]:
               output_filename: atm_2d
+      nodes: 40
+      ntasks_per_node: 1
+      cpus_per_task: 1
+      walltime: 23:59:59
       uenv:
         squashfs: path/to/squashfs
         mount_point: runtime/mount/point
@@ -141,6 +149,8 @@ tasks:
       src: scripts/main_script_ocn.sh
       command: "bash main_script_ocn.sh {PORT::None}"
       nodes: 2
+      ntasks_per_node: 1
+      cpus_per_task: 1
       walltime: 00:05:00
       uenv:
         squashfs: path/to/squashfs
@@ -151,6 +161,8 @@ tasks:
       command: "bash main_script_atm.sh --input {PORT::streams}"
       multi_arg_sep: ","
       nodes: 2
+      ntasks_per_node: 1
+      cpus_per_task: 1
       walltime: 00:05:00
       uenv:
         squashfs: path/to/squashfs
@@ -161,6 +173,8 @@ tasks:
       src: scripts/post_clean.sh
       command: "bash post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}"
       nodes: 1
+      ntasks_per_node: 1
+      cpus_per_task: 1
       walltime: 00:01:00
   - store_and_clean_2:
       plugin: shell
@@ -168,6 +182,8 @@ tasks:
       src: scripts/post_clean.sh
       command: "bash post_clean.sh --archive {PORT::archive} --clean {PORT::clean}"
       nodes: 1
+      ntasks_per_node: 1
+      cpus_per_task: 1
       walltime: 00:01:00
 data:
   available:
