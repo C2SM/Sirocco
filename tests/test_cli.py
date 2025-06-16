@@ -6,7 +6,7 @@ rather than the underlying functionality which should be tested elsewhere.
 
 import subprocess
 from unittest.mock import Mock, patch
-
+from pathlib import Path
 import pytest
 import typer.testing
 
@@ -123,6 +123,7 @@ class TestCLICommands:
             mock_run.return_value = {"result": "success"}
 
             result = runner.invoke(app, ["run", workflow_path])
+            import ipdb; ipdb.set_trace()
 
             assert result.exit_code == 0
             assert "▶️ Running workflow" in result.stdout
