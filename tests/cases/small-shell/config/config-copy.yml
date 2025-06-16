@@ -35,22 +35,23 @@ tasks:
   - icon:
       plugin: shell
       computer: localhost
-      src: /home/geiger_j/aiida_projects/swiss-twins/git-repos/Sirocco/tests/cases/small-shell/config/scripts/icon.py
+      src: scripts/icon.py
       command: "icon.py --restart {PORT::restart} --init {PORT::init}"
       env_source_files: /home/geiger_j/aiida_projects/swiss-twins/git-repos/Sirocco/tests/cases/small-shell/config/data/dummy_source_file.sh
   - cleanup:
       plugin: shell
       computer: localhost
-      src: /home/geiger_j/aiida_projects/swiss-twins/git-repos/Sirocco/tests/cases/small-shell/config/scripts/cleanup.py
+      src: scripts/cleanup.py
       command: "cleanup.py"
 data:
   available:
      - icon_namelist:
          type: file
          src: /home/geiger_j/aiida_projects/swiss-twins/git-repos/Sirocco/tests/cases/small-shell/config/data/input
+         computer: localhost
      - initial_conditions:
          type: file
-         #computer: localhost # TODO requires fix from PR #136
+         computer: localhost
          src: /home/geiger_j/aiida_projects/swiss-twins/git-repos/Sirocco/tests/cases/small-shell/config/data/initial_conditions
   generated:
      - icon_output:

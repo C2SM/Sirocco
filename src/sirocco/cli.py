@@ -191,17 +191,18 @@ def run(
         ),
     ] = None,
 ):
+    import ipdb; ipdb.set_trace()
     aiida_wg = _prepare_aiida_workgraph(workflow_file, aiida_profile)
     console.print(
         f"▶️ Running workflow [magenta]'{aiida_wg._core_workflow.name}'[/magenta] directly (blocking)..."  # noqa: SLF001 | private-member-access
     )
-    try:
-        _ = aiida_wg.run(inputs=None)
-        console.print("[green]✅ Workflow execution finished.[/green]")
-    except Exception as e:
-        console.print(f"[bold red]❌ Workflow execution failed during run: {e}[/bold red]")
-        console.print_exception()
-        raise typer.Exit(code=1) from e
+    # try:
+    #     _ = aiida_wg.run(inputs=None)
+    #     console.print("[green]✅ Workflow execution finished.[/green]")
+    # except Exception as e:
+    #     console.print(f"[bold red]❌ Workflow execution failed during run: {e}[/bold red]")
+    #     console.print_exception()
+    #     raise typer.Exit(code=1) from e
 
 
 @app.command(help="Submit the workflow to the AiiDA daemon.")

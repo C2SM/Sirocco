@@ -116,7 +116,7 @@ class TestCLICommands:
     def test_run_command(self, runner):
         """Test the run command."""
         # Use existing test case workflow
-        workflow_path = "tests/cases/small/config/config.yml"
+        workflow_path = "tests/cases/small-shell/config/config.yml"
 
         # Mock the workgraph execution
         with patch("sirocco.workgraph.AiidaWorkGraph.run") as mock_run:
