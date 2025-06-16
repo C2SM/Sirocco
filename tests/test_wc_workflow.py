@@ -46,14 +46,9 @@ def test_run_workgraph(config_paths):
     Automatically uses the aiida_profile fixture to create a new profile. Note to debug the test with your profile
     please run this in a separate file as the profile is deleted after test finishes.
     """
-    # from aiida import orm
-    # comps = orm.QueryBuilder().append(orm.Computer).all(flat=True)
-    # print([c.get_transport_class() for c in comps])
-    # import ipdb; ipdb.set_trace()
     core_workflow = Workflow.from_config_file(str(config_paths["yml"]))
     aiida_workflow = AiidaWorkGraph(core_workflow)
     output_node = aiida_workflow.run()
-
     assert (
         output_node.is_finished_ok
     ), f"Not successful run. Got exit code {output_node.exit_code} with message {output_node.exit_message}."

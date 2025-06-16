@@ -274,13 +274,12 @@ def aiida_remote_computer(request, aiida_computer_session):
             computer.configure(
                 key_filename=f"{os.environ['HOME']}/.ssh/id_rsa",
                 key_policy="AutoAddPolicy",
-                safe_interval=1.0,
+                safe_interval=0.1,
             )
 
         return computer
 
     elif comp_spec == "cscs-ci":  # noqa: RET505 | superfluous-else-return
-        # PRCOMMENT: Add this infrastructure in another PR
         msg = "Infrastructure for FirecREST net setup yet."
         raise NotImplementedError(msg)
     else:
