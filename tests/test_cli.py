@@ -28,6 +28,7 @@ class TestCLICommands:
         assert result.returncode == 0
         # Verify expected commands are listed
         assert "verify" in result.stdout
+        assert "represent" in result.stdout
         assert "visualize" in result.stdout
         assert "run" in result.stdout
         assert "submit" in result.stdout
@@ -61,7 +62,7 @@ class TestCLICommands:
         assert result.exit_code == 1
         assert "validation failed" in result.stdout.lower()
 
-    @pytest.mark.parametrize("command", ["verify", "represent", "run", "submit"])
+    @pytest.mark.parametrize("command", ["verify", "represent", "visualize", "run", "submit"])
     def test_command_with_nonexistent_workflow(self, runner, command):
         """Test commands with nonexistent workflow files."""
         result = runner.invoke(app, [command, "nonexistent.yml"])

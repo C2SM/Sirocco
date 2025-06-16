@@ -2,7 +2,6 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from aiida import orm
 from aiida.manage.configuration import load_profile
 from rich.console import Console
 from rich.traceback import install as install_rich_traceback
@@ -24,26 +23,21 @@ app = typer.Typer(
 console = Console()
 
 
-# --- Helper functions ---
-def load_aiida_profile(profile: str) -> None:
-    try:
-        load_profile(profile=profile, allow_switch=True)
-        console.print(f"ℹ️ AiiDA profile [green]'{profile}'[/green] loaded.")  # noqa: RUF001: ambigious information source symbol
-    except Exception as e:
-        console.print(f"[bold red]Failed to load AiiDA profile '{profile}': {e}[/bold red]")
-        console.print("Ensure an AiiDA profile exists.")
-        raise typer.Exit(code=1) from e
-
-
-def _prepare_aiida_workgraph(workflow_file_str: str, aiida_profile_name: str | None) -> AiidaWorkGraph:
+def _prepare_aiida_workgraph(workflow_file: Path, aiida_profile_name: str | None = None) -> AiidaWorkGraph:
     """Helper to load profile, config, and prepare AiidaWorkGraph."""
     if aiida_profile_name:
-        load_aiida_profile(aiida_profile_name)
+        try:
+            load_profile(profile=aiida_profile_name, allow_switch=True)
+            console.print(f"ℹ️ AiiDA profile [green]'{aiida_profile_name}'[/green] loaded.")  # noqa: RUF001: ambigious information source symbol
+        except Exception as e:
+            console.print(f"[bold red]Failed to load AiiDA profile '{aiida_profile_name}': {e}[/bold red]")
+            console.print("Ensure an AiiDA profile exists.")
+            raise typer.Exit(code=1) from e
     else:
         load_profile()
 
     try:
-        config_workflow = parsing.ConfigWorkflow.from_config_file(workflow_file_str)
+        config_workflow = parsing.ConfigWorkflow.from_config_file(str(workflow_file))
         core_wf = core.Workflow.from_config_workflow(config_workflow)
         aiida_wg = AiidaWorkGraph(core_wf)
         console.print(f"⚙️ Workflow [magenta]'{core_wf.name}'[/magenta] prepared for AiiDA execution.")
@@ -102,7 +96,6 @@ def visualize(
     output_file: Annotated[
         Path | None,
         typer.Option(
-            None,  # Default value is None, making it optional
             "--output",
             "-o",
             writable=True,
@@ -110,7 +103,7 @@ def visualize(
             dir_okay=False,
             help="Optional path to save the output SVG file.",
         ),
-    ],
+    ] = None,
 ):
     """
     Generate an interactive SVG visualization of the unrolled workflow.
@@ -192,16 +185,15 @@ def run(
     aiida_profile: Annotated[
         str | None,
         typer.Option(
-            None,
             "--aiida-profile",
             "-P",
             help="AiiDA profile to use (defaults to current active).",
         ),
     ] = None,
 ):
-    aiida_wg = _prepare_aiida_workgraph(str(workflow_file), aiida_profile)
+    aiida_wg = _prepare_aiida_workgraph(workflow_file, aiida_profile)
     console.print(
-        f"▶️ Running workflow [magenta]'{aiida_wg._core_workflow.name}'[/magenta] directly (blocking)..."  # noqa: SLF001
+        f"▶️ Running workflow [magenta]'{aiida_wg._core_workflow.name}'[/magenta] directly (blocking)..."  # noqa: SLF001 | private-member-access
     )
     try:
         _ = aiida_wg.run(inputs=None)
@@ -228,13 +220,12 @@ def submit(
     aiida_profile: Annotated[
         str | None,
         typer.Option(
-            None,
             "--aiida-profile",
             "-P",
             help="AiiDA profile to use (defaults to current active).",
         ),
     ] = None,
-    wait: Annotated[  # noqa: FBT002
+    wait: Annotated[  # noqa: FBT002 | boolean-default-value-positional-argument
         bool,
         typer.Option(
             "--wait",
@@ -253,24 +244,17 @@ def submit(
 ):
     """Submit the workflow to the AiiDA daemon."""
 
-    aiida_wg = _prepare_aiida_workgraph(str(workflow_file), aiida_profile)
+    aiida_wg = _prepare_aiida_workgraph(workflow_file, aiida_profile)
     try:
         console.print(
-            f"🚀 Submitting workflow [magenta]'{aiida_wg._core_workflow.name}'[/magenta] to AiiDA daemon..."  # noqa: SLF001
+            f"🚀 Submitting workflow [magenta]'{aiida_wg._core_workflow.name}'[/magenta] to AiiDA daemon..."  # noqa: SLF001 | private-member-access
         )
-        results_node = aiida_wg.submit(inputs=None, wait=wait, timeout=timeout if wait else None)
-
-        if isinstance(results_node, orm.WorkChainNode):
-            console.print(f"[green]✅ Workflow submitted. PK: {results_node.pk}[/green]")
-            if wait:
-                msg = f"🏁 Workflow completed. Final state: [bold {'green' if results_node.is_finished_ok else 'red'}]{results_node.process_state.value.upper()}[/bold {'green' if results_node.is_finished_ok else 'red'}]"
-                console.print(msg)
-                if not results_node.is_finished_ok:
-                    console.print(
-                        "[yellow]Inspect the workchain for more details (e.g., `verdi process report PK`).[/yellow]"
-                    )
+        if wait:
+            results_node = aiida_wg.submit(inputs=None, wait=wait, timeout=timeout)
         else:
-            console.print(f"[green]✅ Submission initiated. Result: {results_node}[/green]")
+            results_node = aiida_wg.submit(inputs=None)
+
+        console.print(f"[green]✅ Workflow submitted. PK: {results_node.pk}[/green]")
 
     except Exception as e:
         console.print(f"[bold red]❌ Workflow submission failed: {e}[/bold red]")
