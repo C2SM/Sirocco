@@ -2,11 +2,13 @@ import logging
 import pathlib
 import shutil
 import subprocess
+import typing as t
+import os
 
 import pytest
 import requests
 from aiida.common import NotExistent
-from aiida.orm import load_computer
+from aiida.orm import load_computer, Computer
 
 from sirocco import pretty_print
 from sirocco.core import _tasks as core_tasks
@@ -192,27 +194,91 @@ def pytest_configure(config):
             serialize_nml(config_paths=config_paths, workflow=wf)
 
 
-@pytest.fixture
-def aiida_localhost_ssh(aiida_computer_ssh):
-    try:
-        computer = load_computer("remote")
-    except NotExistent:
-        computer = aiida_computer_ssh(label="remote")
-    return computer
+# Copied over from aiida-core and made session-scoped, using `tmp_path_factory`
+@pytest.fixture(scope="session")
+def aiida_computer_session(tmp_path_factory) -> t.Callable[[], "Computer"]:
+    """Return a factory to create a new or load an existing :class:`aiida.orm.computers.Computer` instance.
+
+    The database is queried for an existing computer with the same ``label``, ``hostname``, ``scheduler_type`` and
+    ``transport_type``. If it exists, it means it was probably created by this fixture in a previous call and it is
+    simply returned. Otherwise a new instance is created. Note that the computer is not explicitly configured, unless
+    ``configure_kwargs`` are specified. By default the ``localhost`` hostname is used with the ``core.direct`` and
+    ``core.local`` scheduler and transport plugins.
+
+    The factory has the following signature:
+
+    :param label: The computer label. If not specified, a random UUID4 is used.
+    :param hostname: The hostname of the computer. Defaults to ``localhost``.
+    :param scheduler_type: The scheduler plugin to use. Defaults to ``core.direct``.
+    :param transport_type: The transport plugin to use. Defaults to ``core.local``.
+    :param minimum_job_poll_interval: The default minimum job poll interval to set. Defaults to 0.
+    :param default_mpiprocs_per_machine: The default number of MPI procs to set. Defaults to 1.
+    :param configuration_kwargs: Optional keyword arguments that, if defined, are used to configure the computer
+        by calling :meth:`aiida.orm.computers.Computer.configure`.
+    :return: A stored computer instance.
+    """
+
+    def factory(
+        label: str | None = None,
+        hostname="localhost",
+        scheduler_type="core.direct",
+        transport_type="core.local",
+        minimum_job_poll_interval: int = 0,
+        default_mpiprocs_per_machine: int = 1,
+        configuration_kwargs: dict[t.Any, t.Any] | None = None,
+    ) -> "Computer":
+        import uuid
+
+        from aiida.common.exceptions import NotExistent
+        from aiida.orm import Computer
+
+        label = label or f"test-computer-{uuid.uuid4().hex}"
+
+        try:
+            computer = Computer.collection.get(
+                label=label, hostname=hostname, scheduler_type=scheduler_type, transport_type=transport_type
+            )
+        except NotExistent:
+            # Create a temporary directory for this computer instance
+            tmp_dir = tmp_path_factory.mktemp("aiida_computer")
+
+            computer = Computer(
+                label=label,
+                hostname=hostname,
+                workdir=str(tmp_dir),
+                transport_type=transport_type,
+                scheduler_type=scheduler_type,
+            )
+            computer.store()
+            computer.set_minimum_job_poll_interval(minimum_job_poll_interval)
+            computer.set_default_mpiprocs_per_machine(default_mpiprocs_per_machine)
+
+        if configuration_kwargs:
+            computer.configure(**configuration_kwargs)
+
+        return computer
+
+    return factory
 
 
-@pytest.fixture
-def aiida_remote_computer(request, aiida_localhost_ssh):
+@pytest.fixture(scope="session")
+def aiida_remote_computer(request, aiida_computer_session):
     comp_spec = request.config.getoption("remote")
 
-    # PRCOMMENT: This is just the normal localhost fixture. So we remove that option and just use the default
-    # `aiida_localhost` fixture, in addition to the `aiida_remote_computer` one that depends on the pytest-marker
-    # if comp_spec == 'localhost-local':
-    #     # Create localhost_local
-    #     aiida_localhost_local
     if comp_spec == "localhost-ssh":
-        # Create localhost_ssh
-        _ = aiida_localhost_ssh
+        try:
+            computer = load_computer("remote")
+        except NotExistent:
+            computer = aiida_computer_session(label="remote", hostname="localhost", transport_type="core.ssh")
+
+            computer.configure(
+                key_filename=f"{os.environ['HOME']}/.ssh/id_rsa",
+                key_policy="AutoAddPolicy",
+                safe_interval=1.0,
+            )
+
+        return computer
+
     elif comp_spec == "cscs-ci":
         # PRCOMMENT: Add this infrastructure in another PR
         msg = "Infrastructure for FirecREST net setup yet."
