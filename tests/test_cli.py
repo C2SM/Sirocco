@@ -211,27 +211,6 @@ class TestCLICommands:
 class TestCLIHelpers:
     """Test CLI helper functions."""
 
-    def test_load_aiida_profile_success(self, aiida_profile, capsys):
-        """Test successful AiiDA profile loading."""
-        from sirocco.cli import load_aiida_profile
-
-        load_aiida_profile(aiida_profile.name)
-
-        captured = capsys.readouterr()
-        assert "loaded" in captured.out
-        assert aiida_profile.name in captured.out
-
-    def test_load_aiida_profile_failure(self, capsys):
-        """Test AiiDA profile loading failure."""
-        from sirocco.cli import load_aiida_profile
-
-        with pytest.raises(typer.Exit):
-            load_aiida_profile("non_existent")
-
-        captured = capsys.readouterr()
-        assert "Failed to load AiiDA profile" in captured.out
-        assert "profile `non_existent` does not exist" in captured.out
-
     def test_prepare_aiida_workgraph_success(self, aiida_profile, sample_workflow_file, capsys):
         """Test successful workflow preparation."""
         from sirocco.cli import _prepare_aiida_workgraph

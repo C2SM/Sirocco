@@ -199,17 +199,19 @@ def sample_workflow_file(tmp_path):
         name: test_workflow
         cycles:
           - test_cycle:
-              tasks:
+                tasks:
                 - test_task:
         tasks:
           - test_task:
-              plugin: shell
-              command: "/usr/bin/echo hello"
+                plugin: shell
+                command: "/usr/bin/echo hello"
+                computer: localhost
         data:
           available:
             - input_data:
                 type: file
                 src: test_input.txt
+                computer: localhost
           generated:
             - output_data:
                 type: file
