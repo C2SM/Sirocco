@@ -143,7 +143,7 @@ class TestCLICommands:
             mock_aiida_wg._core_workflow.name = "minimal_submit_test"  # noqa: SLF001
 
             # Create a simple mock result that bypasses isinstance checks
-            mock_result = Mock()  # Simple string result
+            mock_result = Mock()
             mock_result.pk = 12345
             mock_aiida_wg.submit.return_value = mock_result
             mock_prepare.return_value = mock_aiida_wg
