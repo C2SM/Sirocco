@@ -1,14 +1,14 @@
 import logging
+import os
 import pathlib
 import shutil
 import subprocess
 import typing as t
-import os
 
 import pytest
 import requests
 from aiida.common import NotExistent
-from aiida.orm import load_computer, Computer
+from aiida.orm import Computer, load_computer
 
 from sirocco import pretty_print
 from sirocco.core import _tasks as core_tasks
@@ -279,7 +279,7 @@ def aiida_remote_computer(request, aiida_computer_session):
 
         return computer
 
-    elif comp_spec == "cscs-ci":
+    elif comp_spec == "cscs-ci":  # noqa: RET505 | superfluous-else-return
         # PRCOMMENT: Add this infrastructure in another PR
         msg = "Infrastructure for FirecREST net setup yet."
         raise NotImplementedError(msg)
