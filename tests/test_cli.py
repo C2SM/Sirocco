@@ -123,7 +123,8 @@ class TestCLICommands:
             mock_run.return_value = {"result": "success"}
 
             result = runner.invoke(app, ["run", workflow_path])
-            import ipdb; ipdb.set_trace()
+            # import ipdb; ipdb.set_trace()
+            # breakpoint()
 
             assert result.exit_code == 0
             assert "▶️ Running workflow" in result.stdout

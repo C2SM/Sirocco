@@ -191,7 +191,8 @@ def run(
         ),
     ] = None,
 ):
-    import ipdb; ipdb.set_trace()
+    # import ipdb; ipdb.set_trace()
+    # breakpoint()
     aiida_wg = _prepare_aiida_workgraph(workflow_file, aiida_profile)
     console.print(
         f"▶️ Running workflow [magenta]'{aiida_wg._core_workflow.name}'[/magenta] directly (blocking)..."  # noqa: SLF001 | private-member-access

@@ -210,7 +210,7 @@ def sample_workflow_file(tmp_path):
           available:
             - input_data:
                 type: file
-                src: test_input.txt
+                src: TEST_FILE
                 computer: localhost
           generated:
             - output_data:
@@ -219,11 +219,14 @@ def sample_workflow_file(tmp_path):
         """
     )
 
-    workflow_file = tmp_path / "test_workflow.yml"
-    workflow_file.write_text(workflow_content)
-
     # Create a dummy input file referenced in the workflow
     input_file = tmp_path / "test_input.txt"
     input_file.write_text("test input")
+
+    # Replace TEST_FILE with the actual path
+    workflow_content = workflow_content.replace("TEST_FILE", str(input_file))
+
+    workflow_file = tmp_path / "test_workflow.yml"
+    workflow_file.write_text(workflow_content)
 
     return workflow_file
