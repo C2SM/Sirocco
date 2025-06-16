@@ -1,6 +1,6 @@
 import logging
-import os
 import pathlib
+import shutil
 import subprocess
 import textwrap
 
@@ -68,9 +68,9 @@ def minimal_config() -> models.ConfigWorkflow:
         tasks=[models.ConfigShellTask(name="some_task", command="some_command", computer="localhost")],
         data=models.ConfigData(
             available=[
-                models.ConfigAvailableData(name="available", type=models.DataType.FILE, src=pathlib.Path("foo.txt"))
+                models.ConfigAvailableData(name="available", computer="localhost", src=pathlib.Path("/foo.txt"))
             ],
-            generated=[models.ConfigGeneratedData(name="bar", type=models.DataType.DIR, src=pathlib.Path("bar"))],
+            generated=[models.ConfigGeneratedData(name="bar", src=pathlib.Path("bar"))],
         ),
         parameters={},
     )
@@ -104,11 +104,11 @@ def minimal_invert_task_io_config() -> models.ConfigWorkflow:
         ],
         data=models.ConfigData(
             available=[
-                models.ConfigAvailableData(name="available", type=models.DataType.FILE, src=pathlib.Path("foo.txt"))
+                models.ConfigAvailableData(name="available", computer="localhost", src=pathlib.Path("/foo.txt"))
             ],
             generated=[
-                models.ConfigGeneratedData(name="output_a", type=models.DataType.DIR, src=pathlib.Path("bar")),
-                models.ConfigGeneratedData(name="output_b", type=models.DataType.DIR, src=pathlib.Path("bar")),
+                models.ConfigGeneratedData(name="output_a", src=pathlib.Path("bar")),
+                models.ConfigGeneratedData(name="output_b", src=pathlib.Path("bar")),
             ],
         ),
         parameters={},
@@ -138,10 +138,19 @@ def generate_config_paths(test_case: str):
 
 
 @pytest.fixture
-def config_paths(config_case, icon_grid_path) -> dict[str, pathlib.Path]:
+def config_paths(config_case, icon_grid_path, tmp_path, test_rootdir) -> dict[str, pathlib.Path]:
     config = generate_config_paths(config_case)
+    # Copy test directory to tmp path and adapt config
+    shutil.copytree(test_rootdir / f"tests/cases/{config_case}", tmp_path / f"tests/cases/{config_case}")
+    for key, value in config.items():
+        config[key] = tmp_path / value
+
+    # Expand /TESTS_ROOTDIR to directory where config is located
+    for key in ["yml", "txt"]:
+        config[key].write_text(config[key].read_text().replace("/TESTS_ROOTDIR", str(tmp_path)))
+
     if config_case == "small-icon":
-        config_rootdir = config["yml"].parent.absolute()
+        config_rootdir = config["yml"].parent
         # We link the icon grid as specified in the model.namelist
         config_icon_grid_path = pathlib.Path(config_rootdir / "./ICON/icon_grid_simple.nc")
         if not config_icon_grid_path.exists():
@@ -165,13 +174,12 @@ def serialize_nml(config_paths: dict[str, pathlib.Path], workflow: workflow.Work
 
 
 def pytest_configure(config):
-    os.environ["TEST_ROOTDIR"] = f"{config.rootdir}"
-    print(f"Running tests from: {config.rootdir}")  # noqa: T201
-
     if config.getoption("reserialize"):
         LOGGER.info("Regenerating serialized references")
         for config_case in ALL_CONFIG_CASES:
             config_paths = generate_config_paths(config_case)
+            for key, value in config_paths.items():
+                config_paths[key] = pathlib.Path(config.rootdir) / value
             wf = workflow.Workflow.from_config_file(str(config_paths["yml"]))
             serialize_worklfow(config_paths=config_paths, workflow=wf)
             serialize_nml(config_paths=config_paths, workflow=wf)
@@ -181,41 +189,6 @@ def pytest_configure(config):
 def test_rootdir(pytestconfig):
     """The directory of the project independent from where the tests are started"""
     return pathlib.Path(pytestconfig.rootdir)
-
-
-@pytest.fixture
-def configure_aiida_localhost(test_rootdir, aiida_localhost):
-    prepend_text = f"""#!/bin/bash
-export TEST_ROOTDIR={test_rootdir}
-# Expand environment variables in symlink targets and update them to resolved paths
-
-for link in *; do
-    if [ -L "$link" ]; then
-        target=$(readlink "$link")
-
-        echo "Found symlink: $link -> $target"
-
-        # Only process if target includes a variable
-        if [[ "$target" =~ \\$[A-Za-z_][A-Za-z0-9_]* ]]; then
-            # Use eval to expand environment variables
-            eval "expanded=\\"$target\\""
-
-            # Resolve to absolute path
-            resolved=$(readlink -f "$expanded")
-
-            if [ -e "$resolved" ]; then
-                echo " -> Expanding to: $resolved"
-                rm "$link"
-                ln -s "$resolved" "$link"
-            else
-                echo " !! Expanded path does not exist: $resolved"
-            fi
-        else
-            echo " -> No environment variable to expand."
-        fi
-    fi
-done"""
-    aiida_localhost.set_prepend_text(prepend_text)
 
 
 @pytest.fixture

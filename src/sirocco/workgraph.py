@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import functools
 import io
-import os
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeAlias
@@ -190,22 +189,18 @@ class AiidaWorkGraph:
         """
         label = self.get_aiida_label_from_graph_item(data)
 
-        if data.computer is not None:
-            try:
-                computer = aiida.orm.load_computer(data.computer)
-            except NotExistent as err:
-                msg = f"Could not find computer {data.computer!r} for input {data}."
-                raise ValueError(msg) from err
-            self._aiida_data_nodes[label] = aiida.orm.RemoteData(
-                remote_path=str(data.src), label=label, computer=computer
-            )
-        elif data.computer is None and data.type == "file":
-            self._aiida_data_nodes[label] = aiida.orm.SinglefileData(label=label, file=os.path.expandvars(data.src))
-        elif data.computer is None and data.type == "dir":
-            self._aiida_data_nodes[label] = aiida.orm.FolderData(label=label, tree=os.path.expandvars(data.src))
-        else:
-            msg = f"Data type {data.type!r} not supported. Please use 'file' or 'dir'."
-            raise ValueError(msg)
+        try:
+            computer = aiida.orm.load_computer(data.computer)
+        except NotExistent as err:
+            msg = f"Could not find computer {data.computer!r} for input {data}."
+            raise ValueError(msg) from err
+        # `remote_path` must be str not PosixPath to be JSON-serializable
+        transport = computer.get_transport()
+        with transport:
+            if not transport.path_exists(str(data.src)):
+                msg = f"Could not find available data {data.name} in path {data.src} on computer {data.computer}."
+                raise FileNotFoundError(msg)
+        self._aiida_data_nodes[label] = aiida.orm.RemoteData(remote_path=str(data.src), label=label, computer=computer)
 
     @functools.singledispatchmethod
     def create_task_node(self, task: core.Task):
@@ -222,23 +217,15 @@ class AiidaWorkGraph:
         label = self.get_aiida_label_from_graph_item(task)
         # Split command line between command and arguments (this is required by aiida internals)
         cmd, _ = self.split_cmd_arg(task.command)
-        cmd_path = Path(cmd)
-        # FIXME: https://github.com/C2SM/Sirocco/issues/127
-        if cmd_path.is_absolute():
-            command = str(cmd_path)
-        else:
-            if task.src is None:
-                msg = "src must be specified when command path is relative"
-                raise ValueError(msg)
-            command = str(task.src.parent / cmd_path)
 
         from aiida_shell import ShellCode
 
         label_uuid = str(uuid.uuid4())
+
         code = ShellCode(
-            label=f"{command}-{label_uuid}",
+            label=f"{cmd}-{label_uuid}",
             computer=aiida.orm.load_computer(task.computer),
-            filepath_executable=command,
+            filepath_executable=cmd,
             default_calc_job_plugin="core.shell",
             use_double_quotes=True,
         ).store()
@@ -260,12 +247,16 @@ class AiidaWorkGraph:
                 msg = f"Could not find computer {task.computer} for task {task}."
                 raise ValueError(msg) from err
 
-        # NOTE: We don't pass the `nodes` dictionary here, as then we would need to have the sockets available when
-        # we create the task. Instead, they are being updated via the WG internals when linking inputs/outputs to
-        # tasks
+        # NOTE: The input and output nodes of the task are populated in a separate function
+        nodes = {}
+        # We need to add the files to nodes to copy it to remote
+        if task.src is not None:
+            nodes[f"SCRIPT__{label}"] = aiida.orm.SinglefileData(str(task.src))
+
         workgraph_task = self._workgraph.add_task(
             "workgraph.shelljob",
             name=label,
+            nodes=nodes,
             command=code,
             arguments="",
             outputs=[],
@@ -383,7 +374,9 @@ class AiidaWorkGraph:
     def _link_wait_on_to_task(self, task: core.Task):
         """link wait on tasks to workgraph task"""
 
-        self.task_from_core(task).wait = [self.task_from_core(wt) for wt in task.wait_on]
+        workgraph_task = self.task_from_core(task)
+        workgraph_task.waiting_on.clear()
+        workgraph_task.waiting_on.add([self.task_from_core(wt) for wt in task.wait_on])
 
     def _set_shelljob_arguments(self, task: core.ShellTask):
         """Set AiiDA ShellJob arguments by replacing port placeholders with AiiDA labels."""
@@ -422,12 +415,11 @@ class AiidaWorkGraph:
         for input_ in task.input_data_nodes():
             input_label = self.get_aiida_label_from_graph_item(input_)
 
-            if task.computer and input_.computer and isinstance(input_, core.AvailableData):
-                # For RemoteData on the same computer, use just the filename
+            if isinstance(input_, core.AvailableData):
                 filename = input_.src.name
                 filenames[input_.name] = filename
-            else:
-                # For other cases (including GeneratedData), we need to handle parameterized data
+            elif isinstance(input_, core.GeneratedData):
+                # We need to handle parameterized data in this case.
                 # Importantly, multiple data nodes with the same base name but different
                 # coordinates need unique filenames to avoid conflicts in the working directory
 
@@ -447,6 +439,9 @@ class AiidaWorkGraph:
 
                 # The key in filenames dict should be the input label (what's used in nodes dict)
                 filenames[input_label] = filename
+            else:
+                msg = f"Found output {input_} of type {type(input_)} but only 'AvailableData' and 'GeneratedData' are supported."
+                raise TypeError(msg)
 
         workgraph_task.inputs.filenames.value = filenames
 
