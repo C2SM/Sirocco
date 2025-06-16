@@ -48,11 +48,26 @@ jobs:
       run: spack -e . buildcache push --base-image ubuntu:latest --update-index local-buildcache
       if: ${{ !cancelled() }}
 
+    - name: Set up SSH on localhost
+      run: |
+        # Start SSH daemon
+        sudo systemctl start ssh
+
+        ssh-keygen -q -t rsa -b 4096 -N "" -f "${HOME}/.ssh/id_rsa"
+        ssh-keygen -y -f "${HOME}/.ssh/id_rsa" >> "${HOME}/.ssh/authorized_keys"
+        ssh-keyscan -H localhost >> "${HOME}/.ssh/known_hosts"
+
+        # The permissions on the GitHub runner are 777 which will cause SSH to refuse the keys and cause authentication to fail
+        chmod 755 "${HOME}"
+
+        # Test SSH connection
+        ssh -o StrictHostKeyChecking=no localhost 'echo "SSH connection successful"'
+
     - name: Install hatch
       shell: spack-bash {0}
       run: |
         spack env activate .
-        pip install --upgrade pip 
+        pip install --upgrade pip
         pip install hatch
         hatch run verdi presto
 
