@@ -44,7 +44,8 @@ class TestCLICommands:
     def test_command_with_nonexistent_workflow(self, runner, command):
         """Test commands with nonexistent workflow files."""
         result = runner.invoke(app, [command, "nonexistent.yml"])
-        assert result.exit_code == 1
+        # typers internal validation checks if the file exists, and if not, fails with exit code 2
+        assert result.exit_code == 2
 
     @pytest.mark.parametrize("command", ["verify", "represent", "visualize", "run", "submit"])
     def test_command_empty_file(self, runner, command, tmp_path):
@@ -82,7 +83,8 @@ class TestCLICommands:
 
         assert result.exit_code == 0
         assert "✅ Visualization saved to" in result.stdout
-        assert "test_workflow.svg" in result.stdout
+        # Can contain line breaks in this part of the output string
+        assert "test_workflow.svg" in result.stdout.replace('\n', '')
 
     def test_visualize_command_custom_output(self, runner, sample_workflow_file, tmp_path):
         """Test the visualize command with custom output path."""
@@ -92,7 +94,7 @@ class TestCLICommands:
 
         assert result.exit_code == 0
         assert "✅ Visualization saved to" in result.stdout
-        assert "custom_output.svg" in result.stdout
+        assert "custom_output.svg" in result.stdout.replace('\n', '')
 
     def test_visualize_invalid_output_path(self, runner, sample_workflow_file):
         """Test visualize command with invalid output path."""
