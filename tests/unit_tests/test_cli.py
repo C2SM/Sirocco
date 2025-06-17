@@ -6,7 +6,7 @@ rather than the underlying functionality which should be tested elsewhere.
 
 import re
 import subprocess
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 import typer.testing
@@ -64,17 +64,20 @@ class TestCLICommands:
         assert result.exit_code == 0
         assert "✅ Workflow definition is valid" in result.stdout
 
-    def test_verify_command_failure(self, runner, sample_workflow_file):
+    def test_verify_command_failure(self, runner, sample_workflow_file, monkeypatch):
         """Test the verify command with an invalid workflow file."""
 
         # Mock failed workflow validation
-        with patch("sirocco.parsing.ConfigWorkflow.from_config_file") as mock_parse:
-            mock_parse.side_effect = ValueError("Invalid workflow")
+        def mock_from_config_file():
+            msg = "Invalid workflow"
+            raise ValueError(msg)
 
-            result = runner.invoke(app, ["verify", str(sample_workflow_file)])
+        monkeypatch.setattr("sirocco.parsing.ConfigWorkflow.from_config_file", mock_from_config_file)
 
-            assert result.exit_code == 1
-            assert "❌ Workflow validation failed" in result.stdout
+        result = runner.invoke(app, ["verify", str(sample_workflow_file)])
+
+        assert result.exit_code == 1
+        assert "❌ Workflow validation failed" in result.stdout
 
     def test_visualize_command_default_output(self, runner, sample_workflow_file):
         """Test the visualize command with default output path."""
@@ -84,7 +87,7 @@ class TestCLICommands:
         assert result.exit_code == 0
         assert "✅ Visualization saved to" in result.stdout
         # Can contain line breaks in this part of the output string
-        assert "test_workflow.svg" in result.stdout.replace('\n', '')
+        assert "test_workflow.svg" in result.stdout.replace("\n", "")
 
     def test_visualize_command_custom_output(self, runner, sample_workflow_file, tmp_path):
         """Test the visualize command with custom output path."""
@@ -94,7 +97,7 @@ class TestCLICommands:
 
         assert result.exit_code == 0
         assert "✅ Visualization saved to" in result.stdout
-        assert "custom_output.svg" in result.stdout.replace('\n', '')
+        assert "custom_output.svg" in result.stdout.replace("\n", "")
 
     def test_visualize_invalid_output_path(self, runner, sample_workflow_file):
         """Test visualize command with invalid output path."""
@@ -125,63 +128,73 @@ class TestCLICommands:
         assert "✅ Workflow execution finished" in result.stdout
 
     @pytest.mark.usefixtures("aiida_localhost")
-    def test_run_execution_failure(self, runner, sample_workflow_file):
+    def test_run_execution_failure(self, runner, sample_workflow_file, monkeypatch):
         """Test handling of workflow execution failures."""
 
-        with patch("sirocco.workgraph.AiidaWorkGraph.run") as mock_run:
-            mock_run.side_effect = Exception("Execution failed")
-            result = runner.invoke(app, ["run", str(sample_workflow_file)])
+        def mock_run():
+            msg = "Execution failed"
+            raise Exception(msg)  # noqa: TRY002 | raise-vanilla-class
 
-            assert result.exit_code == 1
-            assert "❌ Workflow execution failed during run" in result.stdout
+        monkeypatch.setattr("sirocco.workgraph.AiidaWorkGraph.run", mock_run)
 
-    @pytest.mark.usefixtures("aiida_localhost")
-    def test_submit_command_basic(self, runner, sample_workflow_file):
-        """Test the submit command without waiting."""
+        result = runner.invoke(app, ["run", str(sample_workflow_file)])
 
-        # Mock the entire submit process to avoid all validation
-        with patch("sirocco.cli._prepare_aiida_workgraph") as mock_prepare:
-            mock_aiida_wg = Mock()
-            mock_aiida_wg._core_workflow.name = "minimal_submit_test"  # noqa: SLF001
-
-            # Create a simple mock result that bypasses isinstance checks
-            mock_result = Mock()
-            mock_result.pk = 12345
-            mock_aiida_wg.submit.return_value = mock_result
-            mock_prepare.return_value = mock_aiida_wg
-
-            result = runner.invoke(app, ["submit", str(sample_workflow_file)])
-
-            assert result.exit_code == 0
-            assert "🚀 Submitting workflow" in result.stdout
+        assert result.exit_code == 1
+        assert "❌ Workflow execution failed during run" in result.stdout
 
     @pytest.mark.usefixtures("aiida_localhost")
-    def test_submit_command_with_wait(self, runner, sample_workflow_file):
-        """Test the submit command with wait option."""
-        with patch("sirocco.cli._prepare_aiida_workgraph") as mock_prepare:
-            mock_aiida_wg = Mock()
-            mock_aiida_wg._core_workflow.name = "test_workflow"  # noqa: SLF001
-            mock_result = Mock()
-            mock_result.pk = 12345
-            mock_aiida_wg.submit.return_value = mock_result
-            mock_prepare.return_value = mock_aiida_wg
+    def test_submit_command_basic(self, runner, sample_workflow_file, monkeypatch):
+        """Test the submit command."""
 
-            result = runner.invoke(app, ["submit", str(sample_workflow_file), "--wait", "--timeout", "120"])
+        mock_aiida_wg = Mock()
+        mock_aiida_wg._core_workflow.name = "test_workflow"  # noqa: SLF001
+        mock_result = Mock()
+        mock_result.pk = 12345
+        mock_aiida_wg.submit.return_value = mock_result
 
-            # Verify the submit method was called with correct parameters
-            mock_aiida_wg.submit.assert_called_once_with(inputs=None, wait=True, timeout=120)
-            assert result.exit_code == 0
+        def mock_prepare_workgraph(_workflow_file):
+            return mock_aiida_wg
+
+        monkeypatch.setattr("sirocco.cli._prepare_aiida_workgraph", mock_prepare_workgraph)
+
+        result = runner.invoke(app, ["submit", str(sample_workflow_file)])
+
+        assert result.exit_code == 0
+        assert "🚀 Submitting workflow" in result.stdout
+
+    # @pytest.mark.usefixtures("aiida_localhost")
+    # def test_submit_command_basic(self, runner, sample_workflow_file, monkeypatch):
+    #     """Test the submit command."""
+
+    #     # Create mock objects (you can still use Mock for object creation)
+    #     mock_aiida_wg = Mock()
+    #     mock_aiida_wg._core_workflow.name = "test_workflow"  # | private-member-access
+    #     mock_result = Mock()
+    #     mock_result.pk = 12345
+    #     mock_aiida_wg.submit.return_value = mock_result
+
+    #     # Use monkeypatch instead of patch context manager
+    #     monkeypatch.setattr("sirocco.cli._prepare_aiida_workgraph", lambda: mock_aiida_wg)
+
+    #     result = runner.invoke(app, ["submit", str(sample_workflow_file)])
+
+    #     assert result.exit_code == 0
+    #     assert "🚀 Submitting workflow" in result.stdout
 
     @pytest.mark.usefixtures("aiida_localhost")
-    def test_submit_execution_failure(self, runner, sample_workflow_file):
+    def test_submit_execution_failure(self, runner, sample_workflow_file, monkeypatch):
         """Test handling of workflow submission failures."""
 
-        with patch("sirocco.workgraph.AiidaWorkGraph.submit") as mock_submit:
-            mock_submit.side_effect = Exception("Submission failed")
-            result = runner.invoke(app, ["submit", str(sample_workflow_file)])
+        def mock_submit():
+            msg = "Submission failed"
+            raise Exception(msg)  # noqa: TRY002 | raise-vanilla-class
 
-            assert result.exit_code == 1
-            assert "❌ Workflow submission failed" in result.stdout
+        monkeypatch.setattr("sirocco.workgraph.AiidaWorkGraph.submit", mock_submit)
+
+        result = runner.invoke(app, ["submit", str(sample_workflow_file)])
+
+        assert result.exit_code == 1
+        assert "❌ Workflow submission failed" in result.stdout
 
 
 @pytest.mark.usefixtures("aiida_localhost")

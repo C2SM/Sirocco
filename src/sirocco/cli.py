@@ -200,22 +200,6 @@ def submit(
             help="Path to the workflow definition YAML file.",
         ),
     ],
-    wait: Annotated[  # noqa: FBT002 | boolean-default-value-positional-argument
-        bool,
-        typer.Option(
-            "--wait",
-            "-w",
-            help="Wait for the workflow to complete after submission.",
-        ),
-    ] = False,
-    timeout: Annotated[
-        int,
-        typer.Option(
-            "--timeout",
-            "-t",
-            help="Timeout in seconds when waiting (if --wait is used).",
-        ),
-    ] = 3600,
 ):
     """Submit the workflow to the AiiDA daemon."""
 
@@ -224,10 +208,7 @@ def submit(
         console.print(
             f"🚀 Submitting workflow [magenta]'{aiida_wg._core_workflow.name}'[/magenta] to AiiDA daemon..."  # noqa: SLF001 | private-member-access
         )
-        if wait:
-            results_node = aiida_wg.submit(inputs=None, wait=wait, timeout=timeout)
-        else:
-            results_node = aiida_wg.submit(inputs=None)
+        results_node = aiida_wg.submit(inputs=None)
 
         console.print(f"[green]✅ Workflow submitted. PK: {results_node.pk}[/green]")
 
