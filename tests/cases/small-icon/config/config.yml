@@ -33,14 +33,16 @@ cycles:
                   port: latest_restart_file
               - atmo_log
   - lastly:
-      cycling:
-        start_date: '2026-03-01T00:00'
-        stop_date: '2026-04-01T00:00'
-        period: P1M
       tasks:
         - cleanup:
+            wait_on:
+              - icon:
+                  target_cycle:
+                    date: 2026-05-01T00:00
             inputs:
               - atmo_log:
+                  when:
+                    at: 2026-05-01T00:00
                   target_cycle:
                     lag: ['P0M']
                   port: None
