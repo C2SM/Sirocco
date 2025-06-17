@@ -10,7 +10,7 @@ from sirocco import core, parsing, pretty_print, vizgraph
 from sirocco.workgraph import AiidaWorkGraph
 
 # --- Typer App and Rich Console Setup ---
-# Install rich tracebacks for beautiful error reporting
+# Print tracebacks with syntax highlighting and rich formatting
 install_rich_traceback(show_locals=False)
 
 # Create the Typer app instance
@@ -23,16 +23,26 @@ app = typer.Typer(
 console = Console()
 
 
-def _prepare_aiida_workgraph(workflow_file: Path) -> AiidaWorkGraph:
-    """Helper to prepare AiidaWorkGraph from workflow file."""
+def _create_aiida_workflow(workflow_file: Path) ->  AiidaWorkGraph:
     load_profile()
+    config_workflow = parsing.ConfigWorkflow.from_config_file(str(workflow_file))
+    core_wf = core.Workflow.from_config_workflow(config_workflow)
+    return AiidaWorkGraph(core_wf)
+
+def create_aiida_workflow(workflow_file: Path) -> AiidaWorkGraph:
+    """Helper to prepare AiidaWorkGraph from workflow file."""
+
+    from aiida.common import ProfileConfigurationError
 
     try:
-        config_workflow = parsing.ConfigWorkflow.from_config_file(str(workflow_file))
-        core_wf = core.Workflow.from_config_workflow(config_workflow)
-        aiida_wg = AiidaWorkGraph(core_wf)
-        console.print(f"⚙️ Workflow [magenta]'{core_wf.name}'[/magenta] prepared for AiiDA execution.")
+        aiida_wg = _create_aiida_workflow(workflow_file=workflow_file)
+        console.print(f"⚙️ Workflow [magenta]'{aiida_wg.name}'[/magenta] prepared for AiiDA execution.")
         return aiida_wg  # noqa: TRY300 | try-consider-else -> shouldn't move this to `else` block
+    except ProfileConfigurationError as e:
+        console.print(f"[bold red]❌ No AiiDA profile set up: {e}[/bold red]")
+        console.print("[bold green]You can create one using `verdi presto`[/bold green]")
+        console.print_exception()
+        raise typer.Exit(code=1)
     except Exception as e:
         console.print(f"[bold red]❌ Failed to prepare AiiDA workflow: {e}[/bold red]")
         console.print_exception()
@@ -174,7 +184,7 @@ def run(
         ),
     ],
 ):
-    aiida_wg = _prepare_aiida_workgraph(workflow_file)
+    aiida_wg = create_aiida_workflow(workflow_file)
     console.print(
         f"▶️ Running workflow [magenta]'{aiida_wg._core_workflow.name}'[/magenta] directly (blocking)..."  # noqa: SLF001 | private-member-access
     )
@@ -203,7 +213,7 @@ def submit(
 ):
     """Submit the workflow to the AiiDA daemon."""
 
-    aiida_wg = _prepare_aiida_workgraph(workflow_file)
+    aiida_wg = create_aiida_workflow(workflow_file)
     try:
         console.print(
             f"🚀 Submitting workflow [magenta]'{aiida_wg._core_workflow.name}'[/magenta] to AiiDA daemon..."  # noqa: SLF001 | private-member-access

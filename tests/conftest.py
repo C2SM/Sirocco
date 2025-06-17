@@ -295,41 +295,29 @@ def test_rootdir(pytestconfig):
 
 
 @pytest.fixture
-def sample_workflow_file(tmp_path):
-    """Create a minimal valid workflow file for testing."""
-    workflow_content = textwrap.dedent(
+def minimal_config_path(tmp_path):
+    minimal_config = textwrap.dedent(
         """
-        name: test_workflow
+        name: minimal
         cycles:
-          - test_cycle:
-                tasks:
-                - test_task:
+          - minimal:
+              tasks:
+                - a:
         tasks:
-          - test_task:
-                plugin: shell
-                command: "/usr/bin/echo hello"
-                computer: localhost
+          - a:
+              plugin: shell
+              computer: localhost
+              command: some_command
         data:
           available:
-            - input_data:
-                type: file
-                src: TEST_FILE
-                computer: localhost
+            - c:
+                computer: "localhost"
+                src: "/c.txt"
           generated:
-            - output_data:
-                type: file
-                src: test_output.txt
+            - d:
+                src: "d"
         """
     )
-
-    # Create a dummy input file referenced in the workflow
-    input_file = tmp_path / "test_input.txt"
-    input_file.write_text("test input")
-
-    # Replace TEST_FILE with the actual path
-    workflow_content = workflow_content.replace("TEST_FILE", str(input_file))
-
-    workflow_file = tmp_path / "test_workflow.yml"
-    workflow_file.write_text(workflow_content)
-
-    return workflow_file
+    minimal = tmp_path / "minimal.yml"
+    minimal.write_text(minimal_config)
+    return minimal
