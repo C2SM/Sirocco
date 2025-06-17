@@ -1,5 +1,3 @@
-import textwrap
-
 import pytest
 
 from sirocco.parsing import yaml_data_models as models

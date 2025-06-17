@@ -1,7 +1,7 @@
 """Tests for the sirocco CLI interface.
 
-These tests focus on the CLI layer, testing command parsing and basic integration
-rather than the underlying functionality which should be tested elsewhere.
+These tests focus on the CLI layer, testing command parsing and basic integration using mocking, rather than the
+underlying functionality which should be tested elsewhere.
 """
 
 import re
@@ -24,6 +24,63 @@ def strip_ansi(text):
 def runner():
     """Create a typer test runner."""
     return typer.testing.CliRunner()
+
+
+@pytest.fixture
+def mock_aiida_wg():
+    """Create a mock AiiDA WorkGraph with common setup."""
+    mock_wg = Mock()
+    mock_wg._core_workflow.name = "minimal"  # noqa: SLF001 | private-member-access
+    return mock_wg
+
+
+@pytest.fixture
+def mock_successful_run(mock_aiida_wg):
+    """Setup mock for successful workflow run."""
+    mock_aiida_wg.run.return_value = None
+    return mock_aiida_wg
+
+
+@pytest.fixture
+def mock_successful_submit(mock_aiida_wg):
+    """Setup mock for successful workflow submission."""
+    mock_result = Mock()
+    mock_result.pk = 12345
+    mock_aiida_wg.submit.return_value = mock_result
+    return mock_aiida_wg
+
+
+@pytest.fixture
+def mock_failed_submit(mock_aiida_wg):
+    """Setup mock for failed workflow submission."""
+
+    def mock_submit():
+        msg = "Submission failed"
+        raise Exception(msg)  # noqa: TRY002 | raise-vanilla-class
+
+    mock_aiida_wg.submit = mock_submit
+    return mock_aiida_wg
+
+
+@pytest.fixture
+def mock_failed_run(mock_aiida_wg):
+    """Setup mock for failed workflow run."""
+
+    def mock_run():
+        msg = "Execution failed"
+        raise Exception(msg)  # noqa: TRY002 | raise-vanilla-class
+
+    mock_aiida_wg.run = mock_run
+    return mock_aiida_wg
+
+
+def mock_create_aiida_workflow_factory(mock_wg):
+    """Factory function to create a mock_create_aiida_workflow function."""
+
+    def mock_create_aiida_workflow(_workflow_file):
+        return mock_wg
+
+    return mock_create_aiida_workflow
 
 
 class TestCLICommands:
@@ -117,20 +174,12 @@ class TestCLICommands:
         assert "minimal" in result.stdout  # Should contain workflow name
 
     @pytest.mark.usefixtures("aiida_localhost")
-    def test_run_command(self, runner, minimal_config_path, monkeypatch):
+    def test_run_command(self, runner, minimal_config_path, mock_successful_run, monkeypatch):
         """Test the run command."""
-        from unittest.mock import Mock
-
-        # Create a mock AiidaWorkGraph
-        mock_aiida_wg = Mock()
-        mock_aiida_wg._core_workflow.name = "minimal"  # noqa: SLF001
-        mock_aiida_wg.run.return_value = None
-
-        # Mock the _create_aiida_workflow function to return our mock
-        def mock_create_aiida_workflow(_workflow_file):
-            return mock_aiida_wg
-
-        monkeypatch.setattr("sirocco.cli.create_aiida_workflow", mock_create_aiida_workflow)
+        # Use the factory to create the mock function
+        monkeypatch.setattr(
+            "sirocco.cli.create_aiida_workflow", mock_create_aiida_workflow_factory(mock_successful_run)
+        )
 
         result = runner.invoke(app, ["run", str(minimal_config_path)])
 
@@ -138,26 +187,13 @@ class TestCLICommands:
         assert "▶️ Running workflow" in result.stdout
         assert "✅ Workflow execution finished" in result.stdout
         # Verify the mock was called correctly
-        mock_aiida_wg.run.assert_called_once_with(inputs=None)
+        mock_successful_run.run.assert_called_once_with(inputs=None)
 
     @pytest.mark.usefixtures("aiida_localhost")
-    def test_run_execution_failure(self, runner, minimal_config_path, monkeypatch):
+    def test_run_execution_failure(self, runner, minimal_config_path, mock_failed_run, monkeypatch):
         """Test handling of workflow execution failures."""
-        from unittest.mock import Mock
-
-        # Create a mock AiidaWorkGraph
-        mock_aiida_wg = Mock()
-        mock_aiida_wg._core_workflow.name = "minimal"  # noqa: SLF001
-
-        # Mock the execution to fail
-        def mock_run():
-            msg = "Execution failed"
-            raise Exception(msg)  # noqa: TRY002 | raise-vanilla-class
-
-        mock_aiida_wg.run = mock_run
-
-        # Mock the workflow creation to return our mock (bypassing file issues)
-        monkeypatch.setattr("sirocco.cli.create_aiida_workflow", lambda _: mock_aiida_wg)
+        # Use the factory to create the mock function
+        monkeypatch.setattr("sirocco.cli.create_aiida_workflow", mock_create_aiida_workflow_factory(mock_failed_run))
 
         result = runner.invoke(app, ["run", str(minimal_config_path)])
 
@@ -165,19 +201,12 @@ class TestCLICommands:
         assert "❌ Workflow execution failed during run" in result.stdout
 
     @pytest.mark.usefixtures("aiida_localhost")
-    def test_submit_command_basic(self, runner, minimal_config_path, monkeypatch):
+    def test_submit_command_basic(self, runner, minimal_config_path, mock_successful_submit, monkeypatch):
         """Test the submit command."""
-
-        mock_aiida_wg = Mock()
-        mock_aiida_wg._core_workflow.name = "minimal"  # noqa: SLF001
-        mock_result = Mock()
-        mock_result.pk = 12345
-        mock_aiida_wg.submit.return_value = mock_result
-
-        def mock_prepare_workgraph(_workflow_file):
-            return mock_aiida_wg
-
-        monkeypatch.setattr("sirocco.cli.create_aiida_workflow", mock_prepare_workgraph)
+        # Use the factory to create the mock function
+        monkeypatch.setattr(
+            "sirocco.cli.create_aiida_workflow", mock_create_aiida_workflow_factory(mock_successful_submit)
+        )
 
         result = runner.invoke(app, ["submit", str(minimal_config_path)])
 
@@ -187,21 +216,8 @@ class TestCLICommands:
     @pytest.mark.usefixtures("aiida_localhost")
     def test_submit_execution_failure(self, runner, minimal_config_path, monkeypatch):
         """Test handling of workflow submission failures."""
-        from unittest.mock import Mock
-
-        # Create a mock AiidaWorkGraph
-        mock_aiida_wg = Mock()
-        mock_aiida_wg._core_workflow.name = "minimal"  # noqa: SLF001
-
-        # Mock the submission to fail
-        def mock_submit():
-            msg = "Submission failed"
-            raise Exception(msg)  # noqa: TRY002 | raise-vanilla-class
-
-        mock_aiida_wg.submit = mock_submit
-
-        # Mock the workflow creation to return our mock (bypassing file issues)
-        monkeypatch.setattr("sirocco.cli.create_aiida_workflow", lambda _: mock_aiida_wg)
+        # Use the factory to create the mock function
+        monkeypatch.setattr("sirocco.cli.create_aiida_workflow", mock_create_aiida_workflow_factory(mock_failed_submit))
 
         result = runner.invoke(app, ["submit", str(minimal_config_path)])
 

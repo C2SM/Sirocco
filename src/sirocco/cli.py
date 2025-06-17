@@ -23,11 +23,12 @@ app = typer.Typer(
 console = Console()
 
 
-def _create_aiida_workflow(workflow_file: Path) ->  AiidaWorkGraph:
+def _create_aiida_workflow(workflow_file: Path) -> AiidaWorkGraph:
     load_profile()
     config_workflow = parsing.ConfigWorkflow.from_config_file(str(workflow_file))
     core_wf = core.Workflow.from_config_workflow(config_workflow)
     return AiidaWorkGraph(core_wf)
+
 
 def create_aiida_workflow(workflow_file: Path) -> AiidaWorkGraph:
     """Helper to prepare AiidaWorkGraph from workflow file."""
@@ -42,7 +43,7 @@ def create_aiida_workflow(workflow_file: Path) -> AiidaWorkGraph:
         console.print(f"[bold red]❌ No AiiDA profile set up: {e}[/bold red]")
         console.print("[bold green]You can create one using `verdi presto`[/bold green]")
         console.print_exception()
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
     except Exception as e:
         console.print(f"[bold red]❌ Failed to prepare AiiDA workflow: {e}[/bold red]")
         console.print_exception()
