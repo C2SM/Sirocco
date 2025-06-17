@@ -56,34 +56,34 @@ cycles:
 tasks:
   - icon:
       plugin: shell
-      computer: localhost
+      computer: remote
       src: scripts/icon.py
       command: "python icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}"
       parameters: [foo, bar]
   - statistics_foo:
       plugin: shell
-      computer: localhost
+      computer: remote
       src: scripts/statistics.py
       command: "python statistics.py {PORT::None}"
       parameters: [bar]
   - statistics_foo_bar:
       plugin: shell
-      computer: localhost
+      computer: remote
       src: scripts/statistics.py
       command: "python statistics.py {PORT::None}"
   - merge:
       plugin: shell
-      computer: localhost
+      computer: remote
       src: scripts/merge.py
       command: "python merge.py {PORT::None}"
 
 data:
   available:
     - initial_conditions:
-        computer: localhost
+        computer: remote
         src: /TESTS_ROOTDIR/tests/cases/parameters/config/data/initial_conditions
     - forcing:
-        computer: localhost
+        computer: remote
         src: /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
   generated:
     - icon_output:

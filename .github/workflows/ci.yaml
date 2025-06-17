@@ -30,6 +30,20 @@ jobs:
         pip install hatch
     - name: Install Graphviz
       run: sudo apt-get install graphviz graphviz-dev
+    - name: Set up SSH on localhost
+      run: |
+        # Start SSH daemon
+        sudo systemctl start ssh
+
+        ssh-keygen -q -t rsa -b 4096 -N "" -f "${HOME}/.ssh/id_rsa"
+        ssh-keygen -y -f "${HOME}/.ssh/id_rsa" >> "${HOME}/.ssh/authorized_keys"
+        ssh-keyscan -H localhost >> "${HOME}/.ssh/known_hosts"
+
+        # The permissions on the GitHub runner are 777 which will cause SSH to refuse the keys and cause authentication to fail
+        chmod 755 "${HOME}"
+
+        # Test SSH connection
+        ssh -o StrictHostKeyChecking=no localhost 'echo "SSH connection successful"'
     - name: Install package
       run: |
         pip install .
@@ -38,7 +52,7 @@ jobs:
       env:
         PYTEST_ADDOPTS: "--durations=0"
       run: |
-        hatch test -m "not requires_icon" --parallel --cover
+        hatch test --cover --parallel -- -m "not requires_icon" --remote localhost-ssh
 
   docs:
     runs-on: ubuntu-latest

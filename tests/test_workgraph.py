@@ -6,7 +6,7 @@ from sirocco.workgraph import AiidaWorkGraph
 
 
 # Hardcoded, explicit integration test based on the `parameters` case for now
-@pytest.mark.usefixtures("aiida_localhost", "config_case")
+@pytest.mark.usefixtures("config_case", "aiida_localhost", "aiida_remote_computer")
 @pytest.mark.parametrize(
     "config_case",
     [
@@ -116,7 +116,7 @@ def test_shell_filenames_nodes_arguments(config_paths):
     assert nodes_list == expected_nodes_list
 
 
-@pytest.mark.usefixtures("aiida_localhost", "config_case")
+@pytest.mark.usefixtures("config_case", "aiida_localhost", "aiida_remote_computer")
 @pytest.mark.parametrize(
     "config_case",
     [

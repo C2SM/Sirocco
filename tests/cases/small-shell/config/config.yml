@@ -34,18 +34,19 @@ cycles:
 tasks:
   - icon:
       plugin: shell
-      computer: localhost
+      computer: remote
       src: scripts/icon.py
       command: "python icon.py --restart {PORT::restart} --init {PORT::init}"
-      env_source_files: $TEST_ROOTDIR/tests/cases/small-shell/config/data/dummy_source_file.sh
+      env_source_files: /TESTS_ROOTDIR/tests/cases/small-shell/config/data/dummy_source_file.sh
   - cleanup:
       plugin: shell
-      computer: localhost
+      computer: remote
       src: scripts/cleanup.py
       command: "python cleanup.py"
 data:
   available:
      - icon_namelist:
+         # Different computer between task and available data
          computer: localhost
          src: /TESTS_ROOTDIR/tests/cases/small-shell/config/data/input
      - initial_conditions:

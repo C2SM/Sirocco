@@ -13,7 +13,7 @@ cycles:
               - restart [date: 2026-01-01 00:00:00]
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
-            computer: 'localhost'
+            computer: 'remote'
             cycle point: [2026-01-01 00:00:00 -- 2026-03-01 00:00:00]
             plugin: 'icon'
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='model.namelist')]
@@ -32,7 +32,7 @@ cycles:
               - restart [date: 2026-03-01 00:00:00]
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 3, 1, 0, 0)}
-            computer: 'localhost'
+            computer: 'remote'
             cycle point: [2026-03-01 00:00:00 -- 2026-05-01 00:00:00]
             plugin: 'icon'
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='model.namelist')]
@@ -51,7 +51,7 @@ cycles:
               - restart [date: 2026-05-01 00:00:00]
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 5, 1, 0, 0)}
-            computer: 'localhost'
+            computer: 'remote'
             cycle point: [2026-05-01 00:00:00 -- 2026-06-01 00:00:00]
             plugin: 'icon'
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='model.namelist')]
@@ -62,7 +62,7 @@ cycles:
               - icon [date: 2026-05-01 00:00:00]
             name: 'cleanup'
             coordinates: {}
-            computer: 'localhost'
+            computer: 'remote'
             cycle point: []
             plugin: 'shell'
             command: 'python cleanup.py'
