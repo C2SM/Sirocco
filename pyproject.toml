@@ -41,8 +41,8 @@ dependencies = [
   "lxml",
   "f90nml",
   "aiida-shell>=0.8.1",
-  "rich",
-  "typer"
+  "rich~=14.0",
+  "typer~=0.16.0",
 ]
 license = {file = "LICENSE"}
 
