@@ -37,7 +37,7 @@ def create_aiida_workflow(workflow_file: Path) -> AiidaWorkGraph:
 
     try:
         aiida_wg = _create_aiida_workflow(workflow_file=workflow_file)
-        console.print(f"⚙️ Workflow [magenta]'{aiida_wg.name}'[/magenta] prepared for AiiDA execution.")
+        console.print(f"⚙️ Workflow [magenta]'{aiida_wg._workgraph.name}'[/magenta] prepared for AiiDA execution.")  # noqa: SLF001 | private-member-access
         return aiida_wg  # noqa: TRY300 | try-consider-else -> shouldn't move this to `else` block
     except ProfileConfigurationError as e:
         console.print(f"[bold red]❌ No AiiDA profile set up: {e}[/bold red]")
