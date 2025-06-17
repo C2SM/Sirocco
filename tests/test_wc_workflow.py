@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 import pytest
@@ -6,6 +7,8 @@ from sirocco.core import Workflow
 from sirocco.core._tasks.icon_task import IconTask
 from sirocco.vizgraph import VizGraph
 from sirocco.workgraph import AiidaWorkGraph
+
+logger = logging.getLogger(__name__)
 
 
 def test_parse_config_file(config_paths, pprinter):
@@ -49,6 +52,15 @@ def test_run_workgraph(config_paths):
     core_workflow = Workflow.from_config_file(str(config_paths["yml"]))
     aiida_workflow = AiidaWorkGraph(core_workflow)
     output_node = aiida_workflow.run()
+    if not output_node.is_finished_ok:
+        from aiida.cmdline.utils.common import get_calcjob_report, get_workchain_report
+
+        # overall report but often not enough to really find the bug, one has to go to calcjob
+        logger.warning("Workchain report:\n%s", get_workchain_report(output_node, levelname="REPORT"))
+        # the calcjobs are typically stored in 'called_descendants'
+        for node in output_node.called_descendants:
+            logger.warning("%s workdir: %s", node.process_label, node.get_remote_workdir())
+            logger.warning("%s report:\n%s", node.process_label, get_calcjob_report(node))
     assert (
         output_node.is_finished_ok
     ), f"Not successful run. Got exit code {output_node.exit_code} with message {output_node.exit_message}."
@@ -81,6 +93,16 @@ def test_run_workgraph_with_icon(icon_filepath_executable, config_paths, tmp_pat
     core_workflow = Workflow.from_config_file(tmp_config_rootdir / config_paths["yml"].name)
     aiida_workflow = AiidaWorkGraph(core_workflow)
     output_node = aiida_workflow.run()
+    if not output_node.is_finished_ok:
+        from aiida.cmdline.utils.common import get_calcjob_report, get_workchain_report
+
+        # overall report but often not enough to really find the bug, one has to go to calcjob
+        logger.warning("Workchain report:\n%s", get_workchain_report(output_node, levelname="REPORT"))
+        # the calcjobs are typically stored in 'called_descendants'
+        for node in output_node.called_descendants:
+            logger.warning("%s workdir: %s", node.process_label, node.get_remote_workdir())
+            logger.warning("%s report:\n%s", node.process_label, get_calcjob_report(node))
+
     assert (
         output_node.is_finished_ok
     ), f"Not successful run. Got exit code {output_node.exit_code} with message {output_node.exit_message}."
