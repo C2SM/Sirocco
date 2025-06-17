@@ -54,27 +54,20 @@ tasks:
 data:
   available:
      - icon_grid_simple:
-         type: file
          src: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/icon_grid_simple.nc
          computer: remote
      - ecrad_data:
-         type: file
          src: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/ecrad_data
          computer: remote
      - ECHAM6_CldOptProps:
-         type: file
          src: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/ECHAM6_CldOptProps.nc
          computer: remote
      - rrtmg_sw:
-         type: file
          src: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/rrtmg_sw.nc
          computer: remote
      - dmin_wetgrowth_lookup:
-         type: file
          src: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/dmin_wetgrowth_lookup.nc
          computer: remote
   generated:
      - finish:
-         type: file
      - restart:
-         type: file
