@@ -91,3 +91,6 @@ jobs:
 
         # The script outputs the START command, but we'll run ICON directly
         $ICON_PATH
+    - name: Setup upterm session on failure
+      uses: lhotari/action-upterm@v1
+      if: failure()
