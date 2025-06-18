@@ -75,9 +75,7 @@ data:
          src: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/dmin_wetgrowth_lookup.nc
          computer: remote
   generated:
-     - finish:
-         type: file
-     - restart:
-         type: file
+     - finish: {}
+     - restart: {}
      - atmo_log:
          src: nml.atmo.log
