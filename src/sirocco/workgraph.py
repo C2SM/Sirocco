@@ -13,6 +13,7 @@ import aiida_workgraph  # type: ignore[import-untyped] # does not have proper ty
 import aiida_workgraph.tasks.factory.shelljob_task  # type: ignore[import-untyped]  # is only for a workaround
 from aiida.common.exceptions import NotExistent
 from aiida_icon.calculations import IconCalculation
+from aiida_shell.parsers.shell import ShellParser
 
 from sirocco import core
 
@@ -338,8 +339,8 @@ class AiidaWorkGraph:
         output_label = self.get_aiida_label_from_graph_item(output)
 
         if port is None:
-            from aiida_shell.parsers.shell import ShellParser
 
+            # To avoid nested namespaces due to dots in name
             output_socket = workgraph_task.add_output("workgraph.any", ShellParser.format_link_label(str(output.src)))
 
             workgraph_task.inputs.metadata.options.additional_retrieve_list.value.append(str(output.src))
