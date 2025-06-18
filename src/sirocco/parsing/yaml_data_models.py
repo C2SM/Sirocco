@@ -285,7 +285,6 @@ class ConfigShellTaskSpecs:
         default=None, metadata={"description": ("Script file relative to the config directory.")}, repr=False
     )
     command: str
-    env_source_files: list[str] = field(default_factory=list)
 
     def resolve_ports(self, input_labels: dict[str, list[str]]) -> str:
         """Replace port placeholders in command string with provided input labels.
@@ -356,25 +355,16 @@ class ConfigShellTask(ConfigBaseTask, ConfigShellTaskSpecs):
         ...       computer: localhost
         ...       command: "my_script.sh -n 1024 {PORT::current_sim_output}"
         ...       src: post_run_scripts/my_script.sh
-        ...       env_source_files: "env.sh"
         ...       walltime: 00:01:00
         ...     '''
         ...     ),
         ... )
-        >>> my_task.env_source_files
-        ['env.sh']
         >>> my_task.walltime.tm_min
         1
     """
 
     # We need to loosen up the extra='forbid' flag because of the plugin class var
     model_config = ConfigDict(**ConfigBaseTask.model_config | {"extra": "ignore"})
-    env_source_files: list[str] = Field(default_factory=list)
-
-    @field_validator("env_source_files", mode="before")
-    @classmethod
-    def validate_env_source_files(cls, value: str | list[str]) -> list[str]:
-        return [value] if isinstance(value, str) else value
 
     @field_validator("src")
     @classmethod
