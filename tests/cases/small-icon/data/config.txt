@@ -15,6 +15,11 @@ cycles:
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
             computer: 'remote'
+            nodes: 1
+            walltime: '00:05:00'
+            ntasks per node: 1
+            cpus per task: 1
+            mpi cmd: 'mpirun -np {MPI_TOTAL_PROCS}'
             cycle point: [2026-01-01 00:00:00 -- 2026-03-01 00:00:00]
             plugin: 'icon'
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='model.namelist')]
@@ -35,6 +40,11 @@ cycles:
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 3, 1, 0, 0)}
             computer: 'remote'
+            nodes: 1
+            walltime: '00:05:00'
+            ntasks per node: 1
+            cpus per task: 1
+            mpi cmd: 'mpirun -np {MPI_TOTAL_PROCS}'
             cycle point: [2026-03-01 00:00:00 -- 2026-05-01 00:00:00]
             plugin: 'icon'
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='model.namelist')]
@@ -55,6 +65,11 @@ cycles:
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 5, 1, 0, 0)}
             computer: 'remote'
+            nodes: 1
+            walltime: '00:05:00'
+            ntasks per node: 1
+            cpus per task: 1
+            mpi cmd: 'mpirun -np {MPI_TOTAL_PROCS}'
             cycle point: [2026-05-01 00:00:00 -- 2026-06-01 00:00:00]
             plugin: 'icon'
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='model.namelist')]
@@ -66,6 +81,11 @@ cycles:
             name: 'cleanup'
             coordinates: {}
             computer: 'remote'
+            nodes: 1
+            walltime: '00:05:00'
+            ntasks per node: 1
+            cpus per task: 1
+            mpi cmd: 'mpirun -np {MPI_TOTAL_PROCS}'
             cycle point: []
             plugin: 'shell'
             command: 'python cleanup.py'

@@ -18,7 +18,7 @@ from sirocco.parsing import yaml_data_models as models
 
 pytest_plugins = ["aiida.tools.pytest_fixtures"]
 
-LOGGER = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class DownloadError(RuntimeError):
@@ -43,10 +43,10 @@ def icon_grid_path(pytestconfig):
 
     # Check if the file is already cached
     if icon_grid_path.exists():
-        LOGGER.info("Found icon grid in cache, reusing it.")
+        logger.info("Found icon grid in cache, reusing it.")
     else:
         # File is not cached, download and save it
-        LOGGER.info("Downloading and caching icon grid.")
+        logger.info("Downloading and caching icon grid.")
         download_file(url, icon_grid_path)
 
     return icon_grid_path
@@ -185,7 +185,7 @@ def serialize_nml(config_paths: dict[str, pathlib.Path], workflow: workflow.Work
 
 def pytest_configure(config):
     if config.getoption("reserialize"):
-        LOGGER.info("Regenerating serialized references")
+        logger.info("Regenerating serialized references")
         for config_case in ALL_CONFIG_CASES:
             config_paths = generate_config_paths(config_case)
             for key, value in config_paths.items():
@@ -263,10 +263,19 @@ def aiida_computer_session(tmp_path_factory) -> t.Callable[[], "Computer"]:
 
 
 @pytest.fixture(scope="session")
-def aiida_remote_computer(request, aiida_computer_session):
+def aiida_remote_computer(request, aiida_computer_session, test_rootdir):
     comp_spec = request.config.getoption("remote")
 
-    if comp_spec == "localhost-ssh":
+    if comp_spec == "localhost":
+        try:
+            computer = load_computer("remote")
+        except NotExistent:
+            computer = aiida_computer_session(label="remote", hostname="localhost", transport_type="core.local")
+            computer.configure(
+                safe_interval=0.1,
+            )
+
+    elif comp_spec == "localhost-ssh":
         try:
             computer = load_computer("remote")
         except NotExistent:
@@ -278,14 +287,28 @@ def aiida_remote_computer(request, aiida_computer_session):
                 safe_interval=0.1,
             )
 
-        return computer
+    elif comp_spec == "test-integration":
+        computer = aiida_computer_session(label="remote", hostname="localhost", transport_type="core.ssh")
 
-    elif comp_spec == "cscs-ci":  # noqa: RET505 | superfluous-else-return
+        computer.configure(
+            key_filename=f"{os.environ['HOME']}/.ssh/id_rsa",
+            key_policy="AutoAddPolicy",
+            safe_interval=0.1,
+        )
+
+        # required to load mpi and options for icon
+        # FIXME: intermangles computer setup and CI specific needs, need to pass this information somehow from CI
+        computer.set_prepend_text(f""". /home/runner/work/Sirocco/Sirocco/spack/share/spack/setup-env.sh || true
+spack env activate {test_rootdir}""")
+
+    elif comp_spec == "cscs-ci":
         msg = "Infrastructure for FirecREST net setup yet."
         raise NotImplementedError(msg)
     else:
         msg = f"Wrong `remote` marker specified: {comp_spec}. Choose either `localhost-ssh` or `cscs-ci`."
         raise ValueError(msg)
+
+    return computer
 
 
 @pytest.fixture(scope="session")

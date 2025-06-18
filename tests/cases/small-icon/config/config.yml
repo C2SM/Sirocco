@@ -48,11 +48,21 @@ tasks:
       namelists:
         - ./ICON/icon_master.namelist
         - ./ICON/model.namelist
+      mpi_cmd: "mpirun -np {MPI_TOTAL_PROCS}" 
+      walltime: 00:05:00
+      nodes: 1
+      ntasks_per_node: 1
+      cpus_per_task: 1
   - cleanup:
       plugin: shell
       computer: remote
       src: scripts/cleanup.py
       command: "python cleanup.py"
+      mpi_cmd: "mpirun -np {MPI_TOTAL_PROCS}" 
+      walltime: 00:05:00
+      nodes: 1
+      ntasks_per_node: 1
+      cpus_per_task: 1
 data:
   available:
      - icon_grid_simple:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import enum
 from dataclasses import dataclass, field
 from itertools import chain, product
 from typing import TYPE_CHECKING, Any, ClassVar, Self, TypeVar, cast
@@ -23,6 +24,13 @@ if TYPE_CHECKING:
         ConfigTask,
         TargetNodesBaseModel,
     )
+
+
+class MpiCmdPlaceholder(enum.Enum):
+    """Placeholdes in the mpi_cmd"""
+
+    # PRCOMMENT I just used the naming for this as used in Matthieu's sbatch scripts
+    MPI_TOTAL_PROCS = "MPI_TOTAL_PROCS"
 
 
 @dataclass(kw_only=True)
