@@ -33,16 +33,12 @@ cycles:
                   port: latest_restart_file
               - atmo_log
   - lastly:
-      cycling:
-        start_date: '2026-03-01T00:00'
-        stop_date: '2026-04-01T00:00'
-        period: P1M
       tasks:
         - cleanup:
             inputs:
               - atmo_log:
                   target_cycle:
-                    lag: ['P0M']
+                    date: 2026-05-01T00:00
                   port: None
 tasks:
   - icon:
@@ -75,9 +71,7 @@ data:
          src: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/dmin_wetgrowth_lookup.nc
          computer: remote
   generated:
-     - finish:
-     - restart:
-         type: file
+     - finish: {}
+     - restart: {}
      - atmo_log:
-         type: file
          src: nml.atmo.log
