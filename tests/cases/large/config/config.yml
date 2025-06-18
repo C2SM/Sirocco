@@ -201,5 +201,4 @@ data:
     - stored_data_2:
         src: stored_data
     - atmo_log:
-        type: file
         src: nml.atmo.log
