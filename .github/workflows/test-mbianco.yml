@@ -95,8 +95,8 @@ jobs:
         ls -la
 
         # Make the setup script executable and run it
-        chmod +x exp.jws_r2b4
-        ./exp.jws_r2b4
+        # chmod +x exp.jws_r2b4
+        # ./exp.jws_r2b4
 
         # Run ICON directly (it should be in PATH)
         icon
