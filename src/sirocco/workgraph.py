@@ -3,7 +3,6 @@ from __future__ import annotations
 import functools
 import io
 import uuid
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeAlias
 
 import aiida.common
@@ -243,13 +242,8 @@ class AiidaWorkGraph:
         ).store()
 
         metadata: dict[str, Any] = {}
-        # Files that are sourced before the execution of the script
-        env_source_paths = [Path(env_source_file) for env_source_file in task.env_source_files]
-        prepend_text = "\n".join([f"source {env_source_path}" for env_source_path in env_source_paths])
-
-        metadata["options"] = {"prepend_text": prepend_text}
         # NOTE: Hardcoded for now, possibly make user-facing option (see issue #159)
-        metadata["options"]["use_symlinks"] = True
+        metadata["options"] = {"use_symlinks": True}
 
         ## computer
         if task.computer is not None:

@@ -111,7 +111,6 @@ tasks:
       computer: remote
       src: scripts/cleanup.sh
       command: "bash cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}"
-      env_source_files: data/dummy_source_file.sh
       nodes: 4
       walltime: 00:02:00
       uenv:

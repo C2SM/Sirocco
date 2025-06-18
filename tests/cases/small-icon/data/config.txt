@@ -69,4 +69,3 @@ cycles:
             cycle point: []
             plugin: 'shell'
             command: 'python cleanup.py'
-            env source files: []
