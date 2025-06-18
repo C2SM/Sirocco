@@ -339,7 +339,6 @@ class AiidaWorkGraph:
         output_label = self.get_aiida_label_from_graph_item(output)
 
         if port is None:
-
             # To avoid nested namespaces due to dots in name
             output_socket = workgraph_task.add_output("workgraph.any", ShellParser.format_link_label(str(output.src)))
 
