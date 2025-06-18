@@ -1,0 +1,83 @@
+name: test-mbianco
+
+on:
+  push:
+    # only pushes to main trigger
+    branches: [main]
+  pull_request:
+    # always triggered
+
+jobs:
+  integration_test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120 # when icon needs to be rebuild it can take 70 minutes
+    strategy:
+      matrix:
+        python-version: ['3.12']
+        aiida-version: ['stable']
+
+    permissions:
+      packages: write
+
+    steps:
+    - name: Check access to GitHub secrets
+      run: echo "Pull request that trigger this workflow need to be on upstream repo to access GitHub secrets."; exit 1
+      # if a pull request is merged from a fork
+      if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork
+
+    - uses: actions/checkout@v4
+
+    - name: Set up Spack
+      uses: spack/setup-spack@v2
+      with:
+        buildcache: true
+
+    - name: Install Python and ICON
+      env:
+        SPACK_OCI_USER: leclairm
+        SPACK_OCI_TOKEN: ${{ secrets.SPACK_OCI_TOKEN }}
+      run: |
+        sudo apt install gcc-11 g++-11 gfortran-11 graphviz graphviz-dev
+        spack -e . add python@${{matrix.python-version}}
+        spack -e . install
+
+    - name: Push installation to buildcache and update index
+      env:
+        SPACK_OCI_USER: leclairm
+        SPACK_OCI_TOKEN: ${{ secrets.SPACK_OCI_TOKEN }}
+      run: spack -e . buildcache push --base-image ubuntu:latest --update-index local-buildcache
+      if: ${{ !cancelled() }}
+
+    - name: Set up SSH on localhost
+      run: |
+        # Start SSH daemon
+        sudo systemctl start ssh
+
+        ssh-keygen -q -t rsa -b 4096 -N "" -f "${HOME}/.ssh/id_rsa"
+        ssh-keygen -y -f "${HOME}/.ssh/id_rsa" >> "${HOME}/.ssh/authorized_keys"
+        ssh-keyscan -H localhost >> "${HOME}/.ssh/known_hosts"
+
+        # The permissions on the GitHub runner are 777 which will cause SSH to refuse the keys and cause authentication to fail
+        chmod 755 "${HOME}"
+
+        # Test SSH connection
+        ssh -o StrictHostKeyChecking=no localhost 'echo "SSH connection successful"'
+
+    - name: Install hatch
+      shell: spack-bash {0}
+      run: |
+        spack env activate .
+        pip install --upgrade pip
+        pip install hatch
+        hatch run verdi presto
+
+    - name: Run ICON tests
+      shell: spack-bash {0}
+      env:
+        PYTEST_ADDOPTS: "--durations=0"
+      run: |
+        spack env activate .
+        # Find and run ICON executable
+        ICON_PATH=$(spack find --format "{prefix}/bin/icon" icon)
+        echo "ICON executable found at: $ICON_PATH"
+        $ICON_PATH
