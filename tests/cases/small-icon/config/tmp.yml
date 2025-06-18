@@ -43,33 +43,33 @@ cycles:
 tasks:
   - icon:
       plugin: icon
-      computer: remote
+      computer: localhost
       bin: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/bin/icon
       namelists:
         - ./ICON/icon_master.namelist
         - ./ICON/model.namelist
   - cleanup:
       plugin: shell
-      computer: remote
+      computer: localhost
       src: scripts/cleanup.py
       command: "python cleanup.py"
 data:
   available:
      - icon_grid_simple:
          src: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/icon_grid_simple.nc
-         computer: remote
+         computer: localhost
      - ecrad_data:
          src: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/ecrad_data
-         computer: remote
+         computer: localhost
      - ECHAM6_CldOptProps:
          src: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/ECHAM6_CldOptProps.nc
-         computer: remote
+         computer: localhost
      - rrtmg_sw:
          src: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/rrtmg_sw.nc
-         computer: remote
+         computer: localhost
      - dmin_wetgrowth_lookup:
          src: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/dmin_wetgrowth_lookup.nc
-         computer: remote
+         computer: localhost
   generated:
      - finish: {}
      - restart: {}
