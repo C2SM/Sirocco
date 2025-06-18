@@ -78,3 +78,7 @@ jobs:
       run: |
         spack env activate .
         hatch test --cover --parallel -- -m "requires_icon" --remote localhost-ssh tests
+
+    - name: Setup upterm session
+      uses: lhotari/action-upterm@v1
+      if: ${{ failure() }}
