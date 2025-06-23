@@ -1,0 +1,23 @@
+&master_nml
+ lrestart               =  
+ read_restart_namelists =  
+/
+&master_time_control_nml
+ calendar             = 'proleptic gregorian'
+ experimentStartDate  = '2008-09-01T00:00:00Z'
+ restartTimeIntval    = ''
+ checkpointTimeIntval = ''
+ experimentStopDate = '2008-09-02T00:00:00Z'
+/
+&time_nml
+ is_relative_time     = .false.
+/
+&master_model_nml
+  model_name="atmo"
+  model_namelist_filename="NAMELIST_nh35_tri_jws_exclaim_r2b4"
+  model_type=1
+  model_min_rank=0
+  model_max_rank=65536
+  model_inc_rank=1
+  model_rank_group_size=
+/

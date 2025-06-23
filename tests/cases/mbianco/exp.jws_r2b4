@@ -1,0 +1,289 @@
+#! /bin/bash
+set +x
+ulimit -s unlimited
+
+export OMP_NUM_THREADS=1
+export ICON_THREADS=1
+export OMP_SCHEDULE=static,1
+export OMP_DYNAMIC="false"
+export OMP_STACKSIZE=200M
+#
+# MPI variables
+# -------------
+no_of_nodes=2
+num_io_procs=
+mpi_procs_pernode=1
+((mpi_total_procs=no_of_nodes * mpi_procs_pernode))
+#
+# blocking length
+# ---------------
+nproma=0
+nproma_sub=
+nblocks_sub=1
+nblocks_c=0
+nblocks_e=1
+proc0_shift=0
+
+export EXPNAME="nh35_tri_jws_exclaim_r2b4"
+
+
+# how to start the icon model
+# ---------------------------
+export START="mpirun -np $mpi_total_procs --allow-run-as-root $(which icon)"
+
+export CRAY_CUDA_MPS=1
+export MPICH_GPU_SUPPORT_ENABLED=1
+export MPICH_RDMA_ENABLED_CUDA=1
+export NVCOMPILER_ACC_DEFER_UPLOADS=1
+export NVCOMPILER_TERM=trace
+export NVCOMPILER_ACC_USE_GRAPH=1  # Harmless if cuda-graphs is disabled
+export FI_CXI_SAFE_DEVMEM_COPY_THRESHOLD=0
+
+#-----------------------------------------------------------------------------
+# the namelist filename
+atmo_namelist=NAMELIST_${EXPNAME}
+
+# global timing
+start_date="2008-09-01T00:00:00Z"
+  end_date="2008-09-02T00:00:00Z"
+#
+#-----------------------------------------------------------------------------
+# model timing
+(( dt_checkpoint = 12 * hour ))
+(( dt_restart    = 60 * day  ))
+#
+#-----------------------------------------------------------------------------
+# model parameters
+atmo_model_equations=3 # 3: non-hydrost. atm.,
+nlev=35                # number of full levels
+
+atmo_dyn_grids=icon_grid_0010_R02B04_G.nc
+
+cat > ${atmo_namelist} << EOF
+!
+&parallel_nml
+ nproma             = ${nproma}
+ nblocks_c          = ${nblocks_c}     ! loop number of cell blocks
+ nblocks_e          = ${nblocks_e}     ! loop number of edge blocks
+ nproma_sub         = ${nproma_sub}    ! loop chunk length for radiation scheme
+ p_test_run         = .false.
+ l_test_openmp      = .false.
+ l_log_checks       = .false.
+ division_method    = 1
+ num_io_procs       = 0         ! number of I/O processors
+ num_restart_procs  = 0         ! number of restart processors
+ n_ghost_rows       = 1
+/
+&grid_nml
+ dynamics_grid_filename = "$atmo_dyn_grids",
+/
+&run_nml
+ num_lev          = ${nlev},         ! number of full levels of vertical grid
+ dtime            = 300.             ! [s] timestep in seconds
+ ltestcase        = .TRUE.           ! run testcase  --> testcase_ctl
+ ldynamics        = .TRUE.           ! dynamics
+ ltransport       = .FALSE.          ! no transport
+ iforcing         = 0                ! no forcing
+ ntracer          = 0                ! no tracers
+ msg_level        = 10               ! detailed report during integration
+ output           ="nml",
+ ltimer           = .TRUE.
+ timers_level     = 10
+ activate_sync_timers = .TRUE.
+ profiling_output = 3
+/
+&dynamics_nml
+ iequations       = 3        ! 3: non-hydrost. atm.
+ lmoist_thdyn     = .FALSE.
+ divavg_cntrwgt   = 0.50
+ lcoriolis        = .TRUE.   ! Coriolis Force
+/
+&nh_testcase_nml
+ nh_test_name     = 'jabw_s' ! test case identifier
+/
+&nonhydrostatic_nml
+ iadv_rhotheta    = 2        ! advection method for rho and rhotheta 2: Miura 2nd order
+ itime_scheme     = 4        ! time integration scheme
+ ndyn_substeps    = 5        ! number of dynamics steps per fast-physics step
+ igradp_method    = 3        ! new default
+ damp_height      = 45000.0  ! height at which Rayleigh damping of vertical wind starts
+ rayleigh_coeff   = 0.1      ! Rayleigh damping coefficient
+ divdamp_order    = 24       ! order of divergence damping
+ divdamp_type     = 3        ! type of divergence damping
+ divdamp_fac      = 0.0025   ! scaling factor for divergence damping
+ divdamp_fac2     = 0.004    ! scaling factor for divergence damping
+ divdamp_fac3     = 0.004    ! scaling factor for divergence damping
+ divdamp_fac4     = 0.004    ! scaling factor for divergence damping
+ divdamp_z        = 32500.0  ! Height for corresponding scaling factor
+ divdamp_z2       = 40000.0  ! Height for corresponding scaling factor
+ divdamp_z3       = 60000.0  ! Height for corresponding scaling factor
+ divdamp_z4       = 80000.0  ! Height for corresponding scaling factor
+ l_zdiffu_t       = .TRUE.   ! specifies computation of Smagorinsky temperature diffusion
+ htop_moist_proc  = 22500.0  ! max. height for moist physics
+ hbot_qvsubstep   = 22500.0  ! height above which QV is advected with substepping scheme
+/
+&diffusion_nml
+ lhdiff_vn        = .TRUE.
+ lhdiff_temp      = .FALSE.
+ lhdiff_w         = .TRUE.   ! diffusion on the vertical wind field
+ hdiff_order      = 5        ! order of nabla operator for diffusion
+ itype_vn_diffu   = 1        ! reconstruction method used for Smagorinsky diffusion
+ itype_t_diffu    = 2        ! discretization of temperature diffusion
+ hdiff_efdt_ratio = 10.0     ! ratio of e-folding time to time step
+ hdiff_smag_fac   = 0.025    ! scaling factor for Smagorinsky diffusion
+ hdiff_multfac    = 1.0
+ hdiff_tv_ratio   = 1.0
+/
+&io_nml
+ dt_checkpoint    = ${dt_checkpoint} ! [s] trigger new restart file
+ lnetcdf_flt64_output  = .TRUE.         ! Needed for probtest
+ write_last_restart    = .TRUE.
+
+/
+! &output_nml
+!  output_filename  = "${EXPNAME}_iconR${R}B0${B}-grid"
+!  output_grid      = .TRUE.
+!  output_start     = "${start_date}"  ! ISO-format date+time
+!  output_end       = "${end_date}"    ! ISO-format date+time
+!  output_interval  = "PT04H"          ! ISO-format interval
+!  file_interval    = "PT04H"          ! ISO-format interval
+!  mode             =  1               ! 1: forecast mode (relative t-axis)
+!  ml_varlist       = 'pres_sfc','group:atmo_zl_vars','group:nh_prog_vars','group:atmo_derived_vars'
+! /
+! &output_nml
+!  output_filename  = "${EXPNAME}_iconR${R}B0${B}-grid_ll"
+!  output_grid      = .TRUE.
+!  remap            = 1                ! rectangular grid
+!  output_start     = "${start_date}"  ! ISO-format date+time
+!  output_end       = "${end_date}"    ! ISO-format date+time
+!  output_interval  = "PT04H"          ! ISO-format interval
+!  file_interval    = "PT04H"          ! ISO-format interval
+!  mode             =  1               ! 1: forecast mode (relative t-axis)
+!  reg_def_mode     = 2                ! 1 for increment, 2 for no. of grid cells
+!  reg_lon_def      = 0.0, 180, 360.0 ! approximately resolution supports 253 cells
+!  reg_lat_def      = -89.0, 90, 89.0
+!  ml_varlist       = 'pres_sfc','group:atmo_zl_vars','group:nh_prog_vars','group:atmo_derived_vars'
+! /
+! &output_nml
+!  output_filename  = "${EXPNAME}_iconR${R}B0${B}-grid_ll_1"
+!  output_grid      = .TRUE.
+!  remap            = 1                ! rectangular grid
+!  output_start     = "${start_date}"  ! ISO-format date+time
+!  output_end       = "${end_date}"    ! ISO-format date+time
+!  output_interval  = "PT04H"          ! ISO-format interval
+!  file_interval    = "PT04H"          ! ISO-format interval
+!  mode             =  1               ! 1: forecast mode (relative t-axis)
+!  reg_def_mode     = 2                ! 1 for increment, 2 for no. of grid cells
+!  reg_lon_def      = 0.0, 360, 360.0 ! approximately resolution supports 253 cells
+!  reg_lat_def      = -89.5, 180, 89.5
+!  ml_varlist       = 'pres_sfc','group:atmo_zl_vars','group:nh_prog_vars','group:atmo_derived_vars'
+! /
+EOF
+
+#-----------------------------------------------------------------------------
+# create master_namelist
+master_namelist=icon_master.namelist
+
+calendar=${calendar:="proleptic gregorian"}
+calendar_type=${calendar_type:=1}
+{
+  echo "&master_nml"
+  echo " lrestart               =  $restart"
+  echo " read_restart_namelists =  $read_restart_namelists"
+  echo "/"
+
+  if [ -z "$nsteps" ]; then
+    echo "&master_time_control_nml"
+    echo " calendar             = '$calendar'"
+    echo " experimentStartDate  = '$start_date'"
+    echo " restartTimeIntval    = '$restart_interval'"
+    echo " checkpointTimeIntval = '$checkpoint_interval'"
+    if [ -n "$end_date" ]; then
+      echo " experimentStopDate = '$end_date'"
+    fi
+    echo "/"
+
+    echo "&time_nml"
+    echo " is_relative_time     = .false."
+    echo "/"
+
+  else # $nsteps is set -> use time_nml:ini_datetime_string
+    echo "&time_nml"
+    echo " calendar             =  $calendar_type"
+    echo " ini_datetime_string  = '$start_date'"
+    echo " dt_restart           =  $dt_restart"
+    echo "/"
+  fi
+} > $master_namelist
+
+#-----------------------------------------------------------------------------
+
+
+#-----------------------------------------------------------------------------
+
+  cat >> $master_namelist << EOF
+&master_model_nml
+  model_name="atmo"
+  model_namelist_filename="$atmo_namelist"
+  model_type=1
+  model_min_rank=0
+  model_max_rank=65536
+  model_inc_rank=1
+  model_rank_group_size=$rank_group_size
+/
+EOF
+
+#-----------------------------------------------------------------------------
+# Add JSBACH part to master_namelist
+# For several domains, $jsbach_namelist is only the basename for each domain's jsbach namelist;
+#   the actual namelist files are appended by suffixes '_d1', '_d2', etc.
+
+if [[ $run_jsbach == yes  ]] || [[ $run_jsbach == true ]]; then
+  cat >> $master_namelist << EOF
+&jsb_control_nml
+ is_standalone      = .${run_jsbach_standalone:=false}.
+ restart_jsbach     = ${restart}
+ debug_level        = 0
+ timer_level        = 0
+/
+EOF
+#
+if [[ -n ${atmo_dyn_grids} ]]; then
+  no_of_domains=${#atmo_dyn_grids[@]}
+else
+  no_of_domains=1
+fi
+echo "no_of_domains=$no_of_domains"
+domain=""
+domain_suffix=""
+j=1
+while [ $j -le ${no_of_domains} ]
+do
+  if [[ $no_of_domains -gt 1 ]]; then
+    # no_of_domains < 10 !
+    domain=" DOM0${j}"
+    domain_suffix="_d${j}"
+  fi
+  cat >> $master_namelist << EOF
+&jsb_model_nml
+ model_id = $j
+ model_name = "JSBACH${domain}"
+ model_shortname = "jsb${domain_suffix}"
+ model_description = 'JSBACH land surface model'
+ model_namelist_filename = "${jsbach_namelist}${domain_suffix}"
+/
+EOF
+  if [[ ${run_jsbach_standalone} != true ]]; then
+    if [[ -f ${RUNSCRIPTDIR}/${jsbach_namelist}${domain_suffix} ]] ; then
+      mv ${RUNSCRIPTDIR}/${jsbach_namelist}${domain_suffix} ${EXPDIR}
+      check_error $? "mv ${RUNSCRIPTDIR}/${jsbach_namelist}${domain_suffix}"
+    else
+      check_error 1 "${RUNSCRIPTDIR}/${jsbach_namelist}${domain_suffix} does not exist"
+    fi
+  fi
+  j=`expr ${j} + 1`
+done
+fi
+
+# Return the command to launch the simulation
+echo $START

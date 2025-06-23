@@ -1,0 +1,106 @@
+name: test-mbianco
+
+on:
+  push:
+    # only pushes to main trigger
+    branches: [main]
+  pull_request:
+    # always triggered
+
+jobs:
+  test_mbianco:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120 # when icon needs to be rebuild it can take 70 minutes
+    strategy:
+      matrix:
+        python-version: ['3.12']
+        aiida-version: ['stable']
+
+    permissions:
+      packages: write
+
+    steps:
+    - name: Check access to GitHub secrets
+      run: echo "Pull request that trigger this workflow need to be on upstream repo to access GitHub secrets."; exit 1
+      # if a pull request is merged from a fork
+      if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork
+
+    - uses: actions/checkout@v4
+
+    - name: Set up Spack
+      uses: spack/setup-spack@v2
+      with:
+        buildcache: true
+
+    - name: Install Python and ICON
+      env:
+        SPACK_OCI_USER: leclairm
+        SPACK_OCI_TOKEN: ${{ secrets.SPACK_OCI_TOKEN }}
+      run: |
+        sudo apt install gcc-11 g++-11 gfortran-11 graphviz graphviz-dev
+        spack -e . add python@${{matrix.python-version}}
+        spack -e . install
+
+    - name: Push installation to buildcache and update index
+      env:
+        SPACK_OCI_USER: leclairm
+        SPACK_OCI_TOKEN: ${{ secrets.SPACK_OCI_TOKEN }}
+      run: spack -e . buildcache push --base-image ubuntu:latest --update-index local-buildcache
+      if: ${{ !cancelled() }}
+
+    - name: Set up SSH on localhost
+      run: |
+        # Start SSH daemon
+        sudo systemctl start ssh
+
+        ssh-keygen -q -t rsa -b 4096 -N "" -f "${HOME}/.ssh/id_rsa"
+        ssh-keygen -y -f "${HOME}/.ssh/id_rsa" >> "${HOME}/.ssh/authorized_keys"
+        ssh-keyscan -H localhost >> "${HOME}/.ssh/known_hosts"
+
+        # The permissions on the GitHub runner are 777 which will cause SSH to refuse the keys and cause authentication to fail
+        chmod 755 "${HOME}"
+
+        # Test SSH connection
+        ssh -o StrictHostKeyChecking=no localhost 'echo "SSH connection successful"'
+
+    - name: Install hatch
+      shell: spack-bash {0}
+      run: |
+        spack env activate .
+        pip install --upgrade pip
+        pip install hatch
+        hatch run verdi presto
+
+    - name: Run ICON tests
+      shell: spack-bash {0}
+      env:
+        PYTEST_ADDOPTS: "--durations=0"
+        OMP_NUM_THREADS: 1
+        ICON_THREADS: 1
+        OMP_SCHEDULE: "static,1"
+        OMP_DYNAMIC: "false"
+        OMP_STACKSIZE: "200M"
+        EXPNAME: "nh35_tri_jws_exclaim_r2b4"
+      run: |
+        spack env activate .
+
+        # Check if icon is in PATH
+        which icon
+        echo "ICON version: $(icon --version 2>/dev/null || echo 'version check failed')"
+
+        # Change to the directory with ICON input files
+        cd tests/cases/mbianco
+        echo "Current directory: $(pwd)"
+        echo "Files in directory:"
+        ls -la
+
+        # Make the setup script executable and run it
+        # chmod +x exp.jws_r2b4
+        # ./exp.jws_r2b4
+
+        # Run ICON directly (it should be in PATH)
+        icon
+
+    - name: Setup upterm session on failure
+      uses: lhotari/action-upterm@v1
+      if: failure()

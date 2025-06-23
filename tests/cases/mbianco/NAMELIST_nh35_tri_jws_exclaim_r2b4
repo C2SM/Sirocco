@@ -1,0 +1,118 @@
+!
+&parallel_nml
+ nproma             = 0
+ nblocks_c          = 0     ! loop number of cell blocks
+ nblocks_e          = 1     ! loop number of edge blocks
+ nproma_sub         =     ! loop chunk length for radiation scheme
+ p_test_run         = .false.
+ l_test_openmp      = .false.
+ l_log_checks       = .false.
+ division_method    = 1
+ num_io_procs       = 0         ! number of I/O processors
+ num_restart_procs  = 0         ! number of restart processors
+ n_ghost_rows       = 1
+/
+&grid_nml
+ dynamics_grid_filename = "icon_grid_0010_R02B04_G.nc",
+/
+&run_nml
+ num_lev          = 35,         ! number of full levels of vertical grid
+ dtime            = 300.             ! [s] timestep in seconds
+ ltestcase        = .TRUE.           ! run testcase  --> testcase_ctl
+ ldynamics        = .TRUE.           ! dynamics
+ ltransport       = .FALSE.          ! no transport
+ iforcing         = 0                ! no forcing
+ ntracer          = 0                ! no tracers
+ msg_level        = 10               ! detailed report during integration
+ output           ="nml",
+ ltimer           = .TRUE.
+ timers_level     = 10
+ activate_sync_timers = .TRUE.
+ profiling_output = 3
+/
+&dynamics_nml
+ iequations       = 3        ! 3: non-hydrost. atm.
+ lmoist_thdyn     = .FALSE.
+ divavg_cntrwgt   = 0.50
+ lcoriolis        = .TRUE.   ! Coriolis Force
+/
+&nh_testcase_nml
+ nh_test_name     = 'jabw_s' ! test case identifier
+/
+&nonhydrostatic_nml
+ iadv_rhotheta    = 2        ! advection method for rho and rhotheta 2: Miura 2nd order
+ itime_scheme     = 4        ! time integration scheme
+ ndyn_substeps    = 5        ! number of dynamics steps per fast-physics step
+ igradp_method    = 3        ! new default
+ damp_height      = 45000.0  ! height at which Rayleigh damping of vertical wind starts
+ rayleigh_coeff   = 0.1      ! Rayleigh damping coefficient
+ divdamp_order    = 24       ! order of divergence damping
+ divdamp_type     = 3        ! type of divergence damping
+ divdamp_fac      = 0.0025   ! scaling factor for divergence damping
+ divdamp_fac2     = 0.004    ! scaling factor for divergence damping
+ divdamp_fac3     = 0.004    ! scaling factor for divergence damping
+ divdamp_fac4     = 0.004    ! scaling factor for divergence damping
+ divdamp_z        = 32500.0  ! Height for corresponding scaling factor
+ divdamp_z2       = 40000.0  ! Height for corresponding scaling factor
+ divdamp_z3       = 60000.0  ! Height for corresponding scaling factor
+ divdamp_z4       = 80000.0  ! Height for corresponding scaling factor
+ l_zdiffu_t       = .TRUE.   ! specifies computation of Smagorinsky temperature diffusion
+ htop_moist_proc  = 22500.0  ! max. height for moist physics
+ hbot_qvsubstep   = 22500.0  ! height above which QV is advected with substepping scheme
+/
+&diffusion_nml
+ lhdiff_vn        = .TRUE.
+ lhdiff_temp      = .FALSE.
+ lhdiff_w         = .TRUE.   ! diffusion on the vertical wind field
+ hdiff_order      = 5        ! order of nabla operator for diffusion
+ itype_vn_diffu   = 1        ! reconstruction method used for Smagorinsky diffusion
+ itype_t_diffu    = 2        ! discretization of temperature diffusion
+ hdiff_efdt_ratio = 10.0     ! ratio of e-folding time to time step
+ hdiff_smag_fac   = 0.025    ! scaling factor for Smagorinsky diffusion
+ hdiff_multfac    = 1.0
+ hdiff_tv_ratio   = 1.0
+/
+&io_nml
+ dt_checkpoint    = 0 ! [s] trigger new restart file
+ lnetcdf_flt64_output  = .TRUE.         ! Needed for probtest
+ write_last_restart    = .TRUE.
+
+/
+! &output_nml
+!  output_filename  = "nh35_tri_jws_exclaim_r2b4_iconRB0-grid"
+!  output_grid      = .TRUE.
+!  output_start     = "2008-09-01T00:00:00Z"  ! ISO-format date+time
+!  output_end       = "2008-09-02T00:00:00Z"    ! ISO-format date+time
+!  output_interval  = "PT04H"          ! ISO-format interval
+!  file_interval    = "PT04H"          ! ISO-format interval
+!  mode             =  1               ! 1: forecast mode (relative t-axis)
+!  ml_varlist       = 'pres_sfc','group:atmo_zl_vars','group:nh_prog_vars','group:atmo_derived_vars'
+! /
+! &output_nml
+!  output_filename  = "nh35_tri_jws_exclaim_r2b4_iconRB0-grid_ll"
+!  output_grid      = .TRUE.
+!  remap            = 1                ! rectangular grid
+!  output_start     = "2008-09-01T00:00:00Z"  ! ISO-format date+time
+!  output_end       = "2008-09-02T00:00:00Z"    ! ISO-format date+time
+!  output_interval  = "PT04H"          ! ISO-format interval
+!  file_interval    = "PT04H"          ! ISO-format interval
+!  mode             =  1               ! 1: forecast mode (relative t-axis)
+!  reg_def_mode     = 2                ! 1 for increment, 2 for no. of grid cells
+!  reg_lon_def      = 0.0, 180, 360.0 ! approximately resolution supports 253 cells
+!  reg_lat_def      = -89.0, 90, 89.0
+!  ml_varlist       = 'pres_sfc','group:atmo_zl_vars','group:nh_prog_vars','group:atmo_derived_vars'
+! /
+! &output_nml
+!  output_filename  = "nh35_tri_jws_exclaim_r2b4_iconRB0-grid_ll_1"
+!  output_grid      = .TRUE.
+!  remap            = 1                ! rectangular grid
+!  output_start     = "2008-09-01T00:00:00Z"  ! ISO-format date+time
+!  output_end       = "2008-09-02T00:00:00Z"    ! ISO-format date+time
+!  output_interval  = "PT04H"          ! ISO-format interval
+!  file_interval    = "PT04H"          ! ISO-format interval
+!  mode             =  1               ! 1: forecast mode (relative t-axis)
+!  reg_def_mode     = 2                ! 1 for increment, 2 for no. of grid cells
+!  reg_lon_def      = 0.0, 360, 360.0 ! approximately resolution supports 253 cells
+!  reg_lat_def      = -89.5, 180, 89.5
+!  ml_varlist       = 'pres_sfc','group:atmo_zl_vars','group:nh_prog_vars','group:atmo_derived_vars'
+! /
