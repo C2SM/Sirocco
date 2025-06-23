@@ -1,0 +1,36 @@
+---
+# Include external CI template from CSCS
+include:
+  - remote: "https://gitlab.com/cscs-ci/recipes/-/raw/master/templates/v2/.ci-ext.yml"
+
+# Defines the stages for the CI/CD pipeline
+# Jobs in earlier stages are run before jobs in later stages.
+stages:
+  - build
+
+variables:
+  TMPDIR: "/var/tmp"
+
+job:
+  stage: build
+  extends: .f7t-controller
+  script:
+    - FIRECREST_URL=https://api.cscs.ch/cw/firecrest/v1
+    - FIRECREST_SYSTEM=santis
+    - FIRECREST_API_VERSION=1.16.0
+    - FIRECREST_TOKEN_URI=https://auth.cscs.ch/auth/realms/firecrest-clients/protocol/openid-connect/token
+    - apt-get update -y && apt-get install -y --no-install-recommends graphviz graphviz-dev rabbitmq-server
+    - pip install --upgrade pip
+    - pip install . 
+    - whoami
+    - echo $PWD
+    - echo $HOME
+    - firecrest --help
+    - verdi presto --profile-name "cscs-ci"
+    - verdi config set transport.task_maximum_attempts 1
+    - verdi config set transport.task_retry_initial_interval 1
+    - verdi computer setup --label remote --hostname unused --transport firecrest --scheduler firecrest --work-dir /capstor/store/cscs/userlab/cwd01/sirocco-ci -n
+    - verdi devel launch-add # hacky way to define localhost TODO do properly
+    - verdi computer configure firecrest remote --url $FIRECREST_URL --token-uri $FIRECREST_TOKEN_URI --client-id $FIRECREST_CLIENT_ID --client-secret $FIRECREST_CLIENT_SECRET --compute-resource $FIRECREST_SYSTEM --temp-directory /capstor/store/cscs/userlab/cwd01/sirocco-ci/tmp --api-version $FIRECREST_API_VERSION --small-file-size-mb 4096
+    - verdi computer test --print-traceback remote # TODO does not fail
+    - python ci/preparerun.py

@@ -5,6 +5,8 @@ import subprocess
 
 import pytest
 import requests
+from aiida.common import NotExistent
+from aiida.orm import load_computer
 
 from sirocco import pretty_print
 from sirocco.core import _tasks as core_tasks
@@ -56,6 +58,15 @@ def icon_filepath_executable() -> str:
         raise FileNotFoundError(msg)
 
     return which_icon.stdout.decode().strip()
+
+
+@pytest.fixture
+def aiida_remote(aiida_computer_ssh):
+    try:
+        computer = load_computer("remote")
+    except NotExistent:
+        computer = aiida_computer_ssh(label="remote")
+    return computer
 
 
 @pytest.fixture(scope="session")
@@ -147,6 +158,7 @@ def config_paths(config_case, icon_grid_path, tmp_path, test_rootdir) -> dict[st
     # Expand /TESTS_ROOTDIR to directory where config is located
     for key in ["yml", "txt"]:
         config[key].write_text(config[key].read_text().replace("/TESTS_ROOTDIR", str(tmp_path)))
+        config[key].write_text(config[key].read_text().replace("/DATA_REMOTEDIR", str(tmp_path)))
 
     if config_case == "small-icon":
         config_rootdir = config["yml"].parent

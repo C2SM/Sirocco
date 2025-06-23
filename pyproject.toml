@@ -35,6 +35,10 @@ dependencies = [
   "ruamel.yaml",
   "aiida-core>=2.5",
   "aiida-icon>=0.4.0",
+  #agoscinski main
+  "aiida-firecrest @ git+https://github.com/agoscinski/aiida-firecrest.git@c8ea02d",
+  #upstream main
+  #"aiida-firecrest @ git+https://github.com/agoscinski/aiida-firecrest.git@8e99890",
   "aiida-workgraph==0.5.2",
   "termcolor",
   "pygraphviz",
@@ -157,3 +161,6 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = ["aiida_workgraph.sockets.builtins"]
 ignore_missing_imports = true
+
+[tool.hatch.metadata]
+allow-direct-references = true
