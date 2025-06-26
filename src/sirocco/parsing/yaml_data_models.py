@@ -387,8 +387,8 @@ class ConfigShellTask(ConfigBaseTask, ConfigShellTaskSpecs):
         ...     '''
         ...     ),
         ... )
-        >>> my_task.walltime.tm_min
-        1
+        >>> my_task.walltime
+        '00:01:00'
     """
 
     # We need to loosen up the extra='forbid' flag because of the plugin class var

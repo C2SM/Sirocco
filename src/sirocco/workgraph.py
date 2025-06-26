@@ -260,6 +260,7 @@ class AiidaWorkGraph:
         ).store()
 
         metadata: dict[str, Any] = {}
+        metadata["options"] = {}
         # NOTE: Hardcoded for now, possibly make user-facing option (see issue #159)
         metadata["options"]["use_symlinks"] = True
         metadata["options"].update(self._from_task_get_scheduler_options(task))

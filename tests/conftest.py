@@ -18,7 +18,7 @@ from sirocco.parsing import yaml_data_models as models
 
 pytest_plugins = ["aiida.tools.pytest_fixtures"]
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 
 class DownloadError(RuntimeError):
@@ -43,10 +43,10 @@ def icon_grid_path(pytestconfig):
 
     # Check if the file is already cached
     if icon_grid_path.exists():
-        logger.info("Found icon grid in cache, reusing it.")
+        LOGGER.info("Found icon grid in cache, reusing it.")
     else:
         # File is not cached, download and save it
-        logger.info("Downloading and caching icon grid.")
+        LOGGER.info("Downloading and caching icon grid.")
         download_file(url, icon_grid_path)
 
     return icon_grid_path
@@ -185,7 +185,7 @@ def serialize_nml(config_paths: dict[str, pathlib.Path], workflow: workflow.Work
 
 def pytest_configure(config):
     if config.getoption("reserialize"):
-        logger.info("Regenerating serialized references")
+        LOGGER.info("Regenerating serialized references")
         for config_case in ALL_CONFIG_CASES:
             config_paths = generate_config_paths(config_case)
             for key, value in config_paths.items():
