@@ -48,6 +48,8 @@ jobs:
       run: |
         pip install .
         verdi presto
+    - name: Setup upterm session
+      uses: lhotari/action-upterm@v1
     - name: Run test suite
       env:
         PYTEST_ADDOPTS: "--durations=0"
