@@ -3,7 +3,7 @@ name: test-integration
 on:
   push:
     # only pushes to main trigger
-    branches: [*]
+    branches: ['**']
   pull_request:
     # always triggered
 
