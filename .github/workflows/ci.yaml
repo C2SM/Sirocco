@@ -3,7 +3,7 @@ name: ci
 on:
   push:
     # only pushes to main trigger
-    branches: [main]
+    branches: [*]
   pull_request:
     # always triggered
 
