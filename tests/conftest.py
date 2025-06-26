@@ -266,6 +266,10 @@ def aiida_computer_session(tmp_path_factory) -> t.Callable[[], "Computer"]:
 def aiida_remote_computer(request, aiida_computer_session, test_rootdir):
     comp_spec = request.config.getoption("remote")
 
+    from aiida.manage import get_manager
+    get_manager().get_config().set_option('transport.task_retry_initial_interval', 1)
+    get_manager().get_config().set_option('transport.task_maximum_attempts', 1)
+
     if comp_spec == "localhost":
         try:
             computer = load_computer("remote")
