@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Self
 
 from sirocco.core.graph_items import Task
@@ -12,8 +12,6 @@ if TYPE_CHECKING:
 
 @dataclass(kw_only=True)
 class ShellTask(models.ConfigShellTaskSpecs, Task):
-    path: Path | None = field(default=None, repr=False)
-
     @classmethod
     def build_from_config(cls: type[Self], config: models.ConfigTask, config_rootdir: Path, **kwargs: Any) -> Self:
         config_kwargs = dict(config)
