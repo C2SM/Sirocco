@@ -37,11 +37,27 @@ def list_not_empty(value: list[ITEM_T]) -> list[ITEM_T]:
     return value
 
 
-def is_absolute_path(value: Path) -> Path:
-    if not value.is_absolute():
+@typing.overload
+def is_absolute_path(value: None) -> None: ...
+
+
+@typing.overload
+def is_absolute_path(value: Path) -> Path: ...
+
+
+def is_absolute_path(value: Path | None) -> Path | None:
+    if value is not None and not value.is_absolute():
         msg = "The field must be an absolute path."
         raise ValueError(msg)
     return value
+
+
+@typing.overload
+def is_relative_path(value: None) -> None: ...
+
+
+@typing.overload
+def is_relative_path(value: Path) -> Path: ...
 
 
 def is_relative_path(value: Path | None) -> Path | None:
@@ -412,7 +428,7 @@ class ConfigShellTask(ConfigBaseTask, ConfigShellTaskSpecs):
 
     @field_validator("path", mode="after")
     @classmethod
-    def check_is_relative_path(cls, value: Path) -> Path:
+    def check_is_relative_path(cls, value: Path | None) -> Path | None:
         return is_relative_path(value)
 
 
