@@ -326,6 +326,9 @@ class ConfigShellTaskSpecs:
     sep_pattern: ClassVar[re.Pattern] = field(default=re.compile(r"\[sep=(.+)\]"), repr=False)
 
     command: str
+    path: Path | None = field(
+        default=None, repr=False, metadata={"description": ("Script file relative to the config directory.")}
+    )
 
     def resolve_ports(self, input_labels: dict[str, list[str]]) -> str:
         """Replace port placeholders in command string with provided input labels.
@@ -406,9 +409,11 @@ class ConfigShellTask(ConfigBaseTask, ConfigShellTaskSpecs):
 
     # We need to loosen up the extra='forbid' flag because of the plugin class var
     model_config = ConfigDict(**ConfigBaseTask.model_config | {"extra": "ignore"})
-    path: Annotated[Path | None, AfterValidator(is_relative_path)] = field(
-        default=None, metadata={"description": ("Script file relative to the config directory.")}, repr=False
-    )
+
+    @field_validator("path", mode="after")
+    @classmethod
+    def check_is_relative_path(cls, value: Path) -> Path:
+        return is_relative_path(value)
 
 
 @dataclass(kw_only=True)
@@ -463,7 +468,7 @@ class ConfigNamelistFile(BaseModel, ConfigNamelistFileSpec):
 @dataclass(kw_only=True)
 class ConfigIconTaskSpecs:
     plugin: ClassVar[Literal["icon"]] = "icon"
-    bin: Annotated[Path, AfterValidator(is_absolute_path)] = field(repr=True)
+    bin: Path = field(repr=True)
 
 
 class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
@@ -503,6 +508,11 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
             msg = "icon_master.namelist not found"
             raise ValueError(msg)
         return nmls
+
+    @field_validator("bin", mode="after")
+    @classmethod
+    def check_is_absolute_path(cls, value: Path) -> Path:
+        return is_absolute_path(value)
 
 
 @dataclass(kw_only=True)
