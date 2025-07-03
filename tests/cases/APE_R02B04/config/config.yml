@@ -1,0 +1,70 @@
+---
+start_date: &root_start_date '2000-01-01T00:00:00'
+stop_date: &root_stop_date '2000-01-01T00:03:00'
+cycles:
+  - every minute:
+      cycling:
+        start_date: *root_start_date
+        stop_date: *root_stop_date
+        period: PT1M
+      tasks:
+        - icon:
+            inputs:
+              - ecrad_data:
+                  port: ecrad_data
+              - ECHAM6_CldOptProps:
+                  port: cloud_opt_props
+              - rrtmg_sw:
+                  port: rrtmg_sw
+              - icon_grid:
+                  port: dynamics_grid_file
+              - restart:
+                  when:
+                    after: *root_start_date
+                  target_cycle:
+                    lag: -PT1M
+                  port: restart_file
+            outputs:
+              - finish:
+                  port: finish_status
+              - restart:
+                  port: latest_restart_file
+  - lastly:
+      tasks:
+        - cleanup:
+            inputs:
+              - finish:
+                  target_cycle:
+                    date: [2000-01-01T00:00:00, 2000-01-01T00:01:00, 2000-01-01T00:02:00]
+                  port: positional
+tasks:
+  - icon:
+      plugin: icon
+      computer: remote
+      uenv: icon/25.2:v3
+      bin: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/bin/icon
+      namelists:
+        - ./ICON/icon_master.namelist
+        - ./ICON/NAMELIST_exclaim_ape_R02B04
+  - cleanup:
+      plugin: shell
+      computer: remote
+      uenv: icon/25.2:v3
+      src: scripts/cleanup.py
+      command: "python cleanup.py {PORT::positional}"
+data:
+  available:
+     - icon_grid:
+         path: /capstor/store/cscs/userlab/cwd01/leclairm/Sirocco_test_cases/exclaim_ape_R02B04/icon_grid_0013_R02B04_R.nc
+         computer: remote
+     - rrtmg_lw:
+         path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/rrtmg_lw.nc
+         computer: remote
+     - ECHAM6_CldOptProps:
+         path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/ECHAM6_CldOptProps.nc
+         computer: remote
+     - ecrad_data:
+         path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/externals/ecrad/data
+  generated:
+     - finish: {}
+     - restart: {}
