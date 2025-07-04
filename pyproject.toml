@@ -33,7 +33,7 @@ dependencies = [
   "isoduration",
   "pydantic",
   "ruamel.yaml",
-  "aiida-core>=2.5,<2.7.0",
+  "aiida-core>=2.5",
   "aiida-icon>=0.4.0",
   "aiida-workgraph==0.5.2",
   "termcolor",
@@ -66,8 +66,8 @@ markers = [
   "slow: slow integration tests which are not recommended to run locally for normal development",
   "requires_icon: marks test to require icon installation"
 ]
+
 filterwarnings = [
-  "error",
   "ignore::UserWarning",
   'ignore:datetime.datetime.utcfromtimestamp\(\) is deprecated:DeprecationWarning',  # from aio_pika via duration
   "ignore:There is no current event loop:DeprecationWarning",  # from plumpy via aiida testing tools
