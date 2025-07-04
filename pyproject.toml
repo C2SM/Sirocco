@@ -54,13 +54,6 @@ Changelog = "https://github.com/C2SM/Sirocco/blob/main/CHANGELOG.md"
 [project.scripts]
 sirocco = "sirocco.cli:app"
 
-filterwarnings = [
-  "ignore::UserWarning",
-  'ignore:datetime.datetime.utcfromtimestamp\(\) is deprecated:DeprecationWarning',  # from aio_pika via duration
-  "ignore:There is no current event loop:DeprecationWarning",  # from plumpy via aiida testing tools
-  "ignore:Object of type <DbNode> not in session:sqlalchemy.exc.SAWarning",  # sqlalchemy via aiida testing tools
-]
-
 [tool.pytest.ini_options]
 # Configuration for [pytest](https://docs.pytest.org)
 log_level = "ERROR"
@@ -72,6 +65,13 @@ norecursedirs = "tests/cases"
 markers = [
   "slow: slow integration tests which are not recommended to run locally for normal development",
   "requires_icon: marks test to require icon installation"
+]
+
+filterwarnings = [
+  "ignore::UserWarning",
+  'ignore:datetime.datetime.utcfromtimestamp\(\) is deprecated:DeprecationWarning',  # from aio_pika via duration
+  "ignore:There is no current event loop:DeprecationWarning",  # from plumpy via aiida testing tools
+  "ignore:Object of type <DbNode> not in session:sqlalchemy.exc.SAWarning",  # sqlalchemy via aiida testing tools
 ]
 
 [tool.coverage.run]
