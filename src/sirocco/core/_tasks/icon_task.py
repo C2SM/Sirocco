@@ -122,13 +122,13 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         self.update_icon_namelists_from_workflow()
         return self
 
-    def _validate_wrapper_script_path(self, wapper_script: Path, config_rootdir: Path) -> Path:
+    def _validate_wrapper_script_path(self, wrapper_script: Path, config_rootdir: Path) -> Path:
         """Validate and resolve wrapper script path"""
-        if wapper_script.is_absolute():
-            msg = f"Wrapper script path {wapper_script} must be relative with respect to config file."
+        if wrapper_script.is_absolute():
+            msg = f"Wrapper script path {wrapper_script} must be relative with respect to config file."
             raise ValueError(msg)
 
-        resolved_path = config_rootdir / wapper_script
+        resolved_path = config_rootdir / wrapper_script
         if not resolved_path.exists():
             msg = f"Wrapper script in path {resolved_path} does not exist."
             raise FileNotFoundError(msg)
