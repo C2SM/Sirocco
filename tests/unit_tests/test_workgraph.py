@@ -144,7 +144,8 @@ def test_wrapper_script(config_paths):
 
     core_workflow = Workflow.from_config_workflow(config_workflow)
     aiida_workflow = AiidaWorkGraph(core_workflow)
-    assert aiida_workflow._workgraph.tasks.calcjob1.inputs.wrapper_script.value.filename == "dummy_wrapper.sh"  # noqa: SLF001
+    for aiida_icon_task in [task for task in aiida_workflow._workgraph.tasks if task.identifier == "IconCalculation"]:  # noqa: SLF001
+        assert aiida_icon_task.inputs.wrapper_script.value.filename == "dummy_wrapper.sh"
 
     # Remove the wrapper_script to test default behavior
     config_workflow = ConfigWorkflow.from_config_file(str(config_paths["yml"]))
@@ -158,4 +159,5 @@ def test_wrapper_script(config_paths):
     aiida_workflow = AiidaWorkGraph(core_workflow)
 
     # Now test that the default wrapper (currently `todi_cpu.sh`) is used
-    assert aiida_workflow._workgraph.tasks.calcjob1.inputs.wrapper_script.value.filename == "todi_cpu.sh"  # noqa: SLF001
+    for aiida_icon_task in [task for task in aiida_workflow._workgraph.tasks if task.identifier == "IconCalculation"]:  # noqa: SLF001
+        assert aiida_icon_task.inputs.wrapper_script.value.filename == "todi_cpu.sh"
