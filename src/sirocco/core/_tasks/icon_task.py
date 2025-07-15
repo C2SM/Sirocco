@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, ClassVar, Self
 
@@ -147,24 +148,14 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         if not isinstance(self, IconTask):
             return None
 
-        try:
-            # Import the script directory from aiida-icon
-            from aiida_icon.site_support.cscs.todi import SCRIPT_DIR
+        # Import the script directory from aiida-icon
+        from aiida_icon.site_support.cscs.todi import SCRIPT_DIR
 
-            default_script_path = SCRIPT_DIR / "todi_cpu.sh"
-            if default_script_path.exists():
-                return aiida.orm.SinglefileData(file=default_script_path)
+        default_script_path = SCRIPT_DIR / "todi_cpu.sh"
+        if default_script_path.exists():
+            return aiida.orm.SinglefileData(file=default_script_path)
 
-            # If the default script doesn't exist, log a warning but don't fail
-            import logging
+        # If the default script doesn't exist, log a warning but don't fail
 
-            logging.warning("Default wrapper script not found at %s", default_script_path)
-            return None  # noqa: TRY300 | hatch complains with RET505 if I add the `else`
-
-        except ImportError:
-            # If aiida-icon is not available, that's okay - just don't use a wrapper
-            msg = "aiida-icon not available, no default wrapper script will be used"
-            import logging
-
-            logging.warning(msg)
-            return None
+        logging.warning("Default wrapper script not found at %s", default_script_path)
+        return None  # | hatch complains with RET505 if I add the `else`
