@@ -167,7 +167,7 @@ def pytest_addoption(parser):
     parser.addoption(
         "--remote",
         action="store",
-        default="localhost-ssh",
+        default="localhost",
         help="Specify an aiida computer label for a remote machine that has been configured before tests and should be used.",
     )
 
@@ -266,7 +266,14 @@ def aiida_computer_session(tmp_path_factory) -> t.Callable[[], "Computer"]:
 def aiida_remote_computer(request, aiida_computer_session, test_rootdir):
     comp_spec = request.config.getoption("remote")
 
-    if comp_spec == "localhost-ssh":
+    if comp_spec == "localhost":
+        try:
+            computer = load_computer("remote")
+        except NotExistent:
+            computer = aiida_computer_session(label="remote", hostname="localhost", transport_type="core.local")
+            computer.configure(safe_interval=0)
+
+    elif comp_spec == "localhost-ssh":
         try:
             computer = load_computer("remote")
         except NotExistent:
