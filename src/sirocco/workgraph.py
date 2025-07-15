@@ -312,9 +312,13 @@ class AiidaWorkGraph:
         computer_builder = ComputerBuilder.from_computer(computer)
         computer_builder.label = computer.label + f"-{label_uuid}"
 
+        if computer_builder.prepend_text is None:
+            computer_builder.prepend_text = ""
         if task.mpi_cmd is not None:
             computer_builder.mpirun_command = self._parse_mpi_cmd_to_aiida(task.mpi_cmd)
+
         computer_config = computer.get_configuration()
+
         # PRCOMMENT I kept the new computer approach because it is actually clearer if for each workflow (with fix #169)
         #           we have a unique computer as we want to have the parameters to be in the config file
         computer = computer_builder.new()
@@ -368,6 +372,8 @@ class AiidaWorkGraph:
             options["max_wallclock_seconds"] = TimeUtils.walltime_to_seconds(task.walltime)
         if task.mem is not None:
             options["max_memory_kb"] = task.mem * 1024
+        if isinstance(task, core.IconTask) and task.uenv is not None:
+            options["custom_scheduler_commands"] = f"#SBATCH --uenv={task.uenv}"
         if task.nodes is not None or task.ntasks_per_node is not None or task.cpus_per_task is not None:
             resources = {}
             if task.nodes is not None:

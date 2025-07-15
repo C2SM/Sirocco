@@ -9,7 +9,6 @@ cycles:
             name: 'extpar'
             coordinates: {}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 1
             walltime: '00:02:00'
             ntasks per node: 1
@@ -30,7 +29,6 @@ cycles:
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2025, 1, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: '00:02:00'
             ntasks per node: 1
@@ -50,7 +48,7 @@ cycles:
             name: 'icon'
             coordinates: {'date': datetime.datetime(2025, 1, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
+            uenv: 'icon/25.2:v3'
             nodes: 40
             walltime: '23:59:59'
             ntasks per node: 1
@@ -67,7 +65,6 @@ cycles:
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2025, 1, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: '00:05:00'
             ntasks per node: 1
@@ -105,7 +102,6 @@ cycles:
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2025, 3, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: '00:02:00'
             ntasks per node: 1
@@ -126,7 +122,7 @@ cycles:
             name: 'icon'
             coordinates: {'date': datetime.datetime(2025, 3, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
+            uenv: 'icon/25.2:v3'
             nodes: 40
             walltime: '23:59:59'
             ntasks per node: 1
@@ -143,7 +139,6 @@ cycles:
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2025, 3, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: '00:05:00'
             ntasks per node: 1
@@ -183,7 +178,6 @@ cycles:
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2025, 5, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: '00:02:00'
             ntasks per node: 1
@@ -204,7 +198,7 @@ cycles:
             name: 'icon'
             coordinates: {'date': datetime.datetime(2025, 5, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
+            uenv: 'icon/25.2:v3'
             nodes: 40
             walltime: '23:59:59'
             ntasks per node: 1
@@ -221,7 +215,6 @@ cycles:
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2025, 5, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: '00:05:00'
             ntasks per node: 1
@@ -261,7 +254,6 @@ cycles:
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2025, 7, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: '00:02:00'
             ntasks per node: 1
@@ -282,7 +274,7 @@ cycles:
             name: 'icon'
             coordinates: {'date': datetime.datetime(2025, 7, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
+            uenv: 'icon/25.2:v3'
             nodes: 40
             walltime: '23:59:59'
             ntasks per node: 1
@@ -299,7 +291,6 @@ cycles:
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2025, 7, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: '00:05:00'
             ntasks per node: 1
@@ -339,7 +330,6 @@ cycles:
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2025, 9, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: '00:02:00'
             ntasks per node: 1
@@ -360,7 +350,7 @@ cycles:
             name: 'icon'
             coordinates: {'date': datetime.datetime(2025, 9, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
+            uenv: 'icon/25.2:v3'
             nodes: 40
             walltime: '23:59:59'
             ntasks per node: 1
@@ -377,7 +367,6 @@ cycles:
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2025, 9, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: '00:05:00'
             ntasks per node: 1
@@ -417,7 +406,6 @@ cycles:
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2025, 11, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: '00:02:00'
             ntasks per node: 1
@@ -438,7 +426,7 @@ cycles:
             name: 'icon'
             coordinates: {'date': datetime.datetime(2025, 11, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
+            uenv: 'icon/25.2:v3'
             nodes: 40
             walltime: '23:59:59'
             ntasks per node: 1
@@ -455,7 +443,6 @@ cycles:
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2025, 11, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: '00:05:00'
             ntasks per node: 1
@@ -495,7 +482,6 @@ cycles:
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: '00:02:00'
             ntasks per node: 1
@@ -516,7 +502,7 @@ cycles:
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
+            uenv: 'icon/25.2:v3'
             nodes: 40
             walltime: '23:59:59'
             ntasks per node: 1
@@ -533,7 +519,6 @@ cycles:
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: '00:05:00'
             ntasks per node: 1
@@ -573,7 +558,6 @@ cycles:
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2026, 3, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: '00:02:00'
             ntasks per node: 1
@@ -594,7 +578,7 @@ cycles:
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 3, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
+            uenv: 'icon/25.2:v3'
             nodes: 40
             walltime: '23:59:59'
             ntasks per node: 1
@@ -611,7 +595,6 @@ cycles:
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2026, 3, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: '00:05:00'
             ntasks per node: 1
@@ -651,7 +634,6 @@ cycles:
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2026, 5, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: '00:02:00'
             ntasks per node: 1
@@ -672,7 +654,7 @@ cycles:
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 5, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
+            uenv: 'icon/25.2:v3'
             nodes: 40
             walltime: '23:59:59'
             ntasks per node: 1
@@ -689,7 +671,6 @@ cycles:
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2026, 5, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: '00:05:00'
             ntasks per node: 1
@@ -729,7 +710,6 @@ cycles:
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2026, 7, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: '00:02:00'
             ntasks per node: 1
@@ -750,7 +730,7 @@ cycles:
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 7, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
+            uenv: 'icon/25.2:v3'
             nodes: 40
             walltime: '23:59:59'
             ntasks per node: 1
@@ -767,7 +747,6 @@ cycles:
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2026, 7, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: '00:05:00'
             ntasks per node: 1
@@ -807,7 +786,6 @@ cycles:
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2026, 9, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: '00:02:00'
             ntasks per node: 1
@@ -828,7 +806,7 @@ cycles:
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 9, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
+            uenv: 'icon/25.2:v3'
             nodes: 40
             walltime: '23:59:59'
             ntasks per node: 1
@@ -845,7 +823,6 @@ cycles:
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2026, 9, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: '00:05:00'
             ntasks per node: 1
@@ -885,7 +862,6 @@ cycles:
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2026, 11, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 4
             walltime: '00:02:00'
             ntasks per node: 1
@@ -906,7 +882,7 @@ cycles:
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 11, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
+            uenv: 'icon/25.2:v3'
             nodes: 40
             walltime: '23:59:59'
             ntasks per node: 1
@@ -923,7 +899,6 @@ cycles:
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2026, 11, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: '00:05:00'
             ntasks per node: 1
@@ -964,7 +939,6 @@ cycles:
             name: 'postproc_2'
             coordinates: {'date': datetime.datetime(2025, 1, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: '00:05:00'
             ntasks per node: 1
@@ -1008,7 +982,6 @@ cycles:
             name: 'postproc_2'
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
             computer: 'remote'
-            uenv: {'squashfs': 'path/to/squashfs', 'mount_point': 'runtime/mount/point'}
             nodes: 2
             walltime: '00:05:00'
             ntasks per node: 1
