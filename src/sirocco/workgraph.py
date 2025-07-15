@@ -360,7 +360,7 @@ class AiidaWorkGraph:
         # the builder validation is not working
         builder.metadata = metadata
 
-        self._aiida_task_nodes[task_label] = self._workgraph.add_task(builder)
+        self._aiida_task_nodes[task_label] = self._workgraph.add_task(builder, name=task_label)
 
     def _from_task_get_scheduler_options(self, task: core.Task) -> dict[str, Any]:
         options: dict[str, Any] = {}
