@@ -55,7 +55,7 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         self._model_namelist = model_namelist
 
         if self.wrapper_script is not None:
-            self.wrapper_script = self._validate_wrapper_script_path(self.wrapper_script, self.config_rootdir)
+            self.wrapper_script = self._validate_wrapper_script(self.wrapper_script, self.config_rootdir)
 
     @property
     def master_namelist(self) -> NamelistFile:
@@ -122,13 +122,10 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         self.update_icon_namelists_from_workflow()
         return self
 
-    def _validate_wrapper_script_path(self, wrapper_script: Path, config_rootdir: Path) -> Path:
+    def _validate_wrapper_script(self, wrapper_script: Path, config_rootdir: Path) -> Path:
         """Validate and resolve wrapper script path"""
-        if wrapper_script.is_absolute():
-            msg = f"Wrapper script path {wrapper_script} must be relative with respect to config file."
-            raise ValueError(msg)
+        resolved_path = wrapper_script if wrapper_script.is_absolute() else config_rootdir / wrapper_script
 
-        resolved_path = config_rootdir / wrapper_script
         if not resolved_path.exists():
             msg = f"Wrapper script in path {resolved_path} does not exist."
             raise FileNotFoundError(msg)
@@ -142,4 +139,32 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         """Get AiiDA SinglefileData for wrapper script if configured"""
         if self.wrapper_script is not None:
             return aiida.orm.SinglefileData(str(self.wrapper_script))
-        return None
+        return self._get_default_wrapper_script()
+
+    def _get_default_wrapper_script(self) -> aiida.orm.SinglefileData | None:
+        """Get default wrapper script based on task type"""
+        # Only apply default wrapper to ICON tasks
+        if not isinstance(self, IconTask):
+            return None
+
+        try:
+            # Import the script directory from aiida-icon
+            from aiida_icon.site_support.cscs.todi import SCRIPT_DIR
+
+            default_script_path = SCRIPT_DIR / "todi_cpu.sh"
+            if default_script_path.exists():
+                return aiida.orm.SinglefileData(file=default_script_path)
+
+            # If the default script doesn't exist, log a warning but don't fail
+            import logging
+
+            logging.warning("Default wrapper script not found at %s", default_script_path)
+            return None  # noqa: TRY300 | hatch complains with RET505 if I add the `else`
+
+        except ImportError:
+            # If aiida-icon is not available, that's okay - just don't use a wrapper
+            msg = "aiida-icon not available, no default wrapper script will be used"
+            import logging
+
+            logging.warning(msg)
+            return None
