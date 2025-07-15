@@ -346,6 +346,11 @@ class AiidaWorkGraph:
             buffer.seek(0)
             builder.model_namelist = aiida.orm.SinglefileData(buffer, task.model_namelist.name)
 
+        # Add wrapper script (either custom or default)
+        wrapper_script_data = AiidaWorkGraph.get_wrapper_script_aiida_data(task)
+        if wrapper_script_data is not None:
+            builder.wrapper_script = wrapper_script_data
+
         # Set runtime information
         options = {}
         options.update(self._from_task_get_scheduler_options(task))
@@ -355,7 +360,7 @@ class AiidaWorkGraph:
         # the builder validation is not working
         builder.metadata = metadata
 
-        self._aiida_task_nodes[task_label] = self._workgraph.add_task(builder)
+        self._aiida_task_nodes[task_label] = self._workgraph.add_task(builder, name=task_label)
 
     def _from_task_get_scheduler_options(self, task: core.Task) -> dict[str, Any]:
         options: dict[str, Any] = {}
@@ -547,6 +552,23 @@ class AiidaWorkGraph:
                 raise TypeError(msg)
 
         workgraph_task.inputs.filenames.value = filenames
+
+    @staticmethod
+    def get_wrapper_script_aiida_data(task) -> aiida.orm.SinglefileData | None:
+        """Get AiiDA SinglefileData for wrapper script if configured"""
+        if task.wrapper_script is not None:
+            return aiida.orm.SinglefileData(str(task.wrapper_script))
+        return AiidaWorkGraph._get_default_wrapper_script()
+
+    @staticmethod
+    def _get_default_wrapper_script() -> aiida.orm.SinglefileData | None:
+        """Get default wrapper script based on task type"""
+
+        # Import the script directory from aiida-icon
+        from aiida_icon.site_support.cscs.todi import SCRIPT_DIR
+
+        default_script_path = SCRIPT_DIR / "todi_cpu.sh"
+        return aiida.orm.SinglefileData(file=default_script_path)
 
     def run(
         self,

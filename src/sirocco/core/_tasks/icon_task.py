@@ -52,6 +52,9 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             raise ValueError(msg)
         self._model_namelist = model_namelist
 
+        if self.wrapper_script is not None:
+            self.wrapper_script = self._validate_wrapper_script(self.wrapper_script, self.config_rootdir)
+
     @property
     def master_namelist(self) -> NamelistFile:
         return self._master_namelist
@@ -116,3 +119,16 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         )
         self.update_icon_namelists_from_workflow()
         return self
+
+    def _validate_wrapper_script(self, wrapper_script: Path, config_rootdir: Path) -> Path:
+        """Validate and resolve wrapper script path"""
+        resolved_path = wrapper_script if wrapper_script.is_absolute() else config_rootdir / wrapper_script
+
+        if not resolved_path.exists():
+            msg = f"Wrapper script in path {resolved_path} does not exist."
+            raise FileNotFoundError(msg)
+        if not resolved_path.is_file():
+            msg = f"Wrapper script in path {resolved_path} is not a file."
+            raise OSError(msg)
+
+        return resolved_path

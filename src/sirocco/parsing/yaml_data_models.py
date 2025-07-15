@@ -485,6 +485,11 @@ class ConfigNamelistFile(BaseModel, ConfigNamelistFileSpec):
 class ConfigIconTaskSpecs:
     plugin: ClassVar[Literal["icon"]] = "icon"
     bin: Path = field(repr=True)
+    wrapper_script: Path | None = field(
+        default=None,
+        repr=False,
+        metadata={"description": "Path to wrapper script file relative to the config directory or absolute."},
+    )
 
 
 class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
