@@ -485,6 +485,19 @@ class ConfigNamelistFile(BaseModel, ConfigNamelistFileSpec):
 class ConfigIconTaskSpecs:
     plugin: ClassVar[Literal["icon"]] = "icon"
     bin: Path = field(repr=True)
+    wrapper_script_path: Path | None = field(
+        default=None,
+        repr=False,
+        metadata={"description": "Path to wrapper script file relative to the config directory."},
+    )
+
+    @field_validator("wrapper_script", mode="after")
+    @classmethod
+    def check_wrapper_script_path(cls, value: Path | None) -> Path | None:
+        # TODO: What kind of validation do we want here? Should it be relative to config rootdir?
+        # TODO: Maybe it could also be absolute? Or a path within aiida-icon? (as default maybe not required)
+        """Validates that wrapper_script path is relative"""
+        return is_relative_path(value)
 
 
 class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):

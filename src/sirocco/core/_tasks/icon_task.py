@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, ClassVar, Self
 
+import aiida
+
 from sirocco.core.graph_items import Task
 from sirocco.core.namelistfile import NamelistFile
 from sirocco.parsing import yaml_data_models as models
@@ -51,6 +53,9 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             msg = f"Failed to read model namelist. Could not find {model_namelist_filename!r} in namelists {self.namelists}"
             raise ValueError(msg)
         self._model_namelist = model_namelist
+
+        if self.wrapper_script is not None:
+            self.wrapper_script = self._validate_wrapper_script_path(self.wrapper_script, self.config_rootdir)
 
     @property
     def master_namelist(self) -> NamelistFile:
@@ -116,3 +121,25 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         )
         self.update_icon_namelists_from_workflow()
         return self
+
+    def _validate_wrapper_script_path(self, wrapper_script_path: Path, config_rootdir: Path) -> Path:
+        """Validate and resolve wrapper script path"""
+        if wrapper_script_path.is_absolute():
+            msg = f"Wrapper script path {wrapper_script_path} must be relative with respect to config file."
+            raise ValueError(msg)
+
+        resolved_path = config_rootdir / wrapper_script_path
+        if not resolved_path.exists():
+            msg = f"Wrapper script in path {resolved_path} does not exist."
+            raise FileNotFoundError(msg)
+        if not resolved_path.is_file():
+            msg = f"Wrapper script in path {resolved_path} is not a file."
+            raise OSError(msg)
+
+        return resolved_path
+
+    def get_wrapper_script_aiida_data(self) -> aiida.orm.SinglefileData | None:
+        """Get AiiDA SinglefileData for wrapper script if configured"""
+        if self.wrapper_script is not None:
+            return aiida.orm.SinglefileData(str(self.wrapper_script))
+        return None

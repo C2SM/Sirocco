@@ -346,6 +346,10 @@ class AiidaWorkGraph:
             buffer.seek(0)
             builder.model_namelist = aiida.orm.SinglefileData(buffer, task.model_namelist.name)
 
+        # Add wrapper script if configured
+        if task.wrapper_script is not None:
+            builder.wrapper_script = task.get_wrapper_script_aiida_data()
+
         # Set runtime information
         options = {}
         options.update(self._from_task_get_scheduler_options(task))
