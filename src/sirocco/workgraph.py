@@ -347,7 +347,7 @@ class AiidaWorkGraph:
             builder.model_namelist = aiida.orm.SinglefileData(buffer, task.model_namelist.name)
 
         # Add wrapper script (either custom or default)
-        wrapper_script_data = task.get_wrapper_script_aiida_data()
+        wrapper_script_data = AiidaWorkGraph.get_wrapper_script_aiida_data(task)
         if wrapper_script_data is not None:
             builder.wrapper_script = wrapper_script_data
 
@@ -552,6 +552,23 @@ class AiidaWorkGraph:
                 raise TypeError(msg)
 
         workgraph_task.inputs.filenames.value = filenames
+
+    @staticmethod
+    def get_wrapper_script_aiida_data(task) -> aiida.orm.SinglefileData | None:
+        """Get AiiDA SinglefileData for wrapper script if configured"""
+        if task.wrapper_script is not None:
+            return aiida.orm.SinglefileData(str(task.wrapper_script))
+        return AiidaWorkGraph._get_default_wrapper_script()
+
+    @staticmethod
+    def _get_default_wrapper_script() -> aiida.orm.SinglefileData | None:
+        """Get default wrapper script based on task type"""
+
+        # Import the script directory from aiida-icon
+        from aiida_icon.site_support.cscs.todi import SCRIPT_DIR
+
+        default_script_path = SCRIPT_DIR / "todi_cpu.sh"
+        return aiida.orm.SinglefileData(file=default_script_path)
 
     def run(
         self,

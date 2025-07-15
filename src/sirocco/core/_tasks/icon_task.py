@@ -3,8 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, ClassVar, Self
 
-import aiida
-
 from sirocco.core.graph_items import Task
 from sirocco.core.namelistfile import NamelistFile
 from sirocco.parsing import yaml_data_models as models
@@ -134,21 +132,3 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             raise OSError(msg)
 
         return resolved_path
-
-    def get_wrapper_script_aiida_data(self) -> aiida.orm.SinglefileData | None:
-        """Get AiiDA SinglefileData for wrapper script if configured"""
-        if self.wrapper_script is not None:
-            return aiida.orm.SinglefileData(str(self.wrapper_script))
-        return self._get_default_wrapper_script()
-
-    def _get_default_wrapper_script(self) -> aiida.orm.SinglefileData | None:
-        """Get default wrapper script based on task type"""
-        # Only apply default wrapper to ICON tasks
-        if not isinstance(self, IconTask):
-            return None
-
-        # Import the script directory from aiida-icon
-        from aiida_icon.site_support.cscs.todi import SCRIPT_DIR
-
-        default_script_path = SCRIPT_DIR / "todi_cpu.sh"
-        return aiida.orm.SinglefileData(file=default_script_path)
