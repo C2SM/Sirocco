@@ -130,3 +130,32 @@ def test_waiting_on(config_paths):
     aiida_workflow = AiidaWorkGraph(core_workflow)
 
     assert len(aiida_workflow._workgraph.tasks["cleanup"].waiting_on) == 1  # noqa: SLF001
+
+
+@pytest.mark.usefixtures("config_case", "aiida_localhost", "aiida_remote_computer")
+@pytest.mark.parametrize(
+    "config_case",
+    [
+        "small-icon",
+    ],
+)
+def test_wrapper_script(config_paths):
+    config_workflow = ConfigWorkflow.from_config_file(str(config_paths["yml"]))
+
+    core_workflow = Workflow.from_config_workflow(config_workflow)
+    aiida_workflow = AiidaWorkGraph(core_workflow)
+    assert aiida_workflow._workgraph.tasks.calcjob1.inputs.wrapper_script.value.filename == "dummy_wrapper.sh"  # noqa: SLF001
+
+    # Remove the wrapper_script to test default behavior
+    config_workflow = ConfigWorkflow.from_config_file(str(config_paths["yml"]))
+
+    # Find the icon task and remove/modify wrapper_script
+    for task in config_workflow.tasks:
+        if task.name == "icon" and hasattr(task, "wrapper_script"):
+            task.wrapper_script = None  # or del task.wrapper_script if the field allows it
+
+    core_workflow = Workflow.from_config_workflow(config_workflow)
+    aiida_workflow = AiidaWorkGraph(core_workflow)
+
+    # Now test that the default wrapper (currently `todi_cpu.sh`) is used
+    assert aiida_workflow._workgraph.tasks.calcjob1.inputs.wrapper_script.value.filename == "todi_cpu.sh"  # noqa: SLF001
