@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, ClassVar, Self
 
@@ -152,10 +151,4 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         from aiida_icon.site_support.cscs.todi import SCRIPT_DIR
 
         default_script_path = SCRIPT_DIR / "todi_cpu.sh"
-        if default_script_path.exists():
-            return aiida.orm.SinglefileData(file=default_script_path)
-
-        # If the default script doesn't exist, log a warning but don't fail
-
-        logging.warning("Default wrapper script not found at %s", default_script_path)
-        return None  # | hatch complains with RET505 if I add the `else`
+        return aiida.orm.SinglefileData(file=default_script_path)
