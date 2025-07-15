@@ -53,7 +53,7 @@ tasks:
       nodes: 1
       ntasks_per_node: 1
       cpus_per_task: 1
-      wrapper_script: scripts/todi_cpu.sh
+      wrapper_script: scripts/dummy_wrapper.sh
   - cleanup:
       plugin: shell
       computer: remote
