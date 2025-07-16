@@ -488,7 +488,6 @@ class ConfigIconTaskSpecs:
     bin: Path = field(repr=True)
     wrapper_script: Path | None = field(
         default=None,
-        repr=False,
         metadata={"description": "Path to wrapper script file relative to the config directory or absolute."},
     )
 
