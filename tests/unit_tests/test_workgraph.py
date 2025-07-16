@@ -150,8 +150,10 @@ def test_aiida_icon_task_metadata(config_paths):
         assert aiida_icon_task.inputs.wrapper_script.value.filename == "dummy_wrapper.sh"
         # testing uenv
         assert (
-            aiida_icon_task.inputs.metadata.options.custom_scheduler_commands.value == "#SBATCH --uenv=icon-wcp/v1:rc4"
+            "#SBATCH --uenv=icon-wcp/v1:rc4" in aiida_icon_task.inputs.metadata.options.custom_scheduler_commands.value
         )
+        # testing view
+        assert "#SBATCH --view=icon" in aiida_icon_task.inputs.metadata.options.custom_scheduler_commands.value
 
     # Remove the wrapper_script to test default behavior
     config_workflow = ConfigWorkflow.from_config_file(str(config_paths["yml"]))
