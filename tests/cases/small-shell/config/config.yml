@@ -37,6 +37,7 @@ tasks:
       computer: remote
       path: scripts/icon.py
       command: "python icon.py --restart {PORT::restart} --init {PORT::init}"
+      uenv: "icon-wcp/v1:rc4"
   - cleanup:
       plugin: shell
       computer: remote

@@ -139,13 +139,19 @@ def test_waiting_on(config_paths):
         "small-icon",
     ],
 )
-def test_wrapper_script(config_paths):
+def test_aiida_icon_task_metadata(config_paths):
+    """Test if the metadata regarding the job submission of the `IconCalculation` is included in the final workgraph."""
     config_workflow = ConfigWorkflow.from_config_file(str(config_paths["yml"]))
 
     core_workflow = Workflow.from_config_workflow(config_workflow)
     aiida_workflow = AiidaWorkGraph(core_workflow)
     for aiida_icon_task in [task for task in aiida_workflow._workgraph.tasks if task.identifier == "IconCalculation"]:  # noqa: SLF001
+        # testing wrapper script
         assert aiida_icon_task.inputs.wrapper_script.value.filename == "dummy_wrapper.sh"
+        # testing uenv
+        assert (
+            aiida_icon_task.inputs.metadata.options.custom_scheduler_commands.value == "#SBATCH --uenv=icon-wcp/v1:rc4"
+        )
 
     # Remove the wrapper_script to test default behavior
     config_workflow = ConfigWorkflow.from_config_file(str(config_paths["yml"]))

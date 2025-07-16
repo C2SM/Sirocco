@@ -104,9 +104,6 @@ tasks:
       cpus_per_task: 1
       mem: 1024
       walltime: 00:02:00
-      uenv:
-        squashfs: path/to/squashfs
-        mount_point: runtime/mount/point
   - preproc:
       plugin: shell
       computer: remote
@@ -117,9 +114,6 @@ tasks:
       cpus_per_task: 1
       mem: 1024
       walltime: 00:02:00
-      uenv:
-        squashfs: path/to/squashfs
-        mount_point: runtime/mount/point
   - icon:
       plugin: icon
       computer: remote
@@ -137,9 +131,7 @@ tasks:
       ntasks_per_node: 1
       cpus_per_task: 1
       walltime: 23:59:59
-      uenv:
-        squashfs: path/to/squashfs
-        mount_point: runtime/mount/point
+      uenv: icon/25.2:v3
   - postproc_1:
       plugin: shell
       computer: remote
@@ -149,9 +141,6 @@ tasks:
       ntasks_per_node: 1
       cpus_per_task: 1
       walltime: 00:05:00
-      uenv:
-        squashfs: path/to/squashfs
-        mount_point: runtime/mount/point
   - postproc_2:
       plugin: shell
       computer: remote
@@ -161,9 +150,6 @@ tasks:
       ntasks_per_node: 1
       cpus_per_task: 1
       walltime: 00:05:00
-      uenv:
-        squashfs: path/to/squashfs
-        mount_point: runtime/mount/point
   - store_and_clean_1:
       plugin: shell
       computer: remote
