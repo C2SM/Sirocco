@@ -16,6 +16,7 @@ cycles:
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
             computer: 'remote'
             uenv: 'icon-wcp/v1:rc4'
+            view: 'icon'
             nodes: 1
             walltime: '00:05:00'
             ntasks per node: 1
@@ -43,6 +44,7 @@ cycles:
             coordinates: {'date': datetime.datetime(2026, 3, 1, 0, 0)}
             computer: 'remote'
             uenv: 'icon-wcp/v1:rc4'
+            view: 'icon'
             nodes: 1
             walltime: '00:05:00'
             ntasks per node: 1
@@ -70,6 +72,7 @@ cycles:
             coordinates: {'date': datetime.datetime(2026, 5, 1, 0, 0)}
             computer: 'remote'
             uenv: 'icon-wcp/v1:rc4'
+            view: 'icon'
             nodes: 1
             walltime: '00:05:00'
             ntasks per node: 1

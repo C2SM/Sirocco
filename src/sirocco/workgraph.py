@@ -312,8 +312,6 @@ class AiidaWorkGraph:
         computer_builder = ComputerBuilder.from_computer(computer)
         computer_builder.label = computer.label + f"-{label_uuid}"
 
-        if computer_builder.prepend_text is None:
-            computer_builder.prepend_text = ""
         if task.mpi_cmd is not None:
             computer_builder.mpirun_command = self._parse_mpi_cmd_to_aiida(task.mpi_cmd)
 
@@ -372,8 +370,14 @@ class AiidaWorkGraph:
             options["max_wallclock_seconds"] = TimeUtils.walltime_to_seconds(task.walltime)
         if task.mem is not None:
             options["max_memory_kb"] = task.mem * 1024
+
+        # custom_scheduler_commands
+        options["custom_scheduler_commands"] = ""
         if isinstance(task, core.IconTask) and task.uenv is not None:
-            options["custom_scheduler_commands"] = f"#SBATCH --uenv={task.uenv}"
+            options["custom_scheduler_commands"] += f"#SBATCH --uenv={task.uenv}\n"
+        if isinstance(task, core.IconTask) and task.view is not None:
+            options["custom_scheduler_commands"] += f"#SBATCH --view={task.view}\n"
+
         if task.nodes is not None or task.ntasks_per_node is not None or task.cpus_per_task is not None:
             resources = {}
             if task.nodes is not None:

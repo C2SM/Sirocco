@@ -285,6 +285,7 @@ class ConfigBaseTaskSpecs:
     host: str | None = None
     account: str | None = None
     uenv: str | None = None
+    view: str | None = None
     nodes: int | None = None  # SLURM option `--nodes`, AiiDA option `num_machines`
     walltime: str | None = None
     ntasks_per_node: int | None = None  # SLURM option `--ntasks-per-node`, AiiDA option `num_mpiprocs_per_machine`
