@@ -40,7 +40,7 @@ cycles:
 tasks:
   - icon:
       plugin: icon
-      computer: remote
+      computer: santis
       uenv: icon/25.2:v3
       bin: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/bin/icon
       namelists:
@@ -48,7 +48,7 @@ tasks:
         - ./ICON/NAMELIST_exclaim_ape_R02B04
   - cleanup:
       plugin: shell
-      computer: remote
+      computer: santis
       uenv: icon/25.2:v3
       src: scripts/cleanup.py
       command: "python cleanup.py {PORT::positional}"
@@ -56,13 +56,13 @@ data:
   available:
      - icon_grid:
          path: /capstor/store/cscs/userlab/cwd01/leclairm/Sirocco_test_cases/exclaim_ape_R02B04/icon_grid_0013_R02B04_R.nc
-         computer: remote
+         computer: santis
      - rrtmg_lw:
          path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/rrtmg_lw.nc
-         computer: remote
+         computer: santis
      - ECHAM6_CldOptProps:
          path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/ECHAM6_CldOptProps.nc
-         computer: remote
+         computer: santis
      - ecrad_data:
          path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/externals/ecrad/data
   generated:
