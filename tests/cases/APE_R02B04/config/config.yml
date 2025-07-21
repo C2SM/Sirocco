@@ -42,6 +42,9 @@ tasks:
       plugin: icon
       computer: santis
       uenv: icon/25.2:v3
+      nodes: 1
+      ntasks_per_node: 4
+      cpus_per_task: 72
       bin: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/bin/icon
       namelists:
         - ./ICON/icon_master.namelist
@@ -50,6 +53,9 @@ tasks:
       plugin: shell
       computer: santis
       uenv: icon/25.2:v3
+      nodes: 1
+      ntasks_per_node: 4
+      cpus_per_task: 72
       src: scripts/cleanup.py
       command: "python cleanup.py {PORT::positional}"
 data:
