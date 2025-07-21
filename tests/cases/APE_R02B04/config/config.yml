@@ -14,8 +14,8 @@ cycles:
                   port: ecrad_data
               - ECHAM6_CldOptProps:
                   port: cloud_opt_props
-              - rrtmg_sw:
-                  port: rrtmg_sw
+              - rrtmg_lw:
+                  port: rrtmg_lw
               - icon_grid:
                   port: dynamics_grid_file
               - restart:
@@ -58,13 +58,14 @@ data:
          path: /capstor/store/cscs/userlab/cwd01/leclairm/Sirocco_test_cases/exclaim_ape_R02B04/icon_grid_0013_R02B04_R.nc
          computer: santis
      - rrtmg_lw:
-         path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/rrtmg_lw.nc
+         path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/data/rrtmg_lw.nc
          computer: santis
      - ECHAM6_CldOptProps:
-         path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/ECHAM6_CldOptProps.nc
+         path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/data/ECHAM6_CldOptProps.nc
          computer: santis
      - ecrad_data:
          path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/externals/ecrad/data
+         computer: santis
   generated:
      - finish: {}
      - restart: {}
