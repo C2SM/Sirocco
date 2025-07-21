@@ -95,6 +95,8 @@ ignore = [
 include = [
   "src/sirocco/",
 ]
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.version]
 path = "src/sirocco/__init__.py"
