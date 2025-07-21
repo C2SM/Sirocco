@@ -42,7 +42,7 @@ dependencies = [
   "f90nml",
   "aiida-shell>=0.8.1",
   "rich~=14.0",
-  "typer~=0.16.0",
+  "typer~=0.7.0",  # Fix to the same version of pyfirecrest (for now)
 ]
 license = {file = "LICENSE"}
 
