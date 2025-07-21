@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, TypeAlias, assert_never
 import aiida.common
 import aiida.orm
 import aiida.transports
+import aiida.transports.plugins.local
 import aiida_workgraph  # type: ignore[import-untyped] # does not have proper typing and stubs
 import aiida_workgraph.tasks.factory.shelljob_task  # type: ignore[import-untyped]  # is only for a workaround
 from aiida.common.exceptions import NotExistent
