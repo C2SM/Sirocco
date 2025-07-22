@@ -112,7 +112,7 @@ default-args = []
 extra-args = ["--doctest-modules", "-m", "not slow and not requires_icon"]
 
 [[tool.hatch.envs.hatch-test.matrix]]
-python = ["3.12"]
+python = ["3.10", "3.11", "3.12", "3.13"]
 
 [tool.hatch.envs.docs]
 installer = "uv"
