@@ -354,12 +354,13 @@ class AiidaWorkGraph:
         # builder.metadata.options.mpirun_extra_params = []
         common_alps_setup(builder)
 
+
         wrapper_script_data = AiidaWorkGraph.get_wrapper_script_aiida_data(task)
         if wrapper_script_data is not None:
             builder.wrapper_script = wrapper_script_data
 
         # Set runtime information
-        options = {}
+        options = builder.metadata.options or {}
         options.update(self._from_task_get_scheduler_options(task))
         options["additional_retrieve_list"] = []
 
