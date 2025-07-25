@@ -335,7 +335,6 @@ class AiidaWorkGraph:
 
         builder = IconCalculation.get_builder()
         builder.code = icon_code
-        metadata = {}
 
         task.update_icon_namelists_from_workflow()
 
@@ -349,18 +348,23 @@ class AiidaWorkGraph:
             buffer.seek(0)
             builder.model_namelist = aiida.orm.SinglefileData(buffer, task.model_namelist.name)
 
+        from aiida_icon.site_support.cscs.todi import common_alps_setup
+
+        common_alps_setup(builder)
+
         # Add wrapper script (either custom or default)
         wrapper_script_data = AiidaWorkGraph.get_wrapper_script_aiida_data(task)
         if wrapper_script_data is not None:
             builder.wrapper_script = wrapper_script_data
 
         # Set runtime information
-        options = {}
+        metadata: dict[str, Any] = getattr(builder, "metadata", {})
+        options: dict[str, Any] = getattr(metadata, "options", {}) if metadata else {}
+
         options.update(self._from_task_get_scheduler_options(task))
         options["additional_retrieve_list"] = []
 
         metadata["options"] = options
-        # the builder validation is not working
         builder.metadata = metadata
 
         self._aiida_task_nodes[task_label] = self._workgraph.add_task(builder, name=task_label)

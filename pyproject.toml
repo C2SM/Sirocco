@@ -34,7 +34,8 @@ dependencies = [
   "pydantic",
   "ruamel.yaml",
   "aiida-core>=2.5",
-  "aiida-icon>=0.4.0",
+  # "aiida-icon>=0.4.0",
+  "aiida-icon @ git+https://github.com/GeigerJ2/aiida-icon.git@c6590f434c899921dd4f019348d920e5ef1a5aca",
   "aiida-workgraph==0.5.2",
   "termcolor",
   "pygraphviz",
@@ -106,7 +107,7 @@ python = "3.12"
 [tool.hatch.envs.hatch-test]
 installer = "uv"
 extra-dependencies = [
-    "ipdb"
+    "ipdb",
 ]
 default-args = []
 extra-args = ["--doctest-modules", "-m", "not slow and not requires_icon"]
@@ -150,6 +151,9 @@ extra-dependencies = [
 
 [tool.hatch.envs.types.scripts]
 check = "mypy --exclude 'tests/cases/*' --no-incremental {args:.}"
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [[tool.mypy.overrides]]
 module = ["isoduration", "isoduration.*"]
