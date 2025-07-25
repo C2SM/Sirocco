@@ -351,7 +351,7 @@ class AiidaWorkGraph:
 
         # Add wrapper script (either custom or default)
         from aiida_icon.site_support.cscs.todi import common_alps_setup
-        builder.metadata.options.mpirun_extra_params = []
+        # builder.metadata.options.mpirun_extra_params = []
         common_alps_setup(builder)
 
         wrapper_script_data = AiidaWorkGraph.get_wrapper_script_aiida_data(task)
