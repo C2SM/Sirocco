@@ -40,7 +40,7 @@ cycles:
 tasks:
   - icon:
       plugin: icon
-      computer: santis-firecrest
+      computer: santis
       uenv: icon/25.2:v3
       nodes: 1
       ntasks_per_node: 4
@@ -49,32 +49,32 @@ tasks:
       namelists:
         - ./ICON/icon_master.namelist
         - ./ICON/NAMELIST_exclaim_ape_R02B04
-      mpi_cmd: "mpirun -np {MPI_TOTAL_PROCS}"
+      mpi_cmd: "srun -n {tot_num_mpiprocs} --ntasks-per-node {num_mpiprocs_per_machine}"
 
   - cleanup:
       plugin: shell
-      computer: santis-firecrest
+      computer: santis
       uenv: icon/25.2:v3
       nodes: 1
       ntasks_per_node: 4
       cpus_per_task: 72
       src: scripts/cleanup.py
       command: "python cleanup.py {PORT::positional}"
-      mpi_cmd: "mpirun -np {MPI_TOTAL_PROCS}"
+      mpi_cmd: "srun -n {tot_num_mpiprocs} --ntasks-per-node {num_mpiprocs_per_machine}"
 data:
   available:
      - icon_grid:
          path: /capstor/store/cscs/userlab/cwd01/leclairm/Sirocco_test_cases/exclaim_ape_R02B04/icon_grid_0013_R02B04_R.nc
-         computer: santis-firecrest
+         computer: santis
      - rrtmg_lw:
          path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/data/rrtmg_lw.nc
-         computer: santis-firecrest
+         computer: santis
      - ECHAM6_CldOptProps:
          path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/data/ECHAM6_CldOptProps.nc
-         computer: santis-firecrest
+         computer: santis
      - ecrad_data:
          path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/externals/ecrad/data
-         computer: santis-firecrest
+         computer: santis
   generated:
      - finish: {}
      - restart: {}
