@@ -92,9 +92,7 @@ def test_run_workgraph_with_icon(icon_filepath_executable, config_paths, tmp_pat
 
     core_workflow = Workflow.from_config_file(tmp_config_rootdir / config_paths["yml"].name)
     aiida_workflow = AiidaWorkGraph(core_workflow)
-    import ipdb; ipdb.set_trace()
     output_node = aiida_workflow.run()
-    import ipdb; ipdb.set_trace()
     if not output_node.is_finished_ok:
         from aiida.cmdline.utils.common import get_calcjob_report, get_workchain_report
 
