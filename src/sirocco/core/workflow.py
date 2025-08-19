@@ -1,18 +1,24 @@
 from __future__ import annotations
 
+import enum
+import pickle
 from itertools import chain, product
+from pathlib import Path
 from typing import TYPE_CHECKING, Self
 
-from sirocco.core.graph_items import Cycle, Data, Store, Task
+from sirocco.core._tasks.sirocco_task import SiroccoTask
+from sirocco.core.graph_items import Cycle, Data, Status, Store, Task
+from sirocco.core.scheduler import Scheduler
 from sirocco.parsing.cycling import DateCyclePoint, OneOffPoint
 from sirocco.parsing.yaml_data_models import (
     ConfigBaseData,
+    ConfigRootTask,
+    ConfigSiroccoTask,
     ConfigWorkflow,
 )
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from pathlib import Path
 
     from sirocco.parsing.cycling import CyclePoint
     from sirocco.parsing.yaml_data_models import (
@@ -22,20 +28,36 @@ if TYPE_CHECKING:
     )
 
 
+class Mode(enum.Enum):
+    INIT = 1
+    PROPAGATE = 2
+    RESTART = 3
+
+
 class Workflow:
     """Internal representation of a workflow"""
+
+    _STATE_FILENAME_ = ".sirocco.state"
+    _CONFIG_FILENAME_ = "sirocco.yaml"
 
     def __init__(
         self,
         name: str,
         config_rootdir: Path,
+        scheduler: Scheduler,
         config_cycles: list[ConfigCycle],
         config_tasks: list[ConfigTask],
         config_data: ConfigData,
+        front_depth: int,
         parameters: dict[str, list],
     ) -> None:
         self.name: str = name
         self._config_rootdir: Path = config_rootdir
+        self.scheduler = scheduler
+        self.mode = Mode.INIT
+        self.status_file = config_rootdir / self._STATE_FILENAME_
+        self.front_depth = front_depth
+        self.front: list[list[Task]] = [[]] * self.front_depth
 
         self.tasks: Store[Task] = Store()
         self.data: Store[Data] = Store()
@@ -76,6 +98,9 @@ class Workflow:
                     task_name = task_graph_spec.name
                     task_config = config_task_dict[task_name]
                     for coordinates in iter_coordinates(cycle_point, task_config.parameters):
+                        if isinstance(task_config, ConfigRootTask | ConfigSiroccoTask):
+                            msg = "ROOT and SIROCCO tasks are special tasks that cannot be included in the graph"
+                            raise TypeError(msg)
                         task = Task.from_config(
                             config=task_config,
                             config_rootdir=self._config_rootdir,
@@ -84,6 +109,7 @@ class Workflow:
                             datastore=self.data,
                             graph_spec=task_graph_spec,
                         )
+                        task.front_rank = self.front_depth
                         self.tasks.add(task)
                         cycle_tasks.append(task)
                 self.cycles.add(
@@ -99,6 +125,99 @@ class Workflow:
         # 4 - Link wait on tasks
         for task in self.tasks:
             task.link_wait_on_tasks(self.tasks)
+
+        # 5 - Link parent and children tasks
+        for task in self.tasks:
+            task.link_parents_children()
+
+    def step_forward(self) -> None:
+        match self.mode:
+            case Mode.INIT:
+                self.init_front()
+            case Mode.RESTART:
+                self.restart_front()
+            case Mode.PROPAGATE:
+                self.propagate_front()
+
+        self.mode = Mode.PROPAGATE
+        self.auto_submit()
+        self.dump()
+
+    def restart_front(self) -> None:
+        for generation in self.front:
+            for task in generation:
+                self.scheduler.submit_task(task)
+
+    def init_front(self) -> None:
+        """Populate front and submit corresponding tasks"""
+
+        for task in self.tasks:
+            if not task.parents:
+                task.front_rank = 0
+                self.scheduler.submit_task(task)
+                self.front[0].append(task)
+        for k in range(self.front_depth - 1):
+            for task in self.front[k]:
+                for child in task.children:
+                    if max(parent.front_rank for parent in child.parents) == k:
+                        self.scheduler.submit_task(child)
+                        child.front_rank = k + 1
+                        self.front[k + 1].append(child)
+
+    def propagate_front(self) -> None:
+        """Propagate front of submitted tasks and submit new ones"""
+
+        # Handle first generation of the front
+        just_finished: list[Task] = []  # only needed for a front depth of 1
+        for task in self.front[0]:
+            if self.scheduler.update_status(task) == Status.FAILED:
+                self.cancel_all_tasks()
+                msg = "All workflow tasks canceled because task failed"
+                raise ValueError(msg)
+            if task.status == Status.COMPLETED:
+                if self.front_depth == 1:
+                    just_finished.append(task)
+                task.front_rank = -1
+                self.front[0].remove(task)
+
+        # Update front rank of tasks currently in the front after the first generation
+        for k in range(1, self.front_depth):
+            for task in self.front[k]:
+                if max(parent.front_rank for parent in task.parents) == k - 2:
+                    task.front_rank = k - 1
+                    self.front[k].remove(task)
+                    self.front[k - 1].append(task)
+
+        # Add new tasks to the last generation of the front
+        before_last_generation = just_finished if self.front_depth == 1 else self.front[-2]
+        for task in before_last_generation:
+            for child in task.children:
+                if (
+                    child.front_rank == self.front_depth
+                    and max(parent.front_rank for parent in child.parents) == self.front_depth - 2
+                ):
+                    self.scheduler.submit_task(child)
+                    child.front_rank = self.front_depth - 1
+                    self.front[-1].append(child)
+
+    def auto_submit(self) -> None:
+        """Submit next Sirocco task"""
+
+        if not self.front[0]:
+            return
+        self.sirocco_task = SiroccoTask(
+            coordinates={}, cycle_point=OneOffPoint(), config_rootdir=self.config_rootdir, parents=self.front[0]
+        )
+        self.scheduler.submit_task(self.sirocco_task, dependency_type="ANY")
+
+    def cancel_all_tasks(self) -> None:
+        for generation in self.front:
+            for task in generation:
+                self.scheduler.cancel_task(task)
+
+    def dump(self) -> None:
+        with self.status_file.open("wb") as f:
+            pickle.dump(self, f, protocol=pickle.HIGHEST_PROTOCOL)
 
     @property
     def config_rootdir(self) -> Path:
@@ -118,8 +237,21 @@ class Workflow:
         return cls(
             name=config_workflow.name,
             config_rootdir=config_workflow.rootdir,
+            scheduler=Scheduler.create(config_workflow.scheduler),
             config_cycles=config_workflow.cycles,
             config_tasks=config_workflow.tasks,
             config_data=config_workflow.data,
             parameters=config_workflow.parameters,
+            front_depth=config_workflow.front_depth,
         )
+
+    @classmethod
+    def load(cls, root_dir: Path | str) -> Self:
+        """Load workflow from state file"""
+
+        state_file = Path(root_dir) / cls._STATE_FILENAME_
+        if not state_file.is_file():
+            msg = f"{root_dir} does not seem to be a workflow directory, {cls._STATE_FILENAME_} not found there."
+            raise ValueError(msg)
+        with state_file.open("rb") as f:
+            return pickle.load(f)  # noqa S301

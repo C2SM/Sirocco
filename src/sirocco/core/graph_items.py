@@ -35,6 +35,12 @@ class MpiCmdPlaceholder(enum.Enum):
     MPI_TOTAL_PROCS = "MPI_TOTAL_PROCS"
 
 
+class Status(enum.Enum):
+    ONGOING = 1
+    COMPLETED = 2
+    FAILED = 3
+
+
 @dataclass(kw_only=True)
 class GraphItem:
     """base class for Data Tasks and Cycles"""
@@ -53,6 +59,7 @@ class Data(ConfigBaseDataSpecs, GraphItem):
     """Internal representation of a data node"""
 
     color: ClassVar[str] = field(default="light_blue", repr=False)
+    downstream_tasks: list[Task] = field(default_factory=list, repr=False)
 
     @classmethod
     def from_config(cls, config: ConfigBaseData, coordinates: dict) -> AvailableData | GeneratedData:
@@ -68,7 +75,8 @@ class AvailableData(Data, ConfigAvailableDataSpecs):
 
 
 @dataclass(kw_only=True)
-class GeneratedData(Data, ConfigGeneratedDataSpecs): ...
+class GeneratedData(Data, ConfigGeneratedDataSpecs):
+    origin_task: Task = field(init=False, repr=False)
 
 
 @dataclass(kw_only=True)
@@ -77,17 +85,28 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
 
     plugin_classes: ClassVar[dict[str, type[Self]]] = field(default={}, repr=False)
     color: ClassVar[str] = field(default="light_red", repr=False)
+    submit_filename: ClassVar[str] = field(default="run_script.sh", repr=False)
+
+    config_rootdir: Path
+    run_dir: Path = field(init=False, repr=False)
+    label: str = field(init=False, repr=False)
+    jobid: str = field(default="_NO_ID_", repr=False)
+    cycle_point: CyclePoint
+    front_rank: int = field(init=False, repr=False)
+    status: Status = field(init=False, repr=False)
 
     inputs: dict[str, list[Data]] = field(default_factory=dict)
-    outputs: dict[str | None, list[Data]] = field(default_factory=dict)
+    outputs: dict[str | None, list[GeneratedData]] = field(default_factory=dict)
     wait_on: list[Task] = field(default_factory=list)
-    config_rootdir: Path
-    cycle_point: CyclePoint
+    waiters: list[Task] = field(default_factory=list, repr=False)
+    parents: list[Task] = field(default_factory=list, repr=False)
+    children: list[Task] = field(default_factory=list, repr=False)
 
     _wait_on_specs: list[ConfigCycleTaskWaitOn] = field(default_factory=list, repr=False)
 
     def __post_init__(self):
-        pass
+        self.label = self.name + "__" + "__".join(f"{key}_{value}".replace(" ", "_") for key, value in self.coordinates.items())
+        self.run_dir = self.config_rootdir / "tasks" / self.label
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -102,11 +121,14 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     def input_data_items(self) -> Iterator[tuple[str, Data]]:
         yield from ((key, value) for key, values in self.inputs.items() for value in values)
 
-    def output_data_nodes(self) -> Iterator[Data]:
+    def output_data_nodes(self) -> Iterator[GeneratedData]:
         yield from chain(*self.outputs.values())
 
     def output_data_items(self) -> Iterator[tuple[str | None, Data]]:
         yield from ((key, value) for key, values in self.outputs.items() for value in values)
+
+    def run_script_lines(self) -> list[str]:
+        raise NotImplementedError
 
     @classmethod
     def from_config(
@@ -148,6 +170,12 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
         #                                                and setting an underscored attribute from
         #                                                the class itself raises SLF001
 
+        # Link new task to input and output data nodes
+        for data in new.input_data_nodes():
+            data.downstream_tasks.append(new)
+        for data in new.output_data_nodes():
+            data.origin_task = new
+
         return new
 
     @classmethod
@@ -165,6 +193,18 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
                 )
             )
         )
+        # Add self to waiters of upstream task
+        for upstream_task in self.wait_on:
+            upstream_task.waiters.append(self)
+
+    def link_parents_children(self):
+        for data_in in self.input_data_nodes():
+            if isinstance(data_in, GeneratedData):
+                self.parents.append(data_in.origin_task)
+        self.parents.extend(self.wait_on)
+        for data_out in self.output_data_nodes():
+            self.children.extend(data_out.downstream_tasks)
+        self.children.extend(self.waiters)
 
 
 @dataclass(kw_only=True)

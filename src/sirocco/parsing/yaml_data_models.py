@@ -337,6 +337,15 @@ class ConfigRootTask(ConfigBaseTask):
 
 
 @dataclass(kw_only=True)
+class ConfigSiroccoTaskSpecs:
+    plugin: ClassVar[Literal["_sirocco"]] = "_sirocco"
+    venv: Path | None = field(default=None, repr=False)
+
+
+class ConfigSiroccoTask(ConfigBaseTask, ConfigSiroccoTaskSpecs): ...
+
+
+@dataclass(kw_only=True)
 class ConfigShellTaskSpecs:
     plugin: ClassVar[Literal["shell"]] = "shell"
     port_pattern: ClassVar[re.Pattern] = field(default=re.compile(r"{PORT(\[sep=.+\])?::(.+?)}"), repr=False)
@@ -621,13 +630,16 @@ class ConfigData(BaseModel):
 
 
 def get_plugin_from_named_base_model(
-    data: dict | ConfigRootTask | ConfigShellTask | ConfigIconTask,
+    data: dict | ConfigRootTask | ConfigSiroccoTask | ConfigShellTask | ConfigIconTask,
 ) -> str:
-    if isinstance(data, ConfigRootTask | ConfigShellTask | ConfigIconTask):
+    if isinstance(data, ConfigRootTask | ConfigSiroccoTask | ConfigShellTask | ConfigIconTask):
         return data.plugin
     name_and_specs = extract_merge_key_as_value(data)
-    if name_and_specs.get("name", None) == "ROOT":
-        return ConfigRootTask.plugin
+    match name_and_specs.get("name", None):
+        case "ROOT":
+            return ConfigRootTask.plugin
+        case "SIROCCO":
+            return ConfigSiroccoTask.plugin
     plugin = name_and_specs.get("plugin", None)
     if plugin is None:
         msg = f"Could not find plugin name in {data}"
@@ -637,6 +649,7 @@ def get_plugin_from_named_base_model(
 
 ConfigTask = Annotated[
     Annotated[ConfigRootTask, Tag(ConfigRootTask.plugin)]
+    | Annotated[ConfigSiroccoTask, Tag(ConfigSiroccoTask.plugin)]
     | Annotated[ConfigIconTask, Tag(ConfigIconTask.plugin)]
     | Annotated[ConfigShellTask, Tag(ConfigShellTask.plugin)],
     Discriminator(get_plugin_from_named_base_model),
@@ -669,6 +682,7 @@ class ConfigWorkflow(BaseModel):
             >>> content = textwrap.dedent(
             ...     '''
             ...     name: minimal
+            ...     scheduler: slurm
             ...     rootdir: /location/of/config/file
             ...     cycles:
             ...       - minimal_cycle:
@@ -695,6 +709,7 @@ class ConfigWorkflow(BaseModel):
 
             >>> wf = ConfigWorkflow(
             ...     name="minimal",
+            ...     scheduler="slurm",
             ...     rootdir=Path("/location/of/config/file"),
             ...     cycles=[ConfigCycle(minimal_cycle={"tasks": [ConfigCycleTask(task_a={})]})],
             ...     tasks=[
@@ -722,7 +737,9 @@ class ConfigWorkflow(BaseModel):
     """
 
     rootdir: Path
+    scheduler: Literal["slurm"]
     name: str
+    front_depth: int = 2
     cycles: Annotated[list[ConfigCycle], BeforeValidator(list_not_empty)]
     tasks: Annotated[list[ConfigTask], BeforeValidator(list_not_empty)]
     data: ConfigData
@@ -736,6 +753,22 @@ class ConfigWorkflow(BaseModel):
                 if param_name not in self.parameters:
                     msg = f"parameter {param_name} in {item.name} specification not declared in parameters section"
                     raise ValueError(msg)
+        return self
+
+    @model_validator(mode="after")
+    def propagate_root_task(self) -> ConfigWorkflow:
+        root_task: ConfigRootTask | None = None
+        for task in self.tasks:
+            if isinstance(task, ConfigRootTask):
+                if root_task is not None:
+                    msg = "Only one root task can be provided"
+                    raise ValueError(msg)
+                root_task = task
+        if root_task is not None:
+            for root_key, root_value in dict(root_task).items():
+                for task in self.tasks:
+                    if not isinstance(task, ConfigRootTask) and getattr(task, root_key, None) is None:
+                        setattr(task, root_key, root_value)
         return self
 
     @classmethod
