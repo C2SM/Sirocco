@@ -129,11 +129,11 @@ class Slurm(Scheduler):
         # NOTE: For a complete list of SLURM state codes, see
         #       https://slurm.schedmd.com/job_state_codes.html
         match status_str:
-            case "RUNNING" | "PENDING" | "SUSPENDED":
+            case s if s.startswith(("RUNNING", "PENDING", "SUSPENDED")):
                 status = Status.ONGOING
-            case "COMPLETED":
+            case s if s.startswith("COMPLETED"):
                 status = Status.COMPLETED
-            case "FAILED" | "NODE_FAIL" | "OUT_OF_MEMORY" | "TIMEOUT" | "CANCELLED":
+            case s if s.startswith(("FAILED", "NODE_FAIL", "OUT_OF_MEMORY", "TIMEOUT", "CANCELLED")):
                 status = Status.FAILED
             case _:
                 msg = f"unexpected status reported for task {task.label}: {status_str}"
