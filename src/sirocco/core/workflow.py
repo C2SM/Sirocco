@@ -145,8 +145,8 @@ class Workflow:
 
     def continue_wf(self, log_type: Literal["std", "tee"] = "std") -> None:  # NOTE: cannot use "continue"
         self.load_front()
-        self.propagate_front(log_type=log_type)
-        self.auto_submit()
+        if self.propagate_front(log_type=log_type):
+            self.auto_submit()
 
     def restart(self, log_type: Literal["std", "tee"] = "tee") -> None:
         if not (self.config_rootdir / "run").exists():
@@ -154,8 +154,8 @@ class Workflow:
             raise ValueError(msg)
         self.load_front()
         self.restart_front(log_type=log_type)
-        self.propagate_front(log_type=log_type)
-        self.auto_submit()
+        if self.propagate_front(log_type=log_type):
+            self.auto_submit()
 
     def stop(self, mode: Literal["cancel", "cool-down"], log_type: Literal["std", "tee"] = "tee") -> None:
         if not (self.config_rootdir / "run").exists():
@@ -206,7 +206,7 @@ class Workflow:
                 self.scheduler.submit(task)
                 self.front[0].append(task)
                 task.dump_jobid_and_rank()
-                msg = f"{task.label} submitted"
+                msg = f"{task.label} (jobid:{task.jobid}) SUBMITTED"
                 logger.info(msg)
         for k in range(self.front_depth - 1):
             for task in self.front[k]:
@@ -216,7 +216,7 @@ class Workflow:
                         child.rank = k + 1
                         self.front[k + 1].append(child)
                         child.dump_jobid_and_rank()
-                        msg = f"{child.label} submitted"
+                        msg = f"{child.label} (jobid:{child.jobid}) SUBMITTED"
                         logger.info(msg)
 
     def restart_front(self, log_type: Literal["std", "tee"] = "std") -> None:
@@ -235,11 +235,13 @@ class Workflow:
                 else:
                     self.scheduler.submit(task)
                     task.dump_jobid_and_rank()
-                    msg = f"{task.label} submitted"
+                    msg = f"{task.label} (jobid:{task.jobid}) SUBMITTED"
                     logger.info(msg)
 
-    def propagate_front(self, log_type: Literal["std", "tee"] = "std") -> None:
-        """Propagate front of submitted tasks and submit new ones"""
+    def propagate_front(self, log_type: Literal["std", "tee"] = "std") -> bool:
+        """Propagate front of submitted tasks and submit new ones
+
+        return False if a task failed, otherwise True"""
 
         logger = self.get_logger(log_type)
         # Handle first generation of the front
@@ -249,15 +251,16 @@ class Workflow:
                 self.cancel_all_tasks(mode="cancel")
                 msg = f"All workflow tasks canceled because {task.label} failed"
                 logger.info(msg)
-                return
+                return False
             if status == Status.COMPLETED:
                 if self.front_depth == 1:
                     just_finished.append(task)
                 task.rank = -1
                 self.front[0].remove(task)
                 task.dump_jobid_and_rank()
-                msg = f"{task.label} completed"
+                msg = f"{task.label} (jobid:{task.jobid}) COMPLETED"
                 logger.info(msg)
+        return True
 
         # Update front rank of tasks currently in the front after the first generation
         for k in range(1, self.front_depth):
@@ -267,7 +270,7 @@ class Workflow:
                     self.front[k].remove(task)
                     self.front[k - 1].append(task)
                     task.dump_jobid_and_rank()
-                    msg = f"{task.label} promoted from rank {k} to {k-1}"
+                    msg = f"{task.label} (jobid:{task.jobid}) PROMOTED from rank {k} to {k-1}"
                     logger.info(msg)
 
         # Add new tasks to the last generation of the front
@@ -282,7 +285,7 @@ class Workflow:
                     child.rank = self.front_depth - 1
                     self.front[-1].append(child)
                     child.dump_jobid_and_rank()
-                    msg = f"{child.label} submitted"
+                    msg = f"{child.label} (jobid:{child.jobid}) SUBMITTED"
                     logger.info(msg)
 
     def cancel_all_tasks(self, mode: Literal["cancel", "cool-down"], log_type: Literal["std", "tee"] = "std") -> None:
@@ -297,11 +300,11 @@ class Workflow:
                     and self.scheduler.get_status(task) in (Status.COMPLETED, Status.ONGOING)
                 ):
                     task.cool_down_path.touch()
-                    msg = f"{task.label} cooling down"
+                    msg = f"{task.label} (jobid:{task.jobid}) COOLING DOWN"
                     logger.info(msg)
                     continue
                 self.scheduler.cancel(task)
-                msg = f"{task.label} canceled"
+                msg = f"{task.label} (jobid:{task.jobid}) CANCELED"
                 logger.info(msg)
 
     def auto_submit(self) -> None:
