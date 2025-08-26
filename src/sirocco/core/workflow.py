@@ -135,9 +135,7 @@ class Workflow:
         )
 
     # =========== Methods to control workflow ===========
-    # TODO: for start, restart and stop, log to both stdout and
-    #       self.config_rootdir / core.SiroccoContinueTask.STDOUTERR_FILENAME
-    #       so that the log history is complete
+    #
     def start(self, log_type: Literal["std", "tee"] = "tee") -> None:
         if (self.config_rootdir / "run").exists():
             msg = "Workflow already exists, cannot start"
@@ -345,5 +343,5 @@ class Workflow:
             config_data=config_workflow.data,
             parameters=config_workflow.parameters,
             front_depth=config_workflow.front_depth,
-            sirocco_task_config=sirocco_task_config,
+            config_sirocco_task=sirocco_task_config,
         )
