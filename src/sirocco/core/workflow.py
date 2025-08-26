@@ -143,7 +143,7 @@ class Workflow:
         self.init_front(log_type=log_type)
         self.auto_submit()
 
-    def continue_wf(self, log_type: Literal["std", "tee"] = "std") -> None:  # NOTE: cannot use "cotinue"
+    def continue_wf(self, log_type: Literal["std", "tee"] = "std") -> None:  # NOTE: cannot use "continue"
         self.load_front()
         self.propagate_front(log_type=log_type)
         self.auto_submit()

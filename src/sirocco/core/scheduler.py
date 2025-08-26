@@ -121,11 +121,11 @@ class Slurm(Scheduler):
         """Infer task status using sacct"""
 
         result = subprocess.run(
-            ["sacct", "-o", "state", "-j", task.jobid],  # noqa: S607
+            ["sacct", "-o", "state", "-p", "-j", task.jobid],  # noqa: S607
             capture_output=True,
             check=True,
         )
-        status_str = result.stdout.decode().strip().split("\n")[2].strip()
+        status_str = result.stdout.decode().strip().split("\n")[-1][:-1]
         # NOTE: For a complete list of SLURM state codes, see
         #       https://slurm.schedmd.com/job_state_codes.html
         match status_str:
