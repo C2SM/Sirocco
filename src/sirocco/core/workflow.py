@@ -249,6 +249,7 @@ class Workflow:
                 self.cancel_all_tasks(mode="cancel")
                 msg = f"All workflow tasks canceled because {task.label} failed"
                 logger.info(msg)
+                return
             if status == Status.COMPLETED:
                 if self.front_depth == 1:
                     just_finished.append(task)
