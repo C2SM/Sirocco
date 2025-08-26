@@ -60,6 +60,7 @@ class Data(ConfigBaseDataSpecs, GraphItem):
 
     color: ClassVar[str] = field(default="light_blue", repr=False)
     downstream_tasks: list[Task] = field(default_factory=list, repr=False)
+    resolved_path: Path = field(init=False, repr=False)
 
     @classmethod
     def from_config(cls, config: ConfigBaseData, coordinates: dict) -> AvailableData | GeneratedData:
@@ -73,6 +74,9 @@ class Data(ConfigBaseDataSpecs, GraphItem):
 class AvailableData(Data, ConfigAvailableDataSpecs):
     computer: str
 
+    def __post_init__(self):
+        self.resolved_path = self.path
+
 
 @dataclass(kw_only=True)
 class GeneratedData(Data, ConfigGeneratedDataSpecs):
@@ -85,15 +89,21 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
 
     plugin_classes: ClassVar[dict[str, type[Self]]] = field(default={}, repr=False)
     color: ClassVar[str] = field(default="light_red", repr=False)
-    submit_filename: ClassVar[str] = field(default="run_script.sh", repr=False)
+    SUBMIT_FILENAME: ClassVar[str] = field(default="run_script.sh", repr=False)
+    STDOUTERR_FILENAME: ClassVar[str] = field(default="run_sript.%j.o", repr=False)
+    JOBID_FILENAME: ClassVar[str] = field(default=".jobid", repr=False)
+    RANK_FILENAME: ClassVar[str] = field(default=".rank", repr=False)
+    COOL_DOWN_FILENAME: ClassVar[str] = field(default=".cool-down", repr=False)
 
     config_rootdir: Path
     run_dir: Path = field(init=False, repr=False)
+    jobid_path: Path = field(init=False, repr=False)
+    rank_path: Path = field(init=False, repr=False)
+    cool_down_path: Path = field(init=False, repr=False)
     label: str = field(init=False, repr=False)
     jobid: str = field(default="_NO_ID_", repr=False)
+    rank: int = field(init=False, repr=False)
     cycle_point: CyclePoint
-    front_rank: int = field(init=False, repr=False)
-    status: Status = field(init=False, repr=False)
 
     inputs: dict[str, list[Data]] = field(default_factory=dict)
     outputs: dict[str | None, list[GeneratedData]] = field(default_factory=dict)
@@ -105,8 +115,16 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     _wait_on_specs: list[ConfigCycleTaskWaitOn] = field(default_factory=list, repr=False)
 
     def __post_init__(self):
-        self.label = self.name + "__" + "__".join(f"{key}_{value}".replace(" ", "_") for key, value in self.coordinates.items())
-        self.run_dir = self.config_rootdir / "tasks" / self.label
+        if set(self.inputs.keys()).intersection(self.outputs.keys()):
+            msg = "port names must be unique, even between inputs and outputs"
+            raise ValueError(msg)
+        self.label = (
+            self.name + "__" + "__".join(f"{key}_{value}".replace(" ", "_") for key, value in self.coordinates.items())
+        )
+        self.run_dir = (self.config_rootdir / "run" / self.label).resolve()
+        self.jobid_path = self.run_dir / self.JOBID_FILENAME
+        self.rank_path = self.run_dir / self.RANK_FILENAME
+        self.cool_down_path = self.run_dir / self.COOL_DOWN_FILENAME
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -126,9 +144,6 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
 
     def output_data_items(self) -> Iterator[tuple[str | None, Data]]:
         yield from ((key, value) for key, values in self.outputs.items() for value in values)
-
-    def run_script_lines(self) -> list[str]:
-        raise NotImplementedError
 
     @classmethod
     def from_config(
@@ -176,6 +191,9 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
         for data in new.output_data_nodes():
             data.origin_task = new
 
+        # Update output data path if needed
+        new.resolve_output_data_paths()
+
         return new
 
     @classmethod
@@ -197,7 +215,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
         for upstream_task in self.wait_on:
             upstream_task.waiters.append(self)
 
-    def link_parents_children(self):
+    def link_parents_children(self) -> None:
         for data_in in self.input_data_nodes():
             if isinstance(data_in, GeneratedData):
                 self.parents.append(data_in.origin_task)
@@ -205,6 +223,28 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
         for data_out in self.output_data_nodes():
             self.children.extend(data_out.downstream_tasks)
         self.children.extend(self.waiters)
+
+    def load_jobid_and_rank(self) -> bool:
+        if active := self.jobid_path.exists():
+            self.jobid = self.jobid_path.read_text()
+            self.rank = int(self.rank_path.read_text())
+        return active
+
+    def dump_jobid_and_rank(self):
+        self.jobid_path.write_text(self.jobid)
+        self.rank_path.write_text(str(self.rank))
+
+    def runscript_lines(self) -> list[str]:
+        raise NotImplementedError
+
+    def resolve_output_data_paths(self) -> None:
+        # NOTE: not raising error to not disurb tests using the ICON task
+        # TODO: do not forget when implementing the standalone icon task
+        # raise NotImplementedError
+        pass
+
+    def prepare_for_submission(self) -> None:
+        raise NotImplementedError
 
 
 @dataclass(kw_only=True)

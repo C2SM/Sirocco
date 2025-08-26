@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Self
 
@@ -40,7 +41,33 @@ class ShellTask(models.ConfigShellTaskSpecs, Task):
         if not path.exists():
             msg = f"Script in path {path} does not exist."
             raise FileNotFoundError(msg)
-        if not path.is_file():
-            msg = f"Script in path {path} is not a file."
-            raise OSError(msg)
         return path
+
+    def runscript_lines(self) -> list[str]:
+        return [
+            self.resolve_ports(
+                {
+                    port: [str(data.resolved_path) for data in input_data]
+                    for port, input_data in (self.outputs | self.inputs).items()
+                }
+            )
+        ]
+
+    def prepare_for_submission(self) -> None:
+        shutil.rmtree(self.run_dir, ignore_errors=True)
+        self.run_dir.mkdir(parents=True, exist_ok=True)
+        if self.path:
+            if self.path.is_dir():
+                shutil.copytree(self.config_rootdir / self.path, self.run_dir / self.path.name)
+            else:
+                shutil.copy(self.config_rootdir / self.path, self.run_dir / self.path.name)
+
+    def resolve_output_data_paths(self) -> None:
+        for data in self.output_data_nodes():
+            if data.path is None:
+                msg = "shell task output data must specify a path"
+                raise ValueError(msg)
+            if data.path.is_absolute():
+                data.resolved_path = data.path
+            else:
+                data.resolved_path = self.run_dir / data.path

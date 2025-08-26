@@ -20,7 +20,7 @@ app = typer.Typer(
 )
 
 # Create a Rich console instance for printing
-console = Console()
+console = Console(record=True)
 
 
 def _create_aiida_workflow(workflow_file: Path) -> AiidaWorkGraph:
@@ -225,6 +225,145 @@ def submit(
 
     except Exception as e:
         console.print(f"[bold red]❌ Workflow submission failed: {e}[/bold red]")
+        console.print_exception()
+        raise typer.Exit(code=1) from e
+
+
+@app.command(help="Start a standalone workflow.")
+def start(
+    workflow_file: Annotated[
+        Path,
+        typer.Argument(
+            ...,
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            help="Path to the workflow definition YAML file.",
+        ),
+    ],
+):
+    wf = core.Workflow.from_config_file(workflow_file)
+    if (wf.config_rootdir / "run").exists():
+        msg = "Workflow already exists, cannot start."
+        raise ValueError(msg)
+    console.print(f"▶️ Starting workflow at {wf.config_rootdir} ...")
+    with (wf.config_rootdir / core.SiroccoContinueTask.STDOUTERR_FILENAME).open("a") as logfile:
+        logfile.write(console.export_text(clear=True))
+    try:
+        wf.start()
+        console.print("✅ Workflow started successfully.")
+    except Exception as e:
+        console.print(f"❌ Workflow start failed: {e}")
+        console.print_exception()
+        raise typer.Exit(code=1) from e
+    with (wf.config_rootdir / core.SiroccoContinueTask.STDOUTERR_FILENAME).open("a") as logfile:
+        logfile.write(console.export_text(clear=True))
+
+
+@app.command(help="Start a standalone workflow.")
+def restart(
+    workflow_file: Annotated[
+        Path,
+        typer.Argument(
+            ...,
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            help="Path to the workflow definition YAML file.",
+        ),
+    ],
+):
+    wf = core.Workflow.from_config_file(workflow_file)
+    console.print(f"▶️ Restarting workflow at {wf.config_rootdir} ...")
+    with (wf.config_rootdir / core.SiroccoContinueTask.STDOUTERR_FILENAME).open("a") as logfile:
+        logfile.write(console.export_text(clear=True))
+    try:
+        wf.restart()
+        console.print("✅ Workflow restarted successfully.")
+    except Exception as e:
+        console.print(f"❌ Workflow restart failed: {e}")
+        console.print_exception()
+        raise typer.Exit(code=1) from e
+    with (wf.config_rootdir / core.SiroccoContinueTask.STDOUTERR_FILENAME).open("a") as logfile:
+        logfile.write(console.export_text(clear=True))
+
+
+@app.command(help="Stop a standalone workflow.")
+def stop(
+    workflow_file: Annotated[
+        Path,
+        typer.Argument(
+            ...,
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            help="Path to the workflow definition YAML file.",
+        ),
+    ],
+    cool_down: Annotated[  # noqa: FBT002
+        bool,
+        typer.Option(
+            "--cool-down",
+            help="Do not cancel currently running tasks",
+        ),
+    ] = False,
+):
+    wf = core.Workflow.from_config_file(workflow_file)
+    msg = f"▶️ Stopping workflow at {wf.config_rootdir}"
+    if cool_down:
+        msg += " in cool down mode"
+    msg += " ..."
+    console.print(msg)
+    with (wf.config_rootdir / core.SiroccoContinueTask.STDOUTERR_FILENAME).open("a") as logfile:
+        logfile.write(console.export_text(clear=True))
+    try:
+        wf.stop(mode="cool-down" if cool_down else "cancel")
+        console.print("✅ Workflow stopped successfully.")
+    except Exception as e:
+        console.print(f"❌ Workflow stop failed: {e}")
+        console.print_exception()
+        raise typer.Exit(code=1) from e
+    with (wf.config_rootdir / core.SiroccoContinueTask.STDOUTERR_FILENAME).open("a") as logfile:
+        logfile.write(console.export_text(clear=True))
+
+
+@app.command(name="continue", help="Continue a standalone workflow.")
+def continue_wf(
+    workflow_file: Annotated[
+        Path,
+        typer.Argument(
+            ...,
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            help="Path to the workflow definition YAML file.",
+        ),
+    ],
+    from_wf: Annotated[  # noqa: FBT002
+        bool,
+        typer.Option(
+            "--from_wf",
+            help="Specify command is executed from a running worflow (as opposed to interactively)",
+        ),
+    ] = False,
+):
+    if not from_wf:
+        msg = "Do not use interactively, the continue command is reserved for internal use"
+        raise ValueError(msg)
+    wf = core.Workflow.from_config_file(workflow_file)
+    console.print("▶️ Continue workflow ...")
+    try:
+        wf.continue_wf()
+        if wf.front[0]:
+            console.print("✅ Workflow continuation submitted successfully.")
+        else:
+            console.print("✅ Workflow completed!")
+    except Exception as e:
+        console.print(f"❌ Workflow continuation failed: {e}")
         console.print_exception()
         raise typer.Exit(code=1) from e
 

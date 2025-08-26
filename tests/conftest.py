@@ -69,6 +69,7 @@ def minimal_config() -> models.ConfigWorkflow:
         name="minimal",
         scheduler="slurm",
         rootdir=pathlib.Path("minimal"),
+        config_filename="config.yml",
         cycles=[models.ConfigCycle(name="minimal", tasks=[models.ConfigCycleTask(name="some_task")])],
         tasks=[models.ConfigShellTask(name="some_task", command="some_command", computer="localhost")],
         data=models.ConfigData(
@@ -87,6 +88,7 @@ def minimal_invert_task_io_config() -> models.ConfigWorkflow:
         name="minimal",
         scheduler="slurm",
         rootdir=pathlib.Path("minimal"),
+        config_filename="config.yml",
         cycles=[
             models.ConfigCycle(
                 name="minimal",

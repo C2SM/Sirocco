@@ -348,15 +348,21 @@ class ConfigSiroccoTask(ConfigBaseTask, ConfigSiroccoTaskSpecs): ...
 @dataclass(kw_only=True)
 class ConfigShellTaskSpecs:
     plugin: ClassVar[Literal["shell"]] = "shell"
-    port_pattern: ClassVar[re.Pattern] = field(default=re.compile(r"{PORT(\[sep=.+\])?::(.+?)}"), repr=False)
-    sep_pattern: ClassVar[re.Pattern] = field(default=re.compile(r"\[sep=(.+)\]"), repr=False)
+    when_port_pattern: ClassVar[re.Pattern] = field(
+        default=re.compile(r"\[(?P<opt>.*?){PORT(?P<sep_spec>\[sep=.+\])?::(?P<port>.+?)}\]"), repr=False
+    )
+    port_pattern: ClassVar[re.Pattern] = field(
+        default=re.compile(r"{PORT(?P<sep_spec>\[sep=.+\])?::(?P<port>.+?)}"), repr=False
+    )
+    sep_pattern: ClassVar[re.Pattern] = field(default=re.compile(r"\[sep=(?P<sep>.+)\]"), repr=False)
 
     command: str
     path: Path | None = field(
         default=None, repr=False, metadata={"description": ("Script file relative to the config directory.")}
     )
 
-    def resolve_ports(self, input_labels: dict[str, list[str]]) -> str:
+    # TODO: move str | None in the signature to str once ports are compulsery everywhere (also for output)
+    def resolve_ports(self, input_labels: dict[str | None, list[str]]) -> str:
         """Replace port placeholders in command string with provided input labels.
 
         Returns a string corresponding to self.command with "{PORT::port_name}"
@@ -390,22 +396,62 @@ class ConfigShellTaskSpecs:
             ... )
             >>> task_specs.resolve_ports({"repeat_input": ["input_1", "input_2", "input_3"]})
             './my_script --input input_1 --input input_2 --input input_3'
+
+            >>> task_specs = ConfigShellTaskSpecs(
+            ...     command="./my_script [--when_opt {PORT::when_input}] --input {PORT[sep= --input ]::repeat_input}"
+            ... )
+            >>> task_specs.resolve_ports(
+            ...     {
+            ...         "when_input": ["some_when_input"],
+            ...         "repeat_input": ["input_1", "input_2", "input_3"],
+            ...     }
+            ... )
+            './my_script --when_opt some_when_input --input input_1 --input input_2 --input input_3'
+
+            >>> task_specs = ConfigShellTaskSpecs(
+            ...     command="./my_script[ --when_opt {PORT::when_input}] --input {PORT[sep= --input ]::repeat_input}"
+            ... )
+            >>> task_specs.resolve_ports({"repeat_input": ["input_1", "input_2", "input_3"]})
+            './my_script --input input_1 --input input_2 --input input_3'
+            >>> task_specs.resolve_ports(
+            ...     {"when_input": [], "repeat_input": ["input_1", "input_2", "input_3"]}
+            ... )
+            './my_script --input input_1 --input input_2 --input input_3'
         """
-        cmd = self.command
-        for port_match in self.port_pattern.finditer(cmd):
-            if (port_name := port_match.group(2)) is None:
-                msg = f"Wrong port specification: {port_match.group(0)}"
+
+        def replace_port(cmd: str, match_obj: re.Match) -> str:
+            full_match = match_obj.group(0)
+            if (port := match_obj.group("port")) is None:
+                msg = f"Wrong port specification: {full_match}"
                 raise ValueError(msg)
-            if (sep := port_match.group(1)) is None:
-                arg_sep = " "
+            if (sep_spec := match_obj.group("sep_spec")) is None:
+                sep = " "
             else:
-                if (sep_match := self.sep_pattern.match(sep)) is None:
-                    msg = "Wrong separator specification: sep"
+                if (sep_match := self.sep_pattern.match(sep_spec)) is None:  # - ML - That can probably not happen
+                    msg = f"Wrong separator specification: {sep_spec}"
                     raise ValueError(msg)
-                if (arg_sep := sep_match.group(1)) is None:
-                    msg = "Wrong separator specification: sep"
+                if (sep := sep_match.group("sep")) is None:
+                    msg = f"Wrong separator specification: {sep_spec}"
                     raise ValueError(msg)
-            cmd = cmd.replace(port_match.group(0), arg_sep.join(input_labels[port_name]))
+
+            if "opt" in match_obj.groupdict():
+                if (opt := match_obj.group("opt")) is None:
+                    msg = f"Wrong port specification: {full_match}"
+                    raise ValueError(msg)
+                if not input_labels.get(port):
+                    return cmd.replace(full_match, "")
+                return cmd.replace(full_match, opt + sep.join(input_labels[port]))
+
+            if port not in input_labels:
+                msg = f"The input_labels dictionnary doesn't have the {port} key. If the port has a when condition, enclose the whole dedicated comand line part in square brackets e.g. command: ... [--arg={{PORT:my_port}}] ..."
+                raise KeyError(msg)
+            return cmd.replace(full_match, sep.join(input_labels[port]))
+
+        cmd = self.command
+        for when_port_match in self.when_port_pattern.finditer(cmd):
+            cmd = replace_port(cmd, when_port_match)
+        for port_match in self.port_pattern.finditer(cmd):
+            cmd = replace_port(cmd, port_match)
         return cmd
 
 
@@ -683,7 +729,8 @@ class ConfigWorkflow(BaseModel):
             ...     '''
             ...     name: minimal
             ...     scheduler: slurm
-            ...     rootdir: /location/of/config/file
+            ...     rootdir: /location/of/config
+            ...     config_filename: config.yml
             ...     cycles:
             ...       - minimal_cycle:
             ...           tasks:
@@ -710,7 +757,8 @@ class ConfigWorkflow(BaseModel):
             >>> wf = ConfigWorkflow(
             ...     name="minimal",
             ...     scheduler="slurm",
-            ...     rootdir=Path("/location/of/config/file"),
+            ...     rootdir=Path("/location/of/config"),
+            ...     config_filename="config.yml",
             ...     cycles=[ConfigCycle(minimal_cycle={"tasks": [ConfigCycleTask(task_a={})]})],
             ...     tasks=[
             ...         ConfigShellTask(
@@ -737,6 +785,7 @@ class ConfigWorkflow(BaseModel):
     """
 
     rootdir: Path
+    config_filename: str
     scheduler: Literal["slurm"]
     name: str
     front_depth: int = 2
@@ -772,7 +821,7 @@ class ConfigWorkflow(BaseModel):
         return self
 
     @classmethod
-    def from_config_file(cls, config_path: str) -> Self:
+    def from_config_file(cls, config_path: str | Path) -> Self:
         """Creates a ConfigWorkflow instance from a config file, a yaml with the workflow definition.
 
         Args:
@@ -802,6 +851,7 @@ class ConfigWorkflow(BaseModel):
         if "name" not in object_:
             object_["name"] = config_filename
         object_["rootdir"] = config_resolved_path.parent
+        object_["config_filename"] = Path(config_path).name
         adapter = TypeAdapter(cls)
         return adapter.validate_python(object_)
 

@@ -1,19 +1,59 @@
 import subprocess
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, assert_never
 
 from sirocco.core.graph_items import Status, Task
 
 
 @dataclass(kw_only=True)
 class Scheduler:
-    def submit_task(self, task: Task, dependency_type: Literal["ALL_COMPLETED", "ANY"] = "ALL_COMPLETED") -> None:
+    def submit(
+        self,
+        task: Task,
+        output_mode: Literal["overwrite", "append"] = "overwrite",
+        dependency_type: Literal["ALL_COMPLETED", "ANY"] = "ALL_COMPLETED",
+    ):
+        """Submit a task"""
+
+        # Prepare for submission ( create rundir, wipe rundir, link/copy necessary files/dirs, ...)
+        task.prepare_for_submission()
+
+        # Shebang
+        submit_script: list[str] = ["#!/bin/bash -l"]
+
+        # SLURM header
+        submit_script.extend(self.header_lines(task, output_mode=output_mode, dependency_type=dependency_type))
+
+        # Rest of the script
+        submit_script.append("")
+        submit_script.extend(task.runscript_lines())
+
+        # Submit
+        (task.run_dir / task.SUBMIT_FILENAME).write_text("\n".join(submit_script))
+        result = subprocess.run(
+            ["sbatch", "--parsable", task.SUBMIT_FILENAME],  # noqa: S607
+            capture_output=True,
+            cwd=task.run_dir,
+            check=True,
+        )
+        task.jobid = result.stdout.decode().strip()
+
+        # Serialize required information
+        task.jobid_path.write_text(f"{task.jobid}")
+        task.rank_path.write_text(f"{task.rank}")
+
+    def header_lines(
+        self,
+        task: Task,
+        output_mode: Literal["overwrite", "append"] = "overwrite",
+        dependency_type: Literal["ALL_COMPLETED", "ANY", "NONE"] = "ALL_COMPLETED",
+    ) -> list[str]:
         raise NotImplementedError
 
-    def update_status(self, task: Task) -> Status:
+    def get_status(self, task: Task) -> Status:
         raise NotImplementedError
 
-    def cancel_task(self, task: Task) -> None:
+    def cancel(self, task: Task) -> None:
         raise NotImplementedError
 
     @classmethod
@@ -26,61 +66,76 @@ class Scheduler:
 
 @dataclass(kw_only=True)
 class Slurm(Scheduler):
-    def submit_task(self, task: Task, dependency_type: Literal["ALL_COMPLETED", "ANY"] = "ALL_COMPLETED"):
-        """Submit a task"""
-
-        # Shebang
-        submit_script: list[str] = ["#!/bin/bash -l"]
-
-        # SLURM header
-        submit_script.append("")
+    def header_lines(
+        self,
+        task: Task,
+        output_mode: Literal["overwrite", "append"] = "overwrite",
+        dependency_type: Literal["ALL_COMPLETED", "ANY", "NONE"] = "ALL_COMPLETED",
+    ) -> list[str]:
+        header: list[str] = [
+            f"#SBATCH --output={task.STDOUTERR_FILENAME}",
+            f"#SBATCH --error={task.STDOUTERR_FILENAME}",
+            f"#SBATCH --job-name={task.label}",
+        ]
         if account := task.account:
-            submit_script.append(f"#SBATCH --account={account}")
+            header.append(f"#SBATCH --account={account}")
         if time := task.walltime:
-            submit_script.append(f"#SBATCH --time={time}")
+            header.append(f"#SBATCH --time={time}")
         if nodes := task.nodes:
-            submit_script.append(f"#SBATCH --nodes={nodes}")
+            header.append(f"#SBATCH --nodes={nodes}")
         if ntasks_per_node := task.ntasks_per_node:
-            submit_script.append(f"#SBATCH --ntasks-per-node={ntasks_per_node}")
+            header.append(f"#SBATCH --ntasks-per-node={ntasks_per_node}")
         if uenv := task.uenv:
-            submit_script.append(f"#SBATCH --uenv={uenv}")
+            header.append(f"#SBATCH --uenv={uenv}")
         if view := task.view:
-            submit_script.append(f"#SBATCH --view={view}")
+            header.append(f"#SBATCH --view={view}")
+        if output_mode == "append":
+            header.append("#SBATCH --open-mode=append")
         if task.parents:
-            match dependency_type:
-                case "ALL_COMPLETED":
-                    submit_script.append(
-                        "#SBATCH --dependency=afterok:" + ":".join([parent.jobid for parent in task.parents])
-                    )
-                case "ANY":
-                    submit_script.append(
-                        "#SBATCH --dependency=afterany:" + "?afterany:".join([parent.jobid for parent in task.parents])
-                    )
-                case _:
-                    msg = "only ALL_COMPLETED and ANY are valid dependecy types"
-                    raise ValueError(msg)
+            # NOTE: We can safely remove tasks with rank -1 from the parents list
+            #       in order to avoid depending on old tasks for which the scheduler
+            #       has no info anymore when restarting after a long time.
+            # parent_ids: list[str] = [parent.jobid for parent in task.parents if parent.rank > 0]
+            parent_ids: list[str] = [parent.jobid for parent in task.parents]
+            if parent_ids:
+                match dependency_type:
+                    case "ALL_COMPLETED":
+                        header.append("#SBATCH --dependency=afterok:" + ":".join(parent_ids))
+                    case "ANY":
+                        header.append("#SBATCH --dependency=afterany:" + "?afterany:".join(parent_ids))
+                    case "NONE":
+                        pass
+                    case _:
+                        assert_never(dependency_type)
+        return header
 
-        # Rest of the script
-        submit_script.append("")
-        submit_script.extend(task.run_script_lines())
-
-        # Submit
-        (task.run_dir / task.submit_filename).write_text("\n".join(submit_script))
-        result = subprocess.run(
-            ["sbatch", "--parsable", task.submit_filename],  # noqa: S607
-            capture_output=True,
-            cwd=task.run_dir,
-            check=False,
-        )
-        task.jobid = result.stdout.decode().strip()
-
-    def cancel_task(self, task: Task):
+    def cancel(self, task: Task):
         """Cancel a submitted task"""
 
         if task.jobid == "_NO_ID_":
             msg = f"task {task.label} cannot be canceled as it does not have a jobid"
             raise ValueError(msg)
-        subprocess.run(["scancel", task.jobid], check=False)  # noqa: S607
+        subprocess.run(["scancel", task.jobid], check=True)  # noqa: S607
 
-    def update_status(self, task: Task) -> Status:
-        raise NotImplementedError()
+    def get_status(self, task: Task) -> Status:
+        """Infer task status using sacct"""
+
+        result = subprocess.run(
+            ["sacct", "-o", "state", "-j", task.jobid],  # noqa: S607
+            capture_output=True,
+            check=True,
+        )
+        status_str = result.stdout.decode().strip().split("\n")[2].strip()
+        # NOTE: For a complete list of SLURM state codes, see
+        #       https://slurm.schedmd.com/job_state_codes.html
+        match status_str:
+            case "RUNNING" | "PENDING" | "SUSPENDED":
+                status = Status.ONGOING
+            case "COMPLETED":
+                status = Status.COMPLETED
+            case "FAILED" | "NODE_FAIL" | "OUT_OF_MEMORY" | "TIMEOUT" | "CANCELLED":
+                status = Status.FAILED
+            case _:
+                msg = f"unexpected status reported for task {task.label}: {status_str}"
+                raise ValueError(msg)
+        return status
