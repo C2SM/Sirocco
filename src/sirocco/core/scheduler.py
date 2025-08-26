@@ -2,7 +2,7 @@ import subprocess
 from dataclasses import dataclass
 from typing import Literal, assert_never
 
-from sirocco.core.graph_items import Status, Task
+from sirocco.core.graph_items import Task, TaskStatus
 
 
 @dataclass(kw_only=True)
@@ -50,7 +50,7 @@ class Scheduler:
     ) -> list[str]:
         raise NotImplementedError
 
-    def get_status(self, task: Task) -> Status:
+    def get_status(self, task: Task) -> TaskStatus:
         raise NotImplementedError
 
     def cancel(self, task: Task) -> None:
@@ -117,7 +117,7 @@ class Slurm(Scheduler):
             raise ValueError(msg)
         subprocess.run(["scancel", task.jobid], check=True)  # noqa: S607
 
-    def get_status(self, task: Task) -> Status:
+    def get_status(self, task: Task) -> TaskStatus:
         """Infer task status using sacct"""
 
         result = subprocess.run(
@@ -130,11 +130,11 @@ class Slurm(Scheduler):
         #       https://slurm.schedmd.com/job_state_codes.html
         match status_str:
             case s if s.startswith(("RUNNING", "PENDING", "SUSPENDED")):
-                status = Status.ONGOING
+                status = TaskStatus.ONGOING
             case s if s.startswith("COMPLETED"):
-                status = Status.COMPLETED
+                status = TaskStatus.COMPLETED
             case s if s.startswith(("FAILED", "NODE_FAIL", "OUT_OF_MEMORY", "TIMEOUT", "CANCELLED")):
-                status = Status.FAILED
+                status = TaskStatus.FAILED
             case _:
                 msg = f"unexpected status reported for task {task.label}: {status_str}"
                 raise ValueError(msg)

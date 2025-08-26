@@ -252,7 +252,10 @@ def start(
         logfile.write(console.export_text(clear=True))
     try:
         wf.start()
-        console.print("✅ Workflow started successfully.")
+        if wf.status == core.workflow.WorkflowStatus.CONTINUE:
+            console.print("✅ Workflow started successfully.")
+        elif wf.status == core.workflow.WorkflowStatus.FAILED:
+            console.print("❌ Workflow start failed")
     except Exception as e:
         console.print(f"❌ Workflow start failed: {e}")
         console.print_exception()
@@ -281,7 +284,12 @@ def restart(
         logfile.write(console.export_text(clear=True))
     try:
         wf.restart()
-        console.print("✅ Workflow restarted successfully.")
+        if wf.status == core.workflow.WorkflowStatus.CONTINUE:
+            console.print("✅ Workflow restarted successfully.")
+        elif wf.status == core.workflow.WorkflowStatus.COMPLETED:
+            console.print("✅ Workflow completed!")
+        elif wf.status == core.workflow.WorkflowStatus.FAILED:
+            console.print("❌ Workflow restart failed")
     except Exception as e:
         console.print(f"❌ Workflow restart failed: {e}")
         console.print_exception()
@@ -321,7 +329,10 @@ def stop(
         logfile.write(console.export_text(clear=True))
     try:
         wf.stop(mode="cool-down" if cool_down else "cancel")
-        console.print("✅ Workflow stopped successfully.")
+        if wf.status == core.workflow.WorkflowStatus.STOPPED:
+            console.print("✅ Workflow stopped successfully.")
+        else:
+            console.print("❌ Workflow stop failed")
     except Exception as e:
         console.print(f"❌ Workflow stop failed: {e}")
         console.print_exception()
@@ -357,11 +368,14 @@ def continue_wf(
     wf = core.Workflow.from_config_file(workflow_file)
     console.print("▶️ Continue workflow ...")
     try:
+        # TODO: make print depend on status report from continue_wf
         wf.continue_wf()
-        if wf.front[0]:
+        if wf.status == core.workflow.WorkflowStatus.CONTINUE:
             console.print("✅ Workflow continuation submitted successfully.")
-        else:
+        elif wf.status == core.workflow.WorkflowStatus.COMPLETED:
             console.print("✅ Workflow completed!")
+        elif wf.status == core.workflow.WorkflowStatus.FAILED:
+            console.print("❌ Workflow failed")
     except Exception as e:
         console.print(f"❌ Workflow continuation failed: {e}")
         console.print_exception()

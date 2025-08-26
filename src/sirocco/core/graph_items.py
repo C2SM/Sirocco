@@ -35,7 +35,7 @@ class MpiCmdPlaceholder(enum.Enum):
     MPI_TOTAL_PROCS = "MPI_TOTAL_PROCS"
 
 
-class Status(enum.Enum):
+class TaskStatus(enum.Enum):
     ONGOING = 1
     COMPLETED = 2
     FAILED = 3

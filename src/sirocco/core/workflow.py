@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import enum
 import logging
 from itertools import chain, product
 from typing import TYPE_CHECKING, Literal, Self
 
 from sirocco.core._tasks.sirocco_task import SiroccoContinueTask
-from sirocco.core.graph_items import Cycle, Data, Status, Store, Task
+from sirocco.core.graph_items import Cycle, Data, Store, Task, TaskStatus
 from sirocco.core.scheduler import Scheduler
 from sirocco.parsing.cycling import DateCyclePoint, OneOffPoint
 from sirocco.parsing.yaml_data_models import (
@@ -25,6 +26,14 @@ if TYPE_CHECKING:
         ConfigData,
         ConfigTask,
     )
+
+
+class WorkflowStatus(enum.Enum):
+    INIT = 0
+    CONTINUE = 1
+    COMPLETED = 2
+    FAILED = 3
+    STOPPED = 4
 
 
 class Workflow:
@@ -53,6 +62,7 @@ class Workflow:
         self.tasks: Store[Task] = Store()
         self.data: Store[Data] = Store()
         self.cycles: Store[Cycle] = Store()
+        self.status = WorkflowStatus.INIT
 
         config_data_dict: dict[str, ConfigBaseData] = {
             data.name: data for data in chain(config_data.available, config_data.generated)
@@ -137,34 +147,40 @@ class Workflow:
     # =========== Methods to control workflow ===========
     #
     def start(self, log_type: Literal["std", "tee"] = "tee") -> None:
+        logger = self.get_logger(log_type)
         if (self.config_rootdir / "run").exists():
             msg = "Workflow already exists, cannot start"
             raise ValueError(msg)
-        self.init_front(log_type=log_type)
+        self.init_front(logger=logger)
         self.auto_submit()
 
     def continue_wf(self, log_type: Literal["std", "tee"] = "std") -> None:  # NOTE: cannot use "continue"
+        logger = self.get_logger(log_type)
         self.load_front()
-        if self.propagate_front(log_type=log_type):
+        self.propagate_front(logger=logger)
+        if self.status == WorkflowStatus.CONTINUE:
             self.auto_submit()
 
     def restart(self, log_type: Literal["std", "tee"] = "tee") -> None:
+        logger = self.get_logger(log_type)
         if not (self.config_rootdir / "run").exists():
             msg = "Workflow did not start, cannot stop"
             raise ValueError(msg)
         self.load_front()
-        self.restart_front(log_type=log_type)
-        if self.propagate_front(log_type=log_type):
+        self.restart_front(logger=logger)
+        self.propagate_front(logger=logger)
+        if self.status == WorkflowStatus.CONTINUE:
             self.auto_submit()
 
     def stop(self, mode: Literal["cancel", "cool-down"], log_type: Literal["std", "tee"] = "tee") -> None:
+        logger = self.get_logger(log_type)
         if not (self.config_rootdir / "run").exists():
             msg = "Workflow did not start, cannot stop"
             raise ValueError(msg)
         if self.sirocco_continue_task.load_jobid_and_rank():
             self.scheduler.cancel(self.sirocco_continue_task)
         self.load_front()
-        self.cancel_all_tasks(mode=mode, log_type=log_type)
+        self.cancel_all_tasks(mode=mode, logger=logger)
 
     # =========== Helper methods for workflow control ===========
 
@@ -196,17 +212,16 @@ class Workflow:
             if task.load_jobid_and_rank() and task.rank >= 0:
                 self.front[task.rank].append(task)
 
-    def init_front(self, log_type: Literal["std", "tee"] = "std") -> None:
+    def init_front(self, logger: logging.Logger) -> None:
         """Populate front and submit corresponding tasks"""
 
-        logger = self.get_logger(log_type)
         for task in self.tasks:
             if not task.parents:
                 task.rank = 0
                 self.scheduler.submit(task)
                 self.front[0].append(task)
                 task.dump_jobid_and_rank()
-                msg = f"{task.label} (jobid:{task.jobid}) SUBMITTED"
+                msg = f"{task.label} ({task.jobid}) SUBMITTED"
                 logger.info(msg)
         for k in range(self.front_depth - 1):
             for task in self.front[k]:
@@ -216,51 +231,47 @@ class Workflow:
                         child.rank = k + 1
                         self.front[k + 1].append(child)
                         child.dump_jobid_and_rank()
-                        msg = f"{child.label} (jobid:{child.jobid}) SUBMITTED"
+                        msg = f"{child.label} ({child.jobid}) SUBMITTED"
                         logger.info(msg)
 
-    def restart_front(self, log_type: Literal["std", "tee"] = "std") -> None:
+    def restart_front(self, logger: logging.Logger) -> None:
         """Submit all tasks currently in the front"""
 
-        logger = self.get_logger(log_type)
         for generation in self.front:
             for task in generation:
                 # Do not resubmit tasks in cool down mode
                 if (
                     task.rank == 0
                     and task.cool_down_path.exists()
-                    and self.scheduler.get_status(task) in (Status.COMPLETED, Status.ONGOING)
+                    and self.scheduler.get_status(task) in (TaskStatus.COMPLETED, TaskStatus.ONGOING)
                 ):
                     task.cool_down_path.unlink()
                 else:
                     self.scheduler.submit(task)
                     task.dump_jobid_and_rank()
-                    msg = f"{task.label} (jobid:{task.jobid}) SUBMITTED"
+                    msg = f"{task.label} ({task.jobid}) SUBMITTED"
                     logger.info(msg)
 
-    def propagate_front(self, log_type: Literal["std", "tee"] = "std") -> bool:
-        """Propagate front of submitted tasks and submit new ones
+    def propagate_front(self, logger: logging.Logger) -> None:
+        """Propagate front of submitted tasks and submit new ones"""
 
-        return False if a task failed, otherwise True"""
-
-        logger = self.get_logger(log_type)
         # Handle first generation of the front
         just_finished: list[Task] = []  # only needed for a front depth of 1
         for task in self.front[0]:
-            if (status := self.scheduler.get_status(task)) == Status.FAILED:
-                self.cancel_all_tasks(mode="cancel")
+            if (status := self.scheduler.get_status(task)) == TaskStatus.FAILED:
+                self.cancel_all_tasks(mode="cancel", logger=logger)
                 msg = f"All workflow tasks canceled because {task.label} failed"
                 logger.info(msg)
-                return False
-            if status == Status.COMPLETED:
+                self.status = WorkflowStatus.FAILED
+                return
+            if status == TaskStatus.COMPLETED:
                 if self.front_depth == 1:
                     just_finished.append(task)
                 task.rank = -1
                 self.front[0].remove(task)
                 task.dump_jobid_and_rank()
-                msg = f"{task.label} (jobid:{task.jobid}) COMPLETED"
+                msg = f"{task.label} ({task.jobid}) COMPLETED"
                 logger.info(msg)
-        return True
 
         # Update front rank of tasks currently in the front after the first generation
         for k in range(1, self.front_depth):
@@ -270,7 +281,7 @@ class Workflow:
                     self.front[k].remove(task)
                     self.front[k - 1].append(task)
                     task.dump_jobid_and_rank()
-                    msg = f"{task.label} (jobid:{task.jobid}) PROMOTED from rank {k} to {k-1}"
+                    msg = f"{task.label} ({task.jobid}) PROMOTED from rank {k} to {k-1}"
                     logger.info(msg)
 
         # Add new tasks to the last generation of the front
@@ -285,32 +296,37 @@ class Workflow:
                     child.rank = self.front_depth - 1
                     self.front[-1].append(child)
                     child.dump_jobid_and_rank()
-                    msg = f"{child.label} (jobid:{child.jobid}) SUBMITTED"
+                    msg = f"{child.label} ({child.jobid}) SUBMITTED"
                     logger.info(msg)
 
-    def cancel_all_tasks(self, mode: Literal["cancel", "cool-down"], log_type: Literal["std", "tee"] = "std") -> None:
+        self.status = WorkflowStatus.CONTINUE
+
+    def cancel_all_tasks(self, mode: Literal["cancel", "cool-down"], logger: logging.Logger) -> None:
         """Cancel all workflow tasks except cool-down tasks"""
 
-        logger = self.get_logger(log_type)
         for generation in self.front:
             for task in generation:
                 if (
                     task.rank == 0
                     and mode == "cool-down"
-                    and self.scheduler.get_status(task) in (Status.COMPLETED, Status.ONGOING)
+                    and self.scheduler.get_status(task) in (TaskStatus.COMPLETED, TaskStatus.ONGOING)
                 ):
                     task.cool_down_path.touch()
-                    msg = f"{task.label} (jobid:{task.jobid}) COOLING DOWN"
+                    msg = f"{task.label} ({task.jobid}) COOLING DOWN"
                     logger.info(msg)
                     continue
                 self.scheduler.cancel(task)
-                msg = f"{task.label} (jobid:{task.jobid}) CANCELED"
+                msg = f"{task.label} ({task.jobid}) CANCELED"
                 logger.info(msg)
+        self.status = WorkflowStatus.STOPPED
 
     def auto_submit(self) -> None:
         """Submit next Sirocco task"""
         if self.front[0]:
             self.scheduler.submit(self.sirocco_continue_task, output_mode="append", dependency_type="ANY")
+            self.status = WorkflowStatus.CONTINUE
+        else:
+            self.status = WorkflowStatus.COMPLETED
 
     @property
     def config_rootdir(self) -> Path:
