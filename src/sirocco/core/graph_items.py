@@ -90,7 +90,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     plugin_classes: ClassVar[dict[str, type[Self]]] = field(default={}, repr=False)
     color: ClassVar[str] = field(default="light_red", repr=False)
     SUBMIT_FILENAME: ClassVar[str] = field(default="run_script.sh", repr=False)
-    STDOUTERR_FILENAME: ClassVar[str] = field(default="run_sript.%j.o", repr=False)
+    STDOUTERR_FILENAME: ClassVar[str] = field(default="run_script.%j.o", repr=False)
     JOBID_FILENAME: ClassVar[str] = field(default=".jobid", repr=False)
     RANK_FILENAME: ClassVar[str] = field(default=".rank", repr=False)
     COOL_DOWN_FILENAME: ClassVar[str] = field(default=".cool-down", repr=False)
