@@ -11,6 +11,7 @@ options:
 """
 
 import argparse
+import time
 from pathlib import Path
 
 LOG_FILE = Path("icon.log")
@@ -58,6 +59,9 @@ def main():
         log(f"Namelist {args.namelist} provided. Continue with it.")
     else:
         log("No namelist provided. Continue with default one.")
+
+    log("Computing ...")
+    time.sleep(120)
 
     # Main script execution continues here
     log("Script finished running calculations")

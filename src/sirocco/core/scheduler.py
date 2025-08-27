@@ -91,22 +91,19 @@ class Slurm(Scheduler):
             header.append(f"#SBATCH --view={view}")
         if output_mode == "append":
             header.append("#SBATCH --open-mode=append")
-        if task.parents:
+        if parent_ids := [parent.jobid for parent in task.parents if parent.rank >= 0]:
             # NOTE: We can safely remove tasks with rank -1 from the parents list
             #       in order to avoid depending on old tasks for which the scheduler
             #       has no info anymore when restarting after a long time.
-            # parent_ids: list[str] = [parent.jobid for parent in task.parents if parent.rank > 0]
-            parent_ids: list[str] = [parent.jobid for parent in task.parents]
-            if parent_ids:
-                match dependency_type:
-                    case "ALL_COMPLETED":
-                        header.append("#SBATCH --dependency=afterok:" + ":".join(parent_ids))
-                    case "ANY":
-                        header.append("#SBATCH --dependency=afterany:" + "?afterany:".join(parent_ids))
-                    case "NONE":
-                        pass
-                    case _:
-                        assert_never(dependency_type)
+            match dependency_type:
+                case "ALL_COMPLETED":
+                    header.append("#SBATCH --dependency=afterok:" + ":".join(parent_ids))
+                case "ANY":
+                    header.append("#SBATCH --dependency=afterany:" + "?afterany:".join(parent_ids))
+                case "NONE":
+                    pass
+                case _:
+                    assert_never(dependency_type)
         return header
 
     def cancel(self, task: Task):
@@ -125,7 +122,7 @@ class Slurm(Scheduler):
             capture_output=True,
             check=True,
         )
-        status_str = result.stdout.decode().strip().split("\n")[-1][:-1]
+        status_str = result.stdout.decode().strip().split("\n")[1][:-1]
         # NOTE: For a complete list of SLURM state codes, see
         #       https://slurm.schedmd.com/job_state_codes.html
         match status_str:
