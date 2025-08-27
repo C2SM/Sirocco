@@ -61,7 +61,7 @@ def main():
         log("No namelist provided. Continue with default one.")
 
     log("Computing ...")
-    time.sleep(120)
+    time.sleep(60)
 
     # Main script execution continues here
     log("Script finished running calculations")

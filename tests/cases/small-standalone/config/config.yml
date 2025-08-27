@@ -1,6 +1,6 @@
 ---
 start_date: &root_start_date '2026-01-01T00:00'
-stop_date: &root_stop_date '2027-07-01T00:00'
+stop_date: &root_stop_date '2027-01-01T00:00'
 scheduler: slurm
 front_depth: 3
 
@@ -33,7 +33,7 @@ cycles:
             wait_on:
               - icon:
                   target_cycle:
-                    date: 2027-05-01T00:00
+                    date: 2026-11-01T00:00
 
 tasks:
   - SIROCCO:

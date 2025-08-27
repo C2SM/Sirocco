@@ -118,9 +118,9 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
         if set(self.inputs.keys()).intersection(self.outputs.keys()):
             msg = "port names must be unique, even between inputs and outputs"
             raise ValueError(msg)
-        self.label = (
-            self.name + "__" + "__".join(f"{key}_{value}".replace(" ", "_") for key, value in self.coordinates.items())
-        )
+        self.label = self.name
+        if self.coordinates:
+            self.label += "__" + "__".join(f"{key}_{value}".replace(" ", "_") for key, value in self.coordinates.items())
         self.run_dir = (self.config_rootdir / "run" / self.label).resolve()
         self.jobid_path = self.run_dir / self.JOBID_FILENAME
         self.rank_path = self.run_dir / self.RANK_FILENAME
