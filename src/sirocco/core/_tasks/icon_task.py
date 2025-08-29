@@ -52,15 +52,12 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             raise ValueError(msg)
         self._model_namelist = model_namelist
 
+        # TODO: Could use a different method here, e.g.,
         if self.wrapper_script is not None:
-            self.wrapper_script = self._validate_local_script_path(
-                script_path=self.wrapper_script, config_rootdir=self.config_rootdir
-            )
+            self.wrapper_script = self._resolve_local_script_path(rel_path=self.wrapper_script)
 
         if self.setup_env is not None:
-            self.setup_env = self._validate_local_script_path(
-                script_path=self.setup_env, config_rootdir=self.config_rootdir
-            )
+            self.setup_env = self._resolve_local_script_path(rel_path=self.setup_env)
 
     @property
     def master_namelist(self) -> NamelistFile:
@@ -127,9 +124,9 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         self.update_icon_namelists_from_workflow()
         return self
 
-    def _validate_local_script_path(self, script_path: Path, config_rootdir: Path) -> Path:
+    def _resolve_local_script_path(self, rel_path: Path) -> Path:
         """Validate and resolve wrapper script path"""
-        resolved_path = script_path if script_path.is_absolute() else config_rootdir / script_path
+        resolved_path = rel_path if rel_path.is_absolute() else self.config_rootdir / rel_path
 
         if not resolved_path.exists():
             msg = f"Wrapper script in path {resolved_path} does not exist."

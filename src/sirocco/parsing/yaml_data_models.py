@@ -494,7 +494,7 @@ class ConfigIconTaskSpecs:
     setup_env: Path | None = field(
         default=None,
         repr=False,
-        metadata={"description": ("A file that is sourced before the execution of ICON to set environment variables.")},
+        metadata={"description": "A file that is sourced before the execution of ICON to set environment variables."},
     )
 
 
