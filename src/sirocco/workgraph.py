@@ -354,6 +354,9 @@ class AiidaWorkGraph:
         if wrapper_script_data is not None:
             builder.wrapper_script = wrapper_script_data
 
+        if task.setup_env is not None:
+            builder.setup_env = aiida.orm.SinglefileData(str(task.setup_env))
+
         # Set runtime information
         options = {}
         options.update(self._from_task_get_scheduler_options(task))
@@ -576,7 +579,7 @@ class AiidaWorkGraph:
         """Get default wrapper script based on task type"""
 
         # Import the script directory from aiida-icon
-        from aiida_icon.site_support.cscs.todi import SCRIPT_DIR
+        from aiida_icon.site_support.cscs.alps import SCRIPT_DIR
 
         default_script_path = SCRIPT_DIR / "todi_cpu.sh"
         return aiida.orm.SinglefileData(file=default_script_path)
