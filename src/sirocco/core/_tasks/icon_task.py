@@ -52,6 +52,7 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             raise ValueError(msg)
         self._model_namelist = model_namelist
 
+        # TODO: Could use a different method here, e.g.,
         if self.wrapper_script is not None:
             self.wrapper_script = self._resolve_local_script_path(rel_path=self.wrapper_script)
 

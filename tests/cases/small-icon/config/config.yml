@@ -47,7 +47,7 @@ tasks:
       bin: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/bin/icon
       namelists:
         - ./ICON/icon_master.namelist
-        - ./ICON/models/atm.namelist
+        - ./ICON/model.namelist
       mpi_cmd: "mpirun -np {MPI_TOTAL_PROCS}"
       walltime: 00:05:00
       nodes: 1
