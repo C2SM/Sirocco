@@ -346,20 +346,20 @@ class AiidaWorkGraph:
 
         # QUICK FIX
         for namelist in task.namelists:
-            if namelist.name != task._MASTER_NAMELIST_NAME:
+            if namelist.name != task._MASTER_NAMELIST_NAME:  # noqa SLF001
                 with io.StringIO() as buffer:
                     namelist.namelist.write(buffer)
                     buffer.seek(0)
                     # Use "atm" as the model name for now (could be made configurable)
-                    builder.models.atm = aiida.orm.SinglefileData(buffer, namelist.name)
+                    builder.models.atm = aiida.orm.SinglefileData(buffer, namelist.name)  # type: ignore
 
-        # PREV CODE            
+        # PREV CODE
         # with io.StringIO() as buffer:
         #     task.model_namelist.namelist.write(buffer)
         #     buffer.seek(0)
         #     breakpoint()
         #     builder.model_namelist = aiida.orm.SinglefileData(buffer, task.model_namelist.name)
-        
+
         # PROPER SOLUTION
         # Populate the models namespace with all non-master namelists
         # for namelist in task.namelists:
