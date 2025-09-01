@@ -60,6 +60,7 @@ class NamelistFile(models.ConfigNamelistFileSpec):
 
     @staticmethod
     def _validate_namelist_path(config_namelist_path: Path, config_rootdir: Path) -> Path:
+        breakpoint()
         if config_namelist_path.is_absolute():
             msg = f"Namelist path {config_namelist_path} must be relative with respect to config file."
         namelist_path = config_namelist_path if config_rootdir is None else (config_rootdir / config_namelist_path)
