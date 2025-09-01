@@ -11,7 +11,7 @@
 /
 &master_model_nml
   model_name="atm"
-  model_namelist_filename="model.namelist"
+  model_namelist_filename="atm.namelist"
   model_type=1
   model_min_rank=0
   model_max_rank=65535
