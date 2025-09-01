@@ -11,7 +11,7 @@
 /
 &master_model_nml
   model_name="atm"
-  model_namelist_filename="./models/atm.nml"
+  model_namelist_filename="atm.nml"
   model_type=1
   model_min_rank=0
   model_max_rank=65535
