@@ -344,11 +344,33 @@ class AiidaWorkGraph:
             buffer.seek(0)
             builder.master_namelist = aiida.orm.SinglefileData(buffer, task.master_namelist.name)
 
-        with io.StringIO() as buffer:
-            task.model_namelist.namelist.write(buffer)
-            buffer.seek(0)
-            breakpoint()
-            builder.model_namelist = aiida.orm.SinglefileData(buffer, task.model_namelist.name)
+        # QUICK FIX
+        for namelist in task.namelists:
+            if namelist.name != task._MASTER_NAMELIST_NAME:
+                with io.StringIO() as buffer:
+                    namelist.namelist.write(buffer)
+                    buffer.seek(0)
+                    # Use "atm" as the model name for now (could be made configurable)
+                    builder.models.atm = aiida.orm.SinglefileData(buffer, namelist.name)
+
+        # PREV CODE            
+        # with io.StringIO() as buffer:
+        #     task.model_namelist.namelist.write(buffer)
+        #     buffer.seek(0)
+        #     breakpoint()
+        #     builder.model_namelist = aiida.orm.SinglefileData(buffer, task.model_namelist.name)
+        
+        # PROPER SOLUTION
+        # Populate the models namespace with all non-master namelists
+        # for namelist in task.namelists:
+        #     if namelist.name != task._MASTER_NAMELIST_NAME:
+        #         with io.StringIO() as buffer:
+        #             namelist.namelist.write(buffer)
+        #             buffer.seek(0)
+        #             # Extract model name from master namelist or use filename
+        #             model_name = self._get_model_name_from_namelist(task, namelist)
+        #             setattr(builder.models, model_name, aiida.orm.SinglefileData(buffer, namelist.name))
+        #
 
         # Add wrapper script (either custom or default)
         wrapper_script_data = AiidaWorkGraph.get_wrapper_script_aiida_data(task)

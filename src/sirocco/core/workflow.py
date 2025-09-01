@@ -111,8 +111,7 @@ class Workflow:
 
         :param config_path: the string to the config yaml file containing the workflow definition
         """
-        tmp = ConfigWorkflow.from_config_file(config_path) 
-        return cls.from_config_workflow(tmp)
+        return cls.from_config_workflow(ConfigWorkflow.from_config_file(config_path))
 
     @classmethod
     def from_config_workflow(cls: type[Self], config_workflow: ConfigWorkflow) -> Self:
