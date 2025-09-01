@@ -347,7 +347,6 @@ class AiidaWorkGraph:
         with io.StringIO() as buffer:
             task.model_namelist.namelist.write(buffer)
             buffer.seek(0)
-            breakpoint()
             builder.model_namelist = aiida.orm.SinglefileData(buffer, task.model_namelist.name)
 
         # Add wrapper script (either custom or default)
