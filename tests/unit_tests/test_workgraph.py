@@ -148,6 +148,7 @@ def test_aiida_icon_task_metadata(config_paths):
     for aiida_icon_task in [task for task in aiida_workflow._workgraph.tasks if task.identifier == "IconCalculation"]:  # noqa: SLF001
         # testing wrapper script
         assert aiida_icon_task.inputs.wrapper_script.value.filename == "dummy_wrapper.sh"
+        assert aiida_icon_task.inputs.setup_env.value.filename == "setup_env.sh"
         # testing uenv
         assert (
             "#SBATCH --uenv=icon-wcp/v1:rc4" in aiida_icon_task.inputs.metadata.options.custom_scheduler_commands.value
