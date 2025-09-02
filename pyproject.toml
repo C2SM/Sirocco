@@ -34,7 +34,7 @@ dependencies = [
   "pydantic",
   "ruamel.yaml",
   "aiida-core>=2.5",
-  "aiida-icon>=0.4.0",
+  "aiida-icon>=0.5",
   "aiida-workgraph==0.5.2",
   "termcolor",
   "pygraphviz",
@@ -107,7 +107,6 @@ python = "3.12"
 installer = "uv"
 extra-dependencies = [
     "ipdb",
-    "aiida-icon @ git+https://github.com/aiidateam/aiida-icon.git@09f444b"
 ]
 default-args = []
 extra-args = ["--doctest-modules", "-m", "not slow and not requires_icon"]
