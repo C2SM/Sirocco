@@ -106,7 +106,8 @@ python = "3.12"
 [tool.hatch.envs.hatch-test]
 installer = "uv"
 extra-dependencies = [
-    "ipdb"
+    "ipdb",
+    "aiida-icon @ git+https://github.com/aiidateam/aiida-icon.git@09f444b"
 ]
 default-args = []
 extra-args = ["--doctest-modules", "-m", "not slow and not requires_icon"]
