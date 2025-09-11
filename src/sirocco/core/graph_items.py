@@ -3,6 +3,7 @@ from __future__ import annotations
 import enum
 from dataclasses import dataclass, field
 from itertools import chain, product
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Self, TypeVar, cast
 
 from sirocco.parsing.target_cycle import DateList, LagList, NoTargetCycle
@@ -16,7 +17,6 @@ from sirocco.parsing.yaml_data_models import (
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from pathlib import Path
 
     from sirocco.parsing.cycling import CyclePoint
     from sirocco.parsing.yaml_data_models import (
@@ -53,6 +53,8 @@ class GraphItem:
 
 GRAPH_ITEM_T = TypeVar("GRAPH_ITEM_T", bound=GraphItem)
 
+_UNRESOLVED_PATH_ = Path("_UNRESOLVED_PATH_")
+
 
 @dataclass(kw_only=True)
 class Data(ConfigBaseDataSpecs, GraphItem):
@@ -60,7 +62,7 @@ class Data(ConfigBaseDataSpecs, GraphItem):
 
     color: ClassVar[str] = field(default="light_blue", repr=False)
     downstream_tasks: list[Task] = field(default_factory=list, repr=False)
-    resolved_path: Path = field(init=False, repr=False)
+    _resolved_path: Path = _UNRESOLVED_PATH_
 
     @classmethod
     def from_config(cls, config: ConfigBaseData, coordinates: dict) -> AvailableData | GeneratedData:
@@ -68,6 +70,17 @@ class Data(ConfigBaseDataSpecs, GraphItem):
         config_kwargs = dict(config)
         del config_kwargs["parameters"]
         return data_class(coordinates=coordinates, **config_kwargs)
+
+    @property
+    def resolved_path(self) -> Path:
+        return self._resolved_path
+
+    @resolved_path.setter
+    def resolved_path(self, path: Path):
+        if not path.is_absolute():
+            msg = "resolved path must be absolute"
+            raise ValueError(msg)
+        self._resolved_path = path
 
 
 @dataclass(kw_only=True)
@@ -81,6 +94,18 @@ class AvailableData(Data, ConfigAvailableDataSpecs):
 @dataclass(kw_only=True)
 class GeneratedData(Data, ConfigGeneratedDataSpecs):
     origin_task: Task = field(init=False, repr=False)
+
+    @Data.resolved_path.getter  # type: ignore [attr-defined]
+    def resolved_path(self) -> Path:
+        """Make sure generated data path is resolved before returning it"""
+
+        # NOTE: The call to resolve_output_data_paths() has been placed here
+        #       in order to reduce algorithm complexity. There is no requirement
+        #       for the parts using Data.resolved_path to ensure it has indeed
+        #       been resolved.
+        if self._resolved_path is _UNRESOLVED_PATH_:
+            self.origin_task.resolve_output_data_paths()
+        return self._resolved_path
 
 
 @dataclass(kw_only=True)
@@ -120,7 +145,9 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
             raise ValueError(msg)
         self.label = self.name
         if self.coordinates:
-            self.label += "__" + "__".join(f"{key}_{value}".replace(" ", "_") for key, value in self.coordinates.items())
+            self.label += "__" + "__".join(
+                f"{key}_{value}".replace(" ", "_") for key, value in self.coordinates.items()
+            )
         self.run_dir = (self.config_rootdir / "run" / self.label).resolve()
         self.jobid_path = self.run_dir / self.JOBID_FILENAME
         self.rank_path = self.run_dir / self.RANK_FILENAME
@@ -190,9 +217,6 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
             data.downstream_tasks.append(new)
         for data in new.output_data_nodes():
             data.origin_task = new
-
-        # Update output data path if needed
-        new.resolve_output_data_paths()
 
         return new
 
