@@ -132,11 +132,11 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         # NOTE: This code is there as it is the first available place where we know the standalone orchestrator is used
         # TODO: if standalone becomes the only orchestrator, make this a yaml model validator
         if self.target is None:
-            if self.runscript_core is None:
-                msg = f"task {self.name}: 'runscript_core' is required when 'target' is unset"
+            if self.runscript_content is None:
+                msg = f"task {self.name}: 'runscript_content' is required when 'target' is unset"
                 raise ValueError(msg)
-        elif self.runscript_core is not None or self.auxilary_run_files is not None:
-            msg = f"task {self.name}: 'target' set to {self.target}: 'runscript_core' and 'auxilary_run_files' are ignored. Unset 'target' to take them into account."
+        elif self.runscript_content is not None or self.auxilary_run_files:
+            msg = f"task {self.name}: 'target' set to {self.target}: 'runscript_content' and 'auxilary_run_files' are ignored. Unset 'target' to take them into account."
             LOGGER.warning(msg)
 
         # Link ICON binary
@@ -154,13 +154,11 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
 
         # Copy required runtime files
         if self.target is None:
-            if self.runscript_core is not None:
-                shutil.copy(self.config_rootdir / self.runscript_core, self.run_dir / self.runscript_core.name)
-            if self.auxilary_run_files is not None:
-                for file_path in self.auxilary_run_files:
-                    shutil.copy(self.config_rootdir / file_path, self.run_dir / file_path.name)
+            shutil.copy(self.config_rootdir / self.runscript_content, self.run_dir / self.runscript_content.name)   # type: ignore[operator, union-attr] # check on runscript_content done above
+            for aux_path in self.auxilary_run_files:
+                shutil.copy(self.config_rootdir / aux_path, self.run_dir / aux_path.name)
         else:
-            shutil.copy(Path(__file__).parent / "icon_run_environment.sh", self.run_dir / "icon_run_environment.sh")
+            shutil.copy(Path(__file__).parent / "santis_run_environment.sh", self.run_dir / "santis_run_environment.sh")
             if self.target == "santis_cpu":
                 shutil.copy(Path(__file__).parent / "santis_cpu.sh", self.run_dir / "santis_cpu.sh")
             elif self.target == "santis_gpu":
@@ -169,13 +167,14 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
     def runscript_lines(self) -> list[str]:
         lines = []
         if self.target is None:
-            # NOTE: Only for type checking
-            if self.runscript_core is None:
-                msg = f"task {self.name}: 'runscript_core' is required when 'target' is unset"
+            # NOTE: Only for type checking. Type checkers cannot know this method is called after prepare_for_submission where the check is made
+            #       Again, if standalone becomes the only orchestrator, make this check a yaml model validator
+            if self.runscript_content is None:
+                msg = f"task {self.name}: 'runscript_content' is required when 'target' is unset"
                 raise ValueError(msg)
-            lines.append(f"source ./{self.runscript_core.name}")
+            lines.append(f"source ./{self.runscript_content.name}")
         else:
-            lines.append("source icon_run_environment.sh")
+            lines.append("source santis_run_environment.sh")
             match self.target:
                 case "santis_cpu":
                     lines.append(
@@ -239,7 +238,7 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
                     data = self.ensure_single_data_port(port, data_list)
                     (self.run_dir / "multifile_restart_atm.mfr").symlink_to(data.resolved_path)
                 case _:
-                    msg = f"unsopported input port {port} for IconTask"
+                    msg = f"IconTask: unsopported input port {port}"
                     raise ValueError(msg)
 
     def handle_output_ports(self) -> None:
@@ -260,9 +259,10 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
                     if (n_nml := len(nml_streams)) != (n_yaml := len(data_list)):
                         msg = f"for task {self.name}: number of output streams speficied in namelist ({n_nml}) differs from number of streams specified the workflow config ({n_yaml})"
                         raise ValueError(msg)
-                    for k, (nml_stream, output_data) in enumerate(zip(nml_streams, data_list, strict=False)):
+                    for k, (nml_stream, output_data) in enumerate(zip(nml_streams, data_list)):
                         filename_format = nml_stream.get("filename_format", "<output_filename>_XXX_YYY")
                         output_filename = nml_stream.get("output_filename", "")
+                        # for type checkers
                         if not isinstance(filename_format, str) or not isinstance(output_filename, str):
                             msg = f"for task {self.name}, output stream number {k}: 'filename_format' and 'output_filename' namelist parameters must be strings"
                             raise TypeError(msg)
@@ -275,7 +275,7 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
                     data = self.ensure_single_data_port(port, data_list)
                     data.resolved_path = self.run_dir / "finish.status"
                 case _:
-                    msg = f"unsopported oputput port {port} for IconTask"
+                    msg = f"IconTask: unsopported oputput port {port}"
                     raise ValueError(msg)
 
     @staticmethod
@@ -304,10 +304,6 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             (self.run_dir / target_link_name).symlink_to(data.resolved_path)
         else:
             namelist[section][parameter] = f"'{data.resolved_path}'"
-
-    def link_input(self, data: Data, target_link_name: str | None = None):
-        target_link_name = target_link_name if target_link_name else data.resolved_path.name
-        (self.run_dir / target_link_name).symlink_to(data.resolved_path)
 
     @classmethod
     def build_from_config(cls: type[Self], config: models.ConfigTask, config_rootdir: Path, **kwargs: Any) -> Self:

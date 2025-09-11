@@ -17,18 +17,22 @@ class Scheduler:
         """Submit a task"""
 
         # Prepare for submission ( create rundir, wipe rundir, link/copy necessary files/dirs, ...)
+        # ======================
         shutil.rmtree(task.run_dir, ignore_errors=True)
         task.run_dir.mkdir(parents=True, exist_ok=True)
         task.prepare_for_submission()
 
+        # Build runscript
+        # ===============
         # Shebang
         # TODO: Make shebang a config file entry defaulting to "#!/bin/bash -l"
-        script_lines: list[str] = ["#!/bin/bash -l"]
+        script_lines: list[str] = ["#!/bin/bash -l", ""]
 
         # Scheduler header
         script_lines.extend(self.header_lines(task, output_mode=output_mode, dependency_type=dependency_type))
 
-        # Some MPI environment variables
+        # Some MPI environment variables for potential usage by the user defined runscript content
+        script_lines.append("")
         if task.nodes is not None:
             script_lines.append(f"N_NODES={task.nodes}")
         if task.ntasks_per_node is not None:
@@ -36,17 +40,18 @@ class Scheduler:
         if task.cpus_per_task is not None:
             script_lines.append(f"CPUS_PER_TASK={task.cpus_per_task}")
 
-        # Task script "content"
+        # Task runscript "content"
         script_lines.append("")
         script_lines.extend(task.runscript_lines())
 
-        # Submit script
+        # Submit runscript
+        # ================
         (task.run_dir / task.SUBMIT_FILENAME).write_text("\n".join(script_lines))
         task.jobid = self.submit_to_scheduler(task)
 
-        # Serialize required information
-        task.jobid_path.write_text(f"{task.jobid}")
-        task.rank_path.write_text(f"{task.rank}")
+        # Dump task jobid and rank
+        # ========================
+        task.dump_jobid_and_rank()
 
     def header_lines(
         self,
@@ -69,7 +74,7 @@ class Scheduler:
     def create(cls, key: str) -> "Scheduler":
         if key == "slurm":
             return Slurm()
-        msg = "Scheduler not implemented for {key}"
+        msg = f"Scheduler {key} not implemented"
         raise NotImplementedError(msg)
 
 

@@ -95,7 +95,7 @@ class AvailableData(Data, ConfigAvailableDataSpecs):
 class GeneratedData(Data, ConfigGeneratedDataSpecs):
     origin_task: Task = field(init=False, repr=False)
 
-    @Data.resolved_path.getter  # type: ignore [attr-defined]
+    @Data.resolved_path.getter  # type: ignore[attr-defined]
     def resolved_path(self) -> Path:
         """Make sure generated data path is resolved before returning it"""
 
