@@ -19,17 +19,17 @@ cycles:
                   port: rrtmg_lw
               - icon_grid:
                   port: dynamics_grid_file
-              - restart_in:
+              - restart:
                   when:
                     after: *root_start_date
                   target_cycle:
                     lag: -PT1M
-                  port: restart_file
+                  port: restart_in
             outputs:
               - finish:
                   port: finish_status
-              - restart_out:
-                  port: latest_restart_file
+              - restart:
+                  port: restart_out
   - lastly:
       tasks:
         - cleanup:
