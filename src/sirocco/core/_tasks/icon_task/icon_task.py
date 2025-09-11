@@ -105,8 +105,10 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             }
         )
 
-    def dump_namelists(self, directory: Path, filename_mode: Literal["append_coordinates", "raw"] = "append_coordinates") -> None:
-        #TODO: if standalone becomes the only orchestrator, no need for directory and filename_mode kw args
+    def dump_namelists(
+        self, directory: Path, filename_mode: Literal["append_coordinates", "raw"] = "append_coordinates"
+    ) -> None:
+        # TODO: if standalone becomes the only orchestrator, no need for directory and filename_mode kw args
         if not directory.exists():
             msg = f"Dumping path {directory} does not exist."
             raise OSError(msg)
