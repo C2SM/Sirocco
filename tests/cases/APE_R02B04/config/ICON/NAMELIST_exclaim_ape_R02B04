@@ -174,7 +174,7 @@
  output_start    = "2000-01-01T00:00:03Z"
  output_end      = "2000-01-01T00:00:30Z"
  output_interval = "PT2S"
- file_interval   = "P1D"
+ file_interval   = "PT1M"
  include_last    = .TRUE.   ! flag whether to include the last time step
  output_grid     = .TRUE.
  ml_varlist      = 'pres_sfc',
@@ -196,7 +196,7 @@
  output_start    = "2000-01-01T00:00:00Z"
  output_end      = "2000-01-01T00:00:30Z"
  output_interval = "PT2S"
- file_interval   = "P1D"
+ file_interval   = "PT1M"
  include_last    = .TRUE.   ! flag whether to include the last time step
  output_grid     = .TRUE.
  p_levels        = 10000,20000,25000,30000,50000,70000,85000,90000,95000,100000

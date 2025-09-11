@@ -2,6 +2,7 @@
 start_date: &root_start_date '2000-01-01T00:00:00'
 stop_date: &root_stop_date '2000-01-01T00:03:00'
 scheduler: slurm
+front_depth: 2
 cycles:
   - every minute:
       cycling:

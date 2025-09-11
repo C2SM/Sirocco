@@ -229,7 +229,7 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
                         parameter="lrtm_filename",
                         target_link_name="rrtmg_lw.nc",
                     )
-                case "restart_in":
+                case "restart_file":
                     if (
                         restart_write_mode := self.model_namelist["io_nml"].get("restart_write_mode")
                         != "joint procs multifile"
@@ -249,7 +249,7 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             if not data_list:
                 continue
             match port:
-                case "restart_out":
+                case "latest_restart_file":
                     data = self.ensure_single_data_port(port, data_list)
                     data.resolved_path = self.run_dir / "multifile_restart_atm.mfr"
                 case "output_streams":
