@@ -154,7 +154,7 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
 
         # Copy required runtime files
         if self.target is None:
-            shutil.copy(self.config_rootdir / self.runscript_content, self.run_dir / self.runscript_content.name)   # type: ignore[operator, union-attr] # check on runscript_content done above
+            shutil.copy(self.config_rootdir / self.runscript_content, self.run_dir / self.runscript_content.name)  # type: ignore[operator, union-attr] # check on runscript_content done above
             if self.auxilary_run_files is not None:
                 for aux_path in self.auxilary_run_files:
                     shutil.copy(self.config_rootdir / aux_path, self.run_dir / aux_path.name)
@@ -260,7 +260,7 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
                     if (n_nml := len(nml_streams)) != (n_yaml := len(data_list)):
                         msg = f"for task {self.name}: number of output streams speficied in namelist ({n_nml}) differs from number of streams specified the workflow config ({n_yaml})"
                         raise ValueError(msg)
-                    for k, (nml_stream, output_data) in enumerate(zip(nml_streams, data_list)):
+                    for k, (nml_stream, output_data) in enumerate(zip(nml_streams, data_list, strict=False)):
                         filename_format = nml_stream.get("filename_format", "<output_filename>_XXX_YYY")
                         output_filename = nml_stream.get("output_filename", "")
                         # for type checkers
