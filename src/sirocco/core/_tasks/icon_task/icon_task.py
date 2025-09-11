@@ -4,7 +4,7 @@ import logging
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, ClassVar, Self
+from typing import Any, ClassVar, Literal, Self
 
 import f90nml
 
@@ -105,7 +105,8 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             }
         )
 
-    def dump_namelists(self, directory: Path) -> None:
+    def dump_namelists(self, directory: Path, filename_mode: Literal["append_coordinates", "raw"] = "append_coordinates") -> None:
+        #TODO: if standalone becomes the only orchestrator, no need for directory and filename_mode kw args
         if not directory.exists():
             msg = f"Dumping path {directory} does not exist."
             raise OSError(msg)
@@ -114,14 +115,16 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             raise OSError(msg)
 
         for namelist in self.namelists:
-            suffix = ("_".join([str(p) for p in self.coordinates.values()])).replace(" ", "_")
-            filename = namelist.name + "_" + suffix
+            filename = namelist.name
+            if filename_mode == "append_coordinates":
+                suffix = ("_".join([str(p) for p in self.coordinates.values()])).replace(" ", "_")
+                filename += "_" + suffix
             namelist.dump(directory / filename)
 
     def prepare_for_submission(self) -> None:
         # Ensure either target or runscript is set
         # NOTE: This code is there as it is the first available place where we know the standalone orchestrator is used
-        # TODO: make this a yaml model validator if standalone becomes the only orchestrator
+        # TODO: if standalone becomes the only orchestrator, make this a yaml model validator
         if self.target is None:
             if self.runscript_core is None:
                 msg = f"task {self.name}: 'runscript_core' is required when 'target' is unset"
@@ -139,6 +142,9 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         # - link data
         self.handle_input_ports()
         self.handle_output_ports()
+
+        # Dump namelists
+        self.dump_namelists(directory=self.run_dir, filename_mode="raw")
 
         # Copy required runtime files
         if self.target is None:
