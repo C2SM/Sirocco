@@ -4,7 +4,7 @@ import logging
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, ClassVar, Literal, Self
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 
 import f90nml
 
@@ -12,6 +12,10 @@ from sirocco.core.graph_items import Data, GeneratedData, Task
 from sirocco.core.namelistfile import NamelistFile
 from sirocco.parsing import yaml_data_models as models
 from sirocco.parsing.cycling import DateCyclePoint
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -187,6 +191,8 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         """Reflect port specs in namelist and link necessary input data"""
 
         for port, data_list in self.inputs.items():
+            if not data_list:
+                continue
             match port:
                 case "dynamics_grid_file":
                     self.adapt_nml_param_and_link(
@@ -224,16 +230,13 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
                         target_link_name="rrtmg_lw.nc",
                     )
                 case "restart_in":
-                    if len(data_list) > 1:
-                        msg = f"port {port} only accepts one data object"
-                        raise ValueError(msg)
                     if (
                         restart_write_mode := self.model_namelist["io_nml"].get("restart_write_mode")
                         != "joint procs multifile"
                     ):
                         msg = f"Only supported restart_write_mode is 'joint procs multifile', got {restart_write_mode}"
                         raise ValueError(msg)
-                    data = data_list[0]
+                    data = self.ensure_single_data_port(port, data_list)
                     (self.run_dir / "multifile_restart_atm.mfr").symlink_to(data.resolved_path)
                 case _:
                     msg = f"unsopported input port {port} for IconTask"
@@ -243,12 +246,11 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         """Check namelist parameters and resolve output data path"""
 
         for port, data_list in self.outputs.items():
+            if not data_list:
+                continue
             match port:
                 case "restart_out":
-                    if len(data_list) > 1:
-                        msg = f"port {port} only accepts one data object"
-                        raise ValueError(msg)
-                    data = data_list[0]
+                    data = self.ensure_single_data_port(port, data_list)
                     data.resolved_path = self.run_dir / "multifile_restart_atm.mfr"
                 case "output_streams":
                     output_nml = self.model_namelist.get("output_nml", [])
@@ -269,9 +271,19 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
                             msg = f"for task {self.name}: output stream number {k} specifies an output stream directly in the run directory. Please specify a subdirectory using the 'filename_format' and 'output_filename' parameters (see ICON documentation)"
                             raise ValueError(msg)
                         output_data.resolved_path = stream_dir
+                case "finish":
+                    data = self.ensure_single_data_port(port, data_list)
+                    data.resolved_path = self.run_dir / "finish.status"
                 case _:
                     msg = f"unsopported oputput port {port} for IconTask"
                     raise ValueError(msg)
+
+    @staticmethod
+    def ensure_single_data_port(port: str | None, data_list: Sequence[Data]) -> Data:
+        if len(data_list) > 1:
+            msg = f"port {port} only accepts one a single object"
+            raise ValueError(msg)
+        return data_list[0]
 
     def resolve_output_data_paths(self) -> None:
         self.handle_output_ports()
@@ -285,10 +297,7 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         parameter: str,
         target_link_name: str | None = None,
     ) -> None:
-        if len(data_list) > 1:
-            msg = f"port {port} only accepts one data object"
-            raise ValueError(msg)
-        data = data_list[0]
+        data = self.ensure_single_data_port(port, data_list)
         if isinstance(data, GeneratedData):
             target_link_name = target_link_name if target_link_name else data.resolved_path.name
             namelist[section][parameter] = f"./{target_link_name}"
