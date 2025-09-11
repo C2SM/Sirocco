@@ -559,8 +559,8 @@ class ConfigIconTaskSpecs:
             "description": "File containing lines to inject in the runscript replacing environment setup, mpi command, etc..."
         },
     )
-    auxilary_run_files: list[Path] = field(
-        default_factory=list,
+    auxilary_run_files: list[Path] | None = field(
+        default=None,
         repr=False,
         metadata={
             "description": "List of paths relative to the config directory for auxilary files used at runtime. Use in combination with mpi_cmd."

@@ -135,7 +135,7 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             if self.runscript_content is None:
                 msg = f"task {self.name}: 'runscript_content' is required when 'target' is unset"
                 raise ValueError(msg)
-        elif self.runscript_content is not None or self.auxilary_run_files:
+        elif self.runscript_content is not None or self.auxilary_run_files is not None:
             msg = f"task {self.name}: 'target' set to {self.target}: 'runscript_content' and 'auxilary_run_files' are ignored. Unset 'target' to take them into account."
             LOGGER.warning(msg)
 
@@ -155,8 +155,9 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         # Copy required runtime files
         if self.target is None:
             shutil.copy(self.config_rootdir / self.runscript_content, self.run_dir / self.runscript_content.name)   # type: ignore[operator, union-attr] # check on runscript_content done above
-            for aux_path in self.auxilary_run_files:
-                shutil.copy(self.config_rootdir / aux_path, self.run_dir / aux_path.name)
+            if self.auxilary_run_files is not None:
+                for aux_path in self.auxilary_run_files:
+                    shutil.copy(self.config_rootdir / aux_path, self.run_dir / aux_path.name)
         else:
             shutil.copy(Path(__file__).parent / "santis_run_environment.sh", self.run_dir / "santis_run_environment.sh")
             if self.target == "santis_cpu":
