@@ -18,7 +18,8 @@ class Scheduler:
 
         # Prepare for submission ( create rundir, wipe rundir, link/copy necessary files/dirs, ...)
         # ======================
-        shutil.rmtree(task.run_dir, ignore_errors=True)
+        if task.CLEAN_UP:
+            shutil.rmtree(task.run_dir, ignore_errors=True)
         task.run_dir.mkdir(parents=True, exist_ok=True)
         task.prepare_for_submission()
 

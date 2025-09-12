@@ -271,8 +271,9 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
                         if stream_dir == Path("."):
                             msg = f"for task {self.name}: output stream number {k} specifies an output stream directly in the run directory. Please specify a subdirectory using the 'filename_format' and 'output_filename' parameters (see ICON documentation)"
                             raise ValueError(msg)
-                        output_data.resolved_path = stream_dir
-                case "finish":
+                        output_data.resolved_path = stream_dir if stream_dir.is_absolute() else self.run_dir / stream_dir
+                        output_data.resolved_path.mkdir(parents=True, exist_ok=True)
+                case "finish_status":
                     data = self.ensure_single_data_port(port, data_list)
                     data.resolved_path = self.run_dir / "finish.status"
                 case _:
@@ -304,7 +305,7 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             namelist[section][parameter] = f"./{target_link_name}"
             (self.run_dir / target_link_name).symlink_to(data.resolved_path)
         else:
-            namelist[section][parameter] = f"'{data.resolved_path}'"
+            namelist[section][parameter] = str(data.resolved_path)
 
     @classmethod
     def build_from_config(cls: type[Self], config: models.ConfigTask, config_rootdir: Path, **kwargs: Any) -> Self:

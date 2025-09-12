@@ -119,6 +119,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     JOBID_FILENAME: ClassVar[str] = field(default=".jobid", repr=False)
     RANK_FILENAME: ClassVar[str] = field(default=".rank", repr=False)
     COOL_DOWN_FILENAME: ClassVar[str] = field(default=".cool-down", repr=False)
+    CLEAN_UP: ClassVar[bool] = True   # Clean up directory when submitting
 
     config_rootdir: Path
     run_dir: Path = field(init=False, repr=False)

@@ -357,6 +357,7 @@ class ConfigShellTaskSpecs:
     sep_pattern: ClassVar[re.Pattern] = field(default=re.compile(r"\[sep=(?P<sep>.+)\]"), repr=False)
 
     command: str
+    # TODO: change "path" for "src"
     path: Path | None = field(
         default=None, repr=False, metadata={"description": ("Script file relative to the config directory.")}
     )
