@@ -344,10 +344,12 @@ class AiidaWorkGraph:
             buffer.seek(0)
             builder.master_namelist = aiida.orm.SinglefileData(buffer, task.master_namelist.name)
 
-        with io.StringIO() as buffer:
-            task.model_namelist.namelist.write(buffer)
-            buffer.seek(0)
-            builder.model_namelist = aiida.orm.SinglefileData(buffer, task.model_namelist.name)
+        # Handle multiple model namelists
+        for model_name, model_nml in task.model_namelists.items():
+            with io.StringIO() as buffer:
+                model_nml.namelist.write(buffer)
+                buffer.seek(0)
+                setattr(builder.models, model_name, aiida.orm.SinglefileData(buffer, model_nml.name))  # type: ignore[attr-defined] # dynamic namespace
 
         # Add wrapper script (either custom or default)
         wrapper_script_data = AiidaWorkGraph.get_wrapper_script_aiida_data(task)
@@ -576,7 +578,7 @@ class AiidaWorkGraph:
         """Get default wrapper script based on task type"""
 
         # Import the script directory from aiida-icon
-        from aiida_icon.site_support.cscs.todi import SCRIPT_DIR
+        from aiida_icon.site_support.cscs.alps import SCRIPT_DIR
 
         default_script_path = SCRIPT_DIR / "todi_cpu.sh"
         return aiida.orm.SinglefileData(file=default_script_path)
