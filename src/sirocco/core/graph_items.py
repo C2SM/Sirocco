@@ -242,12 +242,12 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
 
     def link_parents_children(self) -> None:
         for data_in in self.input_data_nodes():
-            if isinstance(data_in, GeneratedData):
+            if isinstance(data_in, GeneratedData) and not data_in.origin_task in self.parents:
                 self.parents.append(data_in.origin_task)
-        self.parents.extend(self.wait_on)
+        self.parents.extend(task for task in self.wait_on if task not in self.parents)
         for data_out in self.output_data_nodes():
-            self.children.extend(data_out.downstream_tasks)
-        self.children.extend(self.waiters)
+            self.children.extend(task for task in data_out.downstream_tasks if task not in self.children)
+        self.children.extend(task for task in self.waiters if task not in self.children)
 
     def load_jobid_and_rank(self) -> bool:
         if active := self.jobid_path.exists():
