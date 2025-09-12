@@ -6,7 +6,6 @@
  calendar             = 'proleptic gregorian'
  experimentStartDate  = '2000-01-01T00:00:00Z'
  restartTimeIntval    = 'PT1M'
- checkpointTimeIntval = 'PT1M'
  experimentStopDate = '2000-01-01T00:02:00Z'
 /
 &time_nml

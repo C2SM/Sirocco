@@ -19,7 +19,7 @@
 ! run_nml: general switches ---------------------------------------------------
 &run_nml
  num_lev               =     60   ! number of full levels of vertical grid
- dtime                 =      2   ! [s] timestep in seconds
+ dtime                 =     60   ! [s] timestep in seconds
  ldynamics             = .TRUE.   ! dynamics                     --> dynamics_ctl, diffusion_ctl
  ltransport            = .TRUE.   ! switch on tracer transport   --> transport_ctl
  iforcing              =      3   ! 0: dynamical core only, 1: Held-Suarez, 2: ECHAM, 3: NWP
@@ -47,7 +47,7 @@
  inwp_sso          =       0   ! subgrid scale orographic drag
  inwp_gwd          =       1   ! non-orographic gravity wave drag
  inwp_surface      =       0   ! surface scheme (0: None, 1: TERRA)
- dt_rad            =      12   ! time step for radiation in s
+ dt_rad            =     120   ! time step for radiation in s
  dt_ccov           =       4
  dt_gwd            =       8
  dt_conv           =       4
@@ -171,8 +171,8 @@
  output_filename = './atm_2d/'  ! file name base
  filetype        = 5   ! output format 5:NetCDFv4
  filename_format = "<output_filename>exclaim_ape_R02B04_atm_2d_<datetime2>"   ! Output filename format
- output_start    = "2000-01-01T00:00:03Z"
- output_end      = "2000-01-01T00:00:30Z"
+ output_start    = "2000-01-01T00:00:00Z"
+ output_end      = "2000-01-02T00:00:00Z"
  output_interval = "PT1M"
  file_interval   = "PT1H"
  include_last    = .TRUE.   ! flag whether to include the last time step
@@ -194,7 +194,7 @@
  filetype        = 5   ! output format: 2=GRIB2, 4=NetCDFv2, 5=NetCDFv4
  filename_format = "<output_filename>exclaim_ape_R02B04_atm_3d_pl_<datetime2>"
  output_start    = "2000-01-01T00:00:00Z"
- output_end      = "2000-01-01T00:00:30Z"
+ output_end      = "2000-01-02T00:00:00Z"
  output_interval = "PT1M"
  file_interval   = "PT1H"
  include_last    = .TRUE.   ! flag whether to include the last time step

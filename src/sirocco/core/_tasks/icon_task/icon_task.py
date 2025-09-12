@@ -98,7 +98,7 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
                 "master_time_control_nml": {
                     "experimentStartDate": self.cycle_point.start_date.isoformat() + "Z",
                     "experimentStopDate": self.cycle_point.stop_date.isoformat() + "Z",
-                    "restarttimeintval": str(self.cycle_point.period),
+                    "restartTimeIntval": str(self.cycle_point.period),
                 },
                 "master_nml": {
                     "lrestart": self.is_restart,
@@ -179,11 +179,11 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             match self.target:
                 case "santis_cpu":
                     lines.append(
-                        f"srun -n {self.nodes*self.ntasks_per_node} --ntasks-per-node {self.ntasks_per_node} --threads-per-core=1 --distribution=block:block:block ./santis_cpu.sh {self.bin.name}"  # type: ignore[operator]
+                        f"srun --ntasks={self.nodes*self.ntasks_per_node} --ntasks-per-node={self.ntasks_per_node} --threads-per-core=1 --distribution=block:block:block ./santis_cpu.sh {self.bin.name}"  # type: ignore[operator]
                     )
                 case "santis_gpu":
                     lines.append(
-                        f"srun -n {self.nodes*self.ntasks_per_node} --ntasks-per-node {self.ntasks_per_node} --threads-per-core=1 --distribution=cyclic ./santis_gpu.sh {self.bin.name}"  # type: ignore[operator]
+                        f"srun --ntasks={self.nodes*self.ntasks_per_node} --ntasks-per-node={self.ntasks_per_node} --threads-per-core=1 --distribution=cyclic ./santis_gpu.sh {self.bin.name}"  # type: ignore[operator]
                     )
         return lines
 
