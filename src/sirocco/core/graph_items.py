@@ -263,10 +263,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
         raise NotImplementedError
 
     def resolve_output_data_paths(self) -> None:
-        # NOTE: not raising error to not disurb tests using the ICON task
-        # TODO: do not forget when implementing the standalone icon task
-        # raise NotImplementedError
-        pass
+        raise NotImplementedError
 
     def prepare_for_submission(self) -> None:
         raise NotImplementedError
