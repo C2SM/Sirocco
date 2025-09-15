@@ -60,6 +60,8 @@ tasks:
       ntasks_per_node: 200
       cpus_per_task: 1
       bin: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/bin/icon
+      bin_cpu: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/bin/icon
+      bin_gpu: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/bin/icon
       namelists:
         - ./ICON/icon_master.namelist
         - ./ICON/NAMELIST_exclaim_ape_R02B04

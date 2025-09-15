@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import itertools
 import re
 import time
@@ -29,6 +30,7 @@ from sirocco.parsing.when import AnyWhen, AtDate, BeforeAfterDate, When
 
 ITEM_T = typing.TypeVar("ITEM_T")
 
+LOGGER = logging.getLogger(__name__)
 
 def list_not_empty(value: list[ITEM_T]) -> list[ITEM_T]:
     if len(value) < 1:
@@ -541,7 +543,9 @@ class ConfigNamelistFile(BaseModel, ConfigNamelistFileSpec):
 @dataclass(kw_only=True)
 class ConfigIconTaskSpecs:
     plugin: ClassVar[Literal["icon"]] = "icon"
-    bin: Path = field(repr=True)
+    bin: Path | None = field(repr=True, default=None)
+    bin_cpu: Path | None = field(repr=True, default=None)
+    bin_gpu: Path | None = field(repr=True, default=None)
     wrapper_script: Path | None = field(
         default=None,
         repr=False,
@@ -600,10 +604,33 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
             raise ValueError(msg)
         return nmls
 
-    @field_validator("bin", mode="after")
+    @field_validator("bin", "bin_cpu", "bin_gpu", mode="after")
     @classmethod
-    def check_is_absolute_path(cls, value: Path) -> Path:
+    def check_is_absolute_path(cls, value: Path | None) -> Path | None:
         return is_absolute_path(value)
+
+    @model_validator(mode="after")
+    def check_bin_present(self) -> ConfigIconTask:
+        match self.target:
+            case None:
+                if self.bin is None and self.bin_cpu is None and self.bin_gpu is None:
+                    msg = "No ICON binary specified. If target is unset, specify at least one of 'bin', 'bin_cpu' or 'bin_gpu'"
+                    raise ValueError(msg)
+            case "santis_cpu":
+                if self.bin is None and self.bin_cpu is None:
+                    msg = f"{self.name}: target set to 'santis_cpu', specify one of 'bin' or 'bin_cpu'"
+                    raise ValueError(msg)
+                elif self.bin is not None and self.bin_cpu is not None:
+                    msg = f"{self.name}: target set to 'santis_cpu', 'bin' and 'bin_cpu' specified, ignoring 'bin'"
+                    LOGGER.warning(msg)
+            case "santis_gpu":
+                if self.bin is None and self.bin_gpu is None:
+                    msg = f"{self.name}: target set to 'santis_gpu', specify one of 'bin' or 'bin_gpu'"
+                    raise ValueError(msg)
+                elif self.bin is not None and self.bin_gpu is not None:
+                    msg = f"{self.name}: target set to 'santis_gpu', 'bin' and 'bin_gpu' specified, ignoring 'bin'"
+                    LOGGER.warning(msg)
+        return self
 
 
 @dataclass(kw_only=True)

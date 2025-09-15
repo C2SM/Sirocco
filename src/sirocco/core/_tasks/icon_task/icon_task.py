@@ -26,7 +26,7 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
     _MASTER_MODEL_NML_SECTION: ClassVar[str] = field(default="master_model_nml", repr=False)
     _MODEL_NAMELIST_FILENAME_FIELD: ClassVar[str] = field(default="model_namelist_filename", repr=False)
     _AIIDA_ICON_RESTART_FILE_PORT_NAME: ClassVar[str] = field(default="restart_file", repr=False)
-    _CUSTOM_MAIN: ClassVar[str] = field(default="main.sh", repr=False)
+    _MAIN: ClassVar[str] = field(default="main.sh", repr=False)
     namelists: list[NamelistFile]
     _assets_dir: Path = field(init=False, repr=False)
 
@@ -142,7 +142,24 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             LOGGER.warning(msg)
 
         # Link ICON binary
-        (self.run_dir / self.bin.name).symlink_to(self.bin)
+        match self.target:
+            case None:
+                if self.bin is not None:
+                    (self.run_dir / "icon").symlink_to(self.bin)
+                if self.bin_cpu is not None:
+                    (self.run_dir / "icon_cpu").symlink_to(self.bin_cpu)
+                if self.bin_gpu is not None:
+                    (self.run_dir / "icon_gpu").symlink_to(self.bin_gpu)
+            case "santis_cpu":
+                if self.bin_cpu is not None:
+                    (self.run_dir / "icon_cpu").symlink_to(self.bin_cpu)
+                elif self.bin is not None:
+                    (self.run_dir / "icon_cpu").symlink_to(self.bin)
+            case "santis_gpu":
+                if self.bin_gpu is not None:
+                    (self.run_dir / "icon_gpu").symlink_to(self.bin_gpu)
+                elif self.bin is not None:
+                    (self.run_dir / "icon_gpu").symlink_to(self.bin)
 
         # Take input/output ports specifications into account:
         # - adapt namelist paramters
@@ -169,24 +186,10 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         shutil.copytree(self._assets_dir, self.run_dir, dirs_exist_ok=True)
 
     def runscript_lines(self) -> list[str]:
-        lines = []
-        if self.target is None:
-            if not (self._assets_dir / self._CUSTOM_MAIN).is_file():
-                msg = f"{self._CUSTOM_MAIN} not found in assets at {self.assets}"
-                raise ValueError(msg)
-            lines.append(f"source ./{self._CUSTOM_MAIN}")
-        else:
-            lines.append("source ./santis_run_environment.sh")
-            match self.target:
-                case "santis_cpu":
-                    lines.append(
-                        f"srun --ntasks={self.nodes*self.ntasks_per_node} --ntasks-per-node={self.ntasks_per_node} --threads-per-core=1 --distribution=block:block:block ./santis_cpu.sh {self.bin.name}"  # type: ignore[operator]
-                    )
-                case "santis_gpu":
-                    lines.append(
-                        f"srun --ntasks={self.nodes*self.ntasks_per_node} --ntasks-per-node={self.ntasks_per_node} --threads-per-core=1 --distribution=cyclic ./santis_gpu.sh {self.bin.name}"  # type: ignore[operator]
-                    )
-        return lines
+        if self.target is None and not (self._assets_dir / self._MAIN).is_file():
+            msg = f"{self._MAIN} not found in assets at {self.assets}"
+            raise ValueError(msg)
+        return [f"source ./{self._MAIN}"]
 
     def handle_input_ports(self) -> None:
         """Reflect port specs in namelist and link necessary input data"""
