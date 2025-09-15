@@ -1,3 +1,4 @@
+import shutil
 import subprocess
 from dataclasses import dataclass
 from typing import Literal, assert_never
@@ -16,31 +17,42 @@ class Scheduler:
         """Submit a task"""
 
         # Prepare for submission ( create rundir, wipe rundir, link/copy necessary files/dirs, ...)
+        # ======================
+        if task.CLEAN_UP_BEFORE_SUBMIT:
+            shutil.rmtree(task.run_dir, ignore_errors=True)
+        task.run_dir.mkdir(parents=True, exist_ok=True)
         task.prepare_for_submission()
 
+        # Build runscript
+        # ===============
         # Shebang
-        submit_script: list[str] = ["#!/bin/bash -l"]
+        # TODO: Make shebang a config file entry defaulting to "#!/bin/bash -l"
+        script_lines: list[str] = ["#!/bin/bash -l", ""]
 
-        # SLURM header
-        submit_script.extend(self.header_lines(task, output_mode=output_mode, dependency_type=dependency_type))
+        # Scheduler header
+        script_lines.extend(self.header_lines(task, output_mode=output_mode, dependency_type=dependency_type))
 
-        # Rest of the script
-        submit_script.append("")
-        submit_script.extend(task.runscript_lines())
+        # Some MPI environment variables for potential usage by the user defined runscript content
+        script_lines.append("")
+        if task.nodes is not None:
+            script_lines.append(f"N_NODES={task.nodes}")
+        if task.ntasks_per_node is not None:
+            script_lines.append(f"N_TASKS_PER_NODE={task.ntasks_per_node}")
+        if task.cpus_per_task is not None:
+            script_lines.append(f"CPUS_PER_TASK={task.cpus_per_task}")
 
-        # Submit
-        (task.run_dir / task.SUBMIT_FILENAME).write_text("\n".join(submit_script))
-        result = subprocess.run(
-            ["sbatch", "--parsable", task.SUBMIT_FILENAME],  # noqa: S607
-            capture_output=True,
-            cwd=task.run_dir,
-            check=True,
-        )
-        task.jobid = result.stdout.decode().strip()
+        # Task runscript "content"
+        script_lines.append("")
+        script_lines.extend(task.runscript_lines())
 
-        # Serialize required information
-        task.jobid_path.write_text(f"{task.jobid}")
-        task.rank_path.write_text(f"{task.rank}")
+        # Submit runscript
+        # ================
+        (task.run_dir / task.SUBMIT_FILENAME).write_text("\n".join(script_lines))
+        task.jobid = self.submit_to_scheduler(task)
+
+        # Dump task jobid and rank
+        # ========================
+        task.dump_jobid_and_rank()
 
     def header_lines(
         self,
@@ -48,6 +60,9 @@ class Scheduler:
         output_mode: Literal["overwrite", "append"] = "overwrite",
         dependency_type: Literal["ALL_COMPLETED", "ANY", "NONE"] = "ALL_COMPLETED",
     ) -> list[str]:
+        raise NotImplementedError
+
+    def submit_to_scheduler(self, task: Task) -> str:
         raise NotImplementedError
 
     def get_status(self, task: Task) -> TaskStatus:
@@ -60,7 +75,7 @@ class Scheduler:
     def create(cls, key: str) -> "Scheduler":
         if key == "slurm":
             return Slurm()
-        msg = "Scheduler not implemented for {key}"
+        msg = f"Scheduler {key} not implemented"
         raise NotImplementedError(msg)
 
 
@@ -105,6 +120,15 @@ class Slurm(Scheduler):
                 case _:
                     assert_never(dependency_type)
         return header
+
+    def submit_to_scheduler(self, task: Task) -> str:
+        result = subprocess.run(
+            ["sbatch", "--parsable", task.SUBMIT_FILENAME],  # noqa: S607
+            capture_output=True,
+            cwd=task.run_dir,
+            check=True,
+        )
+        return result.stdout.decode().strip()
 
     def cancel(self, task: Task):
         """Cancel a submitted task"""

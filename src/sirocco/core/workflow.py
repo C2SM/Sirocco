@@ -145,7 +145,7 @@ class Workflow:
         )
 
     # =========== Methods to control workflow ===========
-    #
+
     def start(self, log_type: Literal["std", "tee"] = "tee") -> None:
         logger = self.get_logger(log_type)
         if (self.config_rootdir / "run").exists():

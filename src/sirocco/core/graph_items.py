@@ -3,6 +3,7 @@ from __future__ import annotations
 import enum
 from dataclasses import dataclass, field
 from itertools import chain, product
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Self, TypeVar, cast
 
 from sirocco.parsing.target_cycle import DateList, LagList, NoTargetCycle
@@ -16,7 +17,6 @@ from sirocco.parsing.yaml_data_models import (
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from pathlib import Path
 
     from sirocco.parsing.cycling import CyclePoint
     from sirocco.parsing.yaml_data_models import (
@@ -53,6 +53,8 @@ class GraphItem:
 
 GRAPH_ITEM_T = TypeVar("GRAPH_ITEM_T", bound=GraphItem)
 
+_UNRESOLVED_PATH_ = Path("_UNRESOLVED_PATH_")
+
 
 @dataclass(kw_only=True)
 class Data(ConfigBaseDataSpecs, GraphItem):
@@ -60,7 +62,7 @@ class Data(ConfigBaseDataSpecs, GraphItem):
 
     color: ClassVar[str] = field(default="light_blue", repr=False)
     downstream_tasks: list[Task] = field(default_factory=list, repr=False)
-    resolved_path: Path = field(init=False, repr=False)
+    _resolved_path: Path = _UNRESOLVED_PATH_
 
     @classmethod
     def from_config(cls, config: ConfigBaseData, coordinates: dict) -> AvailableData | GeneratedData:
@@ -68,6 +70,17 @@ class Data(ConfigBaseDataSpecs, GraphItem):
         config_kwargs = dict(config)
         del config_kwargs["parameters"]
         return data_class(coordinates=coordinates, **config_kwargs)
+
+    @property
+    def resolved_path(self) -> Path:
+        return self._resolved_path
+
+    @resolved_path.setter
+    def resolved_path(self, path: Path):
+        if not path.is_absolute():
+            msg = "resolved path must be absolute"
+            raise ValueError(msg)
+        self._resolved_path = path
 
 
 @dataclass(kw_only=True)
@@ -82,6 +95,18 @@ class AvailableData(Data, ConfigAvailableDataSpecs):
 class GeneratedData(Data, ConfigGeneratedDataSpecs):
     origin_task: Task = field(init=False, repr=False)
 
+    @Data.resolved_path.getter  # type: ignore[attr-defined]
+    def resolved_path(self) -> Path:
+        """Make sure generated data path is resolved before returning it"""
+
+        # NOTE: The call to resolve_output_data_paths() has been placed here
+        #       in order to reduce algorithm complexity. There is no requirement
+        #       for the parts using Data.resolved_path to ensure it has indeed
+        #       been resolved.
+        if self._resolved_path is _UNRESOLVED_PATH_:
+            self.origin_task.resolve_output_data_paths()
+        return self._resolved_path
+
 
 @dataclass(kw_only=True)
 class Task(ConfigBaseTaskSpecs, GraphItem):
@@ -94,6 +119,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     JOBID_FILENAME: ClassVar[str] = field(default=".jobid", repr=False)
     RANK_FILENAME: ClassVar[str] = field(default=".rank", repr=False)
     COOL_DOWN_FILENAME: ClassVar[str] = field(default=".cool-down", repr=False)
+    CLEAN_UP_BEFORE_SUBMIT: ClassVar[bool] = field(default=True, repr=False)  # Clean up directory when submitting
 
     config_rootdir: Path
     run_dir: Path = field(init=False, repr=False)
@@ -120,7 +146,9 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
             raise ValueError(msg)
         self.label = self.name
         if self.coordinates:
-            self.label += "__" + "__".join(f"{key}_{value}".replace(" ", "_") for key, value in self.coordinates.items())
+            self.label += "__" + "__".join(
+                f"{key}_{value}".replace(" ", "_") for key, value in self.coordinates.items()
+            )
         self.run_dir = (self.config_rootdir / "run" / self.label).resolve()
         self.jobid_path = self.run_dir / self.JOBID_FILENAME
         self.rank_path = self.run_dir / self.RANK_FILENAME
@@ -191,9 +219,6 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
         for data in new.output_data_nodes():
             data.origin_task = new
 
-        # Update output data path if needed
-        new.resolve_output_data_paths()
-
         return new
 
     @classmethod
@@ -216,13 +241,26 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
             upstream_task.waiters.append(self)
 
     def link_parents_children(self) -> None:
-        for data_in in self.input_data_nodes():
-            if isinstance(data_in, GeneratedData):
-                self.parents.append(data_in.origin_task)
-        self.parents.extend(self.wait_on)
-        for data_out in self.output_data_nodes():
-            self.children.extend(data_out.downstream_tasks)
-        self.children.extend(self.waiters)
+        # Parent tasks
+        self.parents = self.unique_task_list(
+            chain(
+                self.wait_on,
+                (data_in.origin_task for data_in in self.input_data_nodes() if isinstance(data_in, GeneratedData)),
+            )
+        )
+        self.children = self.unique_task_list(
+            chain(self.waiters, *chain(data_out.downstream_tasks for data_out in self.output_data_nodes()))
+        )
+
+    @staticmethod
+    def unique_task_list(task_candidates: Iterator[Task]) -> list[Task]:
+        unique_labels: list[str] = []
+        unique_tasks: list[Task] = []
+        for task in task_candidates:
+            if task.label not in unique_labels:
+                unique_labels.append(task.label)
+                unique_tasks.append(task)
+        return unique_tasks
 
     def load_jobid_and_rank(self) -> bool:
         if active := self.jobid_path.exists():
@@ -238,10 +276,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
         raise NotImplementedError
 
     def resolve_output_data_paths(self) -> None:
-        # NOTE: not raising error to not disurb tests using the ICON task
-        # TODO: do not forget when implementing the standalone icon task
-        # raise NotImplementedError
-        pass
+        raise NotImplementedError
 
     def prepare_for_submission(self) -> None:
         raise NotImplementedError

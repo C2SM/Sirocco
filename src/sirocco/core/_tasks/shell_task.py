@@ -4,7 +4,7 @@ import shutil
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Self
 
-from sirocco.core.graph_items import Task
+from sirocco.core.graph_items import GeneratedData, Task
 from sirocco.parsing import yaml_data_models as models
 
 if TYPE_CHECKING:
@@ -54,8 +54,6 @@ class ShellTask(models.ConfigShellTaskSpecs, Task):
         ]
 
     def prepare_for_submission(self) -> None:
-        shutil.rmtree(self.run_dir, ignore_errors=True)
-        self.run_dir.mkdir(parents=True, exist_ok=True)
         if self.path:
             if self.path.is_dir():
                 shutil.copytree(self.config_rootdir / self.path, self.run_dir / self.path.name)
@@ -67,7 +65,8 @@ class ShellTask(models.ConfigShellTaskSpecs, Task):
             if data.path is None:
                 msg = "shell task output data must specify a path"
                 raise ValueError(msg)
-            if data.path.is_absolute():
-                data.resolved_path = data.path
-            else:
-                data.resolved_path = self.run_dir / data.path
+            if isinstance(data, GeneratedData):
+                if data.path.is_absolute():
+                    data.resolved_path = data.path
+                else:
+                    data.resolved_path = self.run_dir / data.path

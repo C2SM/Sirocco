@@ -1,13 +1,14 @@
 ---
 start_date: &root_start_date '2000-01-01T00:00:00'
-stop_date: &root_stop_date '2000-01-01T00:03:00'
+stop_date: &root_stop_date '2000-01-01T04:00:00'
 scheduler: slurm
+front_depth: 2
 cycles:
-  - every minute:
+  - hourly:
       cycling:
         start_date: *root_start_date
         stop_date: *root_stop_date
-        period: PT1M
+        period: PT1H
       tasks:
         - icon:
             inputs:
@@ -23,30 +24,44 @@ cycles:
                   when:
                     after: *root_start_date
                   target_cycle:
-                    lag: -PT1M
+                    lag: -PT1H
                   port: restart_file
             outputs:
               - finish:
                   port: finish_status
               - restart:
                   port: latest_restart_file
+              - atm_2d:
+                  port: output_streams
+              - atm_3d_pl:
+                  port: output_streams
+        - post_proc:
+            inputs:
+              - atm_2d:
+                  port: stream
+              - atm_3d_pl:
+                  port: stream
+
   - lastly:
       tasks:
         - cleanup:
             inputs:
               - finish:
                   target_cycle:
-                    date: [2000-01-01T00:00:00, 2000-01-01T00:01:00, 2000-01-01T00:02:00]
+                    date: [2000-01-01T00:00:00, 2000-01-01T01:00:00, 2000-01-01T02:00:00, 2000-01-01T03:00:00]
                   port: positional
 tasks:
   - icon:
       plugin: icon
       computer: santis
+      target: santis_cpu
       uenv: icon/25.2:v3
       nodes: 1
-      ntasks_per_node: 4
-      cpus_per_task: 72
+      ntasks_per_node: 200
+      cpus_per_task: 1
       bin: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/bin/icon
+      bin_cpu: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/bin/icon
+      bin_gpu: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/bin/icon
       namelists:
         - ./ICON/icon_master.namelist
         - ./ICON/NAMELIST_exclaim_ape_R02B04
@@ -54,11 +69,16 @@ tasks:
       plugin: shell
       computer: santis
       uenv: icon/25.2:v3
-      nodes: 1
-      ntasks_per_node: 4
-      cpus_per_task: 72
-      src: scripts/cleanup.py
+      view: default
+      path: scripts/cleanup.py
       command: "python cleanup.py {PORT::positional}"
+  - post_proc:
+      plugin: shell
+      computer: santis
+      uenv: /capstor/store/cscs/userlab/cwd01/leclairm/uenvs/images/climtools_25.2_v2.sqfs
+      view: default
+      path: scripts/post_proc.sh
+      command: "post_proc.sh {PORT::stream}"
 data:
   available:
      - icon_grid:
@@ -74,5 +94,7 @@ data:
          path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/externals/ecrad/data
          computer: santis
   generated:
+     - atm_2d: {}
+     - atm_3d_pl: {}
      - finish: {}
      - restart: {}
