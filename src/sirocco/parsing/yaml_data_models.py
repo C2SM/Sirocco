@@ -558,7 +558,7 @@ class ConfigIconTaskSpecs:
             "description": "Use a predefined setup for the target machine. Ignore mpi_command, wrapper_script and env"
         },
     )
-    assets: Path | None = field(
+    runtime: Path | None = field(
         default=None,
         repr=False,
         metadata={

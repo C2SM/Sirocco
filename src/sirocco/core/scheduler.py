@@ -3,6 +3,7 @@ import subprocess
 from dataclasses import dataclass
 from typing import Literal, assert_never
 
+from sirocco.core._tasks.sirocco_task import SiroccoContinueTask
 from sirocco.core.graph_items import Task, TaskStatus
 
 
@@ -44,6 +45,12 @@ class Scheduler:
         # Task runscript "content"
         script_lines.append("")
         script_lines.extend(task.runscript_lines())
+
+        # Accounting
+        if not isinstance(task, SiroccoContinueTask):
+            script_lines.append(
+                "sacct -j ${SLURM_JOB_ID} --format='User,JobID,Jobname,partition,state,time,start,end,elapsed,nnodes,ncpus'"
+            )
 
         # Submit runscript
         # ================

@@ -4,7 +4,7 @@ import enum
 from dataclasses import dataclass, field
 from itertools import chain, product
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Self, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, TypeVar, cast
 
 from sirocco.parsing.target_cycle import DateList, LagList, NoTargetCycle
 from sirocco.parsing.yaml_data_models import (
@@ -120,6 +120,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     RANK_FILENAME: ClassVar[str] = field(default=".rank", repr=False)
     COOL_DOWN_FILENAME: ClassVar[str] = field(default=".cool-down", repr=False)
     CLEAN_UP_BEFORE_SUBMIT: ClassVar[bool] = field(default=True, repr=False)  # Clean up directory when submitting
+    RUN_ROOT: ClassVar[Literal["run"]] = "run"
 
     config_rootdir: Path
     run_dir: Path = field(init=False, repr=False)
@@ -149,7 +150,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
             self.label += "__" + "__".join(
                 f"{key}_{value}".replace(" ", "_") for key, value in self.coordinates.items()
             )
-        self.run_dir = (self.config_rootdir / "run" / self.label).resolve()
+        self.run_dir = (self.config_rootdir / self.RUN_ROOT / self.label).resolve()
         self.jobid_path = self.run_dir / self.JOBID_FILENAME
         self.rank_path = self.run_dir / self.RANK_FILENAME
         self.cool_down_path = self.run_dir / self.COOL_DOWN_FILENAME

@@ -39,6 +39,8 @@ class WorkflowStatus(enum.Enum):
 class Workflow:
     """Internal representation of a workflow"""
 
+    RUN_ROOT: str = Task.RUN_ROOT
+
     def __init__(
         self,
         name: str,
@@ -148,7 +150,7 @@ class Workflow:
 
     def start(self, log_type: Literal["std", "tee"] = "tee") -> None:
         logger = self.get_logger(log_type)
-        if (self.config_rootdir / "run").exists():
+        if (self.config_rootdir / self.RUN_ROOT).exists():
             msg = "Workflow already exists, cannot start"
             raise ValueError(msg)
         self.init_front(logger=logger)
@@ -163,8 +165,9 @@ class Workflow:
 
     def restart(self, log_type: Literal["std", "tee"] = "tee") -> None:
         logger = self.get_logger(log_type)
-        if not (self.config_rootdir / "run").exists():
-            msg = "Workflow did not start, cannot stop"
+        # TODO: Check that the workflow is not runing
+        if not (self.config_rootdir / self.RUN_ROOT).exists():
+            msg = "Workflow did not start, cannot restart"
             raise ValueError(msg)
         self.load_front()
         self.restart_front(logger=logger)
@@ -174,7 +177,7 @@ class Workflow:
 
     def stop(self, mode: Literal["cancel", "cool-down"], log_type: Literal["std", "tee"] = "tee") -> None:
         logger = self.get_logger(log_type)
-        if not (self.config_rootdir / "run").exists():
+        if not (self.config_rootdir / self.RUN_ROOT).exists():
             msg = "Workflow did not start, cannot stop"
             raise ValueError(msg)
         if self.sirocco_continue_task.load_jobid_and_rank():

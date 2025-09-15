@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 from typing import Annotated
 
@@ -7,6 +8,7 @@ from rich.console import Console
 from rich.traceback import install as install_rich_traceback
 
 from sirocco import core, parsing, pretty_print, vizgraph
+from sirocco.core._tasks.sirocco_task import SiroccoContinueTask
 from sirocco.workgraph import AiidaWorkGraph
 
 # --- Typer App and Rich Console Setup ---
@@ -242,10 +244,22 @@ def start(
             help="Path to the workflow definition YAML file.",
         ),
     ],
+    cleanup: Annotated[  # noqa: FBT002
+        bool,
+        typer.Option(
+            "--cleanup",
+            help="clean up before starting",
+        ),
+    ] = False,
 ):
     wf = core.Workflow.from_config_file(workflow_file)
-    if (wf.config_rootdir / "run").exists():
-        msg = "Workflow already exists, cannot start."
+    if cleanup:
+        console.print(f"▶️ Cleaning up workflow at {wf.config_rootdir} ...")
+        shutil.rmtree(wf.config_rootdir / wf.RUN_ROOT)
+        (wf.config_rootdir / SiroccoContinueTask.SUBMIT_FILENAME).unlink(missing_ok=True)
+        (wf.config_rootdir / SiroccoContinueTask.STDOUTERR_FILENAME).unlink(missing_ok=True)
+    if (wf.config_rootdir / wf.RUN_ROOT).exists():
+        msg = "Workflow already exists, cannot start. Use --cleanup to clean up before starting."
         raise ValueError(msg)
     console.print(f"▶️ Starting workflow at {wf.config_rootdir} ...")
     with (wf.config_rootdir / core.SiroccoContinueTask.STDOUTERR_FILENAME).open("a") as logfile:

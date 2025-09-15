@@ -28,7 +28,6 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
     _AIIDA_ICON_RESTART_FILE_PORT_NAME: ClassVar[str] = field(default="restart_file", repr=False)
     _MAIN: ClassVar[str] = field(default="main.sh", repr=False)
     namelists: list[NamelistFile]
-    _assets_dir: Path = field(init=False, repr=False)
 
     def __post_init__(self):
         super().__post_init__()
@@ -134,11 +133,11 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         # NOTE: This code is there as it is the first available place where we know the standalone orchestrator is used
         # TODO: if standalone becomes the only orchestrator, make this a yaml model validator
         if self.target is None:
-            if self.assets is None:
-                msg = f"task {self.name}: 'assets' is required when 'target' is unset"
+            if self.runtime is None:
+                msg = f"task {self.name}: 'runtime' is required when 'target' is unset"
                 raise ValueError(msg)
-        elif self.assets is not None:
-            msg = f"task {self.name}: 'target' set to {self.target}: 'assets' is ignored. Unset 'target' to take it into account."
+        elif self.runtime is not None:
+            msg = f"task {self.name}: 'target' set to {self.target}: 'runtime' is ignored. Unset 'target' to take it into account."
             LOGGER.warning(msg)
 
         # Link ICON binary
@@ -174,21 +173,21 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         # Copy required runtime files
         if self.target is None:
             # NOTE: dupplicate validation for type checker
-            if self.assets is None:
-                msg = f"task {self.name}: 'assets' is required when 'target' is unset"
+            if self.runtime is None:
+                msg = f"task {self.name}: 'runtime' is required when 'target' is unset"
                 raise ValueError(msg)
-            self._assets_dir = self.config_rootdir / self.assets
-            if not self._assets_dir.is_dir():
-                msg = f"{self.name}: 'assets' directory not found at {self._assets_dir}"
+            runtime_dir = self.config_rootdir / self.runtime
+            if not (runtime_dir / self._MAIN).is_file():
+                msg = f"{self._MAIN} not found in runtime at {runtime_dir}"
+                raise ValueError(msg)
+            if not runtime_dir.is_dir():
+                msg = f"{self.name}: 'runtime' directory not found at {runtime_dir}"
                 raise ValueError(msg)
         else:
-            self._assets_dir = Path(__file__).parent / "target_assets" / self.target
-        shutil.copytree(self._assets_dir, self.run_dir, dirs_exist_ok=True)
+            runtime_dir = Path(__file__).parent / "target_runtime" / self.target
+        shutil.copytree(runtime_dir, self.run_dir, dirs_exist_ok=True)
 
     def runscript_lines(self) -> list[str]:
-        if self.target is None and not (self._assets_dir / self._MAIN).is_file():
-            msg = f"{self._MAIN} not found in assets at {self.assets}"
-            raise ValueError(msg)
         return [f"source ./{self._MAIN}"]
 
     def handle_input_ports(self) -> None:
