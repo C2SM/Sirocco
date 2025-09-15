@@ -4,7 +4,7 @@ import logging
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, assert_never
 
 import f90nml
 
@@ -153,17 +153,21 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         self.dump_namelists(directory=self.run_dir, filename_mode="raw")
 
         # Copy required runtime files
-        if self.target is None:
-            shutil.copy(self.config_rootdir / self.runscript_content, self.run_dir / self.runscript_content.name)  # type: ignore[operator, union-attr] # check on runscript_content done above
-            if self.auxilary_run_files is not None:
-                for aux_path in self.auxilary_run_files:
-                    shutil.copy(self.config_rootdir / aux_path, self.run_dir / aux_path.name)
-        else:
-            shutil.copy(Path(__file__).parent / "santis_run_environment.sh", self.run_dir / "santis_run_environment.sh")
-            if self.target == "santis_cpu":
-                shutil.copy(Path(__file__).parent / "santis_cpu.sh", self.run_dir / "santis_cpu.sh")
-            elif self.target == "santis_gpu":
-                shutil.copy(Path(__file__).parent / "santis_gpu.sh", self.run_dir / "santis_gpu.sh")
+        assets_dir = Path(__file__).parent / "target_assets"
+        match self.target:
+            case None:
+                shutil.copy(self.config_rootdir / self.runscript_content, self.run_dir / self.runscript_content.name)  # type: ignore[operator, union-attr] # check on runscript_content done above
+                if self.auxilary_run_files is not None:
+                    for aux_path in self.auxilary_run_files:
+                        shutil.copy(self.config_rootdir / aux_path, self.run_dir / aux_path.name)
+            case "santis_cpu":
+                shutil.copy(assets_dir / "santis" / "santis_run_environment.sh", self.run_dir)
+                shutil.copy(assets_dir / "santis" / "santis_cpu.sh", self.run_dir)
+            case "santis_gpu":
+                shutil.copy(assets_dir / "santis" / "santis_run_environment.sh", self.run_dir)
+                shutil.copy(assets_dir / "santis" / "santis_gpu.sh", self.run_dir)
+            case _:
+                assert_never()
 
     def runscript_lines(self) -> list[str]:
         lines = []
