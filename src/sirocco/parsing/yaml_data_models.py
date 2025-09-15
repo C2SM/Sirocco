@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import logging
 import itertools
+import logging
 import re
 import time
 import typing
@@ -31,6 +31,7 @@ from sirocco.parsing.when import AnyWhen, AtDate, BeforeAfterDate, When
 ITEM_T = typing.TypeVar("ITEM_T")
 
 LOGGER = logging.getLogger(__name__)
+
 
 def list_not_empty(value: list[ITEM_T]) -> list[ITEM_T]:
     if len(value) < 1:
@@ -620,14 +621,14 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
                 if self.bin is None and self.bin_cpu is None:
                     msg = f"{self.name}: target set to 'santis_cpu', specify one of 'bin' or 'bin_cpu'"
                     raise ValueError(msg)
-                elif self.bin is not None and self.bin_cpu is not None:
+                if self.bin is not None and self.bin_cpu is not None:
                     msg = f"{self.name}: target set to 'santis_cpu', 'bin' and 'bin_cpu' specified, ignoring 'bin'"
                     LOGGER.warning(msg)
             case "santis_gpu":
                 if self.bin is None and self.bin_gpu is None:
                     msg = f"{self.name}: target set to 'santis_gpu', specify one of 'bin' or 'bin_gpu'"
                     raise ValueError(msg)
-                elif self.bin is not None and self.bin_gpu is not None:
+                if self.bin is not None and self.bin_gpu is not None:
                     msg = f"{self.name}: target set to 'santis_gpu', 'bin' and 'bin_gpu' specified, ignoring 'bin'"
                     LOGGER.warning(msg)
         return self
