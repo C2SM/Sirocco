@@ -553,18 +553,11 @@ class ConfigIconTaskSpecs:
             "description": "Use a predefined setup for the target machine. Ignore mpi_command, wrapper_script and env"
         },
     )
-    runscript_content: Path | None = field(
+    assets: Path | None = field(
         default=None,
         repr=False,
         metadata={
-            "description": "File containing lines to inject in the runscript replacing environment setup, mpi command, etc..."
-        },
-    )
-    auxilary_run_files: list[Path] | None = field(
-        default=None,
-        repr=False,
-        metadata={
-            "description": "List of paths relative to the config directory for auxilary files used at runtime. Use in combination with mpi_cmd."
+            "description": "Path relative to config dir containing runtime files (environment setup, mpi command, etc...)"
         },
     )
 

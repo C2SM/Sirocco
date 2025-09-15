@@ -241,13 +241,26 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
             upstream_task.waiters.append(self)
 
     def link_parents_children(self) -> None:
-        for data_in in self.input_data_nodes():
-            if isinstance(data_in, GeneratedData) and data_in.origin_task not in self.parents:
-                self.parents.append(data_in.origin_task)
-        self.parents.extend(task for task in self.wait_on if task not in self.parents)
-        for data_out in self.output_data_nodes():
-            self.children.extend(task for task in data_out.downstream_tasks if task not in self.children)
-        self.children.extend(task for task in self.waiters if task not in self.children)
+        # Parent tasks
+        self.parents = self.unique_task_list(
+            chain(
+                self.wait_on,
+                (data_in.origin_task for data_in in self.input_data_nodes() if isinstance(data_in, GeneratedData)),
+            )
+        )
+        self.children = self.unique_task_list(
+            chain(self.waiters, *chain(data_out.downstream_tasks for data_out in self.output_data_nodes()))
+        )
+
+    @staticmethod
+    def unique_task_list(task_candidates: Iterator[Task]) -> list[Task]:
+        unique_labels: list[str] = []
+        unique_tasks: list[Task] = []
+        for task in task_candidates:
+            if task.label not in unique_labels:
+                unique_labels.append(task.label)
+                unique_tasks.append(task)
+        return unique_tasks
 
     def load_jobid_and_rank(self) -> bool:
         if active := self.jobid_path.exists():

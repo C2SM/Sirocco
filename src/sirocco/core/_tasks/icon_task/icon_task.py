@@ -4,7 +4,7 @@ import logging
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, assert_never
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 
 import f90nml
 
@@ -26,7 +26,9 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
     _MASTER_MODEL_NML_SECTION: ClassVar[str] = field(default="master_model_nml", repr=False)
     _MODEL_NAMELIST_FILENAME_FIELD: ClassVar[str] = field(default="model_namelist_filename", repr=False)
     _AIIDA_ICON_RESTART_FILE_PORT_NAME: ClassVar[str] = field(default="restart_file", repr=False)
+    _CUSTOM_MAIN: ClassVar[str] = field(default="main.sh", repr=False)
     namelists: list[NamelistFile]
+    _assets_dir: Path = field(init=False, repr=False)
 
     def __post_init__(self):
         super().__post_init__()
@@ -132,11 +134,11 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         # NOTE: This code is there as it is the first available place where we know the standalone orchestrator is used
         # TODO: if standalone becomes the only orchestrator, make this a yaml model validator
         if self.target is None:
-            if self.runscript_content is None:
-                msg = f"task {self.name}: 'runscript_content' is required when 'target' is unset"
+            if self.assets is None:
+                msg = f"task {self.name}: 'assets' is required when 'target' is unset"
                 raise ValueError(msg)
-        elif self.runscript_content is not None or self.auxilary_run_files is not None:
-            msg = f"task {self.name}: 'target' set to {self.target}: 'runscript_content' and 'auxilary_run_files' are ignored. Unset 'target' to take them into account."
+        elif self.assets is not None:
+            msg = f"task {self.name}: 'target' set to {self.target}: 'assets' is ignored. Unset 'target' to take it into account."
             LOGGER.warning(msg)
 
         # Link ICON binary
@@ -153,33 +155,28 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         self.dump_namelists(directory=self.run_dir, filename_mode="raw")
 
         # Copy required runtime files
-        assets_dir = Path(__file__).parent / "target_assets"
-        match self.target:
-            case None:
-                shutil.copy(self.config_rootdir / self.runscript_content, self.run_dir / self.runscript_content.name)  # type: ignore[operator, union-attr] # check on runscript_content done above
-                if self.auxilary_run_files is not None:
-                    for aux_path in self.auxilary_run_files:
-                        shutil.copy(self.config_rootdir / aux_path, self.run_dir / aux_path.name)
-            case "santis_cpu":
-                shutil.copy(assets_dir / "santis" / "santis_run_environment.sh", self.run_dir)
-                shutil.copy(assets_dir / "santis" / "santis_cpu.sh", self.run_dir)
-            case "santis_gpu":
-                shutil.copy(assets_dir / "santis" / "santis_run_environment.sh", self.run_dir)
-                shutil.copy(assets_dir / "santis" / "santis_gpu.sh", self.run_dir)
-            case _:
-                assert_never()
+        if self.target is None:
+            # NOTE: dupplicate validation for type checker
+            if self.assets is None:
+                msg = f"task {self.name}: 'assets' is required when 'target' is unset"
+                raise ValueError(msg)
+            self._assets_dir = self.config_rootdir / self.assets
+            if not self._assets_dir.is_dir():
+                msg = f"{self.name}: 'assets' directory not found at {self._assets_dir}"
+                raise ValueError(msg)
+        else:
+            self._assets_dir = Path(__file__).parent / "target_assets" / self.target
+        shutil.copytree(self._assets_dir, self.run_dir, dirs_exist_ok=True)
 
     def runscript_lines(self) -> list[str]:
         lines = []
         if self.target is None:
-            # NOTE: Only for type checking. Type checkers cannot know this method is called after prepare_for_submission where the check is made
-            #       Again, if standalone becomes the only orchestrator, make this check a yaml model validator
-            if self.runscript_content is None:
-                msg = f"task {self.name}: 'runscript_content' is required when 'target' is unset"
+            if not (self._assets_dir / self._CUSTOM_MAIN).is_file():
+                msg = f"{self._CUSTOM_MAIN} not found in assets at {self.assets}"
                 raise ValueError(msg)
-            lines.append(f"source ./{self.runscript_content.name}")
+            lines.append(f"source ./{self._CUSTOM_MAIN}")
         else:
-            lines.append("source santis_run_environment.sh")
+            lines.append("source ./santis_run_environment.sh")
             match self.target:
                 case "santis_cpu":
                     lines.append(
