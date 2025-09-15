@@ -119,7 +119,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     JOBID_FILENAME: ClassVar[str] = field(default=".jobid", repr=False)
     RANK_FILENAME: ClassVar[str] = field(default=".rank", repr=False)
     COOL_DOWN_FILENAME: ClassVar[str] = field(default=".cool-down", repr=False)
-    CLEAN_UP: ClassVar[bool] = True   # Clean up directory when submitting
+    CLEAN_UP: ClassVar[bool] = True  # Clean up directory when submitting
 
     config_rootdir: Path
     run_dir: Path = field(init=False, repr=False)
@@ -242,7 +242,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
 
     def link_parents_children(self) -> None:
         for data_in in self.input_data_nodes():
-            if isinstance(data_in, GeneratedData) and not data_in.origin_task in self.parents:
+            if isinstance(data_in, GeneratedData) and data_in.origin_task not in self.parents:
                 self.parents.append(data_in.origin_task)
         self.parents.extend(task for task in self.wait_on if task not in self.parents)
         for data_out in self.output_data_nodes():

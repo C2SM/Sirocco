@@ -13,7 +13,7 @@ class SiroccoContinueTask(models.ConfigSiroccoTaskSpecs, Task):
 
     SUBMIT_FILENAME: ClassVar[str] = field(default="sirocco_run_script.sh", repr=False)
     STDOUTERR_FILENAME: ClassVar[str] = field(default="sirocco.log", repr=False)
-    CLEAN_UP: ClassVar[bool] = False   # Clean up directory when submitting
+    CLEAN_UP: ClassVar[bool] = False  # Clean up directory when submitting
 
     name: str = "SIROCCO"
     computer: str = "dummy"
