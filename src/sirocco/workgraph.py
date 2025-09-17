@@ -198,6 +198,7 @@ class AiidaWorkGraph:
         except NotExistent as err:
             msg = f"Could not find computer {data.computer!r} for input {data}."
             raise ValueError(msg) from err
+
         # `remote_path` must be str not PosixPath to be JSON-serializable
         transport = computer.get_transport()
         with transport:
@@ -205,22 +206,25 @@ class AiidaWorkGraph:
                 msg = f"Could not find available data {data.name} in path {data.path} on computer {data.computer}."
                 raise FileNotFoundError(msg)
 
-        # PRCOMMENT: Can we just make everything RemoteData?
-
-        # if computer.get_transport_class() is aiida.transports.plugins.local.LocalTransport:
-        #     if data.path.is_file():
-        #         self._aiida_data_nodes[label] = aiida.orm.SinglefileData(file=str(data.path), label=label)
-        #     else:
-        #         self._aiida_data_nodes[label] = aiida.orm.FolderData(tree=str(data.path), label=label)
-        #
-        # else:
-        #     self._aiida_data_nodes[label] = aiida.orm.RemoteData(
-        #         remote_path=str(data.path), label=label, computer=computer
-        #     )
-
-        self._aiida_data_nodes[label] = aiida.orm.RemoteData(
-            remote_path=str(data.path), label=label, computer=computer
+        # Check if this data will be used by ICON tasks
+        used_by_icon_task = any(
+            isinstance(task, core.IconTask) and data in task.input_data_nodes() for task in self._core_workflow.tasks
         )
+
+        if used_by_icon_task:
+            # ICON tasks require RemoteData
+            self._aiida_data_nodes[label] = aiida.orm.RemoteData(
+                remote_path=str(data.path), label=label, computer=computer
+            )
+        elif computer.get_transport_class() is aiida.transports.plugins.local.LocalTransport:
+            if data.path.is_file():
+                self._aiida_data_nodes[label] = aiida.orm.SinglefileData(file=str(data.path), label=label)
+            else:
+                self._aiida_data_nodes[label] = aiida.orm.FolderData(tree=str(data.path), label=label)
+        else:
+            self._aiida_data_nodes[label] = aiida.orm.RemoteData(
+                remote_path=str(data.path), label=label, computer=computer
+            )
 
     @functools.singledispatchmethod
     def create_task_node(self, task: core.Task):
@@ -309,9 +313,7 @@ class AiidaWorkGraph:
             msg = f"Could not find computer {task.computer!r} in AiiDA database. One needs to create and configure the computer before running a workflow."
             raise ValueError(msg) from err
 
-        # Use the original computer directly - don't create new ones with UUID
-        # This avoids the cross-computer symlink issues
-        
+        # Use the original computer directly
         icon_code = aiida.orm.InstalledCode(
             label=f"icon-{task_label}",
             description="aiida_icon",
@@ -328,6 +330,7 @@ class AiidaWorkGraph:
 
         task.update_icon_namelists_from_workflow()
 
+        # Master namelist
         with io.StringIO() as buffer:
             task.master_namelist.namelist.write(buffer)
             buffer.seek(0)
@@ -338,9 +341,9 @@ class AiidaWorkGraph:
             with io.StringIO() as buffer:
                 model_nml.namelist.write(buffer)
                 buffer.seek(0)
-                setattr(builder.models, model_name, aiida.orm.SinglefileData(buffer, model_nml.name))  # type: ignore[attr-defined] # dynamic namespace
+                setattr(builder.models, model_name, aiida.orm.SinglefileData(buffer, model_nml.name))  # type: ignore[attr-defined]
 
-        # Add wrapper script (either custom or default)
+        # Add wrapper script
         wrapper_script_data = AiidaWorkGraph.get_wrapper_script_aiida_data(task)
         if wrapper_script_data is not None:
             builder.wrapper_script = wrapper_script_data
@@ -349,15 +352,6 @@ class AiidaWorkGraph:
         options = {}
         options.update(self._from_task_get_scheduler_options(task))
         options["additional_retrieve_list"] = []
-
-        # Handle MPI command in metadata instead of computer creation
-        if task.mpi_cmd is not None:
-            # Set MPI command in prepend text or environment variables
-            # This is a workaround since we're not creating a new computer
-            mpi_cmd_parsed = self._parse_mpi_cmd_to_aiida(task.mpi_cmd)
-            # You might need to handle this differently depending on your needs
-            # For now, we'll skip this in tests
-            pass
 
         metadata["options"] = options
         builder.metadata = metadata
