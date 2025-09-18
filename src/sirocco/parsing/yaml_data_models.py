@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import itertools
+import logging
 import re
 import time
 import typing
@@ -28,6 +29,8 @@ from sirocco.parsing.target_cycle import DateList, LagList, NoTargetCycle, Targe
 from sirocco.parsing.when import AnyWhen, AtDate, BeforeAfterDate, When
 
 ITEM_T = typing.TypeVar("ITEM_T")
+
+LOGGER = logging.getLogger(__name__)
 
 
 def list_not_empty(value: list[ITEM_T]) -> list[ITEM_T]:
@@ -337,17 +340,33 @@ class ConfigRootTask(ConfigBaseTask):
 
 
 @dataclass(kw_only=True)
+class ConfigSiroccoTaskSpecs:
+    plugin: ClassVar[Literal["_sirocco"]] = "_sirocco"
+    venv: Path | None = field(default=None, repr=False)
+
+
+class ConfigSiroccoTask(ConfigBaseTask, ConfigSiroccoTaskSpecs): ...
+
+
+@dataclass(kw_only=True)
 class ConfigShellTaskSpecs:
     plugin: ClassVar[Literal["shell"]] = "shell"
-    port_pattern: ClassVar[re.Pattern] = field(default=re.compile(r"{PORT(\[sep=.+\])?::(.+?)}"), repr=False)
-    sep_pattern: ClassVar[re.Pattern] = field(default=re.compile(r"\[sep=(.+)\]"), repr=False)
+    when_port_pattern: ClassVar[re.Pattern] = field(
+        default=re.compile(r"\[(?P<opt>.*?){PORT(?P<sep_spec>\[sep=.+\])?::(?P<port>.+?)}\]"), repr=False
+    )
+    port_pattern: ClassVar[re.Pattern] = field(
+        default=re.compile(r"{PORT(?P<sep_spec>\[sep=.+\])?::(?P<port>.+?)}"), repr=False
+    )
+    sep_pattern: ClassVar[re.Pattern] = field(default=re.compile(r"\[sep=(?P<sep>.+)\]"), repr=False)
 
     command: str
+    # TODO: change "path" for "src"
     path: Path | None = field(
         default=None, repr=False, metadata={"description": ("Script file relative to the config directory.")}
     )
 
-    def resolve_ports(self, input_labels: dict[str, list[str]]) -> str:
+    # TODO: move str | None in the signature to str once ports are compulsery everywhere (also for output)
+    def resolve_ports(self, input_labels: dict[str | None, list[str]]) -> str:
         """Replace port placeholders in command string with provided input labels.
 
         Returns a string corresponding to self.command with "{PORT::port_name}"
@@ -381,22 +400,62 @@ class ConfigShellTaskSpecs:
             ... )
             >>> task_specs.resolve_ports({"repeat_input": ["input_1", "input_2", "input_3"]})
             './my_script --input input_1 --input input_2 --input input_3'
+
+            >>> task_specs = ConfigShellTaskSpecs(
+            ...     command="./my_script [--when_opt {PORT::when_input}] --input {PORT[sep= --input ]::repeat_input}"
+            ... )
+            >>> task_specs.resolve_ports(
+            ...     {
+            ...         "when_input": ["some_when_input"],
+            ...         "repeat_input": ["input_1", "input_2", "input_3"],
+            ...     }
+            ... )
+            './my_script --when_opt some_when_input --input input_1 --input input_2 --input input_3'
+
+            >>> task_specs = ConfigShellTaskSpecs(
+            ...     command="./my_script[ --when_opt {PORT::when_input}] --input {PORT[sep= --input ]::repeat_input}"
+            ... )
+            >>> task_specs.resolve_ports({"repeat_input": ["input_1", "input_2", "input_3"]})
+            './my_script --input input_1 --input input_2 --input input_3'
+            >>> task_specs.resolve_ports(
+            ...     {"when_input": [], "repeat_input": ["input_1", "input_2", "input_3"]}
+            ... )
+            './my_script --input input_1 --input input_2 --input input_3'
         """
-        cmd = self.command
-        for port_match in self.port_pattern.finditer(cmd):
-            if (port_name := port_match.group(2)) is None:
-                msg = f"Wrong port specification: {port_match.group(0)}"
+
+        def replace_port(cmd: str, match_obj: re.Match) -> str:
+            full_match = match_obj.group(0)
+            if (port := match_obj.group("port")) is None:
+                msg = f"Wrong port specification: {full_match}"
                 raise ValueError(msg)
-            if (sep := port_match.group(1)) is None:
-                arg_sep = " "
+            if (sep_spec := match_obj.group("sep_spec")) is None:
+                sep = " "
             else:
-                if (sep_match := self.sep_pattern.match(sep)) is None:
-                    msg = "Wrong separator specification: sep"
+                if (sep_match := self.sep_pattern.match(sep_spec)) is None:  # - ML - That can probably not happen
+                    msg = f"Wrong separator specification: {sep_spec}"
                     raise ValueError(msg)
-                if (arg_sep := sep_match.group(1)) is None:
-                    msg = "Wrong separator specification: sep"
+                if (sep := sep_match.group("sep")) is None:
+                    msg = f"Wrong separator specification: {sep_spec}"
                     raise ValueError(msg)
-            cmd = cmd.replace(port_match.group(0), arg_sep.join(input_labels[port_name]))
+
+            if "opt" in match_obj.groupdict():
+                if (opt := match_obj.group("opt")) is None:
+                    msg = f"Wrong port specification: {full_match}"
+                    raise ValueError(msg)
+                if not input_labels.get(port):
+                    return cmd.replace(full_match, "")
+                return cmd.replace(full_match, opt + sep.join(input_labels[port]))
+
+            if port not in input_labels:
+                msg = f"The input_labels dictionnary doesn't have the {port} key. If the port has a when condition, enclose the whole dedicated comand line part in square brackets e.g. command: ... [--arg={{PORT:my_port}}] ..."
+                raise KeyError(msg)
+            return cmd.replace(full_match, sep.join(input_labels[port]))
+
+        cmd = self.command
+        for when_port_match in self.when_port_pattern.finditer(cmd):
+            cmd = replace_port(cmd, when_port_match)
+        for port_match in self.port_pattern.finditer(cmd):
+            cmd = replace_port(cmd, port_match)
         return cmd
 
 
@@ -485,11 +544,26 @@ class ConfigNamelistFile(BaseModel, ConfigNamelistFileSpec):
 @dataclass(kw_only=True)
 class ConfigIconTaskSpecs:
     plugin: ClassVar[Literal["icon"]] = "icon"
-    bin: Path = field(repr=True)
+    bin: Path | None = field(repr=True, default=None)
+    bin_cpu: Path | None = field(repr=True, default=None)
+    bin_gpu: Path | None = field(repr=True, default=None)
     wrapper_script: Path | None = field(
         default=None,
         repr=False,
         metadata={"description": "Path to wrapper script file relative to the config directory or absolute."},
+    )
+    target: Literal["santis_cpu", "santis_gpu"] | None = field(
+        default=None,
+        metadata={
+            "description": "Use a predefined setup for the target machine. Ignore mpi_command, wrapper_script and env"
+        },
+    )
+    runtime: Path | None = field(
+        default=None,
+        repr=False,
+        metadata={
+            "description": "Path relative to config dir containing runtime files (environment setup, mpi command, etc...)"
+        },
     )
 
 
@@ -531,10 +605,33 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
             raise ValueError(msg)
         return nmls
 
-    @field_validator("bin", mode="after")
+    @field_validator("bin", "bin_cpu", "bin_gpu", mode="after")
     @classmethod
-    def check_is_absolute_path(cls, value: Path) -> Path:
+    def check_is_absolute_path(cls, value: Path | None) -> Path | None:
         return is_absolute_path(value)
+
+    @model_validator(mode="after")
+    def check_bin_present(self) -> ConfigIconTask:
+        match self.target:
+            case None:
+                if self.bin is None and self.bin_cpu is None and self.bin_gpu is None:
+                    msg = "No ICON binary specified. If target is unset, specify at least one of 'bin', 'bin_cpu' or 'bin_gpu'"
+                    raise ValueError(msg)
+            case "santis_cpu":
+                if self.bin is None and self.bin_cpu is None:
+                    msg = f"{self.name}: target set to 'santis_cpu', specify one of 'bin' or 'bin_cpu'"
+                    raise ValueError(msg)
+                if self.bin is not None and self.bin_cpu is not None:
+                    msg = f"{self.name}: target set to 'santis_cpu', 'bin' and 'bin_cpu' specified, ignoring 'bin'"
+                    LOGGER.warning(msg)
+            case "santis_gpu":
+                if self.bin is None and self.bin_gpu is None:
+                    msg = f"{self.name}: target set to 'santis_gpu', specify one of 'bin' or 'bin_gpu'"
+                    raise ValueError(msg)
+                if self.bin is not None and self.bin_gpu is not None:
+                    msg = f"{self.name}: target set to 'santis_gpu', 'bin' and 'bin_gpu' specified, ignoring 'bin'"
+                    LOGGER.warning(msg)
+        return self
 
 
 @dataclass(kw_only=True)
@@ -621,13 +718,16 @@ class ConfigData(BaseModel):
 
 
 def get_plugin_from_named_base_model(
-    data: dict | ConfigRootTask | ConfigShellTask | ConfigIconTask,
+    data: dict | ConfigRootTask | ConfigSiroccoTask | ConfigShellTask | ConfigIconTask,
 ) -> str:
-    if isinstance(data, ConfigRootTask | ConfigShellTask | ConfigIconTask):
+    if isinstance(data, ConfigRootTask | ConfigSiroccoTask | ConfigShellTask | ConfigIconTask):
         return data.plugin
     name_and_specs = extract_merge_key_as_value(data)
-    if name_and_specs.get("name", None) == "ROOT":
-        return ConfigRootTask.plugin
+    match name_and_specs.get("name", None):
+        case "ROOT":
+            return ConfigRootTask.plugin
+        case "SIROCCO":
+            return ConfigSiroccoTask.plugin
     plugin = name_and_specs.get("plugin", None)
     if plugin is None:
         msg = f"Could not find plugin name in {data}"
@@ -637,6 +737,7 @@ def get_plugin_from_named_base_model(
 
 ConfigTask = Annotated[
     Annotated[ConfigRootTask, Tag(ConfigRootTask.plugin)]
+    | Annotated[ConfigSiroccoTask, Tag(ConfigSiroccoTask.plugin)]
     | Annotated[ConfigIconTask, Tag(ConfigIconTask.plugin)]
     | Annotated[ConfigShellTask, Tag(ConfigShellTask.plugin)],
     Discriminator(get_plugin_from_named_base_model),
@@ -669,7 +770,9 @@ class ConfigWorkflow(BaseModel):
             >>> content = textwrap.dedent(
             ...     '''
             ...     name: minimal
-            ...     rootdir: /location/of/config/file
+            ...     scheduler: slurm
+            ...     rootdir: /location/of/config
+            ...     config_filename: config.yml
             ...     cycles:
             ...       - minimal_cycle:
             ...           tasks:
@@ -695,7 +798,9 @@ class ConfigWorkflow(BaseModel):
 
             >>> wf = ConfigWorkflow(
             ...     name="minimal",
-            ...     rootdir=Path("/location/of/config/file"),
+            ...     scheduler="slurm",
+            ...     rootdir=Path("/location/of/config"),
+            ...     config_filename="config.yml",
             ...     cycles=[ConfigCycle(minimal_cycle={"tasks": [ConfigCycleTask(task_a={})]})],
             ...     tasks=[
             ...         ConfigShellTask(
@@ -722,7 +827,10 @@ class ConfigWorkflow(BaseModel):
     """
 
     rootdir: Path
+    config_filename: str
+    scheduler: Literal["slurm"]
     name: str
+    front_depth: int = 2
     cycles: Annotated[list[ConfigCycle], BeforeValidator(list_not_empty)]
     tasks: Annotated[list[ConfigTask], BeforeValidator(list_not_empty)]
     data: ConfigData
@@ -738,8 +846,24 @@ class ConfigWorkflow(BaseModel):
                     raise ValueError(msg)
         return self
 
+    @model_validator(mode="after")
+    def propagate_root_task(self) -> ConfigWorkflow:
+        root_task: ConfigRootTask | None = None
+        for task in self.tasks:
+            if isinstance(task, ConfigRootTask):
+                if root_task is not None:
+                    msg = "Only one root task can be provided"
+                    raise ValueError(msg)
+                root_task = task
+        if root_task is not None:
+            for root_key, root_value in dict(root_task).items():
+                for task in self.tasks:
+                    if not isinstance(task, ConfigRootTask) and getattr(task, root_key, None) is None:
+                        setattr(task, root_key, root_value)
+        return self
+
     @classmethod
-    def from_config_file(cls, config_path: str) -> Self:
+    def from_config_file(cls, config_path: str | Path) -> Self:
         """Creates a ConfigWorkflow instance from a config file, a yaml with the workflow definition.
 
         Args:
@@ -769,6 +893,7 @@ class ConfigWorkflow(BaseModel):
         if "name" not in object_:
             object_["name"] = config_filename
         object_["rootdir"] = config_resolved_path.parent
+        object_["config_filename"] = Path(config_path).name
         adapter = TypeAdapter(cls)
         return adapter.validate_python(object_)
 

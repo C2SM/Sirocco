@@ -22,6 +22,15 @@ class NamelistFile(models.ConfigNamelistFileSpec):
         self.name = self.path.name
         self._namelist = f90nml.read(self.path)
 
+    def __getitem__(self, k) -> Any:
+        return self._namelist.__getitem__(k)
+
+    def __setitem__(self, k, v) -> None:
+        self._namelist.__setitem__(k, v)
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return self._namelist.get(key, default=default)
+
     @classmethod
     def from_config(cls: type[Self], config: models.ConfigNamelistFile, config_rootdir: Path) -> Self:
         path = cls._validate_namelist_path(config.path, config_rootdir)

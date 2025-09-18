@@ -1,7 +1,9 @@
 ---
 start_date: &root_start_date '2026-01-01T00:00'
-stop_date: &root_stop_date '2026-06-01T00:00'
+stop_date: &root_stop_date '2027-01-01T00:00'
 scheduler: slurm
+front_depth: 3
+
 cycles:
   - bimonthly_tasks:
       cycling:
@@ -31,28 +33,43 @@ cycles:
             wait_on:
               - icon:
                   target_cycle:
-                    date: 2026-05-01T00:00
+                    date: 2026-11-01T00:00
+
 tasks:
+  - SIROCCO:
+      computer: remote
+      uenv: /capstor/store/cscs/userlab/cwd01/leclairm/uenvs/images/sirocco_25.9.sqfs
+      view: default
+      venv: /capstor/store/cscs/userlab/cwd01/leclairm/Sirocco_standalone/.venv/bin/activate
+      walltime: 00:05:00
   - icon:
       plugin: shell
+      uenv: /capstor/store/cscs/userlab/cwd01/leclairm/uenvs/images/sirocco_25.9.sqfs
+      view: default
+      walltime: 00:05:00
+      node: 1
       computer: remote
       path: scripts/icon.py
-      command: "python icon.py --restart {PORT::restart} --init {PORT::init}"
-      uenv: "icon-wcp/v1:rc4"
+      command: "python icon.py[ --restart {PORT::restart}][ --init {PORT::init}]"
   - cleanup:
       plugin: shell
+      uenv: /capstor/store/cscs/userlab/cwd01/leclairm/uenvs/images/sirocco_25.9.sqfs
+      view: default
+      walltime: 00:05:00
+      node: 1
       computer: remote
       path: scripts/cleanup.py
       command: "python cleanup.py"
+
 data:
   available:
      - icon_namelist:
          # Different computer between task and available data
          computer: localhost
-         path: /TESTS_ROOTDIR/tests/cases/small-shell/config/data/input
+         path: /capstor/store/cscs/userlab/cwd01/leclairm/Sirocco_test_cases/standalone/small-standalone/icon_namelist.txt
      - initial_conditions:
          computer: localhost
-         path: /TESTS_ROOTDIR/tests/cases/small-shell/config/data/initial_conditions
+         path: /capstor/store/cscs/userlab/cwd01/leclairm/Sirocco_test_cases/standalone/small-standalone/initial_conditions.txt
   generated:
      - icon_output:
          path: icon_output

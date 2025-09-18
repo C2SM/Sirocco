@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+import enum
+import logging
 from itertools import chain, product
-from typing import TYPE_CHECKING, Self
+from typing import TYPE_CHECKING, Literal, Self
 
-from sirocco.core.graph_items import Cycle, Data, Store, Task
+from sirocco.core._tasks.sirocco_task import SiroccoContinueTask
+from sirocco.core.graph_items import Cycle, Data, Store, Task, TaskStatus
+from sirocco.core.scheduler import Scheduler
 from sirocco.parsing.cycling import DateCyclePoint, OneOffPoint
 from sirocco.parsing.yaml_data_models import (
     ConfigBaseData,
+    ConfigRootTask,
+    ConfigSiroccoTask,
     ConfigWorkflow,
 )
 
@@ -22,24 +28,43 @@ if TYPE_CHECKING:
     )
 
 
+class WorkflowStatus(enum.Enum):
+    INIT = 0
+    CONTINUE = 1
+    COMPLETED = 2
+    FAILED = 3
+    STOPPED = 4
+
+
 class Workflow:
     """Internal representation of a workflow"""
+
+    RUN_ROOT: str = Task.RUN_ROOT
 
     def __init__(
         self,
         name: str,
         config_rootdir: Path,
+        config_filename: str,
+        scheduler: Scheduler,
         config_cycles: list[ConfigCycle],
         config_tasks: list[ConfigTask],
         config_data: ConfigData,
+        front_depth: int,
         parameters: dict[str, list],
+        config_sirocco_task: ConfigSiroccoTask | None = None,
     ) -> None:
         self.name: str = name
         self._config_rootdir: Path = config_rootdir
+        self.config_filename = config_filename
+        self.scheduler = scheduler
+        self.front_depth = front_depth
+        self.front: list[list[Task]] = [[] for _ in range(self.front_depth)]
 
         self.tasks: Store[Task] = Store()
         self.data: Store[Data] = Store()
         self.cycles: Store[Cycle] = Store()
+        self.status = WorkflowStatus.INIT
 
         config_data_dict: dict[str, ConfigBaseData] = {
             data.name: data for data in chain(config_data.available, config_data.generated)
@@ -76,6 +101,9 @@ class Workflow:
                     task_name = task_graph_spec.name
                     task_config = config_task_dict[task_name]
                     for coordinates in iter_coordinates(cycle_point, task_config.parameters):
+                        if isinstance(task_config, ConfigRootTask | ConfigSiroccoTask):
+                            msg = "ROOT and SIROCCO tasks are special tasks that cannot be included in the graph"
+                            raise TypeError(msg)
                         task = Task.from_config(
                             config=task_config,
                             config_rootdir=self._config_rootdir,
@@ -84,6 +112,7 @@ class Workflow:
                             datastore=self.data,
                             graph_spec=task_graph_spec,
                         )
+                        task.rank = self.front_depth
                         self.tasks.add(task)
                         cycle_tasks.append(task)
                 self.cycles.add(
@@ -100,12 +129,218 @@ class Workflow:
         for task in self.tasks:
             task.link_wait_on_tasks(self.tasks)
 
+        # 5 - Link parent and children tasks
+        for task in self.tasks:
+            task.link_parents_children()
+
+        # 6 - Create Sirocco continuation task
+        config_kwargs = dict(config_sirocco_task) if config_sirocco_task else {}
+        if config_kwargs:
+            del config_kwargs["parameters"]
+        self.sirocco_continue_task = SiroccoContinueTask(
+            coordinates={},
+            cycle_point=OneOffPoint(),
+            config_rootdir=self.config_rootdir,
+            config_filename=self.config_filename,
+            parents=self.front[0],
+            **config_kwargs,
+        )
+
+    # =========== Methods to control workflow ===========
+
+    def start(self, log_type: Literal["std", "tee"] = "tee") -> None:
+        logger = self.get_logger(log_type)
+        if (self.config_rootdir / self.RUN_ROOT).exists():
+            msg = "Workflow already exists, cannot start"
+            raise ValueError(msg)
+        self.init_front(logger=logger)
+        self.auto_submit()
+
+    def continue_wf(self, log_type: Literal["std", "tee"] = "std") -> None:  # NOTE: cannot use "continue"
+        logger = self.get_logger(log_type)
+        self.load_front()
+        self.propagate_front(logger=logger)
+        if self.status == WorkflowStatus.CONTINUE:
+            self.auto_submit()
+
+    def restart(self, log_type: Literal["std", "tee"] = "tee") -> None:
+        logger = self.get_logger(log_type)
+        # TODO: Check that the workflow is not runing (No sirocco task)
+        if not (self.config_rootdir / self.RUN_ROOT).exists():
+            msg = "Workflow did not start, cannot restart"
+            raise ValueError(msg)
+        self.load_front()
+        self.restart_front(logger=logger)
+        self.propagate_front(logger=logger)
+        if self.status == WorkflowStatus.CONTINUE:
+            self.auto_submit()
+
+    def stop(self, mode: Literal["cancel", "cool-down"], log_type: Literal["std", "tee"] = "tee") -> None:
+        logger = self.get_logger(log_type)
+        if not (self.config_rootdir / self.RUN_ROOT).exists():
+            msg = "Workflow did not start, cannot stop"
+            raise ValueError(msg)
+        if self.sirocco_continue_task.load_jobid_and_rank():
+            self.scheduler.cancel(self.sirocco_continue_task)
+        self.load_front()
+        self.cancel_all_tasks(mode=mode, logger=logger)
+
+    # =========== Helper methods for workflow control ===========
+
+    def get_logger(self, log_type: Literal["std", "tee"]) -> logging.Logger:
+        """Get a logger
+
+        - either for stdout/stderr
+        - or for both stdout/stderr and sirocco log file (like tee)"""
+
+        log_formatter = logging.Formatter("[%(levelname)s]  %(message)s")
+
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(log_formatter)
+
+        logger = logging.getLogger(log_type)
+        logger.setLevel(logging.INFO)
+        logger.addHandler(console_handler)
+
+        if log_type == "tee":
+            file_handler = logging.FileHandler(self.config_rootdir / SiroccoContinueTask.STDOUTERR_FILENAME)
+            file_handler.setFormatter(log_formatter)
+            logger.addHandler(file_handler)
+
+        return logger
+
+    def load_front(self) -> None:
+        """Update taks ids and populate front from serialized information"""
+        for task in self.tasks:
+            if task.load_jobid_and_rank() and task.rank >= 0:
+                self.front[task.rank].append(task)
+
+    def init_front(self, logger: logging.Logger) -> None:
+        """Populate front and submit corresponding tasks"""
+
+        for task in self.tasks:
+            if not task.parents:
+                task.rank = 0
+                self.scheduler.submit(task)
+                self.front[0].append(task)
+                task.dump_jobid_and_rank()
+                msg = f"{task.label} ({task.jobid}) SUBMITTED"
+                logger.info(msg)
+        for k in range(self.front_depth - 1):
+            for task in self.front[k]:
+                for child in task.children:
+                    if max(parent.rank for parent in child.parents) == k:
+                        self.scheduler.submit(child)
+                        child.rank = k + 1
+                        self.front[k + 1].append(child)
+                        child.dump_jobid_and_rank()
+                        msg = f"{child.label} ({child.jobid}) SUBMITTED"
+                        logger.info(msg)
+
+    def restart_front(self, logger: logging.Logger) -> None:
+        """Submit all tasks currently in the front"""
+
+        for generation in self.front:
+            for task in generation:
+                # Do not resubmit tasks in cool down mode
+                if (
+                    task.rank == 0
+                    and task.cool_down_path.exists()
+                    and self.scheduler.get_status(task) in (TaskStatus.COMPLETED, TaskStatus.ONGOING)
+                ):
+                    task.cool_down_path.unlink()
+                else:
+                    self.scheduler.cancel(task)
+                    self.scheduler.submit(task)
+                    task.dump_jobid_and_rank()
+                    msg = f"{task.label} ({task.jobid}) SUBMITTED"
+                    logger.info(msg)
+
+    def propagate_front(self, logger: logging.Logger) -> None:
+        """Propagate front of submitted tasks and submit new ones"""
+
+        # Handle first generation of the front
+        just_finished: list[Task] = []  # only needed for a front depth of 1
+        for task in self.front[0]:
+            if (status := self.scheduler.get_status(task)) == TaskStatus.FAILED:
+                self.cancel_all_tasks(mode="cancel", logger=logger)
+                msg = f"All workflow tasks canceled because {task.label} failed"
+                logger.info(msg)
+                self.status = WorkflowStatus.FAILED
+                return
+            if status == TaskStatus.COMPLETED:
+                if self.front_depth == 1:
+                    just_finished.append(task)
+                task.rank = -1
+                self.front[0].remove(task)
+                task.dump_jobid_and_rank()
+                msg = f"{task.label} ({task.jobid}) COMPLETED"
+                logger.info(msg)
+
+        # Update front rank of tasks currently in the front after the first generation
+        for k in range(1, self.front_depth):
+            for task in self.front[k]:
+                if max(parent.rank for parent in task.parents) == k - 2:
+                    task.rank = k - 1
+                    self.front[k].remove(task)
+                    self.front[k - 1].append(task)
+                    task.dump_jobid_and_rank()
+                    msg = f"{task.label} ({task.jobid}) PROMOTED from rank {k} to {k-1}"
+                    logger.info(msg)
+
+        # Add new tasks to the last generation of the front
+        before_last_generation = just_finished if self.front_depth == 1 else self.front[-2]
+        for task in before_last_generation:
+            for child in task.children:
+                if (
+                    child.rank == self.front_depth
+                    and max(parent.rank for parent in child.parents) == self.front_depth - 2
+                ):
+                    self.scheduler.submit(child)
+                    child.rank = self.front_depth - 1
+                    self.front[-1].append(child)
+                    child.dump_jobid_and_rank()
+                    msg = f"{child.label} ({child.jobid}) SUBMITTED"
+                    logger.info(msg)
+
+        self.status = WorkflowStatus.CONTINUE
+
+    def cancel_all_tasks(self, mode: Literal["cancel", "cool-down"], logger: logging.Logger) -> None:
+        """Cancel all workflow tasks except cool-down tasks"""
+
+        for generation in self.front:
+            for task in generation:
+                if (
+                    task.rank == 0
+                    and mode == "cool-down"
+                    and self.scheduler.get_status(task) in (TaskStatus.COMPLETED, TaskStatus.ONGOING)
+                ):
+                    task.cool_down_path.touch()
+                    msg = f"{task.label} ({task.jobid}) COOLING DOWN"
+                    logger.info(msg)
+                    continue
+                self.scheduler.cancel(task)
+                msg = f"{task.label} ({task.jobid}) CANCELED"
+                logger.info(msg)
+        self.status = WorkflowStatus.STOPPED
+
+    def auto_submit(self) -> None:
+        """Submit next Sirocco task"""
+        if self.front[0]:
+            self.scheduler.submit(self.sirocco_continue_task, output_mode="append", dependency_type="ANY")
+            self.status = WorkflowStatus.CONTINUE
+        else:
+            self.status = WorkflowStatus.COMPLETED
+
     @property
     def config_rootdir(self) -> Path:
         return self._config_rootdir
 
     @classmethod
-    def from_config_file(cls: type[Self], config_path: str) -> Self:
+    def from_config_file(
+        cls: type[Self],
+        config_path: str | Path,
+    ) -> Self:
         """
         Loads a python representation of a workflow config file.
 
@@ -114,12 +349,23 @@ class Workflow:
         return cls.from_config_workflow(ConfigWorkflow.from_config_file(config_path))
 
     @classmethod
-    def from_config_workflow(cls: type[Self], config_workflow: ConfigWorkflow) -> Self:
+    def from_config_workflow(
+        cls: type[Self],
+        config_workflow: ConfigWorkflow,
+    ) -> Self:
+        sirocco_task_config: ConfigSiroccoTask | None = None
+        for task in config_workflow.tasks:
+            if isinstance(task, ConfigSiroccoTask):
+                sirocco_task_config = task
         return cls(
             name=config_workflow.name,
             config_rootdir=config_workflow.rootdir,
+            config_filename=config_workflow.config_filename,
+            scheduler=Scheduler.create(config_workflow.scheduler),
             config_cycles=config_workflow.cycles,
             config_tasks=config_workflow.tasks,
             config_data=config_workflow.data,
             parameters=config_workflow.parameters,
+            front_depth=config_workflow.front_depth,
+            config_sirocco_task=sirocco_task_config,
         )

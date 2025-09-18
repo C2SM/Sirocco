@@ -494,7 +494,9 @@ class AiidaWorkGraph:
             raise ValueError(msg)
 
         # Build input_labels dictionary for port resolution
-        input_labels: dict[str, list[str]] = {}
+        # NOTE: use str | None to satisfy mypy. This should go away
+        #       once ports are compulsary for outputs as well
+        input_labels: dict[str | None, list[str]] = {}
         for port_name, input_list in task.inputs.items():
             input_labels[port_name] = []
             for input_ in input_list:
