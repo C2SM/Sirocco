@@ -165,7 +165,7 @@ class Workflow:
 
     def restart(self, log_type: Literal["std", "tee"] = "tee") -> None:
         logger = self.get_logger(log_type)
-        # TODO: Check that the workflow is not runing
+        # TODO: Check that the workflow is not runing (No sirocco task)
         if not (self.config_rootdir / self.RUN_ROOT).exists():
             msg = "Workflow did not start, cannot restart"
             raise ValueError(msg)
@@ -250,6 +250,7 @@ class Workflow:
                 ):
                     task.cool_down_path.unlink()
                 else:
+                    self.scheduler.cancel(task)
                     self.scheduler.submit(task)
                     task.dump_jobid_and_rank()
                     msg = f"{task.label} ({task.jobid}) SUBMITTED"
