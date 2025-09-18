@@ -108,6 +108,72 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             filename = namelist.name + "_" + suffix
             namelist.dump(directory / filename)
 
+    def handle_output_ports(self) -> None:
+        """Check namelist parameters and resolve output data path"""
+
+        for port, data_list in self.outputs.items():
+            if not data_list:
+                continue
+            match port:
+                case "latest_restart_file":
+                    data = self.ensure_single_data_port(port, data_list)
+                    data.resolved_path = self.run_dir / "multifile_restart_atm.mfr"
+                case "output_streams":
+                    output_nml = self.model_namelist.get("output_nml", [])
+                    nml_streams: list[f90nml.Namelist] = (
+                        [output_nml] if isinstance(output_nml, f90nml.Namelist) else output_nml
+                    )
+                    if (n_nml := len(nml_streams)) != (n_yaml := len(data_list)):
+                        msg = f"for task {self.name}: number of output streams speficied in namelist ({n_nml}) differs from number of streams specified the workflow config ({n_yaml})"
+                        raise ValueError(msg)
+                    for k, (nml_stream, output_data) in enumerate(zip(nml_streams, data_list, strict=False)):
+                        filename_format = nml_stream.get("filename_format", "<output_filename>_XXX_YYY")
+                        output_filename = nml_stream.get("output_filename", "")
+                        # for type checkers
+                        if not isinstance(filename_format, str) or not isinstance(output_filename, str):
+                            msg = f"for task {self.name}, output stream number {k}: 'filename_format' and 'output_filename' namelist parameters must be strings"
+                            raise TypeError(msg)
+                        stream_dir = Path(filename_format.replace("<output_filename>", output_filename)).parent
+                        if stream_dir == Path("."):
+                            msg = f"for task {self.name}: output stream number {k} specifies an output stream directly in the run directory. Please specify a subdirectory using the 'filename_format' and 'output_filename' parameters (see ICON documentation)"
+                            raise ValueError(msg)
+                        output_data.resolved_path = stream_dir if stream_dir.is_absolute() else self.run_dir / stream_dir
+                        output_data.resolved_path.mkdir(parents=True, exist_ok=True)
+                case "finish_status":
+                    data = self.ensure_single_data_port(port, data_list)
+                    data.resolved_path = self.run_dir / "finish.status"
+                case _:
+                    msg = f"IconTask: unsopported oputput port {port}"
+                    raise ValueError(msg)
+
+    @staticmethod
+    def ensure_single_data_port(port: str | None, data_list: Sequence[Data]) -> Data:
+        if len(data_list) > 1:
+            msg = f"port {port} only accepts one a single object"
+            raise ValueError(msg)
+        return data_list[0]
+
+    def resolve_output_data_paths(self) -> None:
+        self.handle_output_ports()
+
+    def adapt_nml_param_and_link(
+        self,
+        port: str,
+        data_list: list[Data],
+        namelist: NamelistFile,
+        section: str,
+        parameter: str,
+        target_link_name: str | None = None,
+    ) -> None:
+        data = self.ensure_single_data_port(port, data_list)
+        if isinstance(data, GeneratedData):
+            target_link_name = target_link_name if target_link_name else data.resolved_path.name
+            namelist[section][parameter] = f"./{target_link_name}"
+            (self.run_dir / target_link_name).symlink_to(data.resolved_path)
+        else:
+            namelist[section][parameter] = str(data.resolved_path)
+
+
     @classmethod
     def build_from_config(cls: type[Self], config: models.ConfigTask, config_rootdir: Path, **kwargs: Any) -> Self:
         config_kwargs = dict(config)
