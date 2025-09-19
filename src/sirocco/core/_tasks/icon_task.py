@@ -1,18 +1,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Self
 
 import f90nml
 from aiida_icon.iconutils import masternml
 
-from sirocco.core.graph_items import Task
+from sirocco.core.graph_items import Data, GeneratedData, Task
 from sirocco.core.namelistfile import NamelistFile
 from sirocco.parsing import yaml_data_models as models
 from sirocco.parsing.cycling import DateCyclePoint
 
 if TYPE_CHECKING:
-    from pathlib import Path
+    from collections.abc import Sequence
 
 
 @dataclass(kw_only=True)
@@ -90,7 +91,10 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
                     "experimentStopDate": self.cycle_point.stop_date.isoformat() + "Z",
                     "restarttimeintval": str(self.cycle_point.period),
                 },
-                "master_nml": {"lrestart": self.is_restart, "read_restart_namelists": self.is_restart},
+                "master_nml": {
+                    "lrestart": self.is_restart,
+                    "read_restart_namelists": self.is_restart,
+                },
             }
         )
 
@@ -119,12 +123,23 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
                     data = self.ensure_single_data_port(port, data_list)
                     data.resolved_path = self.run_dir / "multifile_restart_atm.mfr"
                 case "output_streams":
-                    output_nml = self.model_namelist.get("output_nml", [])
+                    # Find the atmosphere model namelist (or whichever contains output_nml)
+                    atm_namelist = None
+                    for namelist in self.model_namelists.values():
+                        if "output_nml" in namelist.namelist:
+                            atm_namelist = namelist
+                            break
+
+                    if atm_namelist is None:
+                        msg = f"for task {self.name}: could not find model namelist containing 'output_nml' sections"
+                        raise ValueError(msg)
+
+                    output_nml = atm_namelist.namelist.get("output_nml", [])
                     nml_streams: list[f90nml.Namelist] = (
                         [output_nml] if isinstance(output_nml, f90nml.Namelist) else output_nml
                     )
                     if (n_nml := len(nml_streams)) != (n_yaml := len(data_list)):
-                        msg = f"for task {self.name}: number of output streams speficied in namelist ({n_nml}) differs from number of streams specified the workflow config ({n_yaml})"
+                        msg = f"for task {self.name}: number of output streams specified in namelist ({n_nml}) differs from number of streams specified in the workflow config ({n_yaml})"
                         raise ValueError(msg)
                     for k, (nml_stream, output_data) in enumerate(zip(nml_streams, data_list, strict=False)):
                         filename_format = nml_stream.get("filename_format", "<output_filename>_XXX_YYY")
@@ -137,13 +152,15 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
                         if stream_dir == Path("."):
                             msg = f"for task {self.name}: output stream number {k} specifies an output stream directly in the run directory. Please specify a subdirectory using the 'filename_format' and 'output_filename' parameters (see ICON documentation)"
                             raise ValueError(msg)
-                        output_data.resolved_path = stream_dir if stream_dir.is_absolute() else self.run_dir / stream_dir
+                        output_data.resolved_path = (
+                            stream_dir if stream_dir.is_absolute() else self.run_dir / stream_dir
+                        )
                         output_data.resolved_path.mkdir(parents=True, exist_ok=True)
                 case "finish_status":
                     data = self.ensure_single_data_port(port, data_list)
                     data.resolved_path = self.run_dir / "finish.status"
                 case _:
-                    msg = f"IconTask: unsopported oputput port {port}"
+                    msg = f"IconTask: unsupported output port {port}"
                     raise ValueError(msg)
 
     @staticmethod
@@ -172,7 +189,6 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             (self.run_dir / target_link_name).symlink_to(data.resolved_path)
         else:
             namelist[section][parameter] = str(data.resolved_path)
-
 
     @classmethod
     def build_from_config(cls: type[Self], config: models.ConfigTask, config_rootdir: Path, **kwargs: Any) -> Self:
