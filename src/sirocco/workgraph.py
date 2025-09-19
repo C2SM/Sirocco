@@ -342,7 +342,7 @@ class AiidaWorkGraph:
                 model_nml.namelist.write(buffer)
                 buffer.seek(0)
                 setattr(
-                    builder.models, # type: ignore[attr-defined]
+                    builder.models,  # type: ignore[attr-defined]
                     model_name,
                     aiida.orm.SinglefileData(buffer, model_nml.name),
                 )

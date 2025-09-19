@@ -111,27 +111,6 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             filename = namelist.name + "_" + suffix
             namelist.dump(directory / filename)
 
-    # def handle_output_ports(self) -> None:
-    #     """Check namelist parameters for output stream validation"""
-    #
-    #     for port, data_list in self.outputs.items():
-    #         if not data_list:
-    #             continue
-    #
-    #         match port:
-    #             case "latest_restart_file":
-    #                 # AiiDA handles restart files automatically via the parser
-    #                 pass
-    #             case "output_streams":
-    #                 # Validate that output_nml configuration matches expected outputs
-    #                 self._validate_output_streams(data_list)
-    #             case "finish_status":
-    #                 # AiiDA handles finish status automatically via the parser
-    #                 pass
-    #             case _:
-    #                 msg = f"IconTask: unsupported output port {port}"
-    #                 raise ValueError(msg)
-
     def _validate_output_streams(self, data_list: list[Data]) -> None:
         """Validate output stream configuration against namelist"""
         # Find the model namelist containing output_nml
@@ -151,33 +130,6 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         if (n_nml := len(nml_streams)) != (n_yaml := len(data_list)):
             msg = f"for task {self.name}: number of output streams specified in namelist ({n_nml}) differs from number of streams specified in the workflow config ({n_yaml})"
             raise ValueError(msg)
-
-    # @staticmethod
-    # def ensure_single_data_port(port: str | None, data_list: Sequence[Data]) -> Data:
-    #     if len(data_list) > 1:
-    #         msg = f"port {port} only accepts one a single object"
-    #         raise ValueError(msg)
-    #     return data_list[0]
-
-    # def resolve_output_data_paths(self) -> None:
-    #     self.handle_output_ports()
-
-    # def adapt_nml_param_and_link(
-    #     self,
-    #     port: str,
-    #     data_list: list[Data],
-    #     namelist: NamelistFile,
-    #     section: str,
-    #     parameter: str,
-    #     target_link_name: str | None = None,
-    # ) -> None:
-    #     data = self.ensure_single_data_port(port, data_list)
-    #     if isinstance(data, GeneratedData):
-    #         target_link_name = target_link_name if target_link_name else data.resolved_path.name
-    #         namelist[section][parameter] = f"./{target_link_name}"
-    #         (self.run_dir / target_link_name).symlink_to(data.resolved_path)
-    #     else:
-    #         namelist[section][parameter] = str(data.resolved_path)
 
     @classmethod
     def build_from_config(cls: type[Self], config: models.ConfigTask, config_rootdir: Path, **kwargs: Any) -> Self:
