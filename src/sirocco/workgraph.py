@@ -198,6 +198,7 @@ class AiidaWorkGraph:
         except NotExistent as err:
             msg = f"Could not find computer {data.computer!r} for input {data}."
             raise ValueError(msg) from err
+
         # `remote_path` must be str not PosixPath to be JSON-serializable
         transport = computer.get_transport()
         with transport:
@@ -205,12 +206,21 @@ class AiidaWorkGraph:
                 msg = f"Could not find available data {data.name} in path {data.path} on computer {data.computer}."
                 raise FileNotFoundError(msg)
 
-        if computer.get_transport_class() is aiida.transports.plugins.local.LocalTransport:
+        # Check if this data will be used by ICON tasks
+        used_by_icon_task = any(
+            isinstance(task, core.IconTask) and data in task.input_data_nodes() for task in self._core_workflow.tasks
+        )
+
+        if used_by_icon_task:
+            # ICON tasks require RemoteData
+            self._aiida_data_nodes[label] = aiida.orm.RemoteData(
+                remote_path=str(data.path), label=label, computer=computer
+            )
+        elif computer.get_transport_class() is aiida.transports.plugins.local.LocalTransport:
             if data.path.is_file():
                 self._aiida_data_nodes[label] = aiida.orm.SinglefileData(file=str(data.path), label=label)
             else:
                 self._aiida_data_nodes[label] = aiida.orm.FolderData(tree=str(data.path), label=label)
-
         else:
             self._aiida_data_nodes[label] = aiida.orm.RemoteData(
                 remote_path=str(data.path), label=label, computer=computer
@@ -303,28 +313,9 @@ class AiidaWorkGraph:
             msg = f"Could not find computer {task.computer!r} in AiiDA database. One needs to create and configure the computer before running a workflow."
             raise ValueError(msg) from err
 
-        # FIXME: computer needs to only created once per workflow per task, not for every instance of task
-        # Since the mpirun command is part of the computer and two tasks might use
-        # the same computer, we need to create a new computer for each task type
-        # see issue #169
-        label_uuid = str(uuid.uuid4())
-        from aiida.orm.utils.builders.computer import ComputerBuilder
-
-        computer_builder = ComputerBuilder.from_computer(computer)
-        computer_builder.label = computer.label + f"-{label_uuid}"
-
-        if task.mpi_cmd is not None:
-            computer_builder.mpirun_command = self._parse_mpi_cmd_to_aiida(task.mpi_cmd)
-
-        computer_config = computer.get_configuration()
-
-        # PRCOMMENT I kept the new computer approach because it is actually clearer if for each workflow (with fix #169)
-        #           we have a unique computer as we want to have the parameters to be in the config file
-        computer = computer_builder.new()
-        computer.configure(**computer_config)
-
+        # Use the original computer directly
         icon_code = aiida.orm.InstalledCode(
-            label=f"icon-{label_uuid}",
+            label=f"icon-{task_label}",
             description="aiida_icon",
             default_calc_job_plugin="icon.icon",
             computer=computer,
@@ -339,17 +330,20 @@ class AiidaWorkGraph:
 
         task.update_icon_namelists_from_workflow()
 
+        # Master namelist
         with io.StringIO() as buffer:
             task.master_namelist.namelist.write(buffer)
             buffer.seek(0)
             builder.master_namelist = aiida.orm.SinglefileData(buffer, task.master_namelist.name)
 
-        with io.StringIO() as buffer:
-            task.model_namelist.namelist.write(buffer)
-            buffer.seek(0)
-            builder.model_namelist = aiida.orm.SinglefileData(buffer, task.model_namelist.name)
+        # Handle multiple model namelists
+        for model_name, model_nml in task.model_namelists.items():
+            with io.StringIO() as buffer:
+                model_nml.namelist.write(buffer)
+                buffer.seek(0)
+                setattr(builder.models, model_name, aiida.orm.SinglefileData(buffer, model_nml.name))  # type: ignore[attr-defined]
 
-        # Add wrapper script (either custom or default)
+        # Add wrapper script
         wrapper_script_data = AiidaWorkGraph.get_wrapper_script_aiida_data(task)
         if wrapper_script_data is not None:
             builder.wrapper_script = wrapper_script_data
@@ -360,7 +354,6 @@ class AiidaWorkGraph:
         options["additional_retrieve_list"] = []
 
         metadata["options"] = options
-        # the builder validation is not working
         builder.metadata = metadata
 
         self._aiida_task_nodes[task_label] = self._workgraph.add_task(builder, name=task_label)
@@ -576,7 +569,7 @@ class AiidaWorkGraph:
         """Get default wrapper script based on task type"""
 
         # Import the script directory from aiida-icon
-        from aiida_icon.site_support.cscs.todi import SCRIPT_DIR
+        from aiida_icon.site_support.cscs.alps import SCRIPT_DIR
 
         default_script_path = SCRIPT_DIR / "todi_cpu.sh"
         return aiida.orm.SinglefileData(file=default_script_path)

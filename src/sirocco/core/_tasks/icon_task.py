@@ -3,6 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, ClassVar, Self
 
+import f90nml
+from aiida_icon.iconutils import masternml
+
 from sirocco.core.graph_items import Task
 from sirocco.core.namelistfile import NamelistFile
 from sirocco.parsing import yaml_data_models as models
@@ -15,14 +18,12 @@ if TYPE_CHECKING:
 @dataclass(kw_only=True)
 class IconTask(models.ConfigIconTaskSpecs, Task):
     _MASTER_NAMELIST_NAME: ClassVar[str] = field(default="icon_master.namelist", repr=False)
-    _MASTER_MODEL_NML_SECTION: ClassVar[str] = field(default="master_model_nml", repr=False)
-    _MODEL_NAMELIST_FILENAME_FIELD: ClassVar[str] = field(default="model_namelist_filename", repr=False)
     _AIIDA_ICON_RESTART_FILE_PORT_NAME: ClassVar[str] = field(default="restart_file", repr=False)
     namelists: list[NamelistFile]
 
     def __post_init__(self):
         super().__post_init__()
-        # detect master namelist
+        # Detect master namelist
         master_namelist = None
         for namelist in self.namelists:
             if namelist.name == self._MASTER_NAMELIST_NAME:
@@ -33,24 +34,25 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             raise ValueError(msg)
         self._master_namelist = master_namelist
 
-        # retrieve model namelist name from master namelist
-        if (master_model_nml := self._master_namelist.namelist.get(self._MASTER_MODEL_NML_SECTION, None)) is None:
-            msg = "No model filename specified in master namelist: Could not find section '&master_model_nml'"
-            raise ValueError(msg)
-        if (model_namelist_filename := master_model_nml.get(self._MODEL_NAMELIST_FILENAME_FIELD, None)) is None:
-            msg = f"No model filename specified in master namelist: Could not find entry '{self._MODEL_NAMELIST_FILENAME_FIELD}' under section '&{self._MASTER_MODEL_NML_SECTION}'"
-            raise ValueError(msg)
+        # Parse master namelist to identify required model namelists
+        master_nml_data = f90nml.reads(str(self._master_namelist.namelist))
+        self._required_models = dict(masternml.iter_model_name_filepath(master_nml_data))
 
-        # detect model namelist
-        model_namelist = None
-        for namelist in self.namelists:
-            if namelist.name == model_namelist_filename:
-                model_namelist = namelist
-                break
-        if model_namelist is None:
-            msg = f"Failed to read model namelist. Could not find {model_namelist_filename!r} in namelists {self.namelists}"
-            raise ValueError(msg)
-        self._model_namelist = model_namelist
+        # Build mapping of available model namelists
+        self._model_namelists = {}
+        namelist_by_name = {nml.name: nml for nml in self.namelists}
+
+        for model_name, model_path in self._required_models.items():
+            # Look for the namelist file by filename
+            model_filename = model_path.name
+            if model_filename in namelist_by_name:
+                self._model_namelists[model_name] = namelist_by_name[model_filename]
+            elif not model_path.is_absolute():
+                # For relative paths, require the namelist to be provided
+                msg = f"Missing model namelist for model '{model_name}': expected file '{model_filename}' not found in provided namelists"
+                raise ValueError(msg)
+            # For absolute paths, the file is expected to exist on the target system
+            # We don't validate this here as it will be handled by aiida-icon
 
         if self.wrapper_script is not None:
             self.wrapper_script = self._validate_wrapper_script(self.wrapper_script, self.config_rootdir)
@@ -60,8 +62,14 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         return self._master_namelist
 
     @property
-    def model_namelist(self) -> NamelistFile:
-        return self._model_namelist
+    def model_namelists(self) -> dict[str, NamelistFile]:
+        """Return mapping of model names to their namelist files."""
+        return self._model_namelists.copy()
+
+    @property
+    def required_models(self) -> dict[str, Path]:
+        """Return mapping of model names to their expected file paths from master namelist."""
+        return self._required_models.copy()
 
     @property
     def is_restart(self) -> bool:
@@ -73,6 +81,8 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         if not isinstance(self.cycle_point, DateCyclePoint):
             msg = "ICON task must have a DateCyclePoint"
             raise TypeError(msg)
+
+        # Update master namelist
         self.master_namelist.update_from_specs(
             {
                 "master_time_control_nml": {
@@ -92,6 +102,7 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             msg = f"Dumping path {directory} is not directory."
             raise OSError(msg)
 
+        # Dump all namelists with coordinate suffix
         for namelist in self.namelists:
             suffix = ("_".join([str(p) for p in self.coordinates.values()])).replace(" ", "_")
             filename = namelist.name + "_" + suffix
