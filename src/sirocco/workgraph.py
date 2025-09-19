@@ -341,7 +341,11 @@ class AiidaWorkGraph:
             with io.StringIO() as buffer:
                 model_nml.namelist.write(buffer)
                 buffer.seek(0)
-                setattr(builder.models, model_name, aiida.orm.SinglefileData(buffer, model_nml.name))  # type: ignore[attr-defined]
+                setattr(
+                    builder.models, # type: ignore[attr-defined]
+                    model_name,
+                    aiida.orm.SinglefileData(buffer, model_nml.name),
+                )
 
         # Add wrapper script
         wrapper_script_data = AiidaWorkGraph.get_wrapper_script_aiida_data(task)
@@ -384,7 +388,12 @@ class AiidaWorkGraph:
         return options
 
     @functools.singledispatchmethod
-    def _link_output_node_to_task(self, task: core.Task, port: str, output: core.GeneratedData):  # noqa: ARG002
+    def _link_output_node_to_task(
+        self,
+        task: core.Task,
+        port: str,  # noqa: ARG002
+        output: core.GeneratedData,  # noqa: ARG002
+    ):
         """Dispatch linking input to task based on task type."""
 
         msg = f"method not implemented for task type {type(task)}"
@@ -410,13 +419,19 @@ class AiidaWorkGraph:
         workgraph_task = self.task_from_core(task)
         output_label = self.get_aiida_label_from_graph_item(output)
 
-        if port is None:
-            # To avoid nested namespaces due to dots in name
+        if port == "output_streams":
+            # Use the existing output_streams namespace from IconCalculation
+            output_socket = workgraph_task.outputs._sockets.get("output_streams")  # noqa: SLF001
+            if output_socket is None:
+                msg = "Output socket 'output_streams' was not found for ICON task. This suggests the IconCalculation doesn't support output_streams."
+                raise ValueError(msg)
+        elif port is None:
+            # Existing logic for unnamed outputs
             output_socket = workgraph_task.add_output("workgraph.any", ShellParser.format_link_label(str(output.path)))
-
             workgraph_task.inputs.metadata.options.additional_retrieve_list.value.append(str(output.path))
         else:
-            output_socket = workgraph_task.outputs._sockets.get(port)  # noqa SLF001 # there so public accessor
+            # Other named ports (restart_file, finish_status, etc.)
+            output_socket = workgraph_task.outputs._sockets.get(port)  # noqa: SLF001
 
         if output_socket is None:
             msg = f"Output socket {output_label!r} was not successfully created. Please contact a developer."
@@ -503,7 +518,8 @@ class AiidaWorkGraph:
     def _parse_mpi_cmd_to_aiida(mpi_cmd: str) -> str:
         for placeholder in core.MpiCmdPlaceholder:
             mpi_cmd = mpi_cmd.replace(
-                f"{{{placeholder.value}}}", f"{{{AiidaWorkGraph._translate_mpi_cmd_placeholder(placeholder)}}}"
+                f"{{{placeholder.value}}}",
+                f"{{{AiidaWorkGraph._translate_mpi_cmd_placeholder(placeholder)}}}",
             )
         return mpi_cmd
 
