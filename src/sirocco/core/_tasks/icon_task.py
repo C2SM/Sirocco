@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Self
 import f90nml
 from aiida_icon.iconutils import masternml
 
-from sirocco.core.graph_items import Task
+from sirocco.core.graph_items import Data, Task
 from sirocco.core.namelistfile import NamelistFile
 from sirocco.parsing import yaml_data_models as models
 from sirocco.parsing.cycling import DateCyclePoint
@@ -90,7 +90,10 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
                     "experimentStopDate": self.cycle_point.stop_date.isoformat() + "Z",
                     "restarttimeintval": str(self.cycle_point.period),
                 },
-                "master_nml": {"lrestart": self.is_restart, "read_restart_namelists": self.is_restart},
+                "master_nml": {
+                    "lrestart": self.is_restart,
+                    "read_restart_namelists": self.is_restart,
+                },
             }
         )
 
@@ -107,6 +110,26 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             suffix = ("_".join([str(p) for p in self.coordinates.values()])).replace(" ", "_")
             filename = namelist.name + "_" + suffix
             namelist.dump(directory / filename)
+
+    def _validate_output_streams(self, data_list: list[Data]) -> None:
+        """Validate output stream configuration against namelist"""
+        # Find the model namelist containing output_nml
+        model_namelist = None
+        for namelist in self.model_namelists.values():
+            if "output_nml" in namelist.namelist:
+                model_namelist = namelist
+                break
+
+        if model_namelist is None:
+            msg = f"for task {self.name}: could not find model namelist containing 'output_nml' sections"
+            raise ValueError(msg)
+
+        output_nml = model_namelist.namelist.get("output_nml", [])
+        nml_streams: list[f90nml.Namelist] = [output_nml] if isinstance(output_nml, f90nml.Namelist) else output_nml
+
+        if (n_nml := len(nml_streams)) != (n_yaml := len(data_list)):
+            msg = f"for task {self.name}: number of output streams specified in namelist ({n_nml}) differs from number of streams specified in the workflow config ({n_yaml})"
+            raise ValueError(msg)
 
     @classmethod
     def build_from_config(cls: type[Self], config: models.ConfigTask, config_rootdir: Path, **kwargs: Any) -> Self:
