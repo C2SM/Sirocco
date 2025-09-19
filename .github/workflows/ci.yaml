@@ -111,6 +111,8 @@ jobs:
       run: |
         pip install --upgrade pip
         pip install hatch
+    - name: Install Sirocco for dependency resolution
+      run: pip install -e .
     - name: Install Graphviz
       run: sudo apt-get install graphviz graphviz-dev
     - name: Run formatter and linter
