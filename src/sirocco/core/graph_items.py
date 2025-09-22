@@ -49,6 +49,14 @@ class GraphItem:
 
     name: str
     coordinates: dict
+    label: str = field(init=False, repr=False)
+
+    def __post_init__(self):
+        self.label = self.name
+        if self.coordinates:
+            self.label += "__" + "__".join(
+                f"{key}_{value}".replace(" ", "_") for key, value in self.coordinates.items()
+            )
 
 
 GRAPH_ITEM_T = TypeVar("GRAPH_ITEM_T", bound=GraphItem)
@@ -88,6 +96,7 @@ class AvailableData(Data, ConfigAvailableDataSpecs):
     computer: str
 
     def __post_init__(self):
+        Data.__post_init__(self)
         self.resolved_path = self.path
 
 
@@ -127,7 +136,6 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     jobid_path: Path = field(init=False, repr=False)
     rank_path: Path = field(init=False, repr=False)
     cool_down_path: Path = field(init=False, repr=False)
-    label: str = field(init=False, repr=False)
     jobid: str = field(default="_NO_ID_", repr=False)
     rank: int = field(init=False, repr=False)
     cycle_point: CyclePoint
@@ -142,14 +150,10 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     _wait_on_specs: list[ConfigCycleTaskWaitOn] = field(default_factory=list, repr=False)
 
     def __post_init__(self):
+        GraphItem.__post_init__(self)
         if set(self.inputs.keys()).intersection(self.outputs.keys()):
             msg = "port names must be unique, even between inputs and outputs"
             raise ValueError(msg)
-        self.label = self.name
-        if self.coordinates:
-            self.label += "__" + "__".join(
-                f"{key}_{value}".replace(" ", "_") for key, value in self.coordinates.items()
-            )
         self.run_dir = (self.config_rootdir / self.RUN_ROOT / self.label).resolve()
         self.jobid_path = self.run_dir / self.JOBID_FILENAME
         self.rank_path = self.run_dir / self.RANK_FILENAME
