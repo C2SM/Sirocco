@@ -110,6 +110,7 @@ jobs:
     - name: Install hatch
       run: |
         pip install --upgrade pip
+        pip install "click<8.3.0"
         pip install hatch
     - name: Install Graphviz
       run: sudo apt-get install graphviz graphviz-dev
