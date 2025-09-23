@@ -164,28 +164,34 @@ class Workflow:
         logger = self.get_logger(log_type)
         self.load_front()
         self.propagate_front(logger=logger)
-        if self.status == WorkflowStatus.CONTINUE:
-            self.auto_submit()
+        self.auto_submit()
 
     def restart(self, log_type: Literal["std", "tee"] = "tee") -> None:
+        self.sirocco_continue_task.load_jobid_and_rank()
+        if self.scheduler.get_status(self.sirocco_continue_task) in (TaskStatus.RUNNING, TaskStatus.WAITING):
+            msg = "Workflow ongoing, cannot restart"
+            raise ValueError(msg)
         logger = self.get_logger(log_type)
-        # TODO: Check that the workflow is not runing (No sirocco task)
         if not (self.config_rootdir / self.RUN_ROOT).exists():
             msg = "Workflow did not start, cannot restart"
             raise ValueError(msg)
         self.load_front()
         self.restart_front(logger=logger)
         self.propagate_front(logger=logger)
-        if self.status == WorkflowStatus.CONTINUE:
-            self.auto_submit()
+        self.auto_submit()
 
     def stop(self, mode: Literal["cancel", "cool-down"], log_type: Literal["std", "tee"] = "tee") -> None:
-        logger = self.get_logger(log_type)
         if not (self.config_rootdir / self.RUN_ROOT).exists():
             msg = "Workflow did not start, cannot stop"
             raise ValueError(msg)
-        if self.sirocco_continue_task.load_jobid_and_rank():
-            self.scheduler.cancel(self.sirocco_continue_task)
+        self.sirocco_continue_task.load_jobid_and_rank()
+        logger = self.get_logger(log_type)
+        if self.scheduler.get_status(self.sirocco_continue_task) == TaskStatus.RUNNING:
+            msg = "Sirocco task running, cannot stop workflow. Please retry"
+            logger.error(msg)
+            self.status = WorkflowStatus.CONTINUE
+            return
+        self.scheduler.cancel(self.sirocco_continue_task)
         self.load_front()
         self.cancel_all_tasks(mode=mode, logger=logger)
 
@@ -258,7 +264,7 @@ class Workflow:
                         child.rank = k + 1
                         self.front[k + 1].append(child)
                         child.dump_jobid_and_rank()
-                        msg = f"{child.label} ({child.jobid}) SUBMITTED to rank {task.rank}"
+                        msg = f"{child.label} ({child.jobid}) SUBMITTED to rank {child.rank}"
                         logger.info(msg)
 
     def restart_front(self, logger: logging.Logger) -> None:
@@ -270,7 +276,8 @@ class Workflow:
                 if (
                     task.rank == 0
                     and task.cool_down_path.exists()
-                    and self.scheduler.get_status(task) in (TaskStatus.COMPLETED, TaskStatus.ONGOING)
+                    and self.scheduler.get_status(task)
+                    in (TaskStatus.COMPLETED, TaskStatus.RUNNING, TaskStatus.WAITING)
                 ):
                     task.cool_down_path.unlink()
                     msg = f"{task.label} ({task.jobid}) KEPT FROM COOL DOWN"
@@ -329,10 +336,8 @@ class Workflow:
                     child.rank = self.front_depth - 1
                     self.front[-1].append(child)
                     child.dump_jobid_and_rank()
-                    msg = f"{child.label} ({child.jobid}) SUBMITTED to rank {task.rank}"
+                    msg = f"{child.label} ({child.jobid}) SUBMITTED to rank {child.rank}"
                     logger.info(msg)
-
-        self.status = WorkflowStatus.CONTINUE
 
     def cancel_all_tasks(self, mode: Literal["cancel", "cool-down"], logger: logging.Logger) -> None:
         """Cancel all workflow tasks except cool-down tasks"""
@@ -342,7 +347,7 @@ class Workflow:
                 if (
                     task.rank == 0
                     and mode == "cool-down"
-                    and self.scheduler.get_status(task) in (TaskStatus.COMPLETED, TaskStatus.ONGOING)
+                    and self.scheduler.get_status(task) in (TaskStatus.COMPLETED, TaskStatus.RUNNING)
                 ):
                     task.cool_down_path.touch()
                     msg = f"{task.label} ({task.jobid}) COOLING DOWN"
@@ -355,10 +360,11 @@ class Workflow:
 
     def auto_submit(self) -> None:
         """Submit next Sirocco task"""
+        self.dump_front()
         if self.front[0]:
             self.scheduler.submit(self.sirocco_continue_task, output_mode="append", dependency_type="ANY")
+            self.sirocco_continue_task.dump_jobid_and_rank()
             self.status = WorkflowStatus.CONTINUE
-            self.dump_front()
         else:
             self.status = WorkflowStatus.COMPLETED
 
