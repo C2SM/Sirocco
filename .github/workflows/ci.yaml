@@ -27,6 +27,7 @@ jobs:
     - name: Install hatch
       run: |
         pip install --upgrade pip
+        pip install "click<8.3.0"  # NOTE: click 8.2 -> 8.3 is backwards incompatible
         pip install hatch
     - name: Install Graphviz
       run: sudo apt-get install graphviz graphviz-dev
@@ -66,6 +67,7 @@ jobs:
     - name: Install hatch
       run: |
         pip install --upgrade pip
+        pip install "click<8.3.0"  # NOTE: click 8.2 -> 8.3 is backwards incompatible
         pip install hatch
     - name: Install Graphviz
       run: sudo apt-get install graphviz graphviz-dev
@@ -88,6 +90,7 @@ jobs:
     - name: Install hatch
       run: |
         pip install --upgrade pip
+        pip install "click<8.3.0"  # NOTE: click 8.2 -> 8.3 is backwards incompatible
         pip install hatch
     - name: Install Graphviz
       run: sudo apt-get install graphviz graphviz-dev
@@ -110,7 +113,7 @@ jobs:
     - name: Install hatch
       run: |
         pip install --upgrade pip
-        pip install "click<8.3.0"
+        pip install "click<8.3.0"  # NOTE: click 8.2 -> 8.3 is backwards incompatible
         pip install hatch
     - name: Install Graphviz
       run: sudo apt-get install graphviz graphviz-dev
