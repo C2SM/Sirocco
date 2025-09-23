@@ -145,8 +145,7 @@ extra-dependencies = [
   "types-colorama",
   "types-Pygments",
   "types-termcolor",
-  "types-requests",
-  "click<8.3.0",  # Pin click to avoid hatch issues
+  "types-requests"
 ]
 
 [tool.hatch.envs.types.scripts]
