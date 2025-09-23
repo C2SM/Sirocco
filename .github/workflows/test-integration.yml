@@ -68,6 +68,7 @@ jobs:
       run: |
         spack env activate .
         pip install --upgrade pip
+        pip install "click<8.3.0"  # NOTE: click 8.2 -> 8.3 is backwards incompatible
         pip install hatch
         hatch run verdi presto
 
