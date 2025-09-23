@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import enum
 import logging
+from datetime import datetime
 from itertools import chain, product
-from typing import TYPE_CHECKING, Literal, Self
+from typing import TYPE_CHECKING, Any, Literal, Self
+
+from ruamel.yaml import YAML
 
 from sirocco.core._tasks.sirocco_task import SiroccoContinueTask
 from sirocco.core.graph_items import Cycle, Data, Store, Task, TaskStatus
@@ -40,6 +43,7 @@ class Workflow:
     """Internal representation of a workflow"""
 
     RUN_ROOT: str = Task.RUN_ROOT
+    FRONT_FILE: str = ".front.yaml"
 
     def __init__(
         self,
@@ -210,10 +214,30 @@ class Workflow:
         return logger
 
     def load_front(self) -> None:
-        """Update taks ids and populate front from serialized information"""
-        for task in self.tasks:
-            if task.load_jobid_and_rank() and task.rank >= 0:
-                self.front[task.rank].append(task)
+        yaml_front: list[list[dict[str, dict[str, Any]]]] = YAML().load(
+            self.config_rootdir / self.RUN_ROOT / self.FRONT_FILE
+        )
+        for yaml_generation, generation in zip(yaml_front, self.front, strict=False):
+            for yaml_task in yaml_generation:
+                name, yaml_coordinates = next(iter(yaml_task.items()))
+                coordinates = {k: datetime.fromisoformat(v) if k == "date" else v for k, v in yaml_coordinates.items()}
+                task = self.tasks[name, coordinates]
+                if not task.load_jobid_and_rank():
+                    msg = f"task {task.label} not active, cannot add to front"
+                    raise ValueError(msg)
+                if task.rank < 0:  # NOTE: can only be -1
+                    msg = f"task {task.label} has rank {task.rank}, cannot add to front"
+                    raise ValueError(msg)
+                generation.append(task)
+
+    def dump_front(self) -> None:
+        yaml_front: list[list[dict[str, dict[str, Any]]]] = [[] for _ in range(self.front_depth)]
+        for yaml_generation, generation in zip(yaml_front, self.front, strict=False):
+            for task in generation:
+                yaml_generation.append(
+                    {task.name: {k: v.isoformat() if k == "date" else v for k, v in task.coordinates.items()}}
+                )
+        YAML().dump(yaml_front, self.config_rootdir / self.RUN_ROOT / self.FRONT_FILE)
 
     def init_front(self, logger: logging.Logger) -> None:
         """Populate front and submit corresponding tasks"""
@@ -224,7 +248,7 @@ class Workflow:
                 self.scheduler.submit(task)
                 self.front[0].append(task)
                 task.dump_jobid_and_rank()
-                msg = f"{task.label} ({task.jobid}) SUBMITTED"
+                msg = f"{task.label} ({task.jobid}) SUBMITTED to rank {task.rank}"
                 logger.info(msg)
         for k in range(self.front_depth - 1):
             for task in self.front[k]:
@@ -234,7 +258,7 @@ class Workflow:
                         child.rank = k + 1
                         self.front[k + 1].append(child)
                         child.dump_jobid_and_rank()
-                        msg = f"{child.label} ({child.jobid}) SUBMITTED"
+                        msg = f"{child.label} ({child.jobid}) SUBMITTED to rank {task.rank}"
                         logger.info(msg)
 
     def restart_front(self, logger: logging.Logger) -> None:
@@ -249,18 +273,20 @@ class Workflow:
                     and self.scheduler.get_status(task) in (TaskStatus.COMPLETED, TaskStatus.ONGOING)
                 ):
                     task.cool_down_path.unlink()
+                    msg = f"{task.label} ({task.jobid}) KEPT FROM COOL DOWN"
+                    logger.info(msg)
                 else:
                     self.scheduler.cancel(task)
                     self.scheduler.submit(task)
                     task.dump_jobid_and_rank()
-                    msg = f"{task.label} ({task.jobid}) SUBMITTED"
+                    msg = f"{task.label} ({task.jobid}) SUBMITTED to rank {task.rank}"
                     logger.info(msg)
 
     def propagate_front(self, logger: logging.Logger) -> None:
         """Propagate front of submitted tasks and submit new ones"""
 
         # Handle first generation of the front
-        just_finished: list[Task] = []  # only needed for a front depth of 1
+        to_promote: list[Task] = []
         for task in self.front[0]:
             if (status := self.scheduler.get_status(task)) == TaskStatus.FAILED:
                 self.cancel_all_tasks(mode="cancel", logger=logger)
@@ -269,27 +295,30 @@ class Workflow:
                 self.status = WorkflowStatus.FAILED
                 return
             if status == TaskStatus.COMPLETED:
-                if self.front_depth == 1:
-                    just_finished.append(task)
+                to_promote.append(task)
                 task.rank = -1
-                self.front[0].remove(task)
                 task.dump_jobid_and_rank()
                 msg = f"{task.label} ({task.jobid}) COMPLETED"
                 logger.info(msg)
+        for task in to_promote:
+            self.front[0].remove(task)
 
         # Update front rank of tasks currently in the front after the first generation
         for k in range(1, self.front_depth):
+            to_promote = []
             for task in self.front[k]:
                 if max(parent.rank for parent in task.parents) == k - 2:
+                    to_promote.append(task)
                     task.rank = k - 1
-                    self.front[k].remove(task)
-                    self.front[k - 1].append(task)
                     task.dump_jobid_and_rank()
                     msg = f"{task.label} ({task.jobid}) PROMOTED from rank {k} to {k-1}"
                     logger.info(msg)
+            for task in to_promote:
+                self.front[k].remove(task)
+                self.front[k - 1].append(task)
 
         # Add new tasks to the last generation of the front
-        before_last_generation = just_finished if self.front_depth == 1 else self.front[-2]
+        before_last_generation = to_promote if self.front_depth == 1 else self.front[-2]
         for task in before_last_generation:
             for child in task.children:
                 if (
@@ -300,7 +329,7 @@ class Workflow:
                     child.rank = self.front_depth - 1
                     self.front[-1].append(child)
                     child.dump_jobid_and_rank()
-                    msg = f"{child.label} ({child.jobid}) SUBMITTED"
+                    msg = f"{child.label} ({child.jobid}) SUBMITTED to rank {task.rank}"
                     logger.info(msg)
 
         self.status = WorkflowStatus.CONTINUE
@@ -329,6 +358,7 @@ class Workflow:
         if self.front[0]:
             self.scheduler.submit(self.sirocco_continue_task, output_mode="append", dependency_type="ANY")
             self.status = WorkflowStatus.CONTINUE
+            self.dump_front()
         else:
             self.status = WorkflowStatus.COMPLETED
 
