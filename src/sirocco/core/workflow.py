@@ -43,7 +43,7 @@ class Workflow:
     """Internal representation of a workflow"""
 
     RUN_ROOT: str = Task.RUN_ROOT
-    FRONT_FILE: str = ".front.yaml"
+    STATE_FILE: str = "state.yaml"
 
     def __init__(
         self,
@@ -162,12 +162,12 @@ class Workflow:
 
     def continue_wf(self, log_type: Literal["std", "tee"] = "std") -> None:  # NOTE: cannot use "continue"
         logger = self.get_logger(log_type)
-        self.load_front()
+        self.load_state()
         self.propagate_front(logger=logger)
         self.auto_submit()
 
     def restart(self, log_type: Literal["std", "tee"] = "tee") -> None:
-        self.sirocco_continue_task.load_jobid_and_rank()
+        self.load_state()
         if self.scheduler.get_status(self.sirocco_continue_task) in (TaskStatus.RUNNING, TaskStatus.WAITING):
             msg = "Workflow ongoing, cannot restart"
             raise ValueError(msg)
@@ -175,16 +175,15 @@ class Workflow:
         if not (self.config_rootdir / self.RUN_ROOT).exists():
             msg = "Workflow did not start, cannot restart"
             raise ValueError(msg)
-        self.load_front()
         self.restart_front(logger=logger)
         self.propagate_front(logger=logger)
         self.auto_submit()
 
     def stop(self, mode: Literal["cancel", "cool-down"], log_type: Literal["std", "tee"] = "tee") -> None:
+        self.load_state()
         if not (self.config_rootdir / self.RUN_ROOT).exists():
             msg = "Workflow did not start, cannot stop"
             raise ValueError(msg)
-        self.sirocco_continue_task.load_jobid_and_rank()
         logger = self.get_logger(log_type)
         if self.scheduler.get_status(self.sirocco_continue_task) == TaskStatus.RUNNING:
             msg = "Sirocco task running, cannot stop workflow. Please retry"
@@ -192,7 +191,6 @@ class Workflow:
             self.status = WorkflowStatus.CONTINUE
             return
         self.scheduler.cancel(self.sirocco_continue_task)
-        self.load_front()
         self.cancel_all_tasks(mode=mode, logger=logger)
 
     # =========== Helper methods for workflow control ===========
@@ -219,31 +217,41 @@ class Workflow:
 
         return logger
 
-    def load_front(self) -> None:
-        yaml_front: list[list[dict[str, dict[str, Any]]]] = YAML().load(
-            self.config_rootdir / self.RUN_ROOT / self.FRONT_FILE
-        )
-        for yaml_generation, generation in zip(yaml_front, self.front, strict=False):
-            for yaml_task in yaml_generation:
-                name, yaml_coordinates = next(iter(yaml_task.items()))
-                coordinates = {k: datetime.fromisoformat(v) if k == "date" else v for k, v in yaml_coordinates.items()}
-                task = self.tasks[name, coordinates]
-                if not task.load_jobid_and_rank():
-                    msg = f"task {task.label} not active, cannot add to front"
-                    raise ValueError(msg)
-                if task.rank < 0:  # NOTE: can only be -1
-                    msg = f"task {task.label} has rank {task.rank}, cannot add to front"
-                    raise ValueError(msg)
-                generation.append(task)
-
-    def dump_front(self) -> None:
+    def dump_state(self) -> None:
         yaml_front: list[list[dict[str, dict[str, Any]]]] = [[] for _ in range(self.front_depth)]
         for yaml_generation, generation in zip(yaml_front, self.front, strict=False):
             for task in generation:
                 yaml_generation.append(
-                    {task.name: {k: v.isoformat() if k == "date" else v for k, v in task.coordinates.items()}}
+                    {
+                        task.name: {
+                            "coordinates": {
+                                k: v.isoformat() if k == "date" else v for k, v in task.coordinates.items()
+                            },
+                            "jobid": task.jobid,
+                        }
+                    }
                 )
-        YAML().dump(yaml_front, self.config_rootdir / self.RUN_ROOT / self.FRONT_FILE)
+        YAML().dump(
+            {"sirocco_jobid": self.sirocco_continue_task.jobid, "front": yaml_front},
+            self.config_rootdir / self.RUN_ROOT / self.STATE_FILE,
+        )
+
+    def load_state(self) -> None:
+        yaml_status = YAML().load(self.config_rootdir / self.RUN_ROOT / self.STATE_FILE)
+        self.sirocco_continue_task.jobid = yaml_status["sirocco_jobid"]
+        for yaml_generation, generation in zip(yaml_status["front"], self.front, strict=False):
+            for yaml_task in yaml_generation:
+                name, yaml_specs = next(iter(yaml_task.items()))
+                coordinates = {
+                    k: datetime.fromisoformat(v) if k == "date" else v for k, v in yaml_specs["coordinates"].items()
+                }
+                task = self.tasks[name, coordinates]
+                task.jobid = yaml_specs["jobid"]
+                # TODO: Check existence of task run dir
+                if task.rank < 0:  # NOTE: can only be -1
+                    msg = f"task {task.label} has rank {task.rank}, cannot add to front"
+                    raise ValueError(msg)
+                generation.append(task)
 
     def init_front(self, logger: logging.Logger) -> None:
         """Populate front and submit corresponding tasks"""
@@ -253,7 +261,6 @@ class Workflow:
                 task.rank = 0
                 self.scheduler.submit(task)
                 self.front[0].append(task)
-                task.dump_jobid_and_rank()
                 msg = f"{task.label} ({task.jobid}) SUBMITTED to rank {task.rank}"
                 logger.info(msg)
         for k in range(self.front_depth - 1):
@@ -263,7 +270,6 @@ class Workflow:
                         self.scheduler.submit(child)
                         child.rank = k + 1
                         self.front[k + 1].append(child)
-                        child.dump_jobid_and_rank()
                         msg = f"{child.label} ({child.jobid}) SUBMITTED to rank {child.rank}"
                         logger.info(msg)
 
@@ -285,7 +291,6 @@ class Workflow:
                 else:
                     self.scheduler.cancel(task)
                     self.scheduler.submit(task)
-                    task.dump_jobid_and_rank()
                     msg = f"{task.label} ({task.jobid}) SUBMITTED to rank {task.rank}"
                     logger.info(msg)
 
@@ -304,7 +309,6 @@ class Workflow:
             if status == TaskStatus.COMPLETED:
                 to_promote.append(task)
                 task.rank = -1
-                task.dump_jobid_and_rank()
                 msg = f"{task.label} ({task.jobid}) COMPLETED"
                 logger.info(msg)
         for task in to_promote:
@@ -317,7 +321,6 @@ class Workflow:
                 if max(parent.rank for parent in task.parents) == k - 2:
                     to_promote.append(task)
                     task.rank = k - 1
-                    task.dump_jobid_and_rank()
                     msg = f"{task.label} ({task.jobid}) PROMOTED from rank {k} to {k-1}"
                     logger.info(msg)
             for task in to_promote:
@@ -335,7 +338,6 @@ class Workflow:
                     self.scheduler.submit(child)
                     child.rank = self.front_depth - 1
                     self.front[-1].append(child)
-                    child.dump_jobid_and_rank()
                     msg = f"{child.label} ({child.jobid}) SUBMITTED to rank {child.rank}"
                     logger.info(msg)
 
@@ -360,13 +362,12 @@ class Workflow:
 
     def auto_submit(self) -> None:
         """Submit next Sirocco task"""
-        self.dump_front()
         if self.front[0]:
             self.scheduler.submit(self.sirocco_continue_task, output_mode="append", dependency_type="ANY")
-            self.sirocco_continue_task.dump_jobid_and_rank()
             self.status = WorkflowStatus.CONTINUE
         else:
             self.status = WorkflowStatus.COMPLETED
+        self.dump_state()
 
     @property
     def config_rootdir(self) -> Path:

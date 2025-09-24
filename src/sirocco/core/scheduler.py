@@ -57,10 +57,6 @@ class Scheduler:
         (task.run_dir / task.SUBMIT_FILENAME).write_text("\n".join(script_lines))
         task.jobid = self.submit_to_scheduler(task)
 
-        # Dump task jobid and rank
-        # ========================
-        task.dump_jobid_and_rank()
-
     def header_lines(
         self,
         task: Task,
