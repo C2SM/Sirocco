@@ -23,8 +23,6 @@ class SiroccoContinueTask(models.ConfigSiroccoTaskSpecs, Task):
     def __post_init__(self) -> None:
         self.label = "Sirocco"
         self.run_dir = self.config_rootdir
-        self.jobid_path = self.run_dir / self.JOBID_FILENAME
-        self.rank_path = self.run_dir / self.RANK_FILENAME
 
     def resolve_output_data_paths(self) -> None:
         pass

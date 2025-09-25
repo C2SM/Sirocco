@@ -57,10 +57,6 @@ class Scheduler:
         (task.run_dir / task.SUBMIT_FILENAME).write_text("\n".join(script_lines))
         task.jobid = self.submit_to_scheduler(task)
 
-        # Dump task jobid and rank
-        # ========================
-        task.dump_jobid_and_rank()
-
     def header_lines(
         self,
         task: Task,
@@ -157,8 +153,10 @@ class Slurm(Scheduler):
         # NOTE: For a complete list of SLURM state codes, see
         #       https://slurm.schedmd.com/job_state_codes.html
         match status_str:
-            case s if s.startswith(("RUNNING", "PENDING", "SUSPENDED")):
-                status = TaskStatus.ONGOING
+            case s if s.startswith("RUNNING"):
+                status = TaskStatus.RUNNING
+            case s if s.startswith(("PENDING", "SUSPENDED", "PREEMPTED")):
+                status = TaskStatus.WAITING
             case s if s.startswith("COMPLETED"):
                 status = TaskStatus.COMPLETED
             case s if s.startswith(("FAILED", "NODE_FAIL", "OUT_OF_MEMORY", "TIMEOUT", "CANCELLED")):
