@@ -239,7 +239,7 @@ class Workflow:
     def load_state(self) -> None:
         yaml_status = YAML().load(self.config_rootdir / self.RUN_ROOT / self.STATE_FILE)
         self.sirocco_continue_task.jobid = yaml_status["sirocco_jobid"]
-        for yaml_generation, generation in zip(yaml_status["front"], self.front, strict=False):
+        for rank, (yaml_generation, generation) in enumerate(zip(yaml_status["front"], self.front, strict=False)):
             for yaml_task in yaml_generation:
                 name, yaml_specs = next(iter(yaml_task.items()))
                 coordinates = {
@@ -247,10 +247,7 @@ class Workflow:
                 }
                 task = self.tasks[name, coordinates]
                 task.jobid = yaml_specs["jobid"]
-                # TODO: Check existence of task run dir
-                if task.rank < 0:  # NOTE: can only be -1
-                    msg = f"task {task.label} has rank {task.rank}, cannot add to front"
-                    raise ValueError(msg)
+                task.rank = rank
                 generation.append(task)
 
     def init_front(self, logger: logging.Logger) -> None:
