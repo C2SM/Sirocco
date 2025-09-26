@@ -382,7 +382,6 @@ def continue_wf(
     wf = core.Workflow.from_config_file(workflow_file)
     console.print("▶️ Continue workflow ...")
     try:
-        # TODO: make print depend on status report from continue_wf
         wf.continue_wf()
         if wf.status == core.workflow.WorkflowStatus.CONTINUE:
             console.print("✅ Workflow continuation submitted successfully.")
