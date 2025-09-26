@@ -352,6 +352,9 @@ class AiidaWorkGraph:
         if wrapper_script_data is not None:
             builder.wrapper_script = wrapper_script_data
 
+        if task.setup_env is not None:
+            builder.setup_env = aiida.orm.SinglefileData(str(task.setup_env))
+
         # Set runtime information
         options = {}
         options.update(self._from_task_get_scheduler_options(task))

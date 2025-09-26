@@ -491,6 +491,11 @@ class ConfigIconTaskSpecs:
         repr=False,
         metadata={"description": "Path to wrapper script file relative to the config directory or absolute."},
     )
+    setup_env: Path | None = field(
+        default=None,
+        repr=False,
+        metadata={"description": "A file that is sourced before the execution of ICON to set environment variables."},
+    )
 
 
 class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
