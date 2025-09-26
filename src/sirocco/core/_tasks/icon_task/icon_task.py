@@ -46,7 +46,6 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         if (master_model_nml := self._master_namelist.namelist.get(self._MASTER_MODEL_NML_SECTION, None)) is None:
             msg = "No model filename specified in master namelist: Could not find section '&master_model_nml'"
             raise ValueError(msg)
-        # TODO: Check if master_model_nml is of instance cogroup => raise not implemented error
         if isinstance(master_model_nml, f90nml.namelist.Cogroup):
             msg = f"multiple {self._MASTER_MODEL_NML_SECTION} not implemented yet"
             raise NotImplementedError(msg)
