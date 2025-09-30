@@ -356,6 +356,7 @@ class AiidaWorkGraph:
         options = {}
         options.update(self._from_task_get_scheduler_options(task))
         options["additional_retrieve_list"] = []
+        options["account"] = 'cwd01'
 
         metadata["options"] = options
         builder.metadata = metadata
