@@ -1,12 +1,12 @@
 ---
 start_date: &root_start_date '2000-01-01T00:00:00'
-stop_date: &root_stop_date '2000-01-01T00:03:00'
+stop_date: &root_stop_date '2000-01-01T00:00:30'
 cycles:
-  - hourly:
+  - every_10s:
       cycling:
         start_date: *root_start_date
         stop_date: *root_stop_date
-        period: PT1M
+        period: PT10S
       tasks:
         - icon:
             inputs:
@@ -22,7 +22,7 @@ cycles:
                   when:
                     after: *root_start_date
                   target_cycle:
-                    lag: -PT1M
+                    lag: -PT10S
                   port: restart_file
             outputs:
               - finish:
@@ -40,12 +40,12 @@ cycles:
             inputs:
               - finish:
                   target_cycle:
-                    date: [2000-01-01T00:00:00, 2000-01-01T01:00:00, 2000-01-01T02:00:00, 2000-01-01T03:00:00]
+                    date: [2000-01-01T00:00:00, 2000-01-01T00:00:10, 2000-01-01T00:00:20]
                   port: positional
 tasks:
   - icon:
       plugin: icon
-      computer: santis
+      computer: santis-firecrest
       uenv: icon/25.2:v3
       nodes: 1
       ntasks_per_node: 4
@@ -56,27 +56,27 @@ tasks:
         - ./ICON/NAMELIST_exclaim_ape_R02B04
   - cleanup:
       plugin: shell
-      computer: santis
+      computer: santis-firecrest
       uenv: icon/25.2:v3
       nodes: 1
       ntasks_per_node: 4
       cpus_per_task: 72
-      src: scripts/cleanup.py
-      command: "python cleanup.py {PORT::positional}"
+      path: scripts/cleanup.py
+      command: "python3.11 cleanup.py {PORT::positional}"
 data:
   available:
      - icon_grid:
          path: /capstor/store/cscs/userlab/cwd01/leclairm/Sirocco_test_cases/exclaim_ape_R02B04/icon_grid_0013_R02B04_R.nc
-         computer: santis
+         computer: santis-firecrest
      - rrtmg_lw:
          path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/data/rrtmg_lw.nc
-         computer: santis
+         computer: santis-firecrest
      - ECHAM6_CldOptProps:
          path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/data/ECHAM6_CldOptProps.nc
-         computer: santis
+         computer: santis-firecrest
      - ecrad_data:
          path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/externals/ecrad/data
-         computer: santis
+         computer: santis-firecrest
   generated:
      - atm_2d: {}
      - atm_3d_pl: {}
