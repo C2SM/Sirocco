@@ -6,6 +6,7 @@ from itertools import chain, product
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, TypeVar, cast
 
+from sirocco.parsing import cycling
 from sirocco.parsing.target_cycle import DateList, LagList, NoTargetCycle
 from sirocco.parsing.yaml_data_models import (
     ConfigAvailableData,
@@ -264,6 +265,14 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
 
     def runscript_lines(self) -> list[str]:
         raise NotImplementedError
+
+    def sirocco_environemnt(self) -> list[str]:
+        # TODO: Add parameters
+        env_list: list[str] = []
+        if isinstance(self.cycle_point, cycling.DateCyclePoint):
+            env_list.append(f"export START_DATE={self.cycle_point.chunk_start_date.isoformat()}")
+            env_list.append(f"export STOP_DATE={self.cycle_point.chunk_stop_date.isoformat()}")
+        return env_list
 
     def resolve_output_data_paths(self) -> None:
         raise NotImplementedError

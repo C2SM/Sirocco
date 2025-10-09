@@ -130,7 +130,7 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
     def prepare_for_submission(self) -> None:
         # Ensure either target or runscript is set
         # NOTE: This code is there as it is the first available place where we know the standalone orchestrator is used
-        # TODO: if standalone becomes the only orchestrator, make this a yaml model validator
+        # TODO: if standalone becomes the only orchestrator, make this a yaml model validator or better unify this with aiida-icon
         if self.target is None:
             if self.runtime is None:
                 msg = f"task {self.name}: 'runtime' is required when 'target' is unset"
@@ -204,6 +204,15 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
                         section="grid_nml",
                         parameter="dynamics_grid_filename",
                     )
+                case "ifs2icon":
+                    self.adapt_nml_param_and_link(
+                        port=port,
+                        data_list=data_list,
+                        namelist=self.model_namelist,
+                        section="initicon_nml",
+                        parameter="ifs2icon_filename",
+                    )
+
                 case "ecrad_data":
                     self.adapt_nml_param_and_link(
                         port=port,
@@ -240,6 +249,8 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
                         raise ValueError(msg)
                     data = self.ensure_single_data_port(port, data_list)
                     (self.run_dir / "multifile_restart_atm.mfr").symlink_to(data.resolved_path)
+                case "link" | "link_content":
+                    pass
                 case _:
                     msg = f"IconTask: unsopported input port {port}"
                     raise ValueError(msg)
@@ -287,7 +298,7 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
     @staticmethod
     def ensure_single_data_port(port: str | None, data_list: Sequence[Data]) -> Data:
         if len(data_list) > 1:
-            msg = f"port {port} only accepts one a single object"
+            msg = f"port {port} only accepts a single object"
             raise ValueError(msg)
         return data_list[0]
 

@@ -27,7 +27,6 @@ class Scheduler:
         # Build runscript
         # ===============
         # Shebang
-        # TODO: Make shebang a config file entry defaulting to "#!/bin/bash -l"
         script_lines: list[str] = ["#!/bin/bash -l", ""]
 
         # Scheduler header
@@ -41,6 +40,13 @@ class Scheduler:
             script_lines.append(f"N_TASKS_PER_NODE={task.ntasks_per_node}")
         if task.cpus_per_task is not None:
             script_lines.append(f"CPUS_PER_TASK={task.cpus_per_task}")
+
+        # Sirocco context
+        script_lines.append("")
+        script_lines.extend(task.sirocco_environemnt())
+
+        # Linked input
+        script_lines.extend(self.add_links(task))
 
         # Task runscript "content"
         script_lines.append("")
@@ -56,6 +62,11 @@ class Scheduler:
         # ================
         (task.run_dir / task.SUBMIT_FILENAME).write_text("\n".join(script_lines))
         task.jobid = self.submit_to_scheduler(task)
+
+    def add_links(self, task: Task) -> list[str]:
+        return [f"ln -s {data.resolved_path} ." for data in task.inputs["link"]] + [
+            f"for item in {data.resolved_path}; do ln -s ${{item}} .; done" for data in task.inputs["link_content"]
+        ]
 
     def header_lines(
         self,
