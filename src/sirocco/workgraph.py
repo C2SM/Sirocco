@@ -275,6 +275,7 @@ class AiidaWorkGraph:
         metadata["options"] = {}
         # NOTE: Hardcoded for now, possibly make user-facing option (see issue #159)
         metadata["options"]["use_symlinks"] = True
+        metadata["options"]["account"] = 'cwd01'
         metadata["options"].update(self._from_task_get_scheduler_options(task))
         ## computer
 
