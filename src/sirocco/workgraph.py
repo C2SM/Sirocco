@@ -359,6 +359,32 @@ class AiidaWorkGraph:
         options["additional_retrieve_list"] = []
         options["account"] = 'cwd01'
 
+        # Add prepend_text to kill any previous blocking jobs and submit new blocking job
+        blocking_job_name = self._get_blocking_job_name(task)
+
+        # Build the resource request for the blocking job (matching ICON job resources)
+        blocking_resources = ""
+        if task.nodes is not None:
+            blocking_resources += f"#SBATCH --nodes={task.nodes}\n"
+        if task.ntasks_per_node is not None:
+            blocking_resources += f"#SBATCH --ntasks-per-node={task.ntasks_per_node}\n"
+        if task.cpus_per_task is not None:
+            blocking_resources += f"#SBATCH --cpus-per-task={task.cpus_per_task}\n"
+
+        options["prepend_text"] = f"""# Kill any running blocking jobs from previous cycle
+for job in $(squeue --me --name={blocking_job_name} --noheader -o %A 2>/dev/null || true); do
+    scancel $job 2>/dev/null || true
+done
+
+# Submit blocking job with SLURM dependency on this job
+sbatch --dependency=afterok:$SLURM_JOB_ID \\
+    --job-name={blocking_job_name} \\
+    --account=cwd01 \\
+    --time=00:05:00 \\
+    {blocking_resources.rstrip()}\\
+    --wrap="sleep 300"
+"""
+
         metadata["options"] = options
         builder.metadata = metadata
 
@@ -490,6 +516,11 @@ class AiidaWorkGraph:
         workgraph_task = self.task_from_core(task)
         workgraph_task.waiting_on.clear()
         workgraph_task.waiting_on.add([self.task_from_core(wt) for wt in task.wait_on])
+
+    def _get_blocking_job_name(self, task: core.IconTask) -> str:
+        """Generate a unique name for the blocking job associated with an ICON task."""
+        task_label = self.get_aiida_label_from_graph_item(task)
+        return f"blocker_{task_label}"
 
     def _set_shelljob_arguments(self, task: core.ShellTask):
         """Set AiiDA ShellJob arguments by replacing port placeholders with AiiDA labels."""
