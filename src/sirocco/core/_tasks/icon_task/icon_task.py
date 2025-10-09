@@ -212,7 +212,6 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
                         section="initicon_nml",
                         parameter="ifs2icon_filename",
                     )
-
                 case "ecrad_data":
                     self.adapt_nml_param_and_link(
                         port=port,
@@ -221,6 +220,14 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
                         section="radiation_nml",
                         parameter="ecrad_data_path",
                         target_link_name="ecrad_data",
+                    )
+                case "extpar_file":
+                    self.adapt_nml_param_and_link(
+                        port=port,
+                        data_list=data_list,
+                        namelist=self.model_namelist,
+                        section="extpar_nml",
+                        parameter="extpar_filename",
                     )
                 case "cloud_opt_props":
                     self.adapt_nml_param_and_link(
