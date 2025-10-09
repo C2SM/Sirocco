@@ -276,6 +276,8 @@ class AiidaWorkGraph:
         # NOTE: Hardcoded for now, possibly make user-facing option (see issue #159)
         metadata["options"]["use_symlinks"] = True
         metadata["options"]["account"] = 'cwd01'
+        # Add scheduler files to retrieve list to avoid missing file warnings with FirecREST
+        metadata["options"]["additional_retrieve"] = ['_scheduler-stdout.txt', '_scheduler-stderr.txt']
         metadata["options"].update(self._from_task_get_scheduler_options(task))
         ## computer
 
