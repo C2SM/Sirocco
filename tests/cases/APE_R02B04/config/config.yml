@@ -61,8 +61,8 @@ tasks:
       nodes: 1
       ntasks_per_node: 4
       cpus_per_task: 72
-      src: scripts/cleanup.py
-      command: "python cleanup.py {PORT::positional}"
+      path: scripts/cleanup.py
+      command: "python3.11 cleanup.py {PORT::positional}"
 data:
   available:
      - icon_grid:
