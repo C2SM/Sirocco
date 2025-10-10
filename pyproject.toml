@@ -33,7 +33,10 @@ dependencies = [
   "isoduration",
   "pydantic",
   "ruamel.yaml",
-  "aiida-core>=2.5",
+  # "aiida-core>=2.5",
+  "aiida-core @ git+https://github.com/khsrali/aiida-core.git@afed03cba3078f6818b0370fde756a6c546a9314",
+  "aiida-firecrest@git+https://github.com/aiidateam/aiida-firecrest@e68b3200ad60b1ea525c9c0a76adffe6c3a932e8",
+  "pyfirecrest",
   "aiida-icon>=0.4.0",
   "aiida-workgraph==0.7.2",  # need latest for presubmission
   "termcolor",
@@ -98,6 +101,9 @@ include = [
 
 [tool.hatch.version]
 path = "src/sirocco/__init__.py"
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.envs.default]
 installer = "uv"
