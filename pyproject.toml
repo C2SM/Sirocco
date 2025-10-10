@@ -35,7 +35,7 @@ dependencies = [
   "ruamel.yaml",
   "aiida-core>=2.5",
   "aiida-icon>=0.4.0",
-  "aiida-workgraph==0.5.2",
+  "aiida-workgraph==0.7.2",  # need latest for presubmission
   "termcolor",
   "pygraphviz",
   "lxml",
