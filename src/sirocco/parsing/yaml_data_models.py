@@ -284,7 +284,7 @@ class ConfigBaseTaskSpecs:
     Any of these keys can be None, in which case they are inherited from the root task.
     """
 
-    computer: str
+    computer: str | None = None
     host: str | None = None
     account: str | None = None
     uenv: str | None = None
@@ -319,20 +319,6 @@ class ConfigBaseTask(_NamedBaseModel, ConfigBaseTaskSpecs):
         except ValueError as e:
             msg = f"walltime must be in HH:MM:SS format, got '{value}'"
             raise ValueError(msg) from e
-
-    @model_validator(mode="after")
-    def validate_scheduler_parameters(self) -> ConfigBaseTask:
-        # we pass these argument to aiida as resource, it performs a check to if it is able to compute the total
-        # number of mpi procs. This triggers when passing any of these arguments to aiida
-        if (self.nodes is not None or self.ntasks_per_node is not None or self.cpus_per_task is not None) and (
-            self.nodes is None or self.ntasks_per_node is None or self.cpus_per_task is None
-        ):
-            msg = (
-                "One of the fields 'nodes', 'ntasks_per_node' and 'cpus_per_task'"
-                f" has been specified therefore all fields need to be specified for task {self}."
-            )
-            raise ValueError(msg)
-        return self
 
 
 class ConfigRootTask(ConfigBaseTask):
@@ -672,7 +658,7 @@ class ConfigAvailableDataSpecs:
 
 
 class ConfigAvailableData(ConfigBaseData, ConfigAvailableDataSpecs):
-    computer: str
+    computer: str | None = None
 
 
 @dataclass(kw_only=True)

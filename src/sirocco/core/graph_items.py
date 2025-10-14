@@ -263,9 +263,6 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
                 unique_tasks.append(task)
         return unique_tasks
 
-    def runscript_lines(self) -> list[str]:
-        raise NotImplementedError
-
     def sirocco_environemnt(self) -> list[str]:
         # TODO: Add parameters
         env_list: list[str] = []
@@ -273,6 +270,17 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
             env_list.append(f"export START_DATE={self.cycle_point.chunk_start_date.isoformat()}")
             env_list.append(f"export STOP_DATE={self.cycle_point.chunk_stop_date.isoformat()}")
         return env_list
+
+    def to_yaml_state(self) -> dict[str, dict[str, Any]]:
+        return {
+            self.name: {
+                "coordinates": {k: v.isoformat() if k == "date" else v for k, v in self.coordinates.items()},
+                "jobid": self.jobid,
+            }
+        }
+
+    def runscript_lines(self) -> list[str]:
+        raise NotImplementedError
 
     def resolve_output_data_paths(self) -> None:
         raise NotImplementedError

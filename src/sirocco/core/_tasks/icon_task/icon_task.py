@@ -255,7 +255,9 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
                         msg = f"Only supported restart_write_mode is 'joint procs multifile', got {restart_write_mode}"
                         raise ValueError(msg)
                     data = self.ensure_single_data_port(port, data_list)
-                    (self.run_dir / "multifile_restart_atm.mfr").symlink_to(data.resolved_path)
+                    # TODO: adapt for multi model
+                    model_name = self.master_namelist[self._MASTER_MODEL_NML_SECTION]["model_name"]
+                    (self.run_dir / f"multifile_restart_{model_name}.mfr").symlink_to(data.resolved_path)
                 case "link" | "link_content":
                     pass
                 case _:
@@ -271,7 +273,9 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             match port:
                 case "latest_restart_file":
                     data = self.ensure_single_data_port(port, data_list)
-                    data.resolved_path = self.run_dir / "multifile_restart_atm.mfr"
+                    # TODO: adapt for multi model
+                    model_name = self.master_namelist[self._MASTER_MODEL_NML_SECTION]["model_name"]
+                    data.resolved_path = self.run_dir / f"multifile_restart_{model_name}.mfr"
                 case "output_streams":
                     output_nml = self.model_namelist.get("output_nml", [])
                     nml_streams: list[f90nml.Namelist] = (

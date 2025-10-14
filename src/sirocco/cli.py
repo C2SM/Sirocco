@@ -255,7 +255,8 @@ def start(
     wf = core.Workflow.from_config_file(workflow_file)
     if cleanup:
         console.print(f"▶️ Cleaning up workflow at {wf.config_rootdir} ...")
-        shutil.rmtree(wf.config_rootdir / wf.RUN_ROOT)
+        if (run_dir := wf.config_rootdir / wf.RUN_ROOT).exists():
+            shutil.rmtree(run_dir)
         (wf.config_rootdir / SiroccoContinueTask.SUBMIT_FILENAME).unlink(missing_ok=True)
         (wf.config_rootdir / SiroccoContinueTask.STDOUTERR_FILENAME).unlink(missing_ok=True)
     if (wf.config_rootdir / wf.RUN_ROOT).exists():

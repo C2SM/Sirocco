@@ -64,6 +64,7 @@ class Workflow:
         self.scheduler = scheduler
         self.front_depth = front_depth
         self.front: list[list[Task]] = [[] for _ in range(self.front_depth)]
+        self.completed_tasks: list[Task] = []
 
         self.tasks: Store[Task] = Store()
         self.data: Store[Data] = Store()
@@ -146,7 +147,7 @@ class Workflow:
             cycle_point=OneOffPoint(),
             config_rootdir=self.config_rootdir,
             config_filename=self.config_filename,
-            parents=self.front[0],
+            parents=[],
             **config_kwargs,
         )
 
@@ -164,7 +165,8 @@ class Workflow:
         logger = self.get_logger(log_type)
         self.load_state()
         self.propagate_front(logger=logger)
-        self.auto_submit()
+        if self.status != WorkflowStatus.FAILED:
+            self.auto_submit()
 
     def restart(self, log_type: Literal["std", "tee"] = "tee") -> None:
         self.load_state()
@@ -177,7 +179,8 @@ class Workflow:
             raise ValueError(msg)
         self.restart_front(logger=logger)
         self.propagate_front(logger=logger)
-        self.auto_submit()
+        if self.status != WorkflowStatus.FAILED:
+            self.auto_submit()
 
     def stop(self, mode: Literal["cancel", "cool-down"], log_type: Literal["std", "tee"] = "tee") -> None:
         self.load_state()
@@ -219,36 +222,33 @@ class Workflow:
 
     def dump_state(self) -> None:
         yaml_front: list[list[dict[str, dict[str, Any]]]] = [[] for _ in range(self.front_depth)]
-        for yaml_generation, generation in zip(yaml_front, self.front, strict=False):
-            for task in generation:
-                yaml_generation.append(
-                    {
-                        task.name: {
-                            "coordinates": {
-                                k: v.isoformat() if k == "date" else v for k, v in task.coordinates.items()
-                            },
-                            "jobid": task.jobid,
-                        }
-                    }
-                )
+        yaml_completed_tasks = [task.to_yaml_state() for task in self.completed_tasks]
+        yaml_front = [[task.to_yaml_state() for task in generation] for generation in self.front]
         YAML().dump(
-            {"sirocco_jobid": self.sirocco_continue_task.jobid, "front": yaml_front},
+            {
+                "sirocco_jobid": self.sirocco_continue_task.jobid,
+                "completed_tasks": yaml_completed_tasks,
+                "front": yaml_front,
+            },
             self.config_rootdir / self.RUN_ROOT / self.STATE_FILE,
         )
 
     def load_state(self) -> None:
-        yaml_status = YAML().load(self.config_rootdir / self.RUN_ROOT / self.STATE_FILE)
-        self.sirocco_continue_task.jobid = yaml_status["sirocco_jobid"]
-        for rank, (yaml_generation, generation) in enumerate(zip(yaml_status["front"], self.front, strict=False)):
-            for yaml_task in yaml_generation:
-                name, yaml_specs = next(iter(yaml_task.items()))
-                coordinates = {
-                    k: datetime.fromisoformat(v) if k == "date" else v for k, v in yaml_specs["coordinates"].items()
-                }
-                task = self.tasks[name, coordinates]
-                task.jobid = yaml_specs["jobid"]
-                task.rank = rank
-                generation.append(task)
+        yaml_state = YAML().load(self.config_rootdir / self.RUN_ROOT / self.STATE_FILE)
+        self.sirocco_continue_task.jobid = yaml_state["sirocco_jobid"]
+        self.completed_tasks = [
+            self.task_from_yaml_state(yaml_task, -1) for yaml_task in yaml_state["completed_tasks"]
+        ]
+        for k, yaml_generation in enumerate(yaml_state["front"]):
+            self.front[k] = [self.task_from_yaml_state(yaml_task, k) for yaml_task in yaml_generation]
+
+    def task_from_yaml_state(self, yaml_task: dict[str, dict[str, Any]], rank: int) -> Task:
+        name, yaml_specs = next(iter(yaml_task.items()))
+        coordinates = {k: datetime.fromisoformat(v) if k == "date" else v for k, v in yaml_specs["coordinates"].items()}
+        task = self.tasks[name, coordinates]
+        task.jobid = yaml_specs["jobid"]
+        task.rank = rank
+        return task
 
     def init_front(self, logger: logging.Logger) -> None:
         """Populate front and submit corresponding tasks"""
@@ -298,6 +298,8 @@ class Workflow:
         to_promote: list[Task] = []
         for task in self.front[0]:
             if (status := self.scheduler.get_status(task)) == TaskStatus.FAILED:
+                msg = f"{task.label} ({task.jobid}) FAILED"
+                logger.info(msg)
                 self.cancel_all_tasks(mode="cancel", logger=logger)
                 msg = f"All workflow tasks canceled because {task.label} failed"
                 logger.info(msg)
@@ -305,24 +307,22 @@ class Workflow:
                 return
             if status == TaskStatus.COMPLETED:
                 to_promote.append(task)
-                task.rank = -1
-                msg = f"{task.label} ({task.jobid}) COMPLETED"
-                logger.info(msg)
         for task in to_promote:
+            task.rank = -1
             self.front[0].remove(task)
+            self.completed_tasks.append(task)
+            msg = f"{task.label} ({task.jobid}) COMPLETED"
+            logger.info(msg)
 
         # Update front rank of tasks currently in the front after the first generation
         for k in range(1, self.front_depth):
-            to_promote = []
-            for task in self.front[k]:
-                if max(parent.rank for parent in task.parents) == k - 2:
-                    to_promote.append(task)
-                    task.rank = k - 1
-                    msg = f"{task.label} ({task.jobid}) PROMOTED from rank {k} to {k-1}"
-                    logger.info(msg)
+            to_promote = [task for task in self.front[k] if max(parent.rank for parent in task.parents) == k - 2]
             for task in to_promote:
+                task.rank = k - 1
                 self.front[k].remove(task)
                 self.front[k - 1].append(task)
+                msg = f"{task.label} ({task.jobid}) PROMOTED from rank {k} to {k-1}"
+                logger.info(msg)
 
         # Add new tasks to the last generation of the front
         before_last_generation = to_promote if self.front_depth == 1 else self.front[-2]
@@ -360,6 +360,7 @@ class Workflow:
     def auto_submit(self) -> None:
         """Submit next Sirocco task"""
         if self.front[0]:
+            self.sirocco_continue_task.parents = self.front[0]
             self.scheduler.submit(self.sirocco_continue_task, output_mode="append", dependency_type="ANY")
             self.status = WorkflowStatus.CONTINUE
         else:

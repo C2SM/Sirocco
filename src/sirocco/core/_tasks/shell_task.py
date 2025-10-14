@@ -54,11 +54,12 @@ class ShellTask(models.ConfigShellTaskSpecs, Task):
         ]
 
     def prepare_for_submission(self) -> None:
-        if self.path:
-            if self.path.is_dir():
-                shutil.copytree(self.config_rootdir / self.path, self.run_dir / self.path.name)
+        if self.path is not None:
+            # TODO: Check existence of src
+            if (src := self.config_rootdir / self.path).is_dir():
+                shutil.copytree(src, self.run_dir / src.name)
             else:
-                shutil.copy(self.config_rootdir / self.path, self.run_dir / self.path.name)
+                shutil.copy(src, self.run_dir / src.name)
 
     def resolve_output_data_paths(self) -> None:
         for data in self.output_data_nodes():

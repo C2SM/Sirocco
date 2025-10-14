@@ -138,6 +138,18 @@ class AiidaWorkGraph:
                 except ValueError as exception:
                     msg = f"Raised error when validating output name '{output.name}': {exception.args[0]}"
                     raise ValueError(msg) from exception
+            # Validate resources combo
+            if (task.nodes is not None or task.ntasks_per_node is not None or task.cpus_per_task is not None) and (
+                task.nodes is None or task.ntasks_per_node is None or task.cpus_per_task is None
+            ):
+                msg = (
+                    "One of the fields 'nodes', 'ntasks_per_node' and 'cpus_per_task'"
+                    f" has been specified therefore all fields need to be specified for task {task.name}."
+                )
+                raise ValueError(msg)
+            if task.computer is None:
+                msg = f"task {task.name}: workgraph requires 'computer' to be set"
+                raise ValueError(msg)
 
     @staticmethod
     def replace_invalid_chars_in_label(label: str) -> str:
@@ -191,6 +203,10 @@ class AiidaWorkGraph:
         """
         Create an `aiida.orm.Data` instance from the provided `data` that needs to exist on initialization of workflow.
         """
+        if data.computer is None:
+            msg = f"{data.name}: workgraph requires 'computer' to be set for available data"
+            raise ValueError(msg)
+
         label = self.get_aiida_label_from_graph_item(data)
 
         try:

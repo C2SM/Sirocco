@@ -3,7 +3,6 @@ import subprocess
 from dataclasses import dataclass
 from typing import Literal, assert_never
 
-from sirocco.core._tasks.sirocco_task import SiroccoContinueTask
 from sirocco.core.graph_items import Task, TaskStatus
 
 
@@ -52,21 +51,23 @@ class Scheduler:
         script_lines.append("")
         script_lines.extend(task.runscript_lines())
 
-        # Accounting
-        if not isinstance(task, SiroccoContinueTask):
-            script_lines.append(
-                "sacct -j ${SLURM_JOB_ID} --format='User,JobID,Jobname,partition,state,time,start,end,elapsed,nnodes,ncpus'"
-            )
-
         # Submit runscript
         # ================
         (task.run_dir / task.SUBMIT_FILENAME).write_text("\n".join(script_lines))
         task.jobid = self.submit_to_scheduler(task)
 
     def add_links(self, task: Task) -> list[str]:
-        return [f"ln -s {data.resolved_path} ." for data in task.inputs["link"]] + [
-            f"for item in {data.resolved_path}; do ln -s ${{item}} .; done" for data in task.inputs["link_content"]
-        ]
+        link_list: list[str] = []
+        if "link" in task.inputs:
+            link_list.extend([f"ln -s {data.resolved_path} ." for data in task.inputs["link"]])
+        if "link_content" in task.inputs:
+            link_list.extend(
+                [
+                    f"for item in {data.resolved_path}/*; do ln -s ${{item}} .; done"
+                    for data in task.inputs["link_content"]
+                ]
+            )
+        return link_list
 
     def header_lines(
         self,
