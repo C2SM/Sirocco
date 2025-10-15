@@ -3,6 +3,7 @@ import pytest
 from sirocco.core import Workflow
 from sirocco.parsing.yaml_data_models import ConfigWorkflow
 from sirocco.workgraph import AiidaWorkGraph
+from aiida_workgraph.workgraph import BUILTIN_NODES
 
 
 # Hardcoded, explicit integration test based on the `parameters` case for now
@@ -29,15 +30,15 @@ def test_shell_filenames_nodes_arguments(config_paths):
     # NOTE: SLF001 will be fixed with https://github.com/C2SM/Sirocco/issues/82
     filenames_list = [
         task.inputs.filenames.value
-        for task in aiida_workflow._workgraph.tasks  # noqa: SLF001
+        for task in aiida_workflow._workgraph.tasks if task.name not in BUILTIN_NODES
     ]
     arguments_list = [
         task.inputs.arguments.value
-        for task in aiida_workflow._workgraph.tasks  # noqa: SLF001
+        for task in aiida_workflow._workgraph.tasks if task.name not in BUILTIN_NODES
     ]
     nodes_list = [
         list(task.inputs.nodes._sockets.keys())  # noqa: SLF001
-        for task in aiida_workflow._workgraph.tasks  # noqa: SLF001
+        for task in aiida_workflow._workgraph.tasks if task.name not in BUILTIN_NODES
     ]
 
     expected_filenames_list = [

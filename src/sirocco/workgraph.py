@@ -522,13 +522,8 @@ class AiidaWorkGraph:
         # Resolve the command with port placeholders replaced by input labels
         _, arguments_str = self.split_cmd_arg(task.resolve_ports(input_labels))
 
-        # Convert string to list (split by spaces, but respect quotes)
-        import shlex
-
-        arguments_list = shlex.split(arguments_str) if arguments_str else []
-
         # Update the task's arguments input
-        workgraph_task.inputs.arguments.value = arguments_list
+        workgraph_task.inputs.arguments.value = arguments_str
 
     def _set_shelljob_filenames(self, task: core.ShellTask):
         """Set AiiDA ShellJob filenames for data entities, including parameterized data."""
@@ -565,10 +560,7 @@ class AiidaWorkGraph:
                 raise TypeError(msg)
 
         if filenames:
-            try:
-                workgraph_task.inputs.filenames.value = filenames
-            except:
-                breakpoint()
+            workgraph_task.inputs.filenames.value = filenames
 
     @staticmethod
     def get_wrapper_script_aiida_data(task) -> aiida.orm.SinglefileData | None:

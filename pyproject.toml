@@ -39,6 +39,7 @@ dependencies = [
   "pyfirecrest",
   "aiida-icon>=0.4.0",
   "aiida-workgraph==0.7.2",  # need latest for presubmission
+  "node-graph @ git+https://github.com/superstar54/node-graph.git@edd1837dc68d2755bedb5ecb17c50c5ba0727fed",
   "termcolor",
   "pygraphviz",
   "lxml",
