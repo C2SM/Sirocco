@@ -65,6 +65,7 @@ class Workflow:
         self.front_depth = front_depth
         self.front: list[list[Task]] = [[] for _ in range(self.front_depth)]
         self.completed_tasks: list[Task] = []
+        self.cool_down_tasks: list[Task] = []
 
         self.tasks: Store[Task] = Store()
         self.data: Store[Data] = Store()
@@ -223,11 +224,13 @@ class Workflow:
     def dump_state(self) -> None:
         yaml_front: list[list[dict[str, dict[str, Any]]]] = [[] for _ in range(self.front_depth)]
         yaml_completed_tasks = [task.to_yaml_state() for task in self.completed_tasks]
+        yaml_cool_down_tasks = [task.to_yaml_state() for task in self.cool_down_tasks]
         yaml_front = [[task.to_yaml_state() for task in generation] for generation in self.front]
         YAML().dump(
             {
                 "sirocco_jobid": self.sirocco_continue_task.jobid,
                 "completed_tasks": yaml_completed_tasks,
+                "cool_down_tasks": yaml_cool_down_tasks,
                 "front": yaml_front,
             },
             self.config_rootdir / self.RUN_ROOT / self.STATE_FILE,
@@ -238,6 +241,9 @@ class Workflow:
         self.sirocco_continue_task.jobid = yaml_state["sirocco_jobid"]
         self.completed_tasks = [
             self.task_from_yaml_state(yaml_task, -1) for yaml_task in yaml_state["completed_tasks"]
+        ]
+        self.cool_down_tasks = [
+            self.task_from_yaml_state(yaml_task, 0) for yaml_task in yaml_state["cool_down_tasks"]
         ]
         for k, yaml_generation in enumerate(yaml_state["front"]):
             self.front[k] = [self.task_from_yaml_state(yaml_task, k) for yaml_task in yaml_generation]
@@ -278,12 +284,12 @@ class Workflow:
                 # Do not resubmit tasks in cool down mode
                 if (
                     task.rank == 0
-                    and task.cool_down_path.exists()
+                    and task in self.cool_down_tasks
                     and self.scheduler.get_status(task)
                     in (TaskStatus.COMPLETED, TaskStatus.RUNNING, TaskStatus.WAITING)
                 ):
-                    task.cool_down_path.unlink()
-                    msg = f"{task.label} ({task.jobid}) KEPT FROM COOL DOWN"
+                    self.cool_down_tasks.remove(task)
+                    msg = f"{task.label} ({task.jobid}) CONTINUED as rank 0 from cool-down"
                     logger.info(msg)
                 else:
                     self.scheduler.cancel(task)
@@ -348,13 +354,13 @@ class Workflow:
                     and mode == "cool-down"
                     and self.scheduler.get_status(task) in (TaskStatus.COMPLETED, TaskStatus.RUNNING)
                 ):
-                    task.cool_down_path.touch()
+                    self.cool_down_tasks.append(task)
                     msg = f"{task.label} ({task.jobid}) COOLING DOWN"
                     logger.info(msg)
-                    continue
-                self.scheduler.cancel(task)
-                msg = f"{task.label} ({task.jobid}) CANCELED"
-                logger.info(msg)
+                else:
+                    self.scheduler.cancel(task)
+                    msg = f"{task.label} ({task.jobid}) CANCELED"
+                    logger.info(msg)
         self.status = WorkflowStatus.STOPPED
 
     def auto_submit(self) -> None:

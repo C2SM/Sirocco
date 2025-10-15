@@ -127,13 +127,11 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     color: ClassVar[str] = field(default="light_red", repr=False)
     SUBMIT_FILENAME: ClassVar[str] = field(default="run_script.sh", repr=False)
     STDOUTERR_FILENAME: ClassVar[str] = field(default="run_script.%j.o", repr=False)
-    COOL_DOWN_FILENAME: ClassVar[str] = field(default=".cool-down", repr=False)
     CLEAN_UP_BEFORE_SUBMIT: ClassVar[bool] = field(default=True, repr=False)  # Clean up directory when submitting
     RUN_ROOT: ClassVar[Literal["run"]] = "run"
 
     config_rootdir: Path
     run_dir: Path = field(init=False, repr=False)
-    cool_down_path: Path = field(init=False, repr=False)
     jobid: str = field(default="_NO_ID_", repr=False)
     rank: int = field(init=False, repr=False)
     cycle_point: CyclePoint
@@ -153,7 +151,6 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
             msg = "port names must be unique, even between inputs and outputs"
             raise ValueError(msg)
         self.run_dir = (self.config_rootdir / self.RUN_ROOT / self.label).resolve()
-        self.cool_down_path = self.run_dir / self.COOL_DOWN_FILENAME
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
