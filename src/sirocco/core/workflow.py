@@ -239,12 +239,8 @@ class Workflow:
     def load_state(self) -> None:
         yaml_state = YAML().load(self.config_rootdir / self.RUN_ROOT / self.STATE_FILE)
         self.sirocco_continue_task.jobid = yaml_state["sirocco_jobid"]
-        self.completed_tasks = [
-            self.task_from_yaml_state(yaml_task, -1) for yaml_task in yaml_state["completed_tasks"]
-        ]
-        self.cool_down_tasks = [
-            self.task_from_yaml_state(yaml_task, 0) for yaml_task in yaml_state["cool_down_tasks"]
-        ]
+        self.completed_tasks = [self.task_from_yaml_state(yaml_task, -1) for yaml_task in yaml_state["completed_tasks"]]
+        self.cool_down_tasks = [self.task_from_yaml_state(yaml_task, 0) for yaml_task in yaml_state["cool_down_tasks"]]
         for k, yaml_generation in enumerate(yaml_state["front"]):
             self.front[k] = [self.task_from_yaml_state(yaml_task, k) for yaml_task in yaml_generation]
 
