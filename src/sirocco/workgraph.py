@@ -235,6 +235,7 @@ class AiidaWorkGraph:
             nodes[f"SCRIPT__{label}"] = aiida.orm.SinglefileData(str(task.path))
 
         # Create ShellCode
+        # TODO: don't create new ones
         label_uuid = str(uuid.uuid4())
         code = ShellCode(
             label=f"{cmd}-{label_uuid}",
@@ -432,6 +433,7 @@ class AiidaWorkGraph:
 
         # Add output socket
         output_socket = workgraph_task.add_output("workgraph.any", formatted_name)
+        # output_socket = workgraph_task.add_output_spec("workgraph.any", formatted_name)
         self._aiida_socket_nodes[output_label] = output_socket
 
     @functools.singledispatchmethod
@@ -466,6 +468,7 @@ class AiidaWorkGraph:
         input_label = self.get_aiida_label_from_graph_item(input_)
 
         # Add input socket if it doesn't exist
+        # workgraph_task.add_input_spec("workgraph.any", f"nodes.{input_label}")
         workgraph_task.add_input("workgraph.any", f"nodes.{input_label}")
 
         # resolve data
@@ -562,7 +565,10 @@ class AiidaWorkGraph:
                 raise TypeError(msg)
 
         if filenames:
-            workgraph_task.inputs.filenames.value = filenames
+            try:
+                workgraph_task.inputs.filenames.value = filenames
+            except:
+                breakpoint()
 
     @staticmethod
     def get_wrapper_script_aiida_data(task) -> aiida.orm.SinglefileData | None:
