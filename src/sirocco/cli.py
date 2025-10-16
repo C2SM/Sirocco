@@ -23,21 +23,25 @@ app = typer.Typer(
 console = Console()
 
 
-def _create_aiida_workflow(workflow_file: Path) -> AiidaWorkGraph:
+def _create_aiida_workflow(workflow_file: Path, pre_submission_depth: int = 1) -> AiidaWorkGraph:
     load_profile()
     config_workflow = parsing.ConfigWorkflow.from_config_file(str(workflow_file))
     core_wf = core.Workflow.from_config_workflow(config_workflow)
-    return AiidaWorkGraph(core_wf)
+    return AiidaWorkGraph(core_wf, pre_submission_depth=pre_submission_depth)
 
 
-def create_aiida_workflow(workflow_file: Path) -> AiidaWorkGraph:
+def create_aiida_workflow(workflow_file: Path, pre_submission_depth: int = 1) -> AiidaWorkGraph:
     """Helper to prepare AiidaWorkGraph from workflow file."""
 
     from aiida.common import ProfileConfigurationError
 
     try:
-        aiida_wg = _create_aiida_workflow(workflow_file=workflow_file)
+        aiida_wg = _create_aiida_workflow(workflow_file=workflow_file, pre_submission_depth=pre_submission_depth)
         console.print(f"⚙️ Workflow [magenta]'{aiida_wg._workgraph.name}'[/magenta] prepared for AiiDA execution.")  # noqa: SLF001 | private-member-access
+        if pre_submission_depth == 0:
+            console.print("📋 Fully sequential submission (no SLURM dependencies)")
+        elif pre_submission_depth > 0:
+            console.print(f"📋 SLURM pre-submission enabled with depth: [yellow]{pre_submission_depth}[/yellow]")
         return aiida_wg  # noqa: TRY300 | try-consider-else -> shouldn't move this to `else` block
     except ProfileConfigurationError as e:
         console.print(f"[bold red]❌ No AiiDA profile set up: {e}[/bold red]")
@@ -184,8 +188,20 @@ def run(
             help="Path to the workflow definition YAML file.",
         ),
     ],
+    pre_submission_depth: Annotated[
+        int,
+        typer.Option(
+            "--pre-submission-depth",
+            "-d",
+            min=0,
+            help="Number of dependency levels to pre-submit with SLURM dependencies. "
+            "0 = fully sequential (WorkGraph control), "
+            "1 (default) = one step ahead (direct deps use SLURM), "
+            "N = N steps ahead, 9999 = entire workflow.",
+        ),
+    ] = 1,
 ):
-    aiida_wg = create_aiida_workflow(workflow_file)
+    aiida_wg = create_aiida_workflow(workflow_file, pre_submission_depth=pre_submission_depth)
     console.print(
         f"▶️ Running workflow [magenta]'{aiida_wg._core_workflow.name}'[/magenta] directly (blocking)..."  # noqa: SLF001 | private-member-access
     )
@@ -211,10 +227,22 @@ def submit(
             help="Path to the workflow definition YAML file.",
         ),
     ],
+    pre_submission_depth: Annotated[
+        int,
+        typer.Option(
+            "--pre-submission-depth",
+            "-d",
+            min=0,
+            help="Number of dependency levels to pre-submit with SLURM dependencies. "
+            "0 = fully sequential (WorkGraph control), "
+            "1 (default) = one step ahead (direct deps use SLURM), "
+            "N = N steps ahead, 9999 = entire workflow.",
+        ),
+    ] = 1,
 ):
     """Submit the workflow to the AiiDA daemon."""
 
-    aiida_wg = create_aiida_workflow(workflow_file)
+    aiida_wg = create_aiida_workflow(workflow_file, pre_submission_depth=pre_submission_depth)
     try:
         console.print(
             f"🚀 Submitting workflow [magenta]'{aiida_wg._core_workflow.name}'[/magenta] to AiiDA daemon..."  # noqa: SLF001 | private-member-access

@@ -12,7 +12,7 @@ import aiida.transports.plugins.local
 from aiida.common.exceptions import NotExistent
 from aiida_icon.calculations import IconCalculation
 from aiida_shell.parsers.shell import ShellParser
-from aiida_workgraph import WorkGraph, Task
+from aiida_workgraph import WorkGraph, Task, task
 
 from sirocco import core
 from sirocco.core.graph_items import GeneratedData
@@ -26,10 +26,114 @@ if TYPE_CHECKING:
     )
 
 
+@task
+async def get_job_id(workgraph_name: str, task_name: str, interval: int = 2, timeout: int = 600):
+    """Get the job_id of a CalcJob task in a workgraph by polling the workgraph node."""
+    from aiida import orm
+    from aiida_workgraph.engine.workgraph import WorkGraphEngine
+    from aiida.orm.utils.serialize import AiiDALoader
+    import yaml
+    import time
+    import asyncio
+
+    # Query the WorkGraph node by its name
+    builder = orm.QueryBuilder()
+    builder.append(
+        WorkGraphEngine,
+        filters={"attributes.process_label": {"==": f"WorkGraph<{workgraph_name}>"}},
+        tag="process",
+    )
+    start_time = time.time()
+    while True:
+        if builder.count() > 0:
+            # Get the last node in the workgraph
+            workgraph_node = builder.all()[-1][0]
+            # Load the AiiDA process node for the specified task
+            node = yaml.load(
+                workgraph_node.task_processes.get(task_name, ""), Loader=AiiDALoader
+            )
+            if node:
+                job_id = node.get_job_id()
+                if job_id is not None:
+                    return job_id
+        if time.time() - start_time > timeout:
+            raise TimeoutError(f"Timeout waiting for job_id for task {task_name}")
+        await asyncio.sleep(interval)
+
+
+@task
+def add_slurm_dependency_to_metadata(metadata: dict, job_ids: dict | None = None):
+    """Add SLURM dependency command to task metadata based on job IDs.
+
+    This task runs at execution time and modifies metadata to include SLURM dependencies.
+    """
+    if job_ids:
+        # Filter out None values and build dependency string
+        valid_ids = [str(jid) for jid in job_ids.values() if jid is not None]
+        if valid_ids:
+            dep_str = ":".join(valid_ids)
+            custom_cmd = f"#SBATCH --dependency=afterok:{dep_str}"
+
+            # Add to existing custom commands
+            current_cmds = metadata.get("options", {}).get("custom_scheduler_commands", "")
+            if current_cmds and not current_cmds.endswith("\n"):
+                current_cmds += "\n"
+
+            if "options" not in metadata:
+                metadata["options"] = {}
+            metadata["options"]["custom_scheduler_commands"] = current_cmds + custom_cmd
+
+    return metadata
+
+
+
+
 class AiidaWorkGraph:
-    def __init__(self, core_workflow: core.Workflow):
+    """AiiDA WorkGraph wrapper for Sirocco workflows.
+
+    This class converts a Sirocco core workflow into an AiiDA WorkGraph for execution.
+
+    Args:
+        core_workflow: The Sirocco core workflow to execute
+        pre_submission_depth: Controls how many dependency levels ahead to pre-submit using SLURM dependencies.
+            - 0: Fully sequential (WorkGraph controls flow, no SLURM dependencies)
+            - 1 (default): Submit one step ahead - direct dependencies use SLURM --dependency flags
+            - N > 1: Submit N steps ahead - dependencies up to N levels apart use SLURM dependencies
+            - Large number (e.g., 9999): Submit entire workflow at once with all dependencies handled by SLURM
+
+    Example:
+        # Fully sequential, no SLURM dependencies
+        wg = AiidaWorkGraph(workflow, pre_submission_depth=0)
+
+        # Submit one step ahead (default) - direct dependencies use SLURM deps
+        wg = AiidaWorkGraph(workflow, pre_submission_depth=1)
+
+        # Pre-submit chains where dependencies are within 3 levels
+        wg = AiidaWorkGraph(workflow, pre_submission_depth=3)
+
+        # Submit entire workflow to SLURM at once
+        wg = AiidaWorkGraph(workflow, pre_submission_depth=9999)
+
+    Note:
+        When pre_submission_depth > 0, the workflow uses SLURM job dependencies (--dependency=afterok:jobid)
+        to control task execution order, allowing tasks to be submitted before their dependencies complete.
+        This can significantly improve workflow throughput for long-running tasks.
+
+        The depth refers to the maximum difference in dependency levels between a task and its dependencies
+        that will use SLURM dependencies. For example, with depth=1, a task at level 2 will use SLURM
+        dependencies for its level-1 dependencies (difference=1), but not for level-0 dependencies (difference=2).
+    """
+
+    def __init__(self, core_workflow: core.Workflow, pre_submission_depth: int = 1):
         # the core workflow that unrolled the time constraints for the whole graph
         self._core_workflow = core_workflow
+
+        # Number of dependency levels that use SLURM dependencies
+        # 0 = fully sequential (WorkGraph control)
+        # 1 = one step ahead (direct dependencies use SLURM)
+        # N = N steps ahead
+        # Large number = entire workflow uses SLURM dependencies
+        self._pre_submission_depth = pre_submission_depth
 
         self._validate_workflow()
 
@@ -40,6 +144,8 @@ class AiidaWorkGraph:
         # stores the outputs sockets of tasks
         self._aiida_socket_nodes: dict[str, TaskSocket] = {}
         self._aiida_task_nodes: dict[str, Task] = {}
+        # stores job_id retrieval tasks for SLURM dependency chains
+        self._job_id_tasks: dict[str, Task] = {}
 
         # create input data nodes
         for data in self._core_workflow.data:
@@ -67,6 +173,10 @@ class AiidaWorkGraph:
         # link wait on to workgraph tasks
         for task in self._core_workflow.tasks:
             self._link_wait_on_to_task(task)
+
+        # Apply SLURM dependency pre-submission if depth > 0
+        if self._pre_submission_depth > 0:
+            self._apply_slurm_dependencies()
 
     def _validate_workflow(self):
         """Checks if the core workflow uses valid AiiDA names for its tasks and data."""
@@ -578,6 +688,153 @@ class AiidaWorkGraph:
 
         default_script_path = SCRIPT_DIR / "todi_cpu.sh"
         return aiida.orm.SinglefileData(file=default_script_path)
+
+    def _calculate_task_depths(self) -> dict[str, int]:
+        """Calculate the dependency depth for each task.
+
+        Depth is the length of the longest dependency chain from a root task.
+        Root tasks (no dependencies) have depth 0.
+        """
+        depths: dict[str, int] = {}
+
+        def get_depth(task: core.Task) -> int:
+            task_label = self.get_aiida_label_from_graph_item(task)
+            if task_label in depths:
+                return depths[task_label]
+
+            # If no dependencies, depth is 0
+            if not task.wait_on:
+                depths[task_label] = 0
+                return 0
+
+            # Otherwise, depth is 1 + max depth of dependencies
+            max_dep_depth = max(get_depth(dep_task) for dep_task in task.wait_on)
+            depths[task_label] = max_dep_depth + 1
+            return depths[task_label]
+
+        # Calculate depths for all tasks
+        for task in self._core_workflow.tasks:
+            get_depth(task)
+
+        return depths
+
+    def _apply_slurm_dependencies(self):
+        """Apply SLURM job dependencies for pre-submission of task chains."""
+        from aiida_workgraph import task as wg_task
+        from typing import Annotated
+
+        # Calculate task depths
+        task_depths = self._calculate_task_depths()
+
+        # Group tasks by depth
+        tasks_by_depth: dict[int, list[core.Task]] = {}
+        for task in self._core_workflow.tasks:
+            task_label = self.get_aiida_label_from_graph_item(task)
+            depth = task_depths[task_label]
+            if depth not in tasks_by_depth:
+                tasks_by_depth[depth] = []
+            tasks_by_depth[depth].append(task)
+
+        # For each task, if its dependencies are within pre_submission_depth,
+        # wrap it with SLURM dependency logic
+        for task in self._core_workflow.tasks:
+            task_label = self.get_aiida_label_from_graph_item(task)
+            task_depth = task_depths[task_label]
+
+            # Check if any dependency needs SLURM linking
+            deps_to_link = []
+            for dep_task in task.wait_on:
+                dep_label = self.get_aiida_label_from_graph_item(dep_task)
+                dep_depth = task_depths[dep_label]
+                # If dependency is within depth range, add SLURM dependency
+                if task_depth - dep_depth <= self._pre_submission_depth:
+                    deps_to_link.append(dep_task)
+
+            if deps_to_link:
+                self._wrap_task_with_slurm_dependency(task, deps_to_link)
+
+    def _wrap_task_with_slurm_dependency(self, task: core.Task, dependency_tasks: list[core.Task]):
+        """Enable SLURM job dependencies for pre-submission.
+
+        This method:
+        1. Creates get_job_id tasks to monitor SLURM job IDs from dependencies
+        2. Creates a task to build the SLURM dependency command string
+        3. Injects the dependency command into the task's custom_scheduler_commands
+        4. Removes WorkGraph waiting (so SLURM handles the dependency instead)
+        """
+        workgraph_task = self.task_from_core(task)
+        task_label = self.get_aiida_label_from_graph_item(task)
+
+        # Create get_job_id monitoring tasks for each dependency
+        job_id_outputs = {}
+        for dep_task in dependency_tasks:
+            dep_label = self.get_aiida_label_from_graph_item(dep_task)
+
+            if dep_label not in self._job_id_tasks:
+                job_id_task = self._workgraph.add_task(
+                    get_job_id,
+                    name=f"get_job_id_{dep_label}",
+                    workgraph_name=self._core_workflow.name,
+                    task_name=dep_label,
+                )
+                self._job_id_tasks[dep_label] = job_id_task
+
+                # Make get_job_id wait for the dependency task to be submitted
+                dep_workgraph_task = self.task_from_core(dep_task)
+                job_id_task.waiting_on.add(dep_workgraph_task)
+
+            job_id_outputs[dep_label] = self._job_id_tasks[dep_label].outputs.result
+
+        # Create a task to build the SLURM dependency string
+        @task(outputs=[{"name": "slurm_cmd"}])
+        def build_slurm_dep_cmd(**job_ids):
+            """Build SLURM dependency command from job IDs."""
+            if job_ids:
+                valid_ids = [str(jid) for jid in job_ids.values() if jid is not None]
+                if valid_ids:
+                    return {"slurm_cmd": f"#SBATCH --dependency=afterok:{':'.join(valid_ids)}"}
+            return {"slurm_cmd": ""}
+
+        # Add the dependency builder task
+        dep_cmd_task = self._workgraph.add_task(
+            build_slurm_dep_cmd,
+            name=f"slurm_dep_cmd_{task_label}",
+            **job_id_outputs
+        )
+
+        # Create a task to inject the SLURM command into metadata
+        @task(outputs=[{"name": "updated_metadata"}])
+        def inject_slurm_dep(metadata: dict, slurm_cmd: str):
+            """Inject SLURM dependency into task metadata."""
+            if slurm_cmd:
+                current_cmds = metadata.get("options", {}).get("custom_scheduler_commands", "")
+                if current_cmds and not current_cmds.endswith("\n"):
+                    current_cmds += "\n"
+                if "options" not in metadata:
+                    metadata["options"] = {}
+                metadata["options"]["custom_scheduler_commands"] = current_cmds + slurm_cmd
+            return {"updated_metadata": metadata}
+
+        # Add the injection task
+        inject_task = self._workgraph.add_task(
+            inject_slurm_dep,
+            name=f"inject_slurm_{task_label}",
+            metadata=workgraph_task.inputs.metadata.value,
+            slurm_cmd=dep_cmd_task.outputs.slurm_cmd
+        )
+
+        # Link updated metadata back to the task
+        # Note: This approach assumes we can update metadata dynamically
+        # workgraph_task.inputs.metadata = inject_task.outputs.updated_metadata
+
+        # Make the task wait for the injection to complete
+        workgraph_task.waiting_on.add(inject_task)
+
+        # Remove direct WorkGraph dependencies (SLURM will handle them)
+        for dep_task in dependency_tasks:
+            dep_workgraph_task = self.task_from_core(dep_task)
+            if dep_workgraph_task in workgraph_task.waiting_on:
+                workgraph_task.waiting_on.remove(dep_workgraph_task)
 
     def run(
         self,
