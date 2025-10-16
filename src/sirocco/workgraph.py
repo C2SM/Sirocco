@@ -61,31 +61,124 @@ async def get_job_id(workgraph_name: str, task_name: str, interval: int = 2, tim
         await asyncio.sleep(interval)
 
 
-@task
-def add_slurm_dependency_to_metadata(metadata: dict, job_ids: dict | None = None):
-    """Add SLURM dependency command to task metadata based on job IDs.
+@task.graph
+def icon_task_with_slurm_deps(task_params: dict, job_ids: dict = None):
+    """Launch ICON task with optional SLURM dependencies.
 
-    This task runs at execution time and modifies metadata to include SLURM dependencies.
+    This is a @task.graph that creates an ICON task at runtime with SLURM dependencies injected.
     """
+    from aiida_icon.calculations import IconCalculation
+    from aiida import orm
+    from typing import Annotated
+    from aiida_workgraph import dynamic
+
+    # Reconstruct the builder from stored params
+    builder = IconCalculation.get_builder()
+
+    # Restore code
+    builder.code = orm.load_node(task_params['code_pk'])
+
+    # Restore namelists
+    builder.master_namelist = orm.load_node(task_params['master_namelist_pk'])
+    if 'model_namelists_pks' in task_params:
+        for model_name, pk in task_params['model_namelists_pks'].items():
+            setattr(builder.models, model_name, orm.load_node(pk))
+
+    # Restore wrapper script if exists
+    if task_params.get('wrapper_script_pk'):
+        builder.wrapper_script = orm.load_node(task_params['wrapper_script_pk'])
+
+    # Restore metadata
+    builder.metadata = task_params['metadata'].copy()
+
+    # Add SLURM dependencies if provided
     if job_ids:
-        # Filter out None values and build dependency string
+        # Filter out None values
         valid_ids = [str(jid) for jid in job_ids.values() if jid is not None]
         if valid_ids:
             dep_str = ":".join(valid_ids)
             custom_cmd = f"#SBATCH --dependency=afterok:{dep_str}"
 
-            # Add to existing custom commands
+            current_cmds = builder.metadata.get("options", {}).get("custom_scheduler_commands", "")
+            if current_cmds and not current_cmds.endswith("\n"):
+                current_cmds += "\n"
+            if "options" not in builder.metadata:
+                builder.metadata["options"] = {}
+            builder.metadata["options"]["custom_scheduler_commands"] = current_cmds + custom_cmd
+
+    # Create the ICON task
+    from aiida_workgraph import task as wg_task
+    icon_task = wg_task(IconCalculation)(
+        code=builder.code,
+        master_namelist=builder.master_namelist,
+        **{k: v for k, v in builder.items() if k not in ['code', 'master_namelist']},
+        metadata=builder.metadata
+    )
+
+    return {
+        "remote_folder": icon_task.outputs.remote_folder,
+        "retrieved": icon_task.outputs.retrieved,
+        "remote_stash": icon_task.outputs.remote_stash
+    }
+
+
+@task.graph
+def shell_task_with_slurm_deps(task_params: dict, job_ids: dict = None):
+    """Launch Shell task with optional SLURM dependencies.
+
+    This is a @task.graph that creates a Shell task at runtime with SLURM dependencies injected.
+    """
+    from aiida import orm
+    from aiida_workgraph.tasks.shelljob_task import _build_shelljob_nodespec
+    from aiida_workgraph import WorkGraph
+
+    # Load the stored code
+    command = orm.load_node(task_params['command'])
+
+    # Load stored nodes
+    nodes = {}
+    if 'nodes_pks' in task_params:
+        for key, pk in task_params['nodes_pks'].items():
+            nodes[key] = orm.load_node(pk)
+
+    # Get metadata
+    metadata = task_params['metadata'].copy()
+
+    # Add SLURM dependencies if provided
+    if job_ids:
+        valid_ids = [str(jid) for jid in job_ids.values() if jid is not None]
+        if valid_ids:
+            dep_str = ":".join(valid_ids)
+            custom_cmd = f"#SBATCH --dependency=afterok:{dep_str}"
+
             current_cmds = metadata.get("options", {}).get("custom_scheduler_commands", "")
             if current_cmds and not current_cmds.endswith("\n"):
                 current_cmds += "\n"
-
             if "options" not in metadata:
                 metadata["options"] = {}
             metadata["options"]["custom_scheduler_commands"] = current_cmds + custom_cmd
 
-    return metadata
+    # Build the task spec
+    spec = _build_shelljob_nodespec(
+        identifier=task_params['identifier'],
+        outputs=None,
+        parser_outputs=None,
+    )
 
+    # Get current workgraph and create task
+    wg = WorkGraph.get_current_workgraph()
+    shell_task = wg.tasks._new(
+        spec,
+        name=task_params['name'],
+        command=command,
+        arguments=task_params.get('arguments', []),
+        nodes=nodes,
+        outputs=task_params.get('outputs', []),
+        metadata=metadata,
+        resolve_command=task_params.get('resolve_command', False),
+    )
 
+    return shell_task.outputs
 
 
 class AiidaWorkGraph:
@@ -146,11 +239,25 @@ class AiidaWorkGraph:
         self._aiida_task_nodes: dict[str, Task] = {}
         # stores job_id retrieval tasks for SLURM dependency chains
         self._job_id_tasks: dict[str, Task] = {}
+        # stores pending tasks that need SLURM wrapping (task_label -> params dict)
+        self._pending_tasks: dict[str, dict] = {}
+        # tracks which tasks need SLURM wrapping based on dependencies
+        self._needs_slurm_wrapping: dict[str, list[core.Task]] = {}
 
         # create input data nodes
         for data in self._core_workflow.data:
             if isinstance(data, core.AvailableData):
                 self._add_aiida_input_data_node(data)
+
+        # Calculate task depths and determine which tasks need SLURM wrapping
+        # This must be done BEFORE creating tasks
+        if self._pre_submission_depth > 0:
+            task_depths = self._calculate_task_depths()
+            for task in self._core_workflow.tasks:
+                deps_needing_slurm = self._task_needs_slurm_wrapping(task, task_depths)
+                if deps_needing_slurm:
+                    task_label = self.get_aiida_label_from_graph_item(task)
+                    self._needs_slurm_wrapping[task_label] = deps_needing_slurm
 
         # create workgraph task nodes and output sockets
         for task in self._core_workflow.tasks:
@@ -174,9 +281,9 @@ class AiidaWorkGraph:
         for task in self._core_workflow.tasks:
             self._link_wait_on_to_task(task)
 
-        # Apply SLURM dependency pre-submission if depth > 0
-        if self._pre_submission_depth > 0:
-            self._apply_slurm_dependencies()
+        # Finalize pending tasks with SLURM dependencies
+        if self._pre_submission_depth > 0 and self._pending_tasks:
+            self._finalize_tasks_with_slurm_deps()
 
     def _validate_workflow(self):
         """Checks if the core workflow uses valid AiiDA names for its tasks and data."""
@@ -317,6 +424,16 @@ class AiidaWorkGraph:
         from aiida_shell import ShellCode
 
         label = self.get_aiida_label_from_graph_item(task)
+
+        # Check if this task needs SLURM wrapping
+        if label in self._needs_slurm_wrapping:
+            # Store parameters for later wrapper creation
+            self._store_shell_task_params(task, label)
+            # Create a placeholder in _aiida_task_nodes to maintain compatibility
+            self._aiida_task_nodes[label] = None  # type: ignore[assignment]
+            return
+
+        # Normal task creation (no SLURM wrapping needed)
         cmd, _ = self.split_cmd_arg(task.command)
 
         try:
@@ -376,10 +493,77 @@ class AiidaWorkGraph:
 
         self._aiida_task_nodes[label] = workgraph_task
 
+    def _store_shell_task_params(self, task: core.ShellTask, label: str):
+        """Store Shell task parameters for later wrapper creation with SLURM deps."""
+        from aiida_shell import ShellCode
+
+        cmd, _ = self.split_cmd_arg(task.command)
+
+        try:
+            computer = aiida.orm.Computer.collection.get(label=task.computer)
+        except NotExistent as err:
+            msg = f"Could not find computer {task.computer!r} in AiiDA database."
+            raise ValueError(msg) from err
+
+        # Build metadata
+        metadata = {}
+        metadata["options"] = {}
+        metadata["options"]["use_symlinks"] = True
+        metadata["options"]["account"] = "cwd01"
+        metadata["options"]["additional_retrieve"] = [
+            "_scheduler-stdout.txt",
+            "_scheduler-stderr.txt",
+        ]
+        metadata["options"].update(self._from_task_get_scheduler_options(task))
+
+        if task.computer is not None:
+            metadata["computer"] = computer
+
+        # Prepare nodes (input files) - store PKs
+        nodes_pks = {}
+        if task.path is not None:
+            script_node = aiida.orm.SinglefileData(str(task.path)).store()
+            nodes_pks[f"SCRIPT__{label}"] = script_node.pk
+
+        # Create and store ShellCode
+        label_uuid = str(uuid.uuid4())
+        code = ShellCode(
+            label=f"{cmd}-{label_uuid}",
+            computer=computer,
+            filepath_executable=cmd,
+            default_calc_job_plugin="core.shell",
+            use_double_quotes=True,
+        ).store()
+
+        # Store all parameters needed to recreate the task later
+        self._pending_tasks[label] = {
+            'task_type': 'shell',
+            'identifier': f"shelljob_{label}",
+            'name': label,
+            'command': code.pk,  # Store code PK
+            'arguments': [],
+            'nodes_pks': nodes_pks,
+            'outputs': [],
+            'metadata': metadata,
+            'resolve_command': False,
+            'core_task': task,  # Keep reference to original task
+        }
+
     @create_task_node.register
     def _create_icon_task_node(self, task: core.IconTask):
         task_label = self.get_aiida_label_from_graph_item(task)
 
+        # Check if this task needs SLURM wrapping
+        if task_label in self._needs_slurm_wrapping:
+            # Store parameters for later wrapper creation
+            # The actual task will be created in the finalization phase
+            self._store_icon_task_params(task, task_label)
+            # Create a placeholder in _aiida_task_nodes to maintain compatibility
+            # This will be replaced during finalization
+            self._aiida_task_nodes[task_label] = None  # type: ignore[assignment]
+            return
+
+        # Normal task creation (no SLURM wrapping needed)
         try:
             computer = aiida.orm.Computer.collection.get(label=task.computer)
         except NotExistent as err:
@@ -439,6 +623,67 @@ class AiidaWorkGraph:
         self._aiida_task_nodes[task_label] = self._workgraph.add_task(
             builder, name=task_label
         )
+
+    def _store_icon_task_params(self, task: core.IconTask, task_label: str):
+        """Store ICON task parameters for later wrapper creation with SLURM deps."""
+        try:
+            computer = aiida.orm.Computer.collection.get(label=task.computer)
+        except NotExistent as err:
+            msg = f"Could not find computer {task.computer!r} in AiiDA database."
+            raise ValueError(msg) from err
+
+        # Create and store the code
+        icon_code = aiida.orm.InstalledCode(
+            label=f"icon-{task_label}",
+            description="aiida_icon",
+            default_calc_job_plugin="icon.icon",
+            computer=computer,
+            filepath_executable=str(task.bin),
+            with_mpi=bool(task.mpi_cmd),
+            use_double_quotes=True,
+        ).store()
+
+        task.update_icon_namelists_from_workflow()
+
+        # Create and store namelists
+        with io.StringIO() as buffer:
+            task.master_namelist.namelist.write(buffer)
+            buffer.seek(0)
+            master_namelist_node = aiida.orm.SinglefileData(
+                buffer, task.master_namelist.name
+            ).store()
+
+        model_namelists_pks = {}
+        for model_name, model_nml in task.model_namelists.items():
+            with io.StringIO() as buffer:
+                model_nml.namelist.write(buffer)
+                buffer.seek(0)
+                model_node = aiida.orm.SinglefileData(buffer, model_nml.name).store()
+                model_namelists_pks[model_name] = model_node.pk
+
+        # Store wrapper script if exists
+        wrapper_script_pk = None
+        wrapper_script_data = AiidaWorkGraph.get_wrapper_script_aiida_data(task)
+        if wrapper_script_data is not None:
+            wrapper_script_pk = wrapper_script_data.store().pk
+
+        # Build metadata
+        options = {}
+        options.update(self._from_task_get_scheduler_options(task))
+        options["additional_retrieve_list"] = []
+        options["account"] = "cwd01"
+        metadata = {"options": options}
+
+        # Store all parameters needed to recreate the builder later
+        self._pending_tasks[task_label] = {
+            'task_type': 'icon',
+            'code_pk': icon_code.pk,
+            'master_namelist_pk': master_namelist_node.pk,
+            'model_namelists_pks': model_namelists_pks,
+            'wrapper_script_pk': wrapper_script_pk,
+            'metadata': metadata,
+            'core_task': task,  # Keep reference to original task
+        }
 
     def _from_task_get_scheduler_options(self, task: core.Task) -> dict[str, Any]:
         options: dict[str, Any] = {}
@@ -718,123 +963,98 @@ class AiidaWorkGraph:
 
         return depths
 
-    def _apply_slurm_dependencies(self):
-        """Apply SLURM job dependencies for pre-submission of task chains."""
-        from aiida_workgraph import task as wg_task
-        from typing import Annotated
+    def _task_needs_slurm_wrapping(self, task: core.Task, task_depths: dict[str, int]) -> list[core.Task]:
+        """Check if a task needs SLURM wrapping and return dependencies that need it.
 
-        # Calculate task depths
-        task_depths = self._calculate_task_depths()
-
-        # Group tasks by depth
-        tasks_by_depth: dict[int, list[core.Task]] = {}
-        for task in self._core_workflow.tasks:
-            task_label = self.get_aiida_label_from_graph_item(task)
-            depth = task_depths[task_label]
-            if depth not in tasks_by_depth:
-                tasks_by_depth[depth] = []
-            tasks_by_depth[depth].append(task)
-
-        # For each task, if its dependencies are within pre_submission_depth,
-        # wrap it with SLURM dependency logic
-        for task in self._core_workflow.tasks:
-            task_label = self.get_aiida_label_from_graph_item(task)
-            task_depth = task_depths[task_label]
-
-            # Check if any dependency needs SLURM linking
-            deps_to_link = []
-            for dep_task in task.wait_on:
-                dep_label = self.get_aiida_label_from_graph_item(dep_task)
-                dep_depth = task_depths[dep_label]
-                # If dependency is within depth range, add SLURM dependency
-                if task_depth - dep_depth <= self._pre_submission_depth:
-                    deps_to_link.append(dep_task)
-
-            if deps_to_link:
-                self._wrap_task_with_slurm_dependency(task, deps_to_link)
-
-    def _wrap_task_with_slurm_dependency(self, task: core.Task, dependency_tasks: list[core.Task]):
-        """Enable SLURM job dependencies for pre-submission.
-
-        This method:
-        1. Creates get_job_id tasks to monitor SLURM job IDs from dependencies
-        2. Creates a task to build the SLURM dependency command string
-        3. Injects the dependency command into the task's custom_scheduler_commands
-        4. Removes WorkGraph waiting (so SLURM handles the dependency instead)
+        Returns:
+            List of dependency tasks that should use SLURM dependencies, empty if no wrapping needed
         """
-        workgraph_task = self.task_from_core(task)
+        if self._pre_submission_depth == 0:
+            return []
+
         task_label = self.get_aiida_label_from_graph_item(task)
+        task_depth = task_depths[task_label]
 
-        # Create get_job_id monitoring tasks for each dependency
-        job_id_outputs = {}
-        for dep_task in dependency_tasks:
+        deps_needing_slurm = []
+        for dep_task in task.wait_on:
             dep_label = self.get_aiida_label_from_graph_item(dep_task)
+            dep_depth = task_depths[dep_label]
+            # If dependency is within depth range, it needs SLURM dependency
+            if task_depth - dep_depth <= self._pre_submission_depth:
+                deps_needing_slurm.append(dep_task)
 
-            if dep_label not in self._job_id_tasks:
-                job_id_task = self._workgraph.add_task(
-                    get_job_id,
-                    name=f"get_job_id_{dep_label}",
-                    workgraph_name=self._core_workflow.name,
-                    task_name=dep_label,
+        return deps_needing_slurm
+
+    def _finalize_tasks_with_slurm_deps(self):
+        """Create wrapper tasks for pending tasks that need SLURM dependencies.
+
+        This method is called after all tasks are created and linked. It:
+        1. Creates get_job_id tasks for each dependency that needs SLURM deps
+        2. Creates @task.graph wrappers for pending tasks with job_ids as dynamic inputs
+        3. Wires up the dependencies and removes WorkGraph waiting
+        """
+        if not self._pending_tasks:
+            return
+
+        # For each pending task, create the wrapper with SLURM deps
+        for task_label, task_params in self._pending_tasks.items():
+            deps_needing_slurm = self._needs_slurm_wrapping[task_label]
+
+            # Create get_job_id tasks for each dependency
+            job_id_inputs = {}
+            for dep_task in deps_needing_slurm:
+                dep_label = self.get_aiida_label_from_graph_item(dep_task)
+
+                # Create get_job_id task if not already created
+                if dep_label not in self._job_id_tasks:
+                    job_id_task = self._workgraph.add_task(
+                        get_job_id,
+                        name=f"get_job_id_{dep_label}",
+                        workgraph_name=self._core_workflow.name,
+                        task_name=dep_label,
+                    )
+                    self._job_id_tasks[dep_label] = job_id_task
+
+                    # Make get_job_id wait for the dependency task
+                    # Note: dep_task should already be created (not pending)
+                    dep_workgraph_task = self.task_from_core(dep_task)
+                    if dep_workgraph_task is not None:
+                        job_id_task.waiting_on.add(dep_workgraph_task)
+
+                # Collect job ID output
+                job_id_inputs[dep_label] = self._job_id_tasks[dep_label].outputs.result
+
+            # Create the wrapped task
+            if task_params['task_type'] == 'icon':
+                wrapped_task = self._workgraph.add_task(
+                    icon_task_with_slurm_deps,
+                    name=task_label,
+                    task_params=task_params,
+                    job_ids=job_id_inputs
                 )
-                self._job_id_tasks[dep_label] = job_id_task
+            elif task_params['task_type'] == 'shell':
+                wrapped_task = self._workgraph.add_task(
+                    shell_task_with_slurm_deps,
+                    name=task_label,
+                    task_params=task_params,
+                    job_ids=job_id_inputs
+                )
+            else:
+                msg = f"Unknown task type: {task_params['task_type']}"
+                raise ValueError(msg)
 
-                # Make get_job_id wait for the dependency task to be submitted
-                dep_workgraph_task = self.task_from_core(dep_task)
-                job_id_task.waiting_on.add(dep_workgraph_task)
+            # Replace the placeholder in _aiida_task_nodes
+            self._aiida_task_nodes[task_label] = wrapped_task
 
-            job_id_outputs[dep_label] = self._job_id_tasks[dep_label].outputs.result
-
-        # Create a task to build the SLURM dependency string
-        @task(outputs=[{"name": "slurm_cmd"}])
-        def build_slurm_dep_cmd(**job_ids):
-            """Build SLURM dependency command from job IDs."""
-            if job_ids:
-                valid_ids = [str(jid) for jid in job_ids.values() if jid is not None]
-                if valid_ids:
-                    return {"slurm_cmd": f"#SBATCH --dependency=afterok:{':'.join(valid_ids)}"}
-            return {"slurm_cmd": ""}
-
-        # Add the dependency builder task
-        dep_cmd_task = self._workgraph.add_task(
-            build_slurm_dep_cmd,
-            name=f"slurm_dep_cmd_{task_label}",
-            **job_id_outputs
-        )
-
-        # Create a task to inject the SLURM command into metadata
-        @task(outputs=[{"name": "updated_metadata"}])
-        def inject_slurm_dep(metadata: dict, slurm_cmd: str):
-            """Inject SLURM dependency into task metadata."""
-            if slurm_cmd:
-                current_cmds = metadata.get("options", {}).get("custom_scheduler_commands", "")
-                if current_cmds and not current_cmds.endswith("\n"):
-                    current_cmds += "\n"
-                if "options" not in metadata:
-                    metadata["options"] = {}
-                metadata["options"]["custom_scheduler_commands"] = current_cmds + slurm_cmd
-            return {"updated_metadata": metadata}
-
-        # Add the injection task
-        inject_task = self._workgraph.add_task(
-            inject_slurm_dep,
-            name=f"inject_slurm_{task_label}",
-            metadata=workgraph_task.inputs.metadata.value,
-            slurm_cmd=dep_cmd_task.outputs.slurm_cmd
-        )
-
-        # Link updated metadata back to the task
-        # Note: This approach assumes we can update metadata dynamically
-        # workgraph_task.inputs.metadata = inject_task.outputs.updated_metadata
-
-        # Make the task wait for the injection to complete
-        workgraph_task.waiting_on.add(inject_task)
-
-        # Remove direct WorkGraph dependencies (SLURM will handle them)
-        for dep_task in dependency_tasks:
-            dep_workgraph_task = self.task_from_core(dep_task)
-            if dep_workgraph_task in workgraph_task.waiting_on:
-                workgraph_task.waiting_on.remove(dep_workgraph_task)
+            # Remove direct WorkGraph dependencies for deps that use SLURM
+            # The wrapped task will wait for get_job_id tasks automatically
+            # but we need to ensure it doesn't also wait on the original tasks
+            core_task = task_params['core_task']
+            for dep_task in deps_needing_slurm:
+                if dep_task in core_task.wait_on:
+                    # The WorkGraph dependency is replaced by SLURM dependency
+                    # The wrapped task will automatically wait for get_job_id tasks
+                    pass  # No explicit removal needed; wrapper handles dependencies
 
     def run(
         self,

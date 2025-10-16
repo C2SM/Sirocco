@@ -35,11 +35,11 @@ dependencies = [
   "ruamel.yaml",
   # "aiida-core>=2.5",
   "aiida-core @ git+https://github.com/khsrali/aiida-core.git@afed03cba3078f6818b0370fde756a6c546a9314",
-  "aiida-firecrest@git+https://github.com/aiidateam/aiida-firecrest",
+  "aiida-firecrest @ git+https://github.com/aiidateam/aiida-firecrest.git@fb7b7b09bc9e88faf0c7a0f69da1110290d29185",
   "pyfirecrest",
   "aiida-icon>=0.4.0",
   "aiida-workgraph==0.7.2",  # need latest for presubmission
-  "node-graph @ git+https://github.com/superstar54/node-graph.git@edd1837dc68d2755bedb5ecb17c50c5ba0727fed",
+  # "node-graph @ git+https://github.com/superstar54/node-graph.git@edd1837dc68d2755bedb5ecb17c50c5ba0727fed",
   "termcolor",
   "pygraphviz",
   "lxml",
