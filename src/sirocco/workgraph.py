@@ -235,15 +235,17 @@ class AiidaWorkGraph:
             nodes[f"SCRIPT__{label}"] = aiida.orm.SinglefileData(str(task.path))
 
         # Create ShellCode
-        # TODO: don't create new ones
-        label_uuid = str(uuid.uuid4())
-        code = ShellCode(
-            label=f"{cmd}-{label_uuid}",
-            computer=computer,
-            filepath_executable=cmd,
-            default_calc_job_plugin="core.shell",
-            use_double_quotes=True,
-        ).store()
+        code_label = f"{cmd}@{computer}"
+        try:
+            code = aiida.orm.load_code(code_label)
+        except NotExistent:
+            code = ShellCode(
+                label=code_label,
+                computer=computer,
+                filepath_executable=cmd,
+                default_calc_job_plugin="core.shell",
+                use_double_quotes=True,
+            ).store()
 
         # Build the shelljob NodeSpec directly
         spec = _build_shelljob_nodespec(
@@ -277,15 +279,19 @@ class AiidaWorkGraph:
             raise ValueError(msg) from err
 
         # Use the original computer directly
-        icon_code = aiida.orm.InstalledCode(
-            label=f"icon-{task_label}",
-            description="aiida_icon",
-            default_calc_job_plugin="icon.icon",
-            computer=computer,
-            filepath_executable=str(task.bin),
-            with_mpi=bool(task.mpi_cmd),
-            use_double_quotes=True,
-        ).store()
+        icon_label = f"icon@{computer.label}"
+        try:
+            icon_code = aiida.orm.load_code(icon_label)
+        except NotExistent:
+            icon_code = aiida.orm.InstalledCode(
+                label=icon_label,
+                description="aiida_icon",
+                default_calc_job_plugin="icon.icon",
+                computer=computer,
+                filepath_executable=str(task.bin),
+                with_mpi=bool(task.mpi_cmd),
+                use_double_quotes=True,
+            ).store()
 
         builder = IconCalculation.get_builder()
         builder.code = icon_code
