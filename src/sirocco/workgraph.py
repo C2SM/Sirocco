@@ -219,7 +219,7 @@ class AiidaWorkGraph:
         metadata = {}
         metadata["options"] = {}
         metadata["options"]["use_symlinks"] = True
-        metadata["options"]["account"] = "cwd01"
+        # metadata["options"]["account"] = "cwd01"
         metadata["options"]["additional_retrieve"] = [
             "_scheduler-stdout.txt",
             "_scheduler-stderr.txt",
@@ -321,7 +321,7 @@ class AiidaWorkGraph:
         options = {}
         options.update(self._from_task_get_scheduler_options(task))
         options["additional_retrieve_list"] = []
-        options["account"] = "cwd01"
+        # options["account"] = "cwd01"
 
         metadata["options"] = options
         builder.metadata = metadata
