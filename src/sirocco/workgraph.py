@@ -13,6 +13,9 @@ from aiida.common.exceptions import NotExistent
 from aiida_icon.calculations import IconCalculation
 from aiida_shell.parsers.shell import ShellParser
 from aiida_workgraph import WorkGraph, Task, task
+from aiida import orm
+from typing import Annotated
+from aiida_workgraph import dynamic
 
 from sirocco import core
 from sirocco.core.graph_items import GeneratedData
@@ -27,7 +30,9 @@ if TYPE_CHECKING:
 
 
 @task
-async def get_job_id(workgraph_name: str, task_name: str, interval: int = 2, timeout: int = 600):
+async def get_job_id(
+    workgraph_name: str, task_name: str, interval: int = 2, timeout: int = 600
+):
     """Get the job_id of a CalcJob task in a workgraph by polling the workgraph node."""
     from aiida import orm
     from aiida_workgraph.engine.workgraph import WorkGraphEngine
@@ -61,35 +66,34 @@ async def get_job_id(workgraph_name: str, task_name: str, interval: int = 2, tim
         await asyncio.sleep(interval)
 
 
-@task.graph(outputs=[{"name": "remote_folder"}, {"name": "retrieved"}, {"name": "remote_stash"}])
-def icon_task_with_slurm_deps(task_params: dict, job_ids: "Annotated[dict, dynamic(int)]" = None):
+# @task.graph(outputs=[{"name": "remote_folder"}, {"name": "retrieved"}, {"name": "remote_stash"}])
+@task.graph(outputs=["remote_folder", "retrieved", "remote_stash"])
+def icon_task_with_slurm_deps(
+    task_params: dict, job_ids: Annotated[dict, dynamic(int)] | None = None
+):
     """Launch ICON task with optional SLURM dependencies.
 
     This is a @task.graph that creates an ICON task at runtime with SLURM dependencies injected.
     """
-    from aiida_icon.calculations import IconCalculation
-    from aiida import orm
-    from typing import Annotated
-    from aiida_workgraph import dynamic, WorkGraph
 
     # Reconstruct the builder from stored params
     builder = IconCalculation.get_builder()
 
     # Restore code
-    builder.code = orm.load_node(task_params['code_pk'])
+    builder.code = orm.load_node(task_params["code_pk"])
 
     # Restore namelists
-    builder.master_namelist = orm.load_node(task_params['master_namelist_pk'])
-    if 'model_namelists_pks' in task_params:
-        for model_name, pk in task_params['model_namelists_pks'].items():
+    builder.master_namelist = orm.load_node(task_params["master_namelist_pk"])
+    if "model_namelists_pks" in task_params:
+        for model_name, pk in task_params["model_namelists_pks"].items():
             setattr(builder.models, model_name, orm.load_node(pk))
 
     # Restore wrapper script if exists
-    if task_params.get('wrapper_script_pk'):
-        builder.wrapper_script = orm.load_node(task_params['wrapper_script_pk'])
+    if task_params.get("wrapper_script_pk"):
+        builder.wrapper_script = orm.load_node(task_params["wrapper_script_pk"])
 
     # Restore metadata
-    builder.metadata = task_params['metadata'].copy()
+    builder.metadata = task_params["metadata"].copy()
 
     # Add SLURM dependencies if provided
     if job_ids:
@@ -99,12 +103,16 @@ def icon_task_with_slurm_deps(task_params: dict, job_ids: "Annotated[dict, dynam
             dep_str = ":".join(valid_ids)
             custom_cmd = f"#SBATCH --dependency=afterok:{dep_str}"
 
-            current_cmds = builder.metadata.get("options", {}).get("custom_scheduler_commands", "")
+            current_cmds = builder.metadata.get("options", {}).get(
+                "custom_scheduler_commands", ""
+            )
             if current_cmds and not current_cmds.endswith("\n"):
                 current_cmds += "\n"
             if "options" not in builder.metadata:
                 builder.metadata["options"] = {}
-            builder.metadata["options"]["custom_scheduler_commands"] = current_cmds + custom_cmd
+            builder.metadata["options"]["custom_scheduler_commands"] = (
+                current_cmds + custom_cmd
+            )
 
     # Get the current workgraph and add the ICON task
     wg = WorkGraph.get_current_workgraph()
@@ -113,12 +121,15 @@ def icon_task_with_slurm_deps(task_params: dict, job_ids: "Annotated[dict, dynam
     return {
         "remote_folder": icon_task.outputs.remote_folder,
         "retrieved": icon_task.outputs.retrieved,
-        "remote_stash": icon_task.outputs.remote_stash
+        "remote_stash": icon_task.outputs.remote_stash,
     }
 
 
-@task.graph
-def shell_task_with_slurm_deps(task_params: dict, job_ids: "Annotated[dict, dynamic(int)]" = None):
+# @task.graph(outputs=[{"name": "result", "property": "node_outputs"}])
+# @task.graph(outputs=[{"name": "result", "property": "node_outputs"}])
+def shell_task_with_slurm_deps(
+    task_params: dict, job_ids: "Annotated[dict, dynamic(int)]" = None
+):
     """Launch Shell task with optional SLURM dependencies.
 
     This is a @task.graph that creates a Shell task at runtime with SLURM dependencies injected.
@@ -126,20 +137,18 @@ def shell_task_with_slurm_deps(task_params: dict, job_ids: "Annotated[dict, dyna
     from aiida import orm
     from aiida_workgraph.tasks.shelljob_task import _build_shelljob_nodespec
     from aiida_workgraph import WorkGraph
-    from typing import Annotated
-    from aiida_workgraph import dynamic
 
     # Load the stored code
-    command = orm.load_node(task_params['command'])
+    command = orm.load_node(task_params["command"])
 
     # Load stored nodes
     nodes = {}
-    if 'nodes_pks' in task_params:
-        for key, pk in task_params['nodes_pks'].items():
+    if "nodes_pks" in task_params:
+        for key, pk in task_params["nodes_pks"].items():
             nodes[key] = orm.load_node(pk)
 
     # Get metadata
-    metadata = task_params['metadata'].copy()
+    metadata = task_params["metadata"].copy()
 
     # Add SLURM dependencies if provided
     if job_ids:
@@ -149,7 +158,9 @@ def shell_task_with_slurm_deps(task_params: dict, job_ids: "Annotated[dict, dyna
             dep_str = ":".join(valid_ids)
             custom_cmd = f"#SBATCH --dependency=afterok:{dep_str}"
 
-            current_cmds = metadata.get("options", {}).get("custom_scheduler_commands", "")
+            current_cmds = metadata.get("options", {}).get(
+                "custom_scheduler_commands", ""
+            )
             if current_cmds and not current_cmds.endswith("\n"):
                 current_cmds += "\n"
             if "options" not in metadata:
@@ -158,7 +169,7 @@ def shell_task_with_slurm_deps(task_params: dict, job_ids: "Annotated[dict, dyna
 
     # Build the task spec
     spec = _build_shelljob_nodespec(
-        identifier=task_params['identifier'],
+        identifier=task_params["identifier"],
         outputs=None,
         parser_outputs=None,
     )
@@ -167,13 +178,13 @@ def shell_task_with_slurm_deps(task_params: dict, job_ids: "Annotated[dict, dyna
     wg = WorkGraph.get_current_workgraph()
     shell_task = wg.tasks._new(
         spec,
-        name=task_params['name'],
+        name=task_params["name"],
         command=command,
-        arguments=task_params.get('arguments', []),
+        arguments=task_params.get("arguments", []),
         nodes=nodes,
-        outputs=task_params.get('outputs', []),
+        outputs=task_params.get("outputs", []),
         metadata=metadata,
-        resolve_command=task_params.get('resolve_command', False),
+        resolve_command=task_params.get("resolve_command", False),
     )
 
     return shell_task.outputs
@@ -535,16 +546,16 @@ class AiidaWorkGraph:
 
         # Store all parameters needed to recreate the task later
         self._pending_tasks[label] = {
-            'task_type': 'shell',
-            'identifier': f"shelljob_{label}",
-            'name': label,
-            'command': code.pk,  # Store code PK
-            'arguments': [],
-            'nodes_pks': nodes_pks,
-            'outputs': [],
-            'metadata': metadata,
-            'resolve_command': False,
-            'core_task': task,  # Keep reference to original task
+            "task_type": "shell",
+            "identifier": f"shelljob_{label}",
+            "name": label,
+            "command": code.pk,  # Store code PK
+            "arguments": [],
+            "nodes_pks": nodes_pks,
+            "outputs": [],
+            "metadata": metadata,
+            "resolve_command": False,
+            "core_task": task,  # Keep reference to original task
         }
 
     @create_task_node.register
@@ -674,13 +685,13 @@ class AiidaWorkGraph:
 
         # Store all parameters needed to recreate the builder later
         self._pending_tasks[task_label] = {
-            'task_type': 'icon',
-            'code_pk': icon_code.pk,
-            'master_namelist_pk': master_namelist_node.pk,
-            'model_namelists_pks': model_namelists_pks,
-            'wrapper_script_pk': wrapper_script_pk,
-            'metadata': metadata,
-            'core_task': task,  # Keep reference to original task
+            "task_type": "icon",
+            "code_pk": icon_code.pk,
+            "master_namelist_pk": master_namelist_node.pk,
+            "model_namelists_pks": model_namelists_pks,
+            "wrapper_script_pk": wrapper_script_pk,
+            "metadata": metadata,
+            "core_task": task,  # Keep reference to original task
         }
 
     def _from_task_get_scheduler_options(self, task: core.Task) -> dict[str, Any]:
@@ -860,7 +871,9 @@ class AiidaWorkGraph:
         # They will be handled by get_job_id tasks in finalization
         task_label = self.get_aiida_label_from_graph_item(task)
         if task_label not in self._needs_slurm_wrapping:
-            workgraph_task.waiting_on.add([self.task_from_core(wt) for wt in task.wait_on])
+            workgraph_task.waiting_on.add(
+                [self.task_from_core(wt) for wt in task.wait_on]
+            )
 
     @staticmethod
     def _parse_mpi_cmd_to_aiida(mpi_cmd: str) -> str:
@@ -986,7 +999,9 @@ class AiidaWorkGraph:
 
         return depths
 
-    def _task_needs_slurm_wrapping(self, task: core.Task, task_depths: dict[str, int]) -> list[core.Task]:
+    def _task_needs_slurm_wrapping(
+        self, task: core.Task, task_depths: dict[str, int]
+    ) -> list[core.Task]:
         """Check if a task needs SLURM wrapping and return dependencies that need it.
 
         Returns:
@@ -1033,16 +1048,17 @@ class AiidaWorkGraph:
                     # Determine the inner task name based on task type
                     dep_task_params = self._pending_tasks.get(dep_label)
                     if dep_task_params:
-                        # Dependency is also a wrapped task - use the inner CalcJob name
-                        if dep_task_params['task_type'] == 'icon':
+                        # Dependency is also a wrapped task
+                        # The inner task name depends on the wrapper implementation
+                        if dep_task_params["task_type"] == "icon":
                             inner_task_name = "IconCalculation"
                         else:  # shell
-                            inner_task_name = dep_task_params['name']
-                        # workgraph_name is the wrapper's call_link_label
+                            # Shell tasks use the actual task name, not a generic "ShellJob"
+                            inner_task_name = dep_task_params["name"]
+                        # workgraph_name is the wrapper's name (which uses call_link_label = dep_label)
                         workgraph_name = dep_label
                     else:
-                        # Dependency is not wrapped - this shouldn't happen with proper logic
-                        # but handle it gracefully
+                        # Dependency is not wrapped - use the task label directly
                         inner_task_name = dep_label
                         workgraph_name = self._core_workflow.name
 
@@ -1055,30 +1071,34 @@ class AiidaWorkGraph:
                     self._job_id_tasks[dep_label] = job_id_task
 
                     # Make get_job_id wait for the dependency task
-                    # Note: dep_task should already be created (not pending)
                     dep_workgraph_task = self.task_from_core(dep_task)
                     if dep_workgraph_task is not None:
                         job_id_task.waiting_on.add(dep_workgraph_task)
+                    else:
+                        # Dependency is pending, will be replaced by wrapper
+                        # The get_job_id should wait for the wrapper instead
+                        # This will be handled when we replace the task in _aiida_task_nodes
+                        pass
 
                 # Collect job ID output
                 job_id_inputs[dep_label] = self._job_id_tasks[dep_label].outputs.result
 
             # Create the wrapped task with metadata to set the workgraph name
-            if task_params['task_type'] == 'icon':
+            if task_params["task_type"] == "icon":
                 wrapped_task = self._workgraph.add_task(
                     icon_task_with_slurm_deps,
                     name=task_label,
                     task_params=task_params,
                     job_ids=job_id_inputs,
-                    metadata={"call_link_label": task_label}
+                    metadata={"call_link_label": task_label},
                 )
-            elif task_params['task_type'] == 'shell':
+            elif task_params["task_type"] == "shell":
                 wrapped_task = self._workgraph.add_task(
                     shell_task_with_slurm_deps,
                     name=task_label,
                     task_params=task_params,
                     job_ids=job_id_inputs,
-                    metadata={"call_link_label": task_label}
+                    metadata={"call_link_label": task_label},
                 )
             else:
                 msg = f"Unknown task type: {task_params['task_type']}"
@@ -1087,15 +1107,15 @@ class AiidaWorkGraph:
             # Replace the placeholder in _aiida_task_nodes
             self._aiida_task_nodes[task_label] = wrapped_task
 
-            # Remove direct WorkGraph dependencies for deps that use SLURM
-            # The wrapped task will wait for get_job_id tasks automatically
-            # but we need to ensure it doesn't also wait on the original tasks
-            core_task = task_params['core_task']
-            for dep_task in deps_needing_slurm:
-                if dep_task in core_task.wait_on:
-                    # The WorkGraph dependency is replaced by SLURM dependency
-                    # The wrapped task will automatically wait for get_job_id tasks
-                    pass  # No explicit removal needed; wrapper handles dependencies
+            # Update any get_job_id tasks that were waiting for this task
+            # Now they should wait for the wrapper instead
+            for job_id_task_label, job_id_task in self._job_id_tasks.items():
+                # Check if this get_job_id targets our task
+                if job_id_task.inputs.workgraph_name.value == task_label:
+                    # This get_job_id is looking for a task inside our wrapper
+                    # Make sure it waits for the wrapper
+                    if wrapped_task not in job_id_task.waiting_on._tasks:
+                        job_id_task.waiting_on.add(wrapped_task)
 
     def run(
         self,
