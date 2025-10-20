@@ -235,7 +235,7 @@ class AiidaWorkGraph:
             nodes[f"SCRIPT__{label}"] = aiida.orm.SinglefileData(str(task.path))
 
         # Create ShellCode
-        code_label = f"{cmd}@{computer}"
+        code_label = f"{cmd}@{computer.label}"
         try:
             code = aiida.orm.load_code(code_label)
         except NotExistent:
