@@ -1,3 +1,4 @@
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -225,6 +226,157 @@ def submit(
 
     except Exception as e:
         console.print(f"[bold red]❌ Workflow submission failed: {e}[/bold red]")
+        console.print_exception()
+        raise typer.Exit(code=1) from e
+
+
+@app.command()
+def create_symlink_tree(
+    pk: Annotated[
+        int,
+        typer.Argument(
+            ...,
+            help="PK (Primary Key) of the submitted workflow node.",
+        ),
+    ],
+    base_directory: Annotated[
+        str | None,
+        typer.Option(
+            "--base-dir",
+            "-b",
+            help="Base directory on the HPC where the symlink tree will be created. Defaults to the Computer's work directory.",
+        ),
+    ] = None,
+    output_dirname: Annotated[
+        str | None,
+        typer.Option(
+            "--output-dir",
+            "-o",
+            help="Name of the output directory. Defaults to 'workflow-name-timestamp'.",
+        ),
+    ] = None,
+):
+    """
+    Create a human-readable directory tree with symlinks to CalcJob remote working directories.
+
+    This command queries a submitted workflow by its PK and creates symlinks on the HPC
+    to the remote working directories of all CalcJobNodes. The symlinks are organized
+    with human-readable names based on the workgraph task names.
+
+    The command is incremental: existing symlinks are skipped, and new ones are added
+    as the workflow progresses.
+    """
+    try:
+        load_profile()
+        import aiida.orm
+        from aiida.orm import CalcJobNode, QueryBuilder, load_node
+
+        # Load the workflow node
+        console.print(f"🔍 Loading workflow node with PK: [cyan]{pk}[/cyan]")
+        try:
+            workflow_node = load_node(pk)
+        except Exception as e:
+            console.print(f"[bold red]❌ Failed to load node with PK {pk}: {e}[/bold red]")
+            raise typer.Exit(code=1) from e
+
+        # Get workflow name
+        workflow_name = workflow_node.process_label or workflow_node.label or f"workflow_{pk}"
+
+        # Query all CalcJobNodes that are descendants of this workflow
+        qb = QueryBuilder()
+        qb.append(aiida.orm.Node, filters={"id": pk}, tag="workflow")
+        qb.append(
+            CalcJobNode,
+            with_ancestors="workflow",
+            project=["*"],
+        )
+
+        calcjob_nodes = [result[0] for result in qb.all()]
+
+        if not calcjob_nodes:
+            console.print("[yellow]⚠️  No CalcJobNodes found for this workflow yet.[/yellow]")
+            return
+
+        console.print(f"Found [green]{len(calcjob_nodes)}[/green] CalcJobNode(s)")
+
+        # Get the computer and create transport
+        # We assume all CalcJobs run on the same computer
+        if calcjob_nodes:
+            computer = calcjob_nodes[0].computer
+            if computer is None:
+                console.print("[bold red]❌ CalcJobNode has no associated computer.[/bold red]")
+                raise typer.Exit(code=1)
+
+            # Use Computer's work directory as default if base_directory not specified
+            if base_directory is None:
+                base_directory = computer.get_workdir()
+                console.print(f"📂 Using Computer's work directory: [cyan]{base_directory}[/cyan]")
+
+            # Determine output directory name
+            if output_dirname is None:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                output_dirname = f"{workflow_name}_{timestamp}"
+
+            console.print(f"📁 Creating symlink tree in: [cyan]{base_directory}/{output_dirname}[/cyan]")
+
+            transport = computer.get_transport()
+
+            with transport:
+                # Create base directory if it doesn't exist
+                full_output_path = f"{base_directory}/{output_dirname}"
+                if not transport.path_exists(full_output_path):
+                    transport.makedirs(full_output_path)
+                    console.print(f"✅ Created directory: [cyan]{full_output_path}[/cyan]")
+
+                # Create symlinks for each CalcJobNode
+                created_count = 0
+                skipped_count = 0
+
+                for calcjob in calcjob_nodes:
+                    # Get the remote working directory
+                    try:
+                        remote_workdir = calcjob.get_remote_workdir()
+                    except Exception as e:
+                        console.print(
+                            f"[yellow]⚠️  Could not get remote workdir for {calcjob.process_label} (PK: {calcjob.pk}): {e}[/yellow]"
+                        )
+                        continue
+
+                    if remote_workdir is None:
+                        console.print(
+                            f"[yellow]⚠️  No remote workdir for {calcjob.process_label} (PK: {calcjob.pk})[/yellow]"
+                        )
+                        continue
+
+                    # Create a human-readable name
+                    # Use the process label and add the PK for uniqueness
+                    task_label = calcjob.process_label or f"task_{calcjob.pk}"
+                    symlink_name = f"{task_label}_pk{calcjob.pk}"
+
+                    symlink_path = f"{full_output_path}/{symlink_name}"
+
+                    # Check if symlink already exists
+                    if transport.path_exists(symlink_path):
+                        skipped_count += 1
+                        continue
+
+                    # Create the symlink
+                    try:
+                        transport.symlink(remote_workdir, symlink_path)
+                        created_count += 1
+                        console.print(f"  🔗 Created: [green]{symlink_name}[/green] -> {remote_workdir}")
+                    except Exception as e:
+                        console.print(
+                            f"[bold red]❌ Failed to create symlink {symlink_name}: {e}[/bold red]"
+                        )
+
+                console.print(
+                    f"\n✅ Done! Created [green]{created_count}[/green] new symlink(s), "
+                    f"skipped [yellow]{skipped_count}[/yellow] existing."
+                )
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Command failed: {e}[/bold red]")
         console.print_exception()
         raise typer.Exit(code=1) from e
 
