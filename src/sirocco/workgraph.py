@@ -432,8 +432,9 @@ class AiidaWorkGraph:
         formatted_name = ShellParser.format_link_label(output_path)
 
         # Add output socket
-        output_socket = workgraph_task.add_output("workgraph.any", formatted_name)
-        # output_socket = workgraph_task.add_output_spec("workgraph.any", formatted_name)
+        # FIXME: Use spec here
+        # output_socket = workgraph_task.add_output("workgraph.any", formatted_name)
+        output_socket = workgraph_task.add_output_spec("workgraph.any", formatted_name)
         self._aiida_socket_nodes[output_label] = output_socket
 
     @functools.singledispatchmethod
@@ -468,8 +469,7 @@ class AiidaWorkGraph:
         input_label = self.get_aiida_label_from_graph_item(input_)
 
         # Add input socket if it doesn't exist
-        # workgraph_task.add_input_spec("workgraph.any", f"nodes.{input_label}")
-        workgraph_task.add_input("workgraph.any", f"nodes.{input_label}")
+        workgraph_task.add_input_spec("workgraph.any", f"nodes.{input_label}")
 
         # resolve data
         if isinstance(input_, core.AvailableData):
