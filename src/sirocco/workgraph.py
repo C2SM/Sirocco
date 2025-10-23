@@ -13,6 +13,7 @@ from aiida.common.exceptions import NotExistent
 from aiida_icon.calculations import IconCalculation
 from aiida_shell.parsers.shell import ShellParser
 from aiida_workgraph import WorkGraph, Task
+import textwrap
 
 from sirocco import core
 from sirocco.core.graph_items import GeneratedData
@@ -322,9 +323,22 @@ class AiidaWorkGraph:
         options.update(self._from_task_get_scheduler_options(task))
         options["additional_retrieve_list"] = []
         options["account"] = "cwd01"
+        options["append_text"] = textwrap.dedent("""
+            # Create intermediate file
+            cat > _intermediate.sh << 'EOF'
+            #!/bin/bash -l
+            # 10 min (longer than walltime)
+            sleep 600
+            EOF
+            
+            # Submit next job as dependency, running for 2 mins
+            sbatch --job-name=intermediate --time=00:02:00 --nodes=$SLURM_JOB_NUM_NODES --ntasks-per-node=$SLURM_NTASKS_PER_NODE --account=$SLURM_JOB_ACCOUNT --dependency=afterany:$SLURM_JOB_ID _intermediate.sh
+        """)
 
         metadata["options"] = options
+
         builder.metadata = metadata
+        ("metadata.options.append_text",)
 
         self._aiida_task_nodes[task_label] = self._workgraph.add_task(
             builder, name=task_label
