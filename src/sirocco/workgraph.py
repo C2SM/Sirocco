@@ -373,8 +373,8 @@ def build_dynamic_sirocco_workgraph(
 class AiidaWorkGraph:
     def __init__(self, core_workflow: core.Workflow):
         """Initialize with minimal setup - only validate and prepare data."""
-        breakpoint()
         self._core_workflow = core_workflow
+        breakpoint()
         self._validate_workflow()
 
         # Only create available data nodes

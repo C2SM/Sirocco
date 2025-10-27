@@ -27,6 +27,7 @@ def _create_aiida_workflow(workflow_file: Path) -> AiidaWorkGraph:
     load_profile()
     config_workflow = parsing.ConfigWorkflow.from_config_file(str(workflow_file))
     core_wf = core.Workflow.from_config_workflow(config_workflow)
+    breakpoint()
     return AiidaWorkGraph(core_wf)
 
 
