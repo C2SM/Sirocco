@@ -73,7 +73,7 @@ async def get_job_id(
 @task.graph
 def launch_shell_task_with_dependency(
     task_spec: dict,
-    input_data_nodes: dict,
+    input_data_nodes: Annotated[dict, dynamic(aiida.orm.Data)],
     job_ids: Annotated[dict, dynamic(int)] = None,
 ):
     """Launch a shell task with optional SLURM job dependencies.
@@ -194,7 +194,7 @@ def launch_shell_task_with_dependency(
 @task.graph
 def launch_icon_task_with_dependency(
     task_spec: dict,
-    input_data_nodes: dict,
+    input_data_nodes: Annotated[dict, dynamic(aiida.orm.Data)],
     job_ids: Annotated[dict, dynamic(int)] = None,
 ):
     """Launch an ICON task with optional SLURM job dependencies.
@@ -270,7 +270,7 @@ def launch_icon_task_with_dependency(
     return outputs
 
 
-@task.graph
+# this is a normal function to create the workgraph
 def build_dynamic_sirocco_workgraph(
     core_workflow: core.Workflow,
     aiida_data_nodes: dict,
@@ -291,6 +291,11 @@ def build_dynamic_sirocco_workgraph(
     Returns:
         Dict with final workflow outputs
     """
+    from aiida_workgraph.manager import set_current_graph
+
+    wg = WorkGraph()
+    set_current_graph(wg)
+
     task_outputs = {}  # Store task outputs by label
     job_ids = {}  # Store SLURM job IDs by label
 
@@ -363,11 +368,12 @@ def build_dynamic_sirocco_workgraph(
             job_ids[task_label] = job_id
 
     # Return summary of completion
-    return {
-        "status": "completed",
-        "num_tasks": len(task_outputs),
-        "final_outputs": task_outputs,
-    }
+    # return {
+    #     "status": "completed",
+    #     "num_tasks": len(task_outputs),
+    #     "final_outputs": task_outputs,
+    # }
+    return wg
 
 
 class AiidaWorkGraph:
@@ -744,7 +750,7 @@ class AiidaWorkGraph:
                 icon_task_specs[label] = self._build_icon_task_spec(task)
 
         # Build the dynamic workgraph
-        wg = build_dynamic_sirocco_workgraph.build(
+        wg = build_dynamic_sirocco_workgraph(
             core_workflow=self._core_workflow,
             aiida_data_nodes=self._aiida_data_nodes,
             shell_task_specs=shell_task_specs,
