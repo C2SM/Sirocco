@@ -2,7 +2,7 @@ import pytest
 
 from sirocco.core import Workflow
 from sirocco.parsing.yaml_data_models import ConfigWorkflow
-from sirocco.workgraph_monolith import AiidaWorkGraph
+from sirocco.workgraph import AiidaWorkGraph
 from aiida_workgraph.workgraph import BUILTIN_NODES
 
 

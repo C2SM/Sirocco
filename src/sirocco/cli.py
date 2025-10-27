@@ -7,7 +7,7 @@ from rich.console import Console
 from rich.traceback import install as install_rich_traceback
 
 from sirocco import core, parsing, pretty_print, vizgraph
-from sirocco.workgraph_monolith import AiidaWorkGraph
+from sirocco.workgraph import AiidaWorkGraph
 
 # --- Typer App and Rich Console Setup ---
 # Print tracebacks with syntax highlighting and rich formatting
@@ -23,22 +23,17 @@ app = typer.Typer(
 console = Console()
 
 
-def _create_aiida_workflow(workflow_file: Path) -> AiidaWorkGraph:
-    load_profile()
-    config_workflow = parsing.ConfigWorkflow.from_config_file(str(workflow_file))
-    core_wf = core.Workflow.from_config_workflow(config_workflow)
-    breakpoint()
-    return AiidaWorkGraph(core_wf)
-
-
 def create_aiida_workflow(workflow_file: Path) -> AiidaWorkGraph:
     """Helper to prepare AiidaWorkGraph from workflow file."""
 
     from aiida.common import ProfileConfigurationError
 
     try:
-        aiida_wg = _create_aiida_workflow(workflow_file=workflow_file)
-        console.print(f"⚙️ Workflow [magenta]'{aiida_wg._workgraph.name}'[/magenta] prepared for AiiDA execution.")  # noqa: SLF001 | private-member-access
+        load_profile()
+        config_workflow = parsing.ConfigWorkflow.from_config_file(str(workflow_file))
+        core_wf = core.Workflow.from_config_workflow(config_workflow)
+        aiida_wg = AiidaWorkGraph(core_wf)
+        # console.print(f"⚙️ Workflow [magenta]'{aiida_wg._workgraph.name}'[/magenta] prepared for AiiDA execution.")  # noqa: SLF001 | private-member-access
         return aiida_wg  # noqa: TRY300 | try-consider-else -> shouldn't move this to `else` block
     except ProfileConfigurationError as e:
         console.print(f"[bold red]❌ No AiiDA profile set up: {e}[/bold red]")

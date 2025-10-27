@@ -15,7 +15,7 @@ from aiida.common.exceptions import NotExistent
 from aiida.orm.utils.serialize import AiiDALoader
 from aiida_icon.calculations import IconCalculation
 from aiida_shell.parsers.shell import ShellParser
-from aiida_workgraph import WorkGraph, dynamic, task
+from aiida_workgraph import WorkGraph, dynamic, task, namespace
 
 from sirocco import core
 from sirocco.parsing._utils import TimeUtils
@@ -126,6 +126,9 @@ def launch_shell_task_with_dependency(
     _, arguments = AiidaWorkGraph.split_cmd_arg(arguments_with_placeholders)
 
     # Merge script nodes with input data nodes
+    # TODO: Check what we have here??? If aiida data node, then fine, otherwise, None
+    # TODO: Just make link for `GeneratedData`
+
     all_nodes = {**task_spec["nodes"]}
     for port, data_node in input_data_nodes.items():
         node_label = AiidaWorkGraph.get_aiida_label_from_graph_item(
@@ -333,10 +336,10 @@ def build_dynamic_sirocco_workgraph(
                                 prev_task_label = get_label(prev_task)
                                 if prev_task_label in task_outputs:
                                     # Get the specific output
-                                    input_data_for_task[port] = task_outputs[
-                                        prev_task_label
-                                    ].get(out_data.name, task_outputs[prev_task_label])
-                                break
+                                    if out_data.name in task_outputs[prev_task_label]:
+                                        input_data_for_task[port] = task_outputs[prev_task_label][out_data.name]
+                                    else:
+                                        input_data_for_task[port] = task_outputs[prev_task_label]
 
             # Launch the task with dependencies
             if isinstance(task, core.ShellTask):
@@ -367,12 +370,6 @@ def build_dynamic_sirocco_workgraph(
             ).result
             job_ids[task_label] = job_id
 
-    # Return summary of completion
-    # return {
-    #     "status": "completed",
-    #     "num_tasks": len(task_outputs),
-    #     "final_outputs": task_outputs,
-    # }
     return wg
 
 
@@ -380,7 +377,6 @@ class AiidaWorkGraph:
     def __init__(self, core_workflow: core.Workflow):
         """Initialize with minimal setup - only validate and prepare data."""
         self._core_workflow = core_workflow
-        breakpoint()
         self._validate_workflow()
 
         # Only create available data nodes

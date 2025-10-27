@@ -6,7 +6,7 @@ import pytest
 from sirocco.core import Workflow
 from sirocco.core._tasks.icon_task import IconTask
 from sirocco.vizgraph import VizGraph
-from sirocco.workgraph_monolith import AiidaWorkGraph
+from sirocco.workgraph import AiidaWorkGraph
 
 LOGGER = logging.getLogger(__name__)
 
