@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import io
 import time
-import uuid
+from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Any, TypeAlias, assert_never
 
 import aiida.common
@@ -15,7 +15,7 @@ from aiida.common.exceptions import NotExistent
 from aiida.orm.utils.serialize import AiiDALoader
 from aiida_icon.calculations import IconCalculation
 from aiida_shell.parsers.shell import ShellParser
-from aiida_workgraph import WorkGraph, dynamic, task, namespace
+from aiida_workgraph import WorkGraph, dynamic, task, get_current_graph
 
 from sirocco import core
 from sirocco.parsing._utils import TimeUtils
@@ -27,9 +27,23 @@ if TYPE_CHECKING:
     )
 
 
+def serialize_coordinates(coordinates: dict) -> dict:
+    """Convert coordinates dict to JSON-serializable format.
+
+    Converts datetime objects to ISO format strings.
+    """
+    serialized = {}
+    for key, value in coordinates.items():
+        if isinstance(value, datetime):
+            serialized[key] = value.isoformat()
+        else:
+            serialized[key] = value
+    return serialized
+
+
 @task
 async def get_job_id(
-    workgraph_name: str, task_name: str, interval: int = 2, timeout: int = 600
+    workgraph_name: str, task_name: str, interval: int = 2, timeout: int = 120
 ):
     """Get the job_id of a CalcJob task in a workgraph by polling.
 
@@ -75,19 +89,20 @@ def launch_shell_task_with_dependency(
     task_spec: dict,
     input_data_nodes: Annotated[dict, dynamic(aiida.orm.Data)],
     job_ids: Annotated[dict, dynamic(int)] = None,
-):
+) -> Annotated[dict, dynamic(aiida.orm.Data)]:
     """Launch a shell task with optional SLURM job dependencies.
 
     Args:
         task_spec: Dict from _build_shell_task_spec() containing:
             - label: Task label
-            - code: ShellCode instance
-            - nodes: Dict of script files
+            - code_pk: ShellCode PK
+            - node_pks: Dict of script file PKs
             - metadata: Base metadata dict
-            - arguments_template: Command arguments template
+            - arguments_template: Pre-resolved command arguments template
             - filenames: Input filename mappings
             - outputs: List of output file paths
-            - task: Original core.ShellTask instance
+            - input_data_info: List of input data information dicts
+            - output_data_info: List of output data information dicts
         input_data_nodes: Dict mapping port names to AiiDA data nodes
         job_ids: Optional dict of {dependency_label: job_id} for SLURM dependencies
 
@@ -96,13 +111,24 @@ def launch_shell_task_with_dependency(
     """
     from aiida_workgraph.tasks.shelljob_task import _build_shelljob_nodespec
 
-    # Get task reference
-    task = task_spec["task"]
+    # Get pre-computed data
     label = task_spec["label"]
+    input_data_info = task_spec["input_data_info"]
+    output_data_info = task_spec["output_data_info"]
+
+    # Load the code from PK
+    code = aiida.orm.load_node(task_spec["code_pk"])
+
+    # Load nodes from PKs
+    all_nodes = {key: aiida.orm.load_node(pk) for key, pk in task_spec["node_pks"].items()}
 
     # Copy and modify metadata with runtime job_ids
     metadata = dict(task_spec["metadata"])
     metadata["options"] = dict(metadata["options"])
+
+    # Load computer from label
+    computer = aiida.orm.Computer.collection.get(label=metadata.pop("computer_label"))
+    metadata["computer"] = computer
 
     if job_ids:
         dep_str = ":".join(str(jid.value) for jid in job_ids.values())
@@ -113,69 +139,42 @@ def launch_shell_task_with_dependency(
         else:
             metadata["options"]["custom_scheduler_commands"] = custom_cmd
 
-    # Build input labels for argument resolution
-    input_labels = {}
-    for port_name, input_ in task.input_data_items():
-        input_label = AiidaWorkGraph.get_aiida_label_from_graph_item(input_)
-        if port_name not in input_labels:
-            input_labels[port_name] = []
-        input_labels[port_name].append(f"{{{input_label}}}")
-
-    # Resolve arguments using the template
-    arguments_with_placeholders = task.resolve_ports(input_labels)
-    _, arguments = AiidaWorkGraph.split_cmd_arg(arguments_with_placeholders)
+    # Use pre-resolved arguments template (no need to resolve again)
+    arguments = task_spec["arguments_template"]
 
     # Merge script nodes with input data nodes
-    # TODO: Check what we have here??? If aiida data node, then fine, otherwise, None
-    # TODO: Just make link for `GeneratedData`
-
-    all_nodes = {**task_spec["nodes"]}
     for port, data_node in input_data_nodes.items():
-        node_label = AiidaWorkGraph.get_aiida_label_from_graph_item(
-            next(d for p, d in task.input_data_items() if p == port)
+        # Find the label for this port from pre-computed info
+        node_label = next(
+            info["label"] for info in input_data_info if info["port"] == port
         )
         all_nodes[node_label] = data_node
 
-    # Build output paths with formatted names
-    outputs = []
-    for output in task.output_data_nodes():
-        if isinstance(output, core.GeneratedData) and output.path is not None:
-            outputs.append(str(output.path))
+    # Use pre-computed outputs
+    outputs = task_spec["outputs"]
 
-    # Build filenames dict
-    filenames = {}
-    for input_ in task.input_data_nodes():
-        input_label = AiidaWorkGraph.get_aiida_label_from_graph_item(input_)
-        if isinstance(input_, core.AvailableData):
-            filenames[input_.name] = input_.path.name
-        elif isinstance(input_, core.GeneratedData):
-            same_name_count = sum(
-                1 for inp in task.input_data_nodes() if inp.name == input_.name
-            )
-            if same_name_count > 1:
-                filenames[input_label] = input_label
-            else:
-                filenames[input_label] = (
-                    input_.path.name if input_.path is not None else input_.name
-                )
+    # Use pre-computed filenames
+    filenames = task_spec["filenames"]
 
     # Build the shelljob NodeSpec
+    # Create parser_outputs list (output names as strings)
+    parser_outputs = [output_info["name"] for output_info in output_data_info if output_info["path"]]
+
     spec = _build_shelljob_nodespec(
         identifier=f"shelljob_{label}",
-        outputs=None,
-        parser_outputs=None,
+        outputs=outputs,
+        parser_outputs=parser_outputs,
     )
 
     # Create the shell task
     # Note: This returns a namespace with the task's outputs
-    from aiida_workgraph import WorkGraph
 
-    wg = WorkGraph.get_current_workgraph()
+    wg = get_current_graph()
 
     shell_task = wg.tasks._new(
         spec,
         name=label,
-        command=task_spec["code"],
+        command=code,
         arguments=[arguments],
         nodes=all_nodes,
         outputs=outputs,
@@ -184,14 +183,15 @@ def launch_shell_task_with_dependency(
         resolve_command=False,
     )
 
-    # Return outputs as a namespace
-    return {
-        output.name: getattr(
-            shell_task.outputs, ShellParser.format_link_label(str(output.path))
-        )
-        for output in task.output_data_nodes()
-        if output.path
-    }
+    # Return outputs as a namespace using pre-computed output info
+    # Only include outputs that actually exist as sockets
+    outputs_dict = {}
+    for output_info in output_data_info:
+        if output_info["path"]:
+            link_label = ShellParser.format_link_label(output_info["path"])
+            if hasattr(shell_task.outputs, link_label):
+                outputs_dict[output_info["name"]] = getattr(shell_task.outputs, link_label)
+    return outputs_dict
 
 
 @task.graph
@@ -199,14 +199,14 @@ def launch_icon_task_with_dependency(
     task_spec: dict,
     input_data_nodes: Annotated[dict, dynamic(aiida.orm.Data)],
     job_ids: Annotated[dict, dynamic(int)] = None,
-):
+) -> Annotated[dict, dynamic(aiida.orm.Data)]:
     """Launch an ICON task with optional SLURM job dependencies.
 
     Args:
         task_spec: Dict from _build_icon_task_spec() containing:
             - label: Task label
             - builder: IconCalculation builder
-            - task: Original core.IconTask instance
+            - output_ports: List of output port names
         input_data_nodes: Dict mapping port names to AiiDA data nodes
         job_ids: Optional dict of {dependency_label: job_id} for SLURM dependencies
 
@@ -217,8 +217,8 @@ def launch_icon_task_with_dependency(
 
     # Deep copy the builder to avoid modifying the original
     builder = deepcopy(task_spec["builder"])
-    task = task_spec["task"]
     label = task_spec["label"]
+    output_ports = task_spec["output_ports"]
 
     # Add runtime job dependencies to metadata
     if job_ids:
@@ -254,13 +254,13 @@ def launch_icon_task_with_dependency(
     # Submit the builder via workgraph
     from aiida_workgraph import WorkGraph
 
-    wg = WorkGraph.get_current_workgraph()
+    wg = get_current_graph()
 
     icon_task = wg.add_task(builder, name=label)
 
-    # Return outputs as dict
+    # Return outputs as dict using pre-computed output ports
     outputs = {}
-    for port_name, output_list in task.outputs.items():
+    for port_name in output_ports:
         if port_name == "output_streams":
             outputs["output_streams"] = icon_task.outputs.output_streams
         elif port_name == "latest_restart_file":
@@ -562,9 +562,8 @@ class AiidaWorkGraph:
         """
         metadata = {}
         metadata["options"] = {}
-        metadata["options"]["use_symlinks"] = True
         metadata["options"]["account"] = "cwd01"
-        metadata["options"]["additional_retrieve"] = [
+        metadata["options"]["additional_retrieve_list"] = [
             "_scheduler-stdout.txt",
             "_scheduler-stderr.txt",
         ]
@@ -572,7 +571,7 @@ class AiidaWorkGraph:
 
         try:
             computer = aiida.orm.Computer.collection.get(label=task.computer)
-            metadata["computer"] = computer
+            metadata["computer_label"] = computer.label
         except NotExistent as err:
             msg = f"Could not find computer {task.computer!r} in AiiDA database."
             raise ValueError(msg) from err
@@ -583,7 +582,7 @@ class AiidaWorkGraph:
         """Build all parameters needed to create a shell task.
 
         Returns a dict with keys: label, code, nodes, metadata,
-        arguments_template, filenames, outputs, task
+        arguments_template, filenames, outputs, input_data_info, output_data_info
 
         Note: Job dependencies are NOT included here - they're added at runtime.
         """
@@ -602,62 +601,117 @@ class AiidaWorkGraph:
         # Build base metadata (no job dependencies yet)
         metadata = self._build_base_metadata(task)
 
-        # Build nodes (input files like scripts)
-        nodes = {}
+        # Add shell-specific metadata options
+        metadata["options"]["use_symlinks"] = True
+
+        # Build nodes (input files like scripts) - store as PKs
+        node_pks = {}
         if task.path is not None:
-            nodes[f"SCRIPT__{label}"] = aiida.orm.SinglefileData(str(task.path))
+            script_node = aiida.orm.SinglefileData(str(task.path))
+            script_node.store()
+            node_pks[f"SCRIPT__{label}"] = script_node.pk
 
-        # Create code
-        label_uuid = str(uuid.uuid4())
-        code = ShellCode(
-            label=f"{cmd}-{label_uuid}",
-            computer=computer,
-            filepath_executable=cmd,
-            default_calc_job_plugin="core.shell",
-            use_double_quotes=True,
-        ).store()
+        # Create or load code
+        code_label = f"{cmd}@{computer.label}"
+        try:
+            code = aiida.orm.load_code(code_label)
+        except NotExistent:
+            code = ShellCode(
+                label=code_label,
+                computer=computer,
+                filepath_executable=cmd,
+                default_calc_job_plugin="core.shell",
+                use_double_quotes=True,
+            ).store()
 
-        # Arguments template (will be resolved at runtime)
-        _, arguments_template = self.split_cmd_arg(task.command)
+        # Pre-compute input data information (as serializable dicts)
+        input_data_info = []
+        for port_name, input_ in task.input_data_items():
+            input_info = {
+                "port": port_name,
+                "name": input_.name,
+                "coordinates": serialize_coordinates(input_.coordinates),
+                "label": self.get_aiida_label_from_graph_item(input_),
+                "is_available": isinstance(input_, core.AvailableData),
+                "is_generated": isinstance(input_, core.GeneratedData),
+                "path": str(input_.path) if input_.path is not None else None,
+            }
+            input_data_info.append(input_info)
+
+        # Pre-compute output data information
+        output_data_info = []
+        for output in task.output_data_nodes():
+            output_info = {
+                "name": output.name,
+                "coordinates": serialize_coordinates(output.coordinates),
+                "label": self.get_aiida_label_from_graph_item(output),
+                "is_generated": isinstance(output, core.GeneratedData),
+                "path": str(output.path) if output.path is not None else None,
+            }
+            output_data_info.append(output_info)
+
+        # Build input labels for argument resolution
+        input_labels = {}
+        for input_info in input_data_info:
+            port_name = input_info["port"]
+            input_label = input_info["label"]
+            if port_name not in input_labels:
+                input_labels[port_name] = []
+            input_labels[port_name].append(f"{{{input_label}}}")
+
+        # Pre-scan command template to find all referenced ports
+        # This ensures optional/missing ports are included with empty lists
+        for port_match in task.port_pattern.finditer(task.command):
+            port_name = port_match.group(2)
+            if port_name and port_name not in input_labels:
+                input_labels[port_name] = []
+
+        # Pre-resolve arguments template
+        arguments_with_placeholders = task.resolve_ports(input_labels)
+        _, resolved_arguments_template = self.split_cmd_arg(arguments_with_placeholders)
 
         # Build filenames mapping
         filenames = {}
-        for input_ in task.input_data_nodes():
-            input_label = self.get_aiida_label_from_graph_item(input_)
-            if isinstance(input_, core.AvailableData):
-                filenames[input_.name] = input_.path.name
-            elif isinstance(input_, core.GeneratedData):
+        for input_info in input_data_info:
+            input_label = input_info["label"]
+            if input_info["is_available"]:
+                from pathlib import Path
+                filenames[input_info["name"]] = Path(input_info["path"]).name if input_info["path"] else input_info["name"]
+            elif input_info["is_generated"]:
+                # Count how many inputs have the same name
                 same_name_count = sum(
-                    1 for inp in task.input_data_nodes() if inp.name == input_.name
+                    1 for info in input_data_info if info["name"] == input_info["name"]
                 )
                 if same_name_count > 1:
                     filenames[input_label] = input_label
                 else:
+                    from pathlib import Path
                     filenames[input_label] = (
-                        input_.path.name if input_.path is not None else input_.name
+                        Path(input_info["path"]).name if input_info["path"] else input_info["name"]
                     )
 
         # Build outputs list
         outputs = []
-        for output in task.output_data_nodes():
-            if isinstance(output, core.GeneratedData) and output.path is not None:
-                outputs.append(str(output.path))
+        for output_info in output_data_info:
+            if output_info["is_generated"] and output_info["path"] is not None:
+                outputs.append(output_info["path"])
 
         return {
             "label": label,
-            "code": code,
-            "nodes": nodes,
+            "code_pk": code.pk,
+            "node_pks": node_pks,
             "metadata": metadata,
-            "arguments_template": arguments_template,
+            "arguments_template": resolved_arguments_template,
             "filenames": filenames,
             "outputs": outputs,
-            "task": task,
+            "input_data_info": input_data_info,
+            "output_data_info": output_data_info,
         }
 
     def _build_icon_task_spec(self, task: core.IconTask) -> dict:
         """Build all parameters needed to create an ICON task.
 
-        Returns a dict with keys: label, builder, task
+        Returns a dict with keys: label, builder, output_ports
 
         Note: Job dependencies are NOT included here - they're added at runtime.
         """
@@ -670,16 +724,20 @@ class AiidaWorkGraph:
             msg = f"Could not find computer {task.computer!r} in AiiDA database."
             raise ValueError(msg) from err
 
-        # Create ICON code
-        icon_code = aiida.orm.InstalledCode(
-            label=f"icon-{task_label}",
-            description="aiida_icon",
-            default_calc_job_plugin="icon.icon",
-            computer=computer,
-            filepath_executable=str(task.bin),
-            with_mpi=bool(task.mpi_cmd),
-            use_double_quotes=True,
-        ).store()
+        # Create or load ICON code
+        icon_code_label = f"icon@{computer.label}"
+        try:
+            icon_code = aiida.orm.load_code(icon_code_label)
+        except NotExistent:
+            icon_code = aiida.orm.InstalledCode(
+                label=icon_code_label,
+                description="aiida_icon",
+                default_calc_job_plugin="icon.icon",
+                computer=computer,
+                filepath_executable=str(task.bin),
+                with_mpi=bool(task.mpi_cmd),
+                use_double_quotes=True,
+            ).store()
 
         # Build builder
         builder = IconCalculation.get_builder()
@@ -715,17 +773,18 @@ class AiidaWorkGraph:
         if wrapper_script_data is not None:
             builder.wrapper_script = wrapper_script_data
 
-        # Set scheduler options
-        options = metadata["options"]
-        options["additional_retrieve_list"] = []
-
-        # Set metadata on builder
+        # Load computer from label and set metadata on builder
+        computer = aiida.orm.Computer.collection.get(label=metadata.pop("computer_label"))
+        metadata["computer"] = computer
         builder.metadata = metadata
+
+        # Pre-compute output port names
+        output_ports = list(task.outputs.keys())
 
         return {
             "label": task_label,
             "builder": builder,
-            "task": task,
+            "output_ports": output_ports,
         }
 
     def build(self) -> WorkGraph:
