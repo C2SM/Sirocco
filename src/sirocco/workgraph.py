@@ -43,7 +43,7 @@ def serialize_coordinates(coordinates: dict) -> dict:
 
 @task
 async def get_job_id(
-    workgraph_name: str, task_name: str, interval: int = 2, timeout: int = 120
+    workgraph_name: str, task_name: str, interval: int = 2, timeout: int = 600
 ):
     """Get the job_id of a CalcJob task in a workgraph by polling.
 
@@ -205,33 +205,54 @@ def launch_icon_task_with_dependency(
     Args:
         task_spec: Dict from _build_icon_task_spec() containing:
             - label: Task label
-            - builder: IconCalculation builder
-            - output_ports: List of output port names
+            - code_pk: ICON code PK
+            - master_namelist_pk: Master namelist PK
+            - model_namelist_pks: Dict of model name -> namelist PK
+            - wrapper_script_pk: Wrapper script PK (optional)
+            - metadata: Base metadata dict
+            - output_port_mapping: Dict mapping data names to ICON output port names
         input_data_nodes: Dict mapping port names to AiiDA data nodes
         job_ids: Optional dict of {dependency_label: job_id} for SLURM dependencies
 
     Returns:
         Builder outputs (output_streams, restart_file, finish_status, etc.)
     """
-    from copy import deepcopy
-
-    # Deep copy the builder to avoid modifying the original
-    builder = deepcopy(task_spec["builder"])
     label = task_spec["label"]
-    output_ports = task_spec["output_ports"]
+    output_port_mapping = task_spec["output_port_mapping"]
+
+    # Reconstruct the builder from PKs
+    builder = IconCalculation.get_builder()
+    builder.code = aiida.orm.load_node(task_spec["code_pk"])
+    builder.master_namelist = aiida.orm.load_node(task_spec["master_namelist_pk"])
+
+    # Load model namelists
+    for model_name, model_pk in task_spec["model_namelist_pks"].items():
+        setattr(builder.models, model_name, aiida.orm.load_node(model_pk))
+
+    # Load wrapper script if present
+    if task_spec["wrapper_script_pk"] is not None:
+        builder.wrapper_script = aiida.orm.load_node(task_spec["wrapper_script_pk"])
+
+    # Reconstruct metadata with computer
+    metadata = dict(task_spec["metadata"])
+    metadata["options"] = dict(metadata["options"])
+    computer = aiida.orm.Computer.collection.get(label=metadata.pop("computer_label"))
+    metadata["computer"] = computer
 
     # Add runtime job dependencies to metadata
     if job_ids:
         dep_str = ":".join(str(jid.value) for jid in job_ids.values())
         custom_cmd = f"#SBATCH --dependency=afterok:{dep_str}"
 
-        current_cmds = builder.metadata.options.get("custom_scheduler_commands", "")
+        current_cmds = metadata["options"].get("custom_scheduler_commands", "")
         if current_cmds:
-            builder.metadata.options["custom_scheduler_commands"] = (
+            metadata["options"]["custom_scheduler_commands"] = (
                 current_cmds + f"\n{custom_cmd}"
             )
         else:
-            builder.metadata.options["custom_scheduler_commands"] = custom_cmd
+            metadata["options"]["custom_scheduler_commands"] = custom_cmd
+
+    builder.metadata = metadata
 
     # Set input data nodes on the builder
     for port_name, data_node in input_data_nodes.items():
@@ -252,23 +273,17 @@ def launch_icon_task_with_dependency(
             setattr(builder, port_name, data_node)
 
     # Submit the builder via workgraph
-    from aiida_workgraph import WorkGraph
-
     wg = get_current_graph()
 
     icon_task = wg.add_task(builder, name=label)
 
-    # Return outputs as dict using pre-computed output ports
+    # Return outputs as dict using pre-computed output port mapping
+    # Keys are data names, values are the actual ICON output sockets
     outputs = {}
-    for port_name in output_ports:
-        if port_name == "output_streams":
-            outputs["output_streams"] = icon_task.outputs.output_streams
-        elif port_name == "latest_restart_file":
-            outputs["restart_file"] = icon_task.outputs.restart_file
-        elif port_name == "finish_status":
-            outputs["finish_status"] = icon_task.outputs.finish_status
-        elif port_name is None:
-            outputs["retrieved"] = icon_task.outputs.retrieved
+    for data_name, icon_port_name in output_port_mapping.items():
+        # Get the ICON output socket and store it with the data name as key
+        if hasattr(icon_task.outputs, icon_port_name):
+            outputs[data_name] = getattr(icon_task.outputs, icon_port_name)
 
     return outputs
 
@@ -739,52 +754,55 @@ class AiidaWorkGraph:
                 use_double_quotes=True,
             ).store()
 
-        # Build builder
-        builder = IconCalculation.get_builder()
-        builder.code = icon_code
-
         # Build base metadata (no job dependencies yet)
         metadata = self._build_base_metadata(task)
 
         # Update task namelists
         task.update_icon_namelists_from_workflow()
 
-        # Master namelist
+        # Master namelist - store as PK
         with io.StringIO() as buffer:
             task.master_namelist.namelist.write(buffer)
             buffer.seek(0)
-            builder.master_namelist = aiida.orm.SinglefileData(
+            master_namelist_node = aiida.orm.SinglefileData(
                 buffer, task.master_namelist.name
             )
+            master_namelist_node.store()
 
-        # Model namelists
+        # Model namelists - store as PKs
+        model_namelist_pks = {}
         for model_name, model_nml in task.model_namelists.items():
             with io.StringIO() as buffer:
                 model_nml.namelist.write(buffer)
                 buffer.seek(0)
-                setattr(
-                    builder.models,
-                    model_name,
-                    aiida.orm.SinglefileData(buffer, model_nml.name),
-                )
+                model_node = aiida.orm.SinglefileData(buffer, model_nml.name)
+                model_node.store()
+                model_namelist_pks[model_name] = model_node.pk
 
-        # Add wrapper script
+        # Wrapper script - store as PK if present
+        wrapper_script_pk = None
         wrapper_script_data = self.get_wrapper_script_aiida_data(task)
         if wrapper_script_data is not None:
-            builder.wrapper_script = wrapper_script_data
+            wrapper_script_data.store()
+            wrapper_script_pk = wrapper_script_data.pk
 
-        # Load computer from label and set metadata on builder
-        computer = aiida.orm.Computer.collection.get(label=metadata.pop("computer_label"))
-        metadata["computer"] = computer
-        builder.metadata = metadata
-
-        # Pre-compute output port names
-        output_ports = list(task.outputs.keys())
+        # Pre-compute output port mapping: data_name -> icon_port_name
+        # task.outputs is dict[port_name, list[Data]]
+        # We need to map each Data.name to its ICON port name
+        output_port_mapping = {}
+        for port_name, output_list in task.outputs.items():
+            # For each data item from this port, map data.name -> port_name
+            for data in output_list:
+                output_port_mapping[data.name] = port_name
 
         return {
             "label": task_label,
-            "builder": builder,
-            "output_ports": output_ports,
+            "code_pk": icon_code.pk,
+            "master_namelist_pk": master_namelist_node.pk,
+            "model_namelist_pks": model_namelist_pks,
+            "wrapper_script_pk": wrapper_script_pk,
+            "metadata": metadata,
+            "output_port_mapping": output_port_mapping,
         }
 
     def build(self) -> WorkGraph:
