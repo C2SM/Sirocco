@@ -169,7 +169,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
 
 @dataclass(kw_only=True)
 class Cycle(GraphItem):
-    """Internal reprenstation of a cycle"""
+    """Internal representation of a cycle"""
 
     color: ClassVar[str] = field(default="light_green", repr=False)
 

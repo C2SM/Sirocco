@@ -7,7 +7,7 @@ from rich.console import Console
 from rich.traceback import install as install_rich_traceback
 
 from sirocco import core, parsing, pretty_print, vizgraph
-from sirocco.workgraph import AiidaWorkGraph
+from sirocco.workgraph_monolith import AiidaWorkGraph
 
 # --- Typer App and Rich Console Setup ---
 # Print tracebacks with syntax highlighting and rich formatting

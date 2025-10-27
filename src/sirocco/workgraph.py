@@ -1,93 +1,390 @@
 from __future__ import annotations
 
-import functools
+import asyncio
 import io
+import time
 import uuid
-from typing import TYPE_CHECKING, Any, TypeAlias, assert_never
+from typing import TYPE_CHECKING, Annotated, Any, TypeAlias, assert_never
 
 import aiida.common
 import aiida.orm
 import aiida.transports
 import aiida.transports.plugins.local
+import yaml
 from aiida.common.exceptions import NotExistent
+from aiida.orm.utils.serialize import AiiDALoader
 from aiida_icon.calculations import IconCalculation
 from aiida_shell.parsers.shell import ShellParser
-from aiida_workgraph import WorkGraph, Task
+from aiida_workgraph import WorkGraph, dynamic, task
 
 from sirocco import core
-from sirocco.core.graph_items import GeneratedData
 from sirocco.parsing._utils import TimeUtils
 
 if TYPE_CHECKING:
-    from aiida_workgraph.socket import TaskSocket  # type: ignore[import-untyped]
 
     WorkgraphDataNode: TypeAlias = (
         aiida.orm.RemoteData | aiida.orm.SinglefileData | aiida.orm.FolderData
     )
 
 
+@task
+async def get_job_id(
+    workgraph_name: str, task_name: str, interval: int = 2, timeout: int = 600
+):
+    """Get the job_id of a CalcJob task in a workgraph by polling.
+
+    Args:
+        workgraph_name: Name of the workgraph containing the task
+        task_name: Name of the task to get job_id from
+        interval: Polling interval in seconds
+        timeout: Maximum time to wait in seconds
+
+    Returns:
+        The SLURM job ID as an integer
+
+    Raises:
+        TimeoutError: If job_id is not available within timeout period
+    """
+    from aiida import orm
+    from aiida_workgraph.engine.workgraph import WorkGraphEngine
+
+    builder = orm.QueryBuilder()
+    builder.append(
+        WorkGraphEngine,
+        filters={"attributes.process_label": {"==": f"WorkGraph<{workgraph_name}>"}},
+        tag="process",
+    )
+    start_time = time.time()
+    while True:
+        if builder.count() > 0:
+            workgraph_node = builder.all()[-1][0]
+            node = yaml.load(
+                workgraph_node.task_processes.get(task_name, ""), Loader=AiiDALoader
+            )
+            if node:
+                job_id = node.get_job_id()
+                if job_id is not None:
+                    return job_id
+        if time.time() - start_time > timeout:
+            raise TimeoutError(f"Timeout waiting for job_id for task {task_name}")
+        await asyncio.sleep(interval)
+
+
+@task.graph
+def launch_shell_task_with_dependency(
+    task_spec: dict,
+    input_data_nodes: dict,
+    job_ids: Annotated[dict, dynamic(int)] = None,
+):
+    """Launch a shell task with optional SLURM job dependencies.
+
+    Args:
+        task_spec: Dict from _build_shell_task_spec() containing:
+            - label: Task label
+            - code: ShellCode instance
+            - nodes: Dict of script files
+            - metadata: Base metadata dict
+            - arguments_template: Command arguments template
+            - filenames: Input filename mappings
+            - outputs: List of output file paths
+            - task: Original core.ShellTask instance
+        input_data_nodes: Dict mapping port names to AiiDA data nodes
+        job_ids: Optional dict of {dependency_label: job_id} for SLURM dependencies
+
+    Returns:
+        Dict with task outputs
+    """
+    from aiida_workgraph.tasks.shelljob_task import _build_shelljob_nodespec
+
+    # Get task reference
+    task = task_spec["task"]
+    label = task_spec["label"]
+
+    # Copy and modify metadata with runtime job_ids
+    metadata = dict(task_spec["metadata"])
+    metadata["options"] = dict(metadata["options"])
+
+    if job_ids:
+        dep_str = ":".join(str(jid.value) for jid in job_ids.values())
+        custom_cmd = f"#SBATCH --dependency=afterok:{dep_str}"
+
+        if "custom_scheduler_commands" in metadata["options"]:
+            metadata["options"]["custom_scheduler_commands"] += f"\n{custom_cmd}"
+        else:
+            metadata["options"]["custom_scheduler_commands"] = custom_cmd
+
+    # Build input labels for argument resolution
+    input_labels = {}
+    for port_name, input_ in task.input_data_items():
+        input_label = AiidaWorkGraph.get_aiida_label_from_graph_item(input_)
+        if port_name not in input_labels:
+            input_labels[port_name] = []
+        input_labels[port_name].append(f"{{{input_label}}}")
+
+    # Resolve arguments using the template
+    arguments_with_placeholders = task.resolve_ports(input_labels)
+    _, arguments = AiidaWorkGraph.split_cmd_arg(arguments_with_placeholders)
+
+    # Merge script nodes with input data nodes
+    all_nodes = {**task_spec["nodes"]}
+    for port, data_node in input_data_nodes.items():
+        node_label = AiidaWorkGraph.get_aiida_label_from_graph_item(
+            next(d for p, d in task.input_data_items() if p == port)
+        )
+        all_nodes[node_label] = data_node
+
+    # Build output paths with formatted names
+    outputs = []
+    for output in task.output_data_nodes():
+        if isinstance(output, core.GeneratedData) and output.path is not None:
+            outputs.append(str(output.path))
+
+    # Build filenames dict
+    filenames = {}
+    for input_ in task.input_data_nodes():
+        input_label = AiidaWorkGraph.get_aiida_label_from_graph_item(input_)
+        if isinstance(input_, core.AvailableData):
+            filenames[input_.name] = input_.path.name
+        elif isinstance(input_, core.GeneratedData):
+            same_name_count = sum(
+                1 for inp in task.input_data_nodes() if inp.name == input_.name
+            )
+            if same_name_count > 1:
+                filenames[input_label] = input_label
+            else:
+                filenames[input_label] = (
+                    input_.path.name if input_.path is not None else input_.name
+                )
+
+    # Build the shelljob NodeSpec
+    spec = _build_shelljob_nodespec(
+        identifier=f"shelljob_{label}",
+        outputs=None,
+        parser_outputs=None,
+    )
+
+    # Create the shell task
+    # Note: This returns a namespace with the task's outputs
+    from aiida_workgraph import WorkGraph
+
+    wg = WorkGraph.get_current_workgraph()
+
+    shell_task = wg.tasks._new(
+        spec,
+        name=label,
+        command=task_spec["code"],
+        arguments=[arguments],
+        nodes=all_nodes,
+        outputs=outputs,
+        filenames=filenames,
+        metadata=metadata,
+        resolve_command=False,
+    )
+
+    # Return outputs as a namespace
+    return {
+        output.name: getattr(
+            shell_task.outputs, ShellParser.format_link_label(str(output.path))
+        )
+        for output in task.output_data_nodes()
+        if output.path
+    }
+
+
+@task.graph
+def launch_icon_task_with_dependency(
+    task_spec: dict,
+    input_data_nodes: dict,
+    job_ids: Annotated[dict, dynamic(int)] = None,
+):
+    """Launch an ICON task with optional SLURM job dependencies.
+
+    Args:
+        task_spec: Dict from _build_icon_task_spec() containing:
+            - label: Task label
+            - builder: IconCalculation builder
+            - task: Original core.IconTask instance
+        input_data_nodes: Dict mapping port names to AiiDA data nodes
+        job_ids: Optional dict of {dependency_label: job_id} for SLURM dependencies
+
+    Returns:
+        Builder outputs (output_streams, restart_file, finish_status, etc.)
+    """
+    from copy import deepcopy
+
+    # Deep copy the builder to avoid modifying the original
+    builder = deepcopy(task_spec["builder"])
+    task = task_spec["task"]
+    label = task_spec["label"]
+
+    # Add runtime job dependencies to metadata
+    if job_ids:
+        dep_str = ":".join(str(jid.value) for jid in job_ids.values())
+        custom_cmd = f"#SBATCH --dependency=afterok:{dep_str}"
+
+        current_cmds = builder.metadata.options.get("custom_scheduler_commands", "")
+        if current_cmds:
+            builder.metadata.options["custom_scheduler_commands"] = (
+                current_cmds + f"\n{custom_cmd}"
+            )
+        else:
+            builder.metadata.options["custom_scheduler_commands"] = custom_cmd
+
+    # Set input data nodes on the builder
+    for port_name, data_node in input_data_nodes.items():
+        if port_name == "restart_file":
+            builder.restart_file = data_node
+        elif port_name == "dynamics_grid_file":
+            builder.dynamics_grid_file = data_node
+        elif port_name == "ecrad_data":
+            builder.ecrad_data = data_node
+        elif port_name == "cloud_opt_props":
+            builder.cloud_opt_props = data_node
+        elif port_name == "rrtmg_lw":
+            builder.rrtmg_lw = data_node
+        elif port_name == "dmin_wetgrowth_lookup":
+            builder.dmin_wetgrowth_lookup = data_node
+        else:
+            # Generic port setting
+            setattr(builder, port_name, data_node)
+
+    # Submit the builder via workgraph
+    from aiida_workgraph import WorkGraph
+
+    wg = WorkGraph.get_current_workgraph()
+
+    icon_task = wg.add_task(builder, name=label)
+
+    # Return outputs as dict
+    outputs = {}
+    for port_name, output_list in task.outputs.items():
+        if port_name == "output_streams":
+            outputs["output_streams"] = icon_task.outputs.output_streams
+        elif port_name == "latest_restart_file":
+            outputs["restart_file"] = icon_task.outputs.restart_file
+        elif port_name == "finish_status":
+            outputs["finish_status"] = icon_task.outputs.finish_status
+        elif port_name is None:
+            outputs["retrieved"] = icon_task.outputs.retrieved
+
+    return outputs
+
+
+@task.graph
+def build_dynamic_sirocco_workgraph(
+    core_workflow: core.Workflow,
+    aiida_data_nodes: dict,
+    shell_task_specs: dict,
+    icon_task_specs: dict,
+):
+    """Build Sirocco workgraph dynamically with SLURM job dependencies.
+
+    This function creates tasks in dependency order, waiting for job IDs
+    before submitting dependent tasks.
+
+    Args:
+        core_workflow: The unrolled Sirocco core workflow
+        aiida_data_nodes: Pre-created available data nodes
+        shell_task_specs: Dict mapping task labels to shell task specs
+        icon_task_specs: Dict mapping task labels to icon task specs
+
+    Returns:
+        Dict with final workflow outputs
+    """
+    task_outputs = {}  # Store task outputs by label
+    job_ids = {}  # Store SLURM job IDs by label
+
+    # Helper to get task label
+    def get_label(task):
+        return AiidaWorkGraph.get_aiida_label_from_graph_item(task)
+
+    # Process all tasks in the workflow
+    # Note: We iterate through cycles which already have correct ordering
+    for cycle in core_workflow.cycles:
+        for task in cycle.tasks:
+            task_label = get_label(task)
+
+            # Collect job IDs of tasks this one waits on
+            dep_job_ids = {}
+            for wait_task in task.wait_on:
+                wait_label = get_label(wait_task)
+                if wait_label in job_ids:
+                    dep_job_ids[wait_label] = job_ids[wait_label]
+
+            # Collect input data nodes for this task
+            input_data_for_task = {}
+            for port, input_data in task.input_data_items():
+                input_label = get_label(input_data)
+
+                if isinstance(input_data, core.AvailableData):
+                    # Use pre-created available data node
+                    input_data_for_task[port] = aiida_data_nodes[input_label]
+
+                elif isinstance(input_data, core.GeneratedData):
+                    # Find which task generated this data
+                    for prev_task in core_workflow.tasks:
+                        for out_port, out_data in prev_task.output_data_items():
+                            if get_label(out_data) == input_label:
+                                prev_task_label = get_label(prev_task)
+                                if prev_task_label in task_outputs:
+                                    # Get the specific output
+                                    input_data_for_task[port] = task_outputs[
+                                        prev_task_label
+                                    ].get(out_data.name, task_outputs[prev_task_label])
+                                break
+
+            # Launch the task with dependencies
+            if isinstance(task, core.ShellTask):
+                task_spec = shell_task_specs[task_label]
+                outputs = launch_shell_task_with_dependency(
+                    task_spec=task_spec,
+                    input_data_nodes=input_data_for_task,
+                    job_ids=dep_job_ids if dep_job_ids else None,
+                )
+
+            elif isinstance(task, core.IconTask):
+                task_spec = icon_task_specs[task_label]
+                outputs = launch_icon_task_with_dependency(
+                    task_spec=task_spec,
+                    input_data_nodes=input_data_for_task,
+                    job_ids=dep_job_ids if dep_job_ids else None,
+                )
+            else:
+                raise TypeError(f"Unknown task type: {type(task)}")
+
+            # Store task outputs
+            task_outputs[task_label] = outputs
+
+            # Get the SLURM job ID (blocks until task is submitted)
+            job_id = get_job_id(
+                workgraph_name=task_label,
+                task_name=task_label,
+            ).result
+            job_ids[task_label] = job_id
+
+    # Return summary of completion
+    return {
+        "status": "completed",
+        "num_tasks": len(task_outputs),
+        "final_outputs": task_outputs,
+    }
+
+
 class AiidaWorkGraph:
     def __init__(self, core_workflow: core.Workflow):
-        # the core workflow that unrolled the time constraints for the whole graph
+        """Initialize with minimal setup - only validate and prepare data."""
+        breakpoint()
         self._core_workflow = core_workflow
-
         self._validate_workflow()
 
-        self._workgraph = WorkGraph(core_workflow.name)
-
-        # stores the input data available on initialization
+        # Only create available data nodes
         self._aiida_data_nodes: dict[str, WorkgraphDataNode] = {}
-        # stores the outputs sockets of tasks
-        self._aiida_socket_nodes: dict[str, TaskSocket] = {}
-        self._aiida_task_nodes: dict[str, Task] = {}
-
-        # create input data nodes
         for data in self._core_workflow.data:
             if isinstance(data, core.AvailableData):
                 self._add_aiida_input_data_node(data)
 
-        # create workgraph task nodes and output sockets
-        for task in self._core_workflow.tasks:
-            self.create_task_node(task)
-            # Create and link corresponding output sockets
-            for port, output in task.output_data_items():
-                self._link_output_node_to_task(task, port, output)
-
-        # link input nodes to workgraph tasks
-        for task in self._core_workflow.tasks:
-            for port, input_ in task.input_data_items():
-                self._link_input_node_to_task(task, port, input_)
-
-        # set shelljob arguments
-        for task in self._core_workflow.tasks:
-            if isinstance(task, core.ShellTask):
-                self._set_shelljob_arguments(task)
-                self._set_shelljob_filenames(task)
-
-        # link wait on to workgraph tasks
-        for task in self._core_workflow.tasks:
-            self._link_wait_on_to_task(task)
-
-    def _validate_workflow(self):
-        """Checks if the core workflow uses valid AiiDA names for its tasks and data."""
-        for task in self._core_workflow.tasks:
-            try:
-                aiida.common.validate_link_label(task.name)
-            except ValueError as exception:
-                msg = f"Raised error when validating task name '{task.name}': {exception.args[0]}"
-                raise ValueError(msg) from exception
-            for input_ in task.input_data_nodes():
-                try:
-                    aiida.common.validate_link_label(input_.name)
-                except ValueError as exception:
-                    msg = f"Raised error when validating input name '{input_.name}': {exception.args[0]}"
-                    raise ValueError(msg) from exception
-            for output in task.output_data_nodes():
-                try:
-                    aiida.common.validate_link_label(output.name)
-                except ValueError as exception:
-                    msg = f"Raised error when validating output name '{output.name}': {exception.args[0]}"
-                    raise ValueError(msg) from exception
+        # Don't create workgraph yet
+        self._workgraph = None
 
     @staticmethod
     def replace_invalid_chars_in_label(label: str) -> str:
@@ -123,26 +420,60 @@ class AiidaWorkGraph:
     def label_placeholder(cls, data: core.Data) -> str:
         return f"{{{cls.get_aiida_label_from_graph_item(data)}}}"
 
-    def data_from_core(
-        self, core_available_data: core.AvailableData
-    ) -> WorkgraphDataNode:
-        return self._aiida_data_nodes[
-            self.get_aiida_label_from_graph_item(core_available_data)
-        ]
+    @staticmethod
+    def get_wrapper_script_aiida_data(task) -> aiida.orm.SinglefileData | None:
+        """Get AiiDA SinglefileData for wrapper script if configured"""
+        if task.wrapper_script is not None:
+            return aiida.orm.SinglefileData(str(task.wrapper_script))
+        return AiidaWorkGraph._get_default_wrapper_script()
 
-    def socket_from_core(self, core_generated_data: core.GeneratedData) -> TaskSocket:
-        return self._aiida_socket_nodes[
-            self.get_aiida_label_from_graph_item(core_generated_data)
-        ]
+    @staticmethod
+    def _get_default_wrapper_script() -> aiida.orm.SinglefileData | None:
+        """Get default wrapper script based on task type"""
 
-    def task_from_core(self, core_task: core.Task) -> Task:
-        return self._aiida_task_nodes[self.get_aiida_label_from_graph_item(core_task)]
+        # Import the script directory from aiida-icon
+        from aiida_icon.site_support.cscs.alps import SCRIPT_DIR
 
-    def _add_available_data(self):
-        """Adds the available data on initialization to the workgraph"""
-        for data in self._core_workflow.data:
-            if isinstance(data, core.AvailableData):
-                self._add_aiida_input_data_node(data)
+        default_script_path = SCRIPT_DIR / "todi_cpu.sh"
+        return aiida.orm.SinglefileData(file=default_script_path)
+
+    @staticmethod
+    def _parse_mpi_cmd_to_aiida(mpi_cmd: str) -> str:
+        for placeholder in core.MpiCmdPlaceholder:
+            mpi_cmd = mpi_cmd.replace(
+                f"{{{placeholder.value}}}",
+                f"{{{AiidaWorkGraph._translate_mpi_cmd_placeholder(placeholder)}}}",
+            )
+        return mpi_cmd
+
+    @staticmethod
+    def _translate_mpi_cmd_placeholder(placeholder: core.MpiCmdPlaceholder) -> str:
+        match placeholder:
+            case core.MpiCmdPlaceholder.MPI_TOTAL_PROCS:
+                return "tot_num_mpiprocs"
+            case _:
+                assert_never(placeholder)
+
+    def _validate_workflow(self):
+        """Checks if the core workflow uses valid AiiDA names for its tasks and data."""
+        for task in self._core_workflow.tasks:
+            try:
+                aiida.common.validate_link_label(task.name)
+            except ValueError as exception:
+                msg = f"Raised error when validating task name '{task.name}': {exception.args[0]}"
+                raise ValueError(msg) from exception
+            for input_ in task.input_data_nodes():
+                try:
+                    aiida.common.validate_link_label(input_.name)
+                except ValueError as exception:
+                    msg = f"Raised error when validating input name '{input_.name}': {exception.args[0]}"
+                    raise ValueError(msg) from exception
+            for output in task.output_data_nodes():
+                try:
+                    aiida.common.validate_link_label(output.name)
+                except ValueError as exception:
+                    msg = f"Raised error when validating output name '{output.name}': {exception.args[0]}"
+                    raise ValueError(msg) from exception
 
     def _add_aiida_input_data_node(self, data: core.AvailableData):
         """
@@ -191,145 +522,6 @@ class AiidaWorkGraph:
                 remote_path=str(data.path), label=label, computer=computer
             )
 
-    @functools.singledispatchmethod
-    def create_task_node(self, task: core.Task):
-        """dispatch creating task nodes based on task type"""
-
-        if isinstance(task, core.IconTask):
-            msg = "method not implemented yet for Icon tasks"
-        else:
-            msg = f"method not implemented for task type {type(task)}"
-        raise NotImplementedError(msg)
-
-    @create_task_node.register
-    def _create_shell_task_node(self, task: core.ShellTask):
-        from aiida_workgraph.tasks.shelljob_task import _build_shelljob_nodespec
-        from aiida_shell import ShellCode
-
-        label = self.get_aiida_label_from_graph_item(task)
-        cmd, _ = self.split_cmd_arg(task.command)
-
-        try:
-            computer = aiida.orm.Computer.collection.get(label=task.computer)
-        except NotExistent as err:
-            msg = f"Could not find computer {task.computer!r} in AiiDA database."
-            raise ValueError(msg) from err
-
-        # Build metadata
-        metadata = {}
-        metadata["options"] = {}
-        metadata["options"]["use_symlinks"] = True
-        # metadata["options"]["account"] = "cwd01"
-        metadata["options"]["additional_retrieve"] = [
-            "_scheduler-stdout.txt",
-            "_scheduler-stderr.txt",
-        ]
-        metadata["options"].update(self._from_task_get_scheduler_options(task))
-
-        if task.computer is not None:
-            metadata["computer"] = computer
-
-        # Prepare nodes (input files)
-        nodes = {}
-        if task.path is not None:
-            nodes[f"SCRIPT__{label}"] = aiida.orm.SinglefileData(str(task.path))
-
-        # Create ShellCode
-        # TODO: don't create new ones
-        label_uuid = str(uuid.uuid4())
-        code = ShellCode(
-            label=f"{cmd}-{label_uuid}",
-            computer=computer,
-            filepath_executable=cmd,
-            default_calc_job_plugin="core.shell",
-            use_double_quotes=True,
-        ).store()
-
-        # Build the shelljob NodeSpec directly
-        spec = _build_shelljob_nodespec(
-            identifier=f"shelljob_{label}",
-            outputs=None,
-            parser_outputs=None,
-        )
-
-        # Create task from spec
-        workgraph_task = self._workgraph.tasks._new(
-            spec,
-            name=label,
-            command=code,
-            arguments=[],
-            nodes=nodes,
-            outputs=[],
-            metadata=metadata,
-            resolve_command=False,
-        )
-
-        self._aiida_task_nodes[label] = workgraph_task
-
-    @create_task_node.register
-    def _create_icon_task_node(self, task: core.IconTask):
-        task_label = self.get_aiida_label_from_graph_item(task)
-
-        try:
-            computer = aiida.orm.Computer.collection.get(label=task.computer)
-        except NotExistent as err:
-            msg = f"Could not find computer {task.computer!r} in AiiDA database. One needs to create and configure the computer before running a workflow."
-            raise ValueError(msg) from err
-
-        # Use the original computer directly
-        icon_code = aiida.orm.InstalledCode(
-            label=f"icon-{task_label}",
-            description="aiida_icon",
-            default_calc_job_plugin="icon.icon",
-            computer=computer,
-            filepath_executable=str(task.bin),
-            with_mpi=bool(task.mpi_cmd),
-            use_double_quotes=True,
-        ).store()
-
-        builder = IconCalculation.get_builder()
-        builder.code = icon_code
-        metadata = {}
-
-        task.update_icon_namelists_from_workflow()
-
-        # Master namelist
-        with io.StringIO() as buffer:
-            task.master_namelist.namelist.write(buffer)
-            buffer.seek(0)
-            builder.master_namelist = aiida.orm.SinglefileData(
-                buffer, task.master_namelist.name
-            )
-
-        # Handle multiple model namelists
-        for model_name, model_nml in task.model_namelists.items():
-            with io.StringIO() as buffer:
-                model_nml.namelist.write(buffer)
-                buffer.seek(0)
-                setattr(
-                    builder.models,  # type: ignore[attr-defined]
-                    model_name,
-                    aiida.orm.SinglefileData(buffer, model_nml.name),
-                )
-
-        # Add wrapper script
-        wrapper_script_data = AiidaWorkGraph.get_wrapper_script_aiida_data(task)
-        if wrapper_script_data is not None:
-            builder.wrapper_script = wrapper_script_data
-
-        # Set runtime information
-        options = {}
-        options.update(self._from_task_get_scheduler_options(task))
-        options["additional_retrieve_list"] = []
-        # options["account"] = "cwd01"
-
-        metadata["options"] = options
-        builder.metadata = metadata
-
-        self._aiida_task_nodes[task_label] = self._workgraph.add_task(
-            builder, name=task_label
-        )
-
     def _from_task_get_scheduler_options(self, task: core.Task) -> dict[str, Any]:
         options: dict[str, Any] = {}
         if task.walltime is not None:
@@ -361,235 +553,206 @@ class AiidaWorkGraph:
             options["resources"] = resources
         return options
 
-    @functools.singledispatchmethod
-    def _link_output_node_to_task(
-        self,
-        task: core.Task,
-        port: str,  # noqa: ARG002
-        output: core.GeneratedData,  # noqa: ARG002
-    ):
-        """Dispatch linking input to task based on task type."""
+    def _build_base_metadata(self, task: core.Task) -> dict:
+        """Build base metadata dict for any task type (without job dependencies).
 
-        msg = f"method not implemented for task type {type(task)}"
-        raise NotImplementedError(msg)
+        Job dependencies will be added at runtime in the @task.graph functions.
+        """
+        metadata = {}
+        metadata["options"] = {}
+        metadata["options"]["use_symlinks"] = True
+        metadata["options"]["account"] = "cwd01"
+        metadata["options"]["additional_retrieve"] = [
+            "_scheduler-stdout.txt",
+            "_scheduler-stderr.txt",
+        ]
+        metadata["options"].update(self._from_task_get_scheduler_options(task))
 
-    @_link_output_node_to_task.register
-    def _link_output_node_to_icon_task(
-        self, task: core.IconTask, port: str | None, output: core.GeneratedData
-    ):
-        workgraph_task = self.task_from_core(task)
-        output_label = self.get_aiida_label_from_graph_item(output)
+        try:
+            computer = aiida.orm.Computer.collection.get(label=task.computer)
+            metadata["computer"] = computer
+        except NotExistent as err:
+            msg = f"Could not find computer {task.computer!r} in AiiDA database."
+            raise ValueError(msg) from err
 
-        if port == "output_streams":
-            # Use the existing output_streams namespace from IconCalculation
-            output_socket = workgraph_task.outputs._sockets.get("output_streams")  # noqa: SLF001
-            if output_socket is None:
-                msg = "Output socket 'output_streams' was not found for ICON task."
-                raise ValueError(msg)
-        elif port is None:
-            # For unnamed outputs, add to additional_retrieve_list
-            # The output will be available through the 'retrieved' folder
-            output_path = str(output.path)
-            workgraph_task.inputs.metadata.options.additional_retrieve_list.value.append(
-                output_path
-            )
-            # Use the 'retrieved' output socket instead of creating a new one
-            # The file will be accessible through the retrieved FolderData
-            output_socket = workgraph_task.outputs._sockets.get("retrieved")  # noqa: SLF001
-            if output_socket is None:
-                msg = "Output socket 'retrieved' was not found for ICON task."
-                raise ValueError(msg)
-        else:
-            # Named ports should already exist (restart_file, finish_status, etc.)
-            output_socket = workgraph_task.outputs._sockets.get(port)  # noqa: SLF001
-            if output_socket is None:
-                msg = f"Output socket '{port}' not found. Available: {list(workgraph_task.outputs._sockets.keys())}"
-                raise ValueError(msg)
+        return metadata
 
-        self._aiida_socket_nodes[output_label] = output_socket
+    def _build_shell_task_spec(self, task: core.ShellTask) -> dict:
+        """Build all parameters needed to create a shell task.
 
-    @_link_output_node_to_task.register
-    def _link_output_node_to_shell_task(
-        self, task: core.ShellTask, _: str, output: core.GeneratedData
-    ):
-        """Links the output to the workgraph task."""
-        workgraph_task = self.task_from_core(task)
-        output_label = self.get_aiida_label_from_graph_item(output)
+        Returns a dict with keys: label, code, nodes, metadata,
+        arguments_template, filenames, outputs, task
 
-        if not isinstance(output, GeneratedData):
-            msg = f"Only generated data may be specified as output but found output {output} of type {type(output)}"
-            raise TypeError(msg)
+        Note: Job dependencies are NOT included here - they're added at runtime.
+        """
+        from aiida_shell import ShellCode
 
-        output_path = str(output.path)
+        label = self.get_aiida_label_from_graph_item(task)
+        cmd, _ = self.split_cmd_arg(task.command)
 
-        # Add to outputs list for retrieval
-        current_outputs = workgraph_task.inputs.outputs.value or []
-        if output_path not in current_outputs:
-            current_outputs.append(output_path)
-            workgraph_task.inputs.outputs.value = current_outputs
+        # Get computer
+        try:
+            computer = aiida.orm.Computer.collection.get(label=task.computer)
+        except NotExistent as err:
+            msg = f"Could not find computer {task.computer!r} in AiiDA database."
+            raise ValueError(msg) from err
 
-        # Format the output name according to ShellParser convention
-        formatted_name = ShellParser.format_link_label(output_path)
+        # Build base metadata (no job dependencies yet)
+        metadata = self._build_base_metadata(task)
 
-        # Add output socket
-        # FIXME: Use spec here
-        # output_socket = workgraph_task.add_output("workgraph.any", formatted_name)
-        output_socket = workgraph_task.add_output_spec("workgraph.any", formatted_name)
-        self._aiida_socket_nodes[output_label] = output_socket
+        # Build nodes (input files like scripts)
+        nodes = {}
+        if task.path is not None:
+            nodes[f"SCRIPT__{label}"] = aiida.orm.SinglefileData(str(task.path))
 
-    @functools.singledispatchmethod
-    def _link_input_node_to_task(self, task: core.Task, port: str, input_: core.Data):  # noqa: ARG002
-        """ "Dispatch linking input to task based on task type"""
+        # Create code
+        label_uuid = str(uuid.uuid4())
+        code = ShellCode(
+            label=f"{cmd}-{label_uuid}",
+            computer=computer,
+            filepath_executable=cmd,
+            default_calc_job_plugin="core.shell",
+            use_double_quotes=True,
+        ).store()
 
-        msg = f"method not implemented for task type {type(task)}"
-        raise NotImplementedError(msg)
+        # Arguments template (will be resolved at runtime)
+        _, arguments_template = self.split_cmd_arg(task.command)
 
-    @_link_input_node_to_task.register
-    def _link_input_node_to_icon_task(
-        self, task: core.IconTask, port: str, input_: core.Data
-    ):
-        """Links the input to the workgraph shell task."""
-
-        workgraph_task = self.task_from_core(task)
-
-        # resolve data
-        if isinstance(input_, core.AvailableData):
-            setattr(workgraph_task.inputs, f"{port}", self.data_from_core(input_))
-        elif isinstance(input_, core.GeneratedData):
-            setattr(workgraph_task.inputs, f"{port}", self.socket_from_core(input_))
-        else:
-            raise TypeError
-
-    @_link_input_node_to_task.register
-    def _link_input_node_to_shell_task(
-        self, task: core.ShellTask, _: str, input_: core.Data
-    ):
-        """Links the input to the workgraph shell task."""
-        workgraph_task = self.task_from_core(task)
-        input_label = self.get_aiida_label_from_graph_item(input_)
-
-        # Add input socket if it doesn't exist
-        workgraph_task.add_input_spec("workgraph.any", f"nodes.{input_label}")
-
-        # resolve data
-        if isinstance(input_, core.AvailableData):
-            socket = getattr(workgraph_task.inputs.nodes, input_label)
-            socket.value = self.data_from_core(input_)
-        elif isinstance(input_, core.GeneratedData):
-            self._workgraph.add_link(
-                self.socket_from_core(input_),
-                workgraph_task.inputs[f"nodes.{input_label}"],
-            )
-        else:
-            raise TypeError(f"Unexpected input type: {type(input_)}")
-
-    def _link_wait_on_to_task(self, task: core.Task):
-        """link wait on tasks to workgraph task"""
-
-        workgraph_task = self.task_from_core(task)
-        workgraph_task.waiting_on.clear()
-        workgraph_task.waiting_on.add([self.task_from_core(wt) for wt in task.wait_on])
-
-    @staticmethod
-    def _parse_mpi_cmd_to_aiida(mpi_cmd: str) -> str:
-        for placeholder in core.MpiCmdPlaceholder:
-            mpi_cmd = mpi_cmd.replace(
-                f"{{{placeholder.value}}}",
-                f"{{{AiidaWorkGraph._translate_mpi_cmd_placeholder(placeholder)}}}",
-            )
-        return mpi_cmd
-
-    @staticmethod
-    def _translate_mpi_cmd_placeholder(placeholder: core.MpiCmdPlaceholder) -> str:
-        match placeholder:
-            case core.MpiCmdPlaceholder.MPI_TOTAL_PROCS:
-                return "tot_num_mpiprocs"
-            case _:
-                assert_never(placeholder)
-
-    def _set_shelljob_arguments(self, task: core.ShellTask):
-        """Set AiiDA ShellJob arguments by replacing port placeholders with AiiDA labels."""
-        workgraph_task = self.task_from_core(task)
-
-        # Build input_labels dictionary for port resolution
-        input_labels: dict[str, list[str]] = {}
-        for port_name, input_list in task.inputs.items():
-            input_labels[port_name] = []
-            for input_ in input_list:
-                input_label = self.get_aiida_label_from_graph_item(input_)
-                input_labels[port_name].append(f"{{{input_label}}}")
-
-        # Resolve the command with port placeholders replaced by input labels
-        _, arguments_str = self.split_cmd_arg(task.resolve_ports(input_labels))
-
-        # Update the task's arguments input
-        workgraph_task.inputs.arguments.value = arguments_str
-
-    def _set_shelljob_filenames(self, task: core.ShellTask):
-        """Set AiiDA ShellJob filenames for data entities, including parameterized data."""
-        workgraph_task = self.task_from_core(task)
-
-        # Check if filenames input exists
-        if not hasattr(workgraph_task.inputs, "filenames"):
-            return
-
+        # Build filenames mapping
         filenames = {}
-
-        # Handle input files
         for input_ in task.input_data_nodes():
             input_label = self.get_aiida_label_from_graph_item(input_)
-
             if isinstance(input_, core.AvailableData):
-                filename = input_.path.name
-                filenames[input_.name] = filename
+                filenames[input_.name] = input_.path.name
             elif isinstance(input_, core.GeneratedData):
                 same_name_count = sum(
                     1 for inp in task.input_data_nodes() if inp.name == input_.name
                 )
-
                 if same_name_count > 1:
-                    filename = input_label
+                    filenames[input_label] = input_label
                 else:
-                    filename = (
+                    filenames[input_label] = (
                         input_.path.name if input_.path is not None else input_.name
                     )
 
-                filenames[input_label] = filename
-            else:
-                msg = f"Found input {input_} of type {type(input_)} but only 'AvailableData' and 'GeneratedData' are supported."
-                raise TypeError(msg)
+        # Build outputs list
+        outputs = []
+        for output in task.output_data_nodes():
+            if isinstance(output, core.GeneratedData) and output.path is not None:
+                outputs.append(str(output.path))
 
-        if filenames:
-            workgraph_task.inputs.filenames.value = filenames
+        return {
+            "label": label,
+            "code": code,
+            "nodes": nodes,
+            "metadata": metadata,
+            "arguments_template": arguments_template,
+            "filenames": filenames,
+            "outputs": outputs,
+            "task": task,
+        }
 
-    @staticmethod
-    def get_wrapper_script_aiida_data(task) -> aiida.orm.SinglefileData | None:
-        """Get AiiDA SinglefileData for wrapper script if configured"""
-        if task.wrapper_script is not None:
-            return aiida.orm.SinglefileData(str(task.wrapper_script))
-        return AiidaWorkGraph._get_default_wrapper_script()
+    def _build_icon_task_spec(self, task: core.IconTask) -> dict:
+        """Build all parameters needed to create an ICON task.
 
-    @staticmethod
-    def _get_default_wrapper_script() -> aiida.orm.SinglefileData | None:
-        """Get default wrapper script based on task type"""
+        Returns a dict with keys: label, builder, task
 
-        # Import the script directory from aiida-icon
-        from aiida_icon.site_support.cscs.alps import SCRIPT_DIR
+        Note: Job dependencies are NOT included here - they're added at runtime.
+        """
 
-        default_script_path = SCRIPT_DIR / "todi_cpu.sh"
-        return aiida.orm.SinglefileData(file=default_script_path)
+        task_label = self.get_aiida_label_from_graph_item(task)
 
-    def run(
-        self,
-        inputs: None | dict[str, Any] = None,
-        metadata: None | dict[str, Any] = None,
-    ) -> aiida.orm.Node:
-        self._workgraph.run(inputs=inputs, metadata=metadata)
-        if (output_node := self._workgraph.process) is None:
-            # The node should not be None after a run, it should contain exit code and message so if the node is None something internal went wrong
-            msg = "Something went wrong when running workgraph. Please contact a developer."
-            raise RuntimeError(msg)
-        return output_node
+        try:
+            computer = aiida.orm.Computer.collection.get(label=task.computer)
+        except NotExistent as err:
+            msg = f"Could not find computer {task.computer!r} in AiiDA database."
+            raise ValueError(msg) from err
+
+        # Create ICON code
+        icon_code = aiida.orm.InstalledCode(
+            label=f"icon-{task_label}",
+            description="aiida_icon",
+            default_calc_job_plugin="icon.icon",
+            computer=computer,
+            filepath_executable=str(task.bin),
+            with_mpi=bool(task.mpi_cmd),
+            use_double_quotes=True,
+        ).store()
+
+        # Build builder
+        builder = IconCalculation.get_builder()
+        builder.code = icon_code
+
+        # Build base metadata (no job dependencies yet)
+        metadata = self._build_base_metadata(task)
+
+        # Update task namelists
+        task.update_icon_namelists_from_workflow()
+
+        # Master namelist
+        with io.StringIO() as buffer:
+            task.master_namelist.namelist.write(buffer)
+            buffer.seek(0)
+            builder.master_namelist = aiida.orm.SinglefileData(
+                buffer, task.master_namelist.name
+            )
+
+        # Model namelists
+        for model_name, model_nml in task.model_namelists.items():
+            with io.StringIO() as buffer:
+                model_nml.namelist.write(buffer)
+                buffer.seek(0)
+                setattr(
+                    builder.models,
+                    model_name,
+                    aiida.orm.SinglefileData(buffer, model_nml.name),
+                )
+
+        # Add wrapper script
+        wrapper_script_data = self.get_wrapper_script_aiida_data(task)
+        if wrapper_script_data is not None:
+            builder.wrapper_script = wrapper_script_data
+
+        # Set scheduler options
+        options = metadata["options"]
+        options["additional_retrieve_list"] = []
+
+        # Set metadata on builder
+        builder.metadata = metadata
+
+        return {
+            "label": task_label,
+            "builder": builder,
+            "task": task,
+        }
+
+    def build(self) -> WorkGraph:
+        """Build the dynamic workgraph with SLURM job dependencies.
+
+        Returns:
+            A WorkGraph ready for submission
+        """
+        # Pre-build all task specs (no job dependencies yet)
+        shell_task_specs = {}
+        icon_task_specs = {}
+
+        for task in self._core_workflow.tasks:
+            label = self.get_aiida_label_from_graph_item(task)
+            if isinstance(task, core.ShellTask):
+                shell_task_specs[label] = self._build_shell_task_spec(task)
+            elif isinstance(task, core.IconTask):
+                icon_task_specs[label] = self._build_icon_task_spec(task)
+
+        # Build the dynamic workgraph
+        wg = build_dynamic_sirocco_workgraph.build(
+            core_workflow=self._core_workflow,
+            aiida_data_nodes=self._aiida_data_nodes,
+            shell_task_specs=shell_task_specs,
+            icon_task_specs=icon_task_specs,
+        )
+
+        self._workgraph = wg
+        return wg
 
     def submit(
         self,
@@ -599,11 +762,61 @@ class AiidaWorkGraph:
         timeout: int = 60,
         metadata: None | dict[str, Any] = None,
     ) -> aiida.orm.Node:
+        """Submit the workflow to the AiiDA daemon.
+
+        Builds the dynamic workgraph if not already built, then submits it.
+
+        Args:
+            inputs: Optional inputs to pass to the workgraph
+            wait: Whether to wait for completion
+            timeout: Timeout in seconds if wait=True
+            metadata: Optional metadata for the workgraph
+
+        Returns:
+            The AiiDA process node
+
+        Raises:
+            RuntimeError: If submission fails
+        """
+        if self._workgraph is None:
+            self.build()
+
         self._workgraph.submit(
             inputs=inputs, wait=wait, timeout=timeout, metadata=metadata
         )
+
         if (output_node := self._workgraph.process) is None:
-            # The node should not be None after a run, it should contain exit code and message so if the node is None something internal went wrong
+            msg = "Something went wrong when submitting workgraph. Please contact a developer."
+            raise RuntimeError(msg)
+
+        return output_node
+
+    def run(
+        self,
+        inputs: None | dict[str, Any] = None,
+        metadata: None | dict[str, Any] = None,
+    ) -> aiida.orm.Node:
+        """Run the workflow in a blocking fashion.
+
+        Builds the dynamic workgraph if not already built, then runs it.
+
+        Args:
+            inputs: Optional inputs to pass to the workgraph
+            metadata: Optional metadata for the workgraph
+
+        Returns:
+            The AiiDA process node
+
+        Raises:
+            RuntimeError: If execution fails
+        """
+        if self._workgraph is None:
+            self.build()
+
+        self._workgraph.run(inputs=inputs, metadata=metadata)
+
+        if (output_node := self._workgraph.process) is None:
             msg = "Something went wrong when running workgraph. Please contact a developer."
             raise RuntimeError(msg)
+
         return output_node
