@@ -87,7 +87,7 @@ async def get_job_id(
 @task.graph
 def launch_shell_task_with_dependency(
     task_spec: dict,
-    input_data_nodes: Annotated[dict, dynamic(aiida.orm.Data)],
+    input_data_nodes: Annotated[dict, dynamic(aiida.orm.Data)] = None,
     job_ids: Annotated[dict, dynamic(int)] = None,
 ) -> Annotated[dict, dynamic(aiida.orm.Data)]:
     """Launch a shell task with optional SLURM job dependencies.
@@ -115,6 +115,10 @@ def launch_shell_task_with_dependency(
     label = task_spec["label"]
     input_data_info = task_spec["input_data_info"]
     output_data_info = task_spec["output_data_info"]
+
+    # Handle None input_data_nodes
+    if input_data_nodes is None:
+        input_data_nodes = {}
 
     # Load the code from PK
     code = aiida.orm.load_node(task_spec["code_pk"])
@@ -183,21 +187,15 @@ def launch_shell_task_with_dependency(
         resolve_command=False,
     )
 
-    # Return outputs as a namespace using pre-computed output info
-    # Only include outputs that actually exist as sockets
-    outputs_dict = {}
-    for output_info in output_data_info:
-        if output_info["path"]:
-            link_label = ShellParser.format_link_label(output_info["path"])
-            if hasattr(shell_task.outputs, link_label):
-                outputs_dict[output_info["name"]] = getattr(shell_task.outputs, link_label)
-    return outputs_dict
+    # Return the shell_task outputs directly
+    # We'll use output_port_mapping in the connection logic to map data names to link labels
+    return shell_task.outputs
 
 
 @task.graph
 def launch_icon_task_with_dependency(
     task_spec: dict,
-    input_data_nodes: Annotated[dict, dynamic(aiida.orm.Data)],
+    input_data_nodes: Annotated[dict, dynamic(aiida.orm.Data)] = None,
     job_ids: Annotated[dict, dynamic(int)] = None,
 ) -> Annotated[dict, dynamic(aiida.orm.Data)]:
     """Launch an ICON task with optional SLURM job dependencies.
@@ -220,6 +218,10 @@ def launch_icon_task_with_dependency(
     label = task_spec["label"]
     output_port_mapping = task_spec["output_port_mapping"]
 
+    # Handle None input_data_nodes
+    if input_data_nodes is None:
+        input_data_nodes = {}
+
     # Reconstruct the builder from PKs
     builder = IconCalculation.get_builder()
     builder.code = aiida.orm.load_node(task_spec["code_pk"])
@@ -236,10 +238,10 @@ def launch_icon_task_with_dependency(
     # Reconstruct metadata with computer
     metadata = dict(task_spec["metadata"])
     metadata["options"] = dict(metadata["options"])
-    computer = aiida.orm.Computer.collection.get(label=metadata.pop("computer_label"))
-    metadata["computer"] = computer
+    computer_label = metadata.pop("computer_label")
+    computer = aiida.orm.Computer.collection.get(label=computer_label)
 
-    # Add runtime job dependencies to metadata
+    # Add runtime job dependencies to custom_scheduler_commands
     if job_ids:
         dep_str = ":".join(str(jid.value) for jid in job_ids.values())
         custom_cmd = f"#SBATCH --dependency=afterok:{dep_str}"
@@ -252,11 +254,18 @@ def launch_icon_task_with_dependency(
         else:
             metadata["options"]["custom_scheduler_commands"] = custom_cmd
 
-    builder.metadata = metadata
+        print(f"DEBUG: Task {label} - custom_scheduler_commands = {metadata['options']['custom_scheduler_commands']}")
+
+    # Set metadata on builder - set computer and options individually to avoid overwriting
+    builder.metadata.computer = computer
+    for option_key, option_value in metadata["options"].items():
+        setattr(builder.metadata.options, option_key, option_value)
 
     # Set input data nodes on the builder
     for port_name, data_node in input_data_nodes.items():
+        print(f"DEBUG: Setting builder.{port_name} = {type(data_node).__name__} (node type)")
         if port_name == "restart_file":
+            print(f"DEBUG: restart_file type check - expected RemoteData, got {type(data_node)}")
             builder.restart_file = data_node
         elif port_name == "dynamics_grid_file":
             builder.dynamics_grid_file = data_node
@@ -277,15 +286,9 @@ def launch_icon_task_with_dependency(
 
     icon_task = wg.add_task(builder, name=label)
 
-    # Return outputs as dict using pre-computed output port mapping
-    # Keys are data names, values are the actual ICON output sockets
-    outputs = {}
-    for data_name, icon_port_name in output_port_mapping.items():
-        # Get the ICON output socket and store it with the data name as key
-        if hasattr(icon_task.outputs, icon_port_name):
-            outputs[data_name] = getattr(icon_task.outputs, icon_port_name)
-
-    return outputs
+    # Return the icon_task outputs directly
+    # We'll use output_port_mapping in the connection logic to map data names to port names
+    return icon_task.outputs
 
 
 # this is a normal function to create the workgraph
@@ -327,8 +330,11 @@ def build_dynamic_sirocco_workgraph(
         for task in cycle.tasks:
             task_label = get_label(task)
 
-            # Collect job IDs of tasks this one waits on
+            # Collect job IDs for SLURM dependencies
+            # Include both explicit wait_on and implicit data dependencies
             dep_job_ids = {}
+
+            # 1. Explicit wait_on dependencies
             for wait_task in task.wait_on:
                 wait_label = get_label(wait_task)
                 if wait_label in job_ids:
@@ -349,12 +355,38 @@ def build_dynamic_sirocco_workgraph(
                         for out_port, out_data in prev_task.output_data_items():
                             if get_label(out_data) == input_label:
                                 prev_task_label = get_label(prev_task)
+
+                                # 2. Add SLURM job dependency for data producer task
+                                if prev_task_label in job_ids and prev_task_label not in dep_job_ids:
+                                    dep_job_ids[prev_task_label] = job_ids[prev_task_label]
+                                    print(f"DEBUG: Task '{task_label}' will wait for job_id from task '{prev_task_label}' (data dependency)")
+
                                 if prev_task_label in task_outputs:
                                     # Get the specific output
-                                    if out_data.name in task_outputs[prev_task_label]:
-                                        input_data_for_task[port] = task_outputs[prev_task_label][out_data.name]
+                                    # task_outputs[prev_task_label] is the outputs namespace from the @task.graph function
+                                    outputs_namespace = task_outputs[prev_task_label]
+
+                                    # Get output_port_mapping from task spec (works for both ICON and shell)
+                                    task_spec = None
+                                    if prev_task_label in icon_task_specs:
+                                        task_spec = icon_task_specs[prev_task_label]
+                                    elif prev_task_label in shell_task_specs:
+                                        task_spec = shell_task_specs[prev_task_label]
+
+                                    if task_spec and "output_port_mapping" in task_spec:
+                                        output_port_mapping = task_spec["output_port_mapping"]
+                                        # out_data.name is the data name, get the corresponding output port name
+                                        output_port_name = output_port_mapping.get(out_data.name)
+                                        if output_port_name and hasattr(outputs_namespace, output_port_name):
+                                            socket = getattr(outputs_namespace, output_port_name)
+                                            print(f"DEBUG: Mapped data_name='{out_data.name}' to port_name='{output_port_name}'")
+                                            input_data_for_task[port] = socket
+                                        else:
+                                            print(f"DEBUG: Output mapping failed: data_name='{out_data.name}' -> port_name='{output_port_name}'")
+                                            print(f"DEBUG: Available outputs: {list(outputs_namespace._sockets.keys())}")
                                     else:
-                                        input_data_for_task[port] = task_outputs[prev_task_label]
+                                        print(f"DEBUG: No output_port_mapping found for task '{prev_task_label}'")
+                                        print(f"DEBUG: Available outputs: {list(outputs_namespace._sockets.keys()) if hasattr(outputs_namespace, '_sockets') else 'no _sockets'}")
 
             # Launch the task with dependencies
             if isinstance(task, core.ShellTask):
@@ -377,6 +409,9 @@ def build_dynamic_sirocco_workgraph(
 
             # Store task outputs
             task_outputs[task_label] = outputs
+            print(f"DEBUG: Created task '{task_label}', outputs type: {type(outputs).__name__}")
+            if hasattr(outputs, '_sockets'):
+                print(f"DEBUG: Task '{task_label}' outputs._sockets keys: {list(outputs._sockets.keys())}")
 
             # Get the SLURM job ID (blocks until task is submitted)
             job_id = get_job_id(
@@ -384,6 +419,7 @@ def build_dynamic_sirocco_workgraph(
                 task_name=task_label,
             ).result
             job_ids[task_label] = job_id
+            print(f"DEBUG: Got job_id socket for task '{task_label}'")
 
     return wg
 
@@ -548,12 +584,18 @@ class AiidaWorkGraph:
         if task.mem is not None:
             options["max_memory_kb"] = task.mem * 1024
 
-        # custom_scheduler_commands
-        options["custom_scheduler_commands"] = ""
+        # custom_scheduler_commands - initialize if not already set
+        if "custom_scheduler_commands" not in options:
+            options["custom_scheduler_commands"] = ""
+
         if isinstance(task, core.IconTask) and task.uenv is not None:
-            options["custom_scheduler_commands"] += f"#SBATCH --uenv={task.uenv}\n"
+            if options["custom_scheduler_commands"]:
+                options["custom_scheduler_commands"] += "\n"
+            options["custom_scheduler_commands"] += f"#SBATCH --uenv={task.uenv}"
         if isinstance(task, core.IconTask) and task.view is not None:
-            options["custom_scheduler_commands"] += f"#SBATCH --view={task.view}\n"
+            if options["custom_scheduler_commands"]:
+                options["custom_scheduler_commands"] += "\n"
+            options["custom_scheduler_commands"] += f"#SBATCH --view={task.view}"
 
         if (
             task.nodes is not None
@@ -711,6 +753,14 @@ class AiidaWorkGraph:
             if output_info["is_generated"] and output_info["path"] is not None:
                 outputs.append(output_info["path"])
 
+        # Build output port mapping: data_name -> shell output link_label
+        from aiida_shell.parsers.shell import ShellParser
+        output_port_mapping = {}
+        for output_info in output_data_info:
+            if output_info["path"]:
+                link_label = ShellParser.format_link_label(output_info["path"])
+                output_port_mapping[output_info["name"]] = link_label
+
         return {
             "label": label,
             "code_pk": code.pk,
@@ -721,6 +771,7 @@ class AiidaWorkGraph:
             "outputs": outputs,
             "input_data_info": input_data_info,
             "output_data_info": output_data_info,
+            "output_port_mapping": output_port_mapping,
         }
 
     def _build_icon_task_spec(self, task: core.IconTask) -> dict:
