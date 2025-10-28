@@ -42,7 +42,7 @@ def serialize_coordinates(coordinates: dict) -> dict:
 
 @task
 async def get_job_id(
-    workgraph_name: str, task_name: str, interval: int = 1, timeout: int = 180
+    workgraph_name: str, task_name: str, interval: int = 5, timeout: int = 180
 ):
     """Get the job_id of a CalcJob task immediately after submission.
 
@@ -203,7 +203,7 @@ def launch_shell_task_with_dependency(
 
     wg = get_current_graph()
 
-    shell_task = wg.tasks._new(
+    shell_task = wg.add_task(
         spec,
         name=label,
         command=code,
@@ -331,71 +331,39 @@ def build_dynamic_sirocco_workgraph(
     shell_task_specs: dict,
     icon_task_specs: dict,
 ):
-    """Build Sirocco workgraph dynamically with SLURM job dependencies.
-
-    This function creates tasks in dependency order, waiting for job IDs
-    before submitting dependent tasks.
-
-    Args:
-        core_workflow: The unrolled Sirocco core workflow
-        aiida_data_nodes: Pre-created available data nodes
-        shell_task_specs: Dict mapping task labels to shell task specs
-        icon_task_specs: Dict mapping task labels to icon task specs
-
-    Returns:
-        Dict with final workflow outputs
-    """
     from aiida_workgraph.manager import set_current_graph
 
     wg = WorkGraph("FULL-WG")
     set_current_graph(wg)
 
-    job_ids = {}  # Store SLURM job IDs by label
+    job_ids = {}  # Store SLURM job ID futures by label
+    previous_job_id_task = None  # Track the previous job_id task
 
     # Helper to get task label
     def get_label(task):
         return AiidaWorkGraph.get_aiida_label_from_graph_item(task)
 
-    # Process all tasks in the workflow
-    # Note: We iterate through cycles which already have correct ordering
+    # Process all tasks in the workflow in cycle order
     for cycle in core_workflow.cycles:
         for task in cycle.tasks:
             task_label = get_label(task)
 
-            # Collect only AvailableData (pre-existing files) for input_data_nodes
-            # Skip GeneratedData connections - rely on SLURM dependencies + filesystem
+            # Collect input data
             input_data_for_task = {}
             for port, input_data in task.input_data_items():
                 input_label = get_label(input_data)
                 if isinstance(input_data, core.AvailableData):
-                    # Use pre-created available data node
                     input_data_for_task[port] = aiida_data_nodes[input_label]
 
-            # Collect job_id sockets for SLURM dependencies
-            # These are futures - they don't block task creation!
+            # Build job_ids dict from data dependencies
             dep_job_ids = {}
-
-            # 1. Explicit wait_on dependencies
-            for wait_task in task.wait_on:
-                wait_label = get_label(wait_task)
-                if wait_label in job_ids:
-                    dep_job_ids[wait_label] = job_ids[wait_label]
-                    print(
-                        f"DEBUG: Task '{task_label}' will depend on job_id from '{wait_label}' (wait_on)"
-                    )
-
-            # 2. Data dependencies - find which tasks produce data this task needs
             for port, input_data in task.input_data_items():
                 if isinstance(input_data, core.GeneratedData):
                     for prev_task in core_workflow.tasks:
                         for out_port, out_data in prev_task.output_data_items():
                             if get_label(out_data) == get_label(input_data):
                                 prev_task_label = get_label(prev_task)
-                                # Only add if we already have the job_id socket from a previous iteration
-                                if (
-                                    prev_task_label in job_ids
-                                    and prev_task_label not in dep_job_ids
-                                ):
+                                if prev_task_label in job_ids:
                                     dep_job_ids[prev_task_label] = job_ids[
                                         prev_task_label
                                     ]
@@ -406,12 +374,10 @@ def build_dynamic_sirocco_workgraph(
 
             if isinstance(task, core.IconTask):
                 task_spec = icon_task_specs[task_label]
-
-                # Create UNIQUE launcher name for each task
                 launcher_name = f"launch_{task_label}"
 
-                # Launch as separate graph task with unique metadata
-                icon_launcher = wg.tasks._new(
+                # Create launcher task (starts immediately)
+                icon_launcher = wg.add_task(
                     launch_icon_task_with_dependency,
                     name=launcher_name,
                     task_spec=task_spec,
@@ -421,28 +387,35 @@ def build_dynamic_sirocco_workgraph(
                     job_ids=dep_job_ids if dep_job_ids else None,
                 )
 
-                # Get job ID using the LAUNCHER's workgraph name, not the task label
-                job_id_task = wg.tasks._new(
+                # Create job_id fetcher for THIS launcher
+                job_id_task = wg.add_task(
                     get_job_id,
                     name=f"get_job_id_{task_label}",
-                    workgraph_name=launcher_name,  # Use launcher name, not task_label
-                    task_name=task_label,  # But task name remains the CalcJob name
+                    workgraph_name=launcher_name,
+                    task_name=task_label,
                 )
 
-                # icon_launcher.outputs >> job_id_task
+                # CRITICAL: Make this job_id_task wait for the PREVIOUS job_id_task
+                # This creates the job ID dependency chain
+                if previous_job_id_task is not None:
+                    previous_job_id_task >> job_id_task
 
-                # Store the job_id socket (future) for dependencies
+                # Store the job_id future for dependent tasks
                 job_ids[task_label] = job_id_task.outputs["result"]
-                print(f"DEBUG: Created job_id socket for task '{task_label}'")
+
+                # Update previous job_id task for next iteration
+                previous_job_id_task = job_id_task
+
+                print(
+                    f"DEBUG: Created task '{task_label}' with {len(dep_job_ids)} data dependencies"
+                )
 
             elif isinstance(task, core.ShellTask):
                 task_spec = shell_task_specs[task_label]
-
-                # Create UNIQUE launcher name for each task
                 launcher_name = f"launch_{task_label}"
 
-                # Launch as separate graph task with unique metadata
-                shell_launcher = wg.tasks._new(
+                # Create launcher task
+                shell_launcher = wg.add_task(
                     launch_shell_task_with_dependency,
                     name=launcher_name,
                     task_spec=task_spec,
@@ -452,19 +425,27 @@ def build_dynamic_sirocco_workgraph(
                     job_ids=dep_job_ids if dep_job_ids else None,
                 )
 
-                # Get job ID using the LAUNCHER's workgraph name, not the task label
-                job_id_task = wg.tasks._new(
+                # Create job_id fetcher for THIS launcher
+                job_id_task = wg.add_task(
                     get_job_id,
                     name=f"get_job_id_{task_label}",
-                    workgraph_name=launcher_name,  # Use launcher name, not task_label
-                    task_name=task_label,  # But task name remains the CalcJob name
+                    workgraph_name=launcher_name,
+                    task_name=task_label,
                 )
 
-                # shell_launcher.outputs >> job_id_task
+                # Make this job_id_task wait for the PREVIOUS job_id_task
+                if previous_job_id_task is not None:
+                    previous_job_id_task >> job_id_task
 
-                # Store the job_id socket (future) for dependencies
+                # Store the job_id future for dependent tasks
                 job_ids[task_label] = job_id_task.outputs["result"]
-                print(f"DEBUG: Created job_id socket for task '{task_label}'")
+
+                # Update previous job_id task for next iteration
+                previous_job_id_task = job_id_task
+
+                print(
+                    f"DEBUG: Created task '{task_label}' with {len(dep_job_ids)} data dependencies"
+                )
 
             else:
                 raise TypeError(f"Unknown task type: {type(task)}")
@@ -1009,3 +990,440 @@ class AiidaWorkGraph:
             raise RuntimeError(msg)
 
         return output_node
+
+
+# def build_dynamic_sirocco_workgraph(
+#     core_workflow: core.Workflow,
+#     aiida_data_nodes: dict,
+#     shell_task_specs: dict,
+#     icon_task_specs: dict,
+# ):
+#     from aiida_workgraph.manager import set_current_graph
+#
+#     wg = WorkGraph("FULL-WG")
+#     set_current_graph(wg)
+#
+#     job_ids = {}  # Store SLURM job ID futures by label
+#     task_handles = {}  # Store task handles for dependency management
+#
+#     # Helper to get task label
+#     def get_label(task):
+#         return AiidaWorkGraph.get_aiida_label_from_graph_item(task)
+#
+#     # First pass: Create all tasks without job_id dependencies
+#     # This allows us to reference them for data dependencies
+#     for cycle in core_workflow.cycles:
+#         for task in cycle.tasks:
+#             task_label = get_label(task)
+#
+#             # Store basic task info for second pass
+#             task_handles[task_label] = {
+#                 "task": task,
+#                 "input_data_for_task": {},
+#                 "depends_on": set(),  # Which tasks this one depends on
+#             }
+#
+#             # Collect input data
+#             for port, input_data in task.input_data_items():
+#                 input_label = get_label(input_data)
+#                 if isinstance(input_data, core.AvailableData):
+#                     task_handles[task_label]["input_data_for_task"][port] = (
+#                         aiida_data_nodes[input_label]
+#                     )
+#
+#             # Find data dependencies
+#             for port, input_data in task.input_data_items():
+#                 if isinstance(input_data, core.GeneratedData):
+#                     for prev_task in core_workflow.tasks:
+#                         for out_port, out_data in prev_task.output_data_items():
+#                             if get_label(out_data) == get_label(input_data):
+#                                 prev_task_label = get_label(prev_task)
+#                                 task_handles[task_label]["depends_on"].add(
+#                                     prev_task_label
+#                                 )
+#                                 break
+#
+#     # Second pass: Create tasks with proper job_id dependencies
+#     # Process in cycle order to ensure dependencies are available
+#     for cycle in core_workflow.cycles:
+#         for task in cycle.tasks:
+#             task_label = get_label(task)
+#             task_info = task_handles[task_label]
+#
+#             # Build job_ids dict from dependencies
+#             dep_job_ids = {}
+#             for dep_label in task_info["depends_on"]:
+#                 if dep_label in job_ids:
+#                     dep_job_ids[dep_label] = job_ids[dep_label]
+#                     print(
+#                         f"DEBUG: Task '{task_label}' will depend on job_id from '{dep_label}'"
+#                     )
+#
+#             if isinstance(task, core.IconTask):
+#                 task_spec = icon_task_specs[task_label]
+#                 launcher_name = f"launch_{task_label}"
+#
+#                 # Create launcher task
+#                 icon_launcher = wg.add_task(
+#                     launch_icon_task_with_dependency,
+#                     name=launcher_name,
+#                     task_spec=task_spec,
+#                     input_data_nodes=task_info["input_data_for_task"]
+#                     if task_info["input_data_for_task"]
+#                     else None,
+#                     job_ids=dep_job_ids if dep_job_ids else None,
+#                 )
+#
+#                 # Create job_id fetcher for THIS launcher
+#                 job_id_task = wg.add_task(
+#                     get_job_id,
+#                     name=f"get_job_id_{task_label}",
+#                     workgraph_name=launcher_name,
+#                     task_name=task_label,
+#                 )
+#
+#                 # CRITICAL: Make job_id_task wait for THIS launcher only
+#                 # This doesn't block other tasks, just ensures we get the job ID for this specific task
+#                 icon_launcher >> job_id_task
+#
+#                 # Store the job_id future for dependent tasks
+#                 job_ids[task_label] = job_id_task.outputs["result"]
+#
+#                 print(
+#                     f"DEBUG: Created task '{task_label}' with {len(dep_job_ids)} dependencies"
+#                 )
+#
+#             elif isinstance(task, core.ShellTask):
+#                 task_spec = shell_task_specs[task_label]
+#                 launcher_name = f"launch_{task_label}"
+#
+#                 # Create launcher task
+#                 shell_launcher = wg.add_task(
+#                     launch_shell_task_with_dependency,
+#                     name=launcher_name,
+#                     task_spec=task_spec,
+#                     input_data_nodes=task_info["input_data_for_task"]
+#                     if task_info["input_data_for_task"]
+#                     else None,
+#                     job_ids=dep_job_ids if dep_job_ids else None,
+#                 )
+#
+#                 # Create job_id fetcher for THIS launcher
+#                 job_id_task = wg.add_task(
+#                     get_job_id,
+#                     name=f"get_job_id_{task_label}",
+#                     workgraph_name=launcher_name,
+#                     task_name=task_label,
+#                 )
+#
+#                 # Make job_id_task wait for THIS launcher only
+#                 shell_launcher >> job_id_task
+#
+#                 # Store the job_id future for dependent tasks
+#                 job_ids[task_label] = job_id_task.outputs["result"]
+#
+#                 print(
+#                     f"DEBUG: Created task '{task_label}' with {len(dep_job_ids)} dependencies"
+#                 )
+#
+#             else:
+#                 raise TypeError(f"Unknown task type: {type(task)}")
+#
+#     return wg
+
+
+# def build_dynamic_sirocco_workgraph(
+#     core_workflow: core.Workflow,
+#     aiida_data_nodes: dict,
+#     shell_task_specs: dict,
+#     icon_task_specs: dict,
+# ):
+#     from aiida_workgraph.manager import set_current_graph
+#
+#     wg = WorkGraph("FULL-WG")
+#     set_current_graph(wg)
+#
+#     job_ids = {}  # Store SLURM job IDs by label
+#     previous_job_id_task = None  # Track the previous job_id task
+#
+#     # Helper to get task label
+#     def get_label(task):
+#         return AiidaWorkGraph.get_aiida_label_from_graph_item(task)
+#
+#     # Collect all tasks in cycle order
+#     all_tasks = []
+#     for cycle in core_workflow.cycles:
+#         for task in cycle.tasks:
+#             all_tasks.append(task)
+#
+#     # Process tasks in cycle order
+#     for task in all_tasks:
+#         task_label = get_label(task)
+#
+#         # Collect only AvailableData (pre-existing files) for input_data_nodes
+#         input_data_for_task = {}
+#         for port, input_data in task.input_data_items():
+#             input_label = get_label(input_data)
+#             if isinstance(input_data, core.AvailableData):
+#                 input_data_for_task[port] = aiida_data_nodes[input_label]
+#
+#         # Collect job_id sockets for SLURM dependencies
+#         dep_job_ids = {}
+#
+#         # 1. Explicit wait_on dependencies
+#         for wait_task in task.wait_on:
+#             wait_label = get_label(wait_task)
+#             if wait_label in job_ids:
+#                 dep_job_ids[wait_label] = job_ids[wait_label]
+#                 print(
+#                     f"DEBUG: Task '{task_label}' will depend on job_id from '{wait_label}' (wait_on)"
+#                 )
+#
+#         # 2. Data dependencies - find which tasks produce data this task needs
+#         for port, input_data in task.input_data_items():
+#             if isinstance(input_data, core.GeneratedData):
+#                 for (
+#                     prev_task
+#                 ) in all_tasks:  # Use all_tasks instead of core_workflow.tasks
+#                     for out_port, out_data in prev_task.output_data_items():
+#                         if get_label(out_data) == get_label(input_data):
+#                             prev_task_label = get_label(prev_task)
+#                             if (
+#                                 prev_task_label in job_ids
+#                                 and prev_task_label not in dep_job_ids
+#                             ):
+#                                 dep_job_ids[prev_task_label] = job_ids[prev_task_label]
+#                                 print(
+#                                     f"DEBUG: Task '{task_label}' will depend on job_id from '{prev_task_label}' (data: {input_data.name})"
+#                                 )
+#                             break
+#
+#         if isinstance(task, core.IconTask):
+#             task_spec = icon_task_specs[task_label]
+#             launcher_name = f"launch_{task_label}"
+#
+#             # Launch as separate graph task
+#             icon_launcher = wg.add_task(
+#                 launch_icon_task_with_dependency,
+#                 name=launcher_name,
+#                 task_spec=task_spec,
+#                 input_data_nodes=input_data_for_task if input_data_for_task else None,
+#                 job_ids=dep_job_ids if dep_job_ids else None,
+#             )
+#
+#             # Get job ID using the LAUNCHER's workgraph name
+#             job_id_task = wg.add_task(
+#                 get_job_id,
+#                 name=f"get_job_id_{task_label}",
+#                 workgraph_name=launcher_name,
+#                 task_name=task_label,
+#             )
+#
+#             # CRITICAL: Make job_id_task wait for the launcher to START (not finish)
+#             # This ensures job_id_task starts immediately after icon_launcher begins execution
+#             icon_launcher >> job_id_task
+#
+#             # CRITICAL: Make this launcher wait for the previous job_id task to complete
+#             # This ensures tasks are submitted in the correct order
+#             if previous_job_id_task is not None:
+#                 previous_job_id_task >> icon_launcher
+#
+#             # Store the job_id socket for dependencies
+#             job_ids[task_label] = job_id_task.outputs["result"]
+#
+#             # Update previous job_id task for next iteration
+#             previous_job_id_task = job_id_task
+#
+#             print(f"DEBUG: Created job_id socket for task '{task_label}'")
+#
+#         elif isinstance(task, core.ShellTask):
+#             task_spec = shell_task_specs[task_label]
+#             launcher_name = f"launch_{task_label}"
+#
+#             # Launch as separate graph task
+#             shell_launcher = wg.add_task(
+#                 launch_shell_task_with_dependency,
+#                 name=launcher_name,
+#                 task_spec=task_spec,
+#                 input_data_nodes=input_data_for_task if input_data_for_task else None,
+#                 job_ids=dep_job_ids if dep_job_ids else None,
+#             )
+#
+#             # Get job ID using the LAUNCHER's workgraph name
+#             job_id_task = wg.add_task(
+#                 get_job_id,
+#                 name=f"get_job_id_{task_label}",
+#                 workgraph_name=launcher_name,
+#                 task_name=task_label,
+#             )
+#
+#             # Make job_id_task wait for the launcher to START
+#             shell_launcher >> job_id_task
+#
+#             # Make this launcher wait for the previous job_id task to complete
+#             if previous_job_id_task is not None:
+#                 previous_job_id_task >> shell_launcher
+#
+#             # Store the job_id socket for dependencies
+#             job_ids[task_label] = job_id_task.outputs["result"]
+#
+#             # Update previous job_id task for next iteration
+#             previous_job_id_task = job_id_task
+#
+#             print(f"DEBUG: Created job_id socket for task '{task_label}'")
+#
+#         else:
+#             raise TypeError(f"Unknown task type: {type(task)}")
+#
+#         print(f"DEBUG: Created task '{task_label}'")
+#
+#     return wg
+
+
+# def build_dynamic_sirocco_workgraph(
+#     core_workflow: core.Workflow,
+#     aiida_data_nodes: dict,
+#     shell_task_specs: dict,
+#     icon_task_specs: dict,
+# ):
+#     """Build Sirocco workgraph dynamically with SLURM job dependencies.
+#
+#     This function creates tasks in dependency order, waiting for job IDs
+#     before submitting dependent tasks.
+#
+#     Args:
+#         core_workflow: The unrolled Sirocco core workflow
+#         aiida_data_nodes: Pre-created available data nodes
+#         shell_task_specs: Dict mapping task labels to shell task specs
+#         icon_task_specs: Dict mapping task labels to icon task specs
+#
+#     Returns:
+#         Dict with final workflow outputs
+#     """
+#     from aiida_workgraph.manager import set_current_graph
+#
+#     wg = WorkGraph("FULL-WG")
+#     set_current_graph(wg)
+#
+#     job_ids = {}  # Store SLURM job IDs by label
+#
+#     # Helper to get task label
+#     def get_label(task):
+#         return AiidaWorkGraph.get_aiida_label_from_graph_item(task)
+#
+#     # Process all tasks in the workflow
+#     # Note: We iterate through cycles which already have correct ordering
+#     for cycle in core_workflow.cycles:
+#         for task in cycle.tasks:
+#             task_label = get_label(task)
+#
+#             # Collect only AvailableData (pre-existing files) for input_data_nodes
+#             # Skip GeneratedData connections - rely on SLURM dependencies + filesystem
+#             input_data_for_task = {}
+#             for port, input_data in task.input_data_items():
+#                 input_label = get_label(input_data)
+#                 if isinstance(input_data, core.AvailableData):
+#                     # Use pre-created available data node
+#                     input_data_for_task[port] = aiida_data_nodes[input_label]
+#
+#             # Collect job_id sockets for SLURM dependencies
+#             # These are futures - they don't block task creation!
+#             dep_job_ids = {}
+#
+#             # 1. Explicit wait_on dependencies
+#             for wait_task in task.wait_on:
+#                 wait_label = get_label(wait_task)
+#                 if wait_label in job_ids:
+#                     dep_job_ids[wait_label] = job_ids[wait_label]
+#                     print(
+#                         f"DEBUG: Task '{task_label}' will depend on job_id from '{wait_label}' (wait_on)"
+#                     )
+#
+#             # 2. Data dependencies - find which tasks produce data this task needs
+#             for port, input_data in task.input_data_items():
+#                 if isinstance(input_data, core.GeneratedData):
+#                     for prev_task in core_workflow.tasks:
+#                         for out_port, out_data in prev_task.output_data_items():
+#                             if get_label(out_data) == get_label(input_data):
+#                                 prev_task_label = get_label(prev_task)
+#                                 # Only add if we already have the job_id socket from a previous iteration
+#                                 if (
+#                                     prev_task_label in job_ids
+#                                     and prev_task_label not in dep_job_ids
+#                                 ):
+#                                     dep_job_ids[prev_task_label] = job_ids[
+#                                         prev_task_label
+#                                     ]
+#                                     print(
+#                                         f"DEBUG: Task '{task_label}' will depend on job_id from '{prev_task_label}' (data: {input_data.name})"
+#                                     )
+#                                 break
+#
+#             if isinstance(task, core.IconTask):
+#                 task_spec = icon_task_specs[task_label]
+#
+#                 # Create UNIQUE launcher name for each task
+#                 launcher_name = f"launch_{task_label}"
+#
+#                 # Launch as separate graph task with unique metadata
+#                 icon_launcher = wg.add_task(
+#                     launch_icon_task_with_dependency,
+#                     name=launcher_name,
+#                     task_spec=task_spec,
+#                     input_data_nodes=input_data_for_task
+#                     if input_data_for_task
+#                     else None,
+#                     job_ids=dep_job_ids if dep_job_ids else None,
+#                 )
+#
+#                 # Get job ID using the LAUNCHER's workgraph name, not the task label
+#                 job_id_task = wg.add_task(
+#                     get_job_id,
+#                     name=f"get_job_id_{task_label}",
+#                     workgraph_name=launcher_name,  # Use launcher name, not task_label
+#                     task_name=task_label,  # But task name remains the CalcJob name
+#                 )
+#
+#                 # icon_launcher.outputs >> job_id_task
+#
+#                 # Store the job_id socket (future) for dependencies
+#                 job_ids[task_label] = job_id_task.outputs["result"]
+#                 print(f"DEBUG: Created job_id socket for task '{task_label}'")
+#
+#             elif isinstance(task, core.ShellTask):
+#                 task_spec = shell_task_specs[task_label]
+#
+#                 # Create UNIQUE launcher name for each task
+#                 launcher_name = f"launch_{task_label}"
+#
+#                 # Launch as separate graph task with unique metadata
+#                 shell_launcher = wg.add_task(
+#                     launch_shell_task_with_dependency,
+#                     name=launcher_name,
+#                     task_spec=task_spec,
+#                     input_data_nodes=input_data_for_task
+#                     if input_data_for_task
+#                     else None,
+#                     job_ids=dep_job_ids if dep_job_ids else None,
+#                 )
+#
+#                 # Get job ID using the LAUNCHER's workgraph name, not the task label
+#                 job_id_task = wg.add_task(
+#                     get_job_id,
+#                     name=f"get_job_id_{task_label}",
+#                     workgraph_name=launcher_name,  # Use launcher name, not task_label
+#                     task_name=task_label,  # But task name remains the CalcJob name
+#                 )
+#
+#                 # shell_launcher.outputs >> job_id_task
+#
+#                 # Store the job_id socket (future) for dependencies
+#                 job_ids[task_label] = job_id_task.outputs["result"]
+#                 print(f"DEBUG: Created job_id socket for task '{task_label}'")
+#
+#             else:
+#                 raise TypeError(f"Unknown task type: {type(task)}")
+#
+#             print(f"DEBUG: Created task '{task_label}'")
+#
+#     return wg
