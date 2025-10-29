@@ -251,8 +251,6 @@ def launch_shell_task_with_dependency(
         output_info["name"] for output_info in output_data_info if output_info["path"]
     ]
 
-    breakpoint()
-
     spec = _build_shelljob_nodespec(
         identifier=f"shelljob_{label}",
         outputs=outputs,
@@ -494,7 +492,7 @@ def build_dynamic_sirocco_workgraph(
 
     # Helper to get task label
     def get_label(task):
-        return AiidaWorkGraph.get_aiida_label_from_graph_item(task)
+        return get_aiida_label_from_graph_item(task)
 
     # Process all tasks in the workflow in cycle order
     for cycle in core_workflow.cycles:
@@ -674,6 +672,82 @@ def build_dynamic_sirocco_workgraph(
     return wg
 
 
+# =============================================================================
+# Utility Functions
+# =============================================================================
+
+
+def replace_invalid_chars_in_label(label: str) -> str:
+    """Replaces chars in the label that are invalid for AiiDA.
+
+    The invalid chars ["-", " ", ":", "."] are replaced with underscores.
+    """
+    invalid_chars = ["-", " ", ":", "."]
+    for invalid_char in invalid_chars:
+        label = label.replace(invalid_char, "_")
+    return label
+
+
+def split_cmd_arg(command_line: str) -> tuple[str, str]:
+    """Split command line into command and arguments."""
+    split = command_line.split(sep=" ", maxsplit=1)
+    if len(split) == 1:
+        return command_line, ""
+    return split[0], split[1]
+
+
+def translate_mpi_cmd_placeholder(placeholder: core.MpiCmdPlaceholder) -> str:
+    """Translate MPI command placeholder to AiiDA format."""
+    match placeholder:
+        case core.MpiCmdPlaceholder.MPI_TOTAL_PROCS:
+            return "tot_num_mpiprocs"
+        case _:
+            assert_never(placeholder)
+
+
+def get_aiida_label_from_graph_item(obj: core.GraphItem) -> str:
+    """Returns a unique AiiDA label for the given graph item.
+
+    The graph item object is uniquely determined by its name and its coordinates. There is the possibility that
+    through the replacement of invalid chars in the coordinates duplication can happen but it is unlikely.
+    """
+    return replace_invalid_chars_in_label(
+        f"{obj.name}"
+        + "__".join(f"_{key}_{value}" for key, value in obj.coordinates.items())
+    )
+
+
+def label_placeholder(data: core.Data) -> str:
+    """Create a placeholder string for data."""
+    return f"{{{get_aiida_label_from_graph_item(data)}}}"
+
+
+def get_default_wrapper_script() -> aiida.orm.SinglefileData | None:
+    """Get default wrapper script based on task type"""
+    # Import the script directory from aiida-icon
+    from aiida_icon.site_support.cscs.alps import SCRIPT_DIR
+
+    default_script_path = SCRIPT_DIR / "todi_cpu.sh"
+    return aiida.orm.SinglefileData(file=default_script_path)
+
+
+def get_wrapper_script_aiida_data(task) -> aiida.orm.SinglefileData | None:
+    """Get AiiDA SinglefileData for wrapper script if configured"""
+    if task.wrapper_script is not None:
+        return aiida.orm.SinglefileData(str(task.wrapper_script))
+    return get_default_wrapper_script()
+
+
+def parse_mpi_cmd_to_aiida(mpi_cmd: str) -> str:
+    """Parse MPI command and translate placeholders to AiiDA format."""
+    for placeholder in core.MpiCmdPlaceholder:
+        mpi_cmd = mpi_cmd.replace(
+            f"{{{placeholder.value}}}",
+            f"{{{translate_mpi_cmd_placeholder(placeholder)}}}",
+        )
+    return mpi_cmd
+
+
 class AiidaWorkGraph:
     def __init__(self, core_workflow: core.Workflow):
         """Initialize with minimal setup - only validate and prepare data."""
@@ -689,73 +763,38 @@ class AiidaWorkGraph:
         # Don't create workgraph yet
         self._workgraph = None
 
+    # Thin wrappers for backwards compatibility - delegate to module-level functions
     @staticmethod
     def replace_invalid_chars_in_label(label: str) -> str:
-        """Replaces chars in the label that are invalid for AiiDA.
-
-        The invalid chars ["-", " ", ":", "."] are replaced with underscores.
-        """
-        invalid_chars = ["-", " ", ":", "."]
-        for invalid_char in invalid_chars:
-            label = label.replace(invalid_char, "_")
-        return label
+        return replace_invalid_chars_in_label(label)
 
     @classmethod
     def get_aiida_label_from_graph_item(cls, obj: core.GraphItem) -> str:
-        """Returns a unique AiiDA label for the given graph item.
-
-        The graph item object is uniquely determined by its name and its coordinates. There is the possibility that
-        through the replacement of invalid chars in the coordinates duplication can happen but it is unlikely.
-        """
-        return cls.replace_invalid_chars_in_label(
-            f"{obj.name}"
-            + "__".join(f"_{key}_{value}" for key, value in obj.coordinates.items())
-        )
+        return get_aiida_label_from_graph_item(obj)
 
     @staticmethod
     def split_cmd_arg(command_line: str) -> tuple[str, str]:
-        split = command_line.split(sep=" ", maxsplit=1)
-        if len(split) == 1:
-            return command_line, ""
-        return split[0], split[1]
+        return split_cmd_arg(command_line)
 
     @classmethod
     def label_placeholder(cls, data: core.Data) -> str:
-        return f"{{{cls.get_aiida_label_from_graph_item(data)}}}"
+        return label_placeholder(data)
 
     @staticmethod
     def get_wrapper_script_aiida_data(task) -> aiida.orm.SinglefileData | None:
-        """Get AiiDA SinglefileData for wrapper script if configured"""
-        if task.wrapper_script is not None:
-            return aiida.orm.SinglefileData(str(task.wrapper_script))
-        return AiidaWorkGraph._get_default_wrapper_script()
+        return get_wrapper_script_aiida_data(task)
 
     @staticmethod
     def _get_default_wrapper_script() -> aiida.orm.SinglefileData | None:
-        """Get default wrapper script based on task type"""
-
-        # Import the script directory from aiida-icon
-        from aiida_icon.site_support.cscs.alps import SCRIPT_DIR
-
-        default_script_path = SCRIPT_DIR / "todi_cpu.sh"
-        return aiida.orm.SinglefileData(file=default_script_path)
+        return get_default_wrapper_script()
 
     @staticmethod
     def _parse_mpi_cmd_to_aiida(mpi_cmd: str) -> str:
-        for placeholder in core.MpiCmdPlaceholder:
-            mpi_cmd = mpi_cmd.replace(
-                f"{{{placeholder.value}}}",
-                f"{{{AiidaWorkGraph._translate_mpi_cmd_placeholder(placeholder)}}}",
-            )
-        return mpi_cmd
+        return parse_mpi_cmd_to_aiida(mpi_cmd)
 
     @staticmethod
     def _translate_mpi_cmd_placeholder(placeholder: core.MpiCmdPlaceholder) -> str:
-        match placeholder:
-            case core.MpiCmdPlaceholder.MPI_TOTAL_PROCS:
-                return "tot_num_mpiprocs"
-            case _:
-                assert_never(placeholder)
+        return translate_mpi_cmd_placeholder(placeholder)
 
     def _validate_workflow(self):
         """Checks if the core workflow uses valid AiiDA names for its tasks and data."""
