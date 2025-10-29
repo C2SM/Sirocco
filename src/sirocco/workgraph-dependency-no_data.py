@@ -15,7 +15,7 @@ from aiida.common.exceptions import NotExistent
 from aiida.orm.utils.serialize import AiiDALoader
 from aiida_icon.calculations import IconCalculation
 from aiida_shell.parsers.shell import ShellParser
-from aiida_workgraph import WorkGraph, dynamic, task, get_current_graph, namespace
+from aiida_workgraph import WorkGraph, dynamic, task, get_current_graph
 
 from sirocco import core
 from sirocco.parsing._utils import TimeUtils
@@ -40,48 +40,31 @@ def serialize_coordinates(coordinates: dict) -> dict:
     return serialized
 
 
-@task(outputs=namespace(job_id=int, remote_folder=int))
-async def get_job_data(
-    workgraph_name: str,
-    task_name: str,
-    interval: int = 5,
-    timeout: int = 180,
+@task
+async def get_job_id(
+    workgraph_name: str, task_name: str, interval: int = 5, timeout: int = 180
 ):
-    """Monitor CalcJob and return job_id and remote_folder PK when available.
+    """Get the job_id of a CalcJob task immediately after submission.
 
-    Following Xing's pattern: when job_id is ready, remote_folder is also available.
-    Return both as a namespace for use in dependent tasks.
-
-    Args:
-        workgraph_name: Name of the launcher sub-WorkGraph
-        task_name: Name of the CalcJob task inside the sub-WorkGraph
-        interval: Polling interval in seconds
-        timeout: Maximum time to wait in seconds
-
-    Returns:
-        Namespace with job_id (int) and remote_folder (int pk)
+    This polls for the job ID to become available, which should happen
+    almost immediately after the CalcJob is submitted to SLURM.
     """
     from aiida import orm
     from aiida_workgraph.engine.workgraph import WorkGraphEngine
 
-    start_time_unix = time.time()
+    builder = orm.QueryBuilder()
+    builder.append(
+        WorkGraphEngine,
+        filters={"attributes.process_label": {"==": f"WorkGraph<{workgraph_name}>"}},
+        tag="process",
+    )
+    start_time = time.time()
 
     print(
-        f"DEBUG: Starting job_data polling for {task_name} in {workgraph_name}"
+        f"DEBUG: Starting job_id polling for {task_name} in workgraph {workgraph_name}"
     )
 
     while True:
-        # Query for WorkGraphs created AFTER this task started polling
-        builder = orm.QueryBuilder()
-        builder.append(
-            WorkGraphEngine,
-            filters={
-                "attributes.process_label": {"==": f"WorkGraph<{workgraph_name}>"},
-                "ctime": {">": datetime.fromtimestamp(start_time_unix - 10)},
-            },
-            tag="process",
-        )
-
         if builder.count() > 0:
             workgraph_node = builder.all()[-1][0]
             node_data = workgraph_node.task_processes.get(task_name, "")
@@ -90,18 +73,34 @@ async def get_job_data(
                 if node:
                     job_id = node.get_job_id()
                     if job_id is not None:
-                        # When job_id is ready, remote_folder is also available
                         print(
-                            f"DEBUG: Retrieved job_id={job_id}, remote_folder_pk={node.outputs.remote_folder.pk} for {task_name}"
+                            f"DEBUG: Successfully retrieved job_id {job_id} for {task_name}"
                         )
-                        return {
-                            "job_id": int(job_id),
-                            "remote_folder": node.outputs.remote_folder.pk,
-                        }
+                        return aiida.orm.Int(job_id)
+                    else:
+                        print(
+                            f"DEBUG: Job ID not yet available for {task_name}, continuing to poll..."
+                        )
 
-        # Check timeout
-        elapsed = time.time() - start_time_unix
+        # If we've been waiting too long, something is wrong
+        elapsed = time.time() - start_time
         if elapsed > timeout:
+            # Let's debug what's available
+            print(f"DEBUG: Timeout debugging for {task_name}:")
+            print(f"  - Builder count: {builder.count()}")
+            if builder.count() > 0:
+                workgraph_node = builder.all()[-1][0]
+                print(
+                    f"  - Task processes keys: {list(workgraph_node.task_processes.keys())}"
+                )
+                node_data = workgraph_node.task_processes.get(task_name, "")
+                if node_data:
+                    node = yaml.load(node_data, Loader=AiiDALoader)
+                    print(f"  - Node type: {type(node)}")
+                    if node:
+                        print(f"  - Node state: {node.process_state}")
+                        print(f"  - Job ID: {node.get_job_id()}")
+
             raise TimeoutError(
                 f"Timeout waiting for job_id for task {task_name} after {timeout}s"
             )
@@ -109,124 +108,13 @@ async def get_job_data(
         await asyncio.sleep(interval)
 
 
-@task
-async def get_calcjob_uuid(
-    workgraph_name: str,
-    task_name: str,
-    interval: int = 2,
-    timeout: int = 60,
-):
-    """Get the UUID of a CalcJob immediately after its WorkGraph task is created.
-
-    This is MUCH faster than waiting for completion - typically takes 2-5 seconds.
-    We need the UUID to construct future RemoteData paths.
-
-    Args:
-        workgraph_name: Name of the launcher sub-WorkGraph
-        task_name: Name of the CalcJob task inside the sub-WorkGraph
-        interval: Polling interval in seconds
-        timeout: Maximum time to wait in seconds
-    """
-    from aiida import orm
-    from aiida_workgraph.engine.workgraph import WorkGraphEngine
-
-    start_time_unix = time.time()
-
-    print(
-        f"DEBUG: Starting UUID polling for {task_name} in workgraph {workgraph_name}"
-    )
-
-    while True:
-        # Query for WorkGraphs created AFTER this task started polling
-        builder = orm.QueryBuilder()
-        builder.append(
-            WorkGraphEngine,
-            filters={
-                "attributes.process_label": {"==": f"WorkGraph<{workgraph_name}>"},
-                "ctime": {">": datetime.fromtimestamp(start_time_unix - 10)},
-            },
-            tag="process",
-        )
-
-        if builder.count() > 0:
-            workgraph_node = builder.all()[-1][0]
-            node_data = workgraph_node.task_processes.get(task_name, "")
-            if node_data:
-                node = yaml.load(node_data, Loader=AiiDALoader)
-                if node:
-                    uuid = node.uuid
-                    print(
-                        f"DEBUG: Successfully retrieved UUID {uuid} for {task_name}"
-                    )
-                    return aiida.orm.Str(uuid)
-
-        # Check timeout
-        elapsed = time.time() - start_time_unix
-        if elapsed > timeout:
-            raise TimeoutError(
-                f"Timeout waiting for CalcJob UUID for task {task_name} after {timeout}s"
-            )
-
-        await asyncio.sleep(interval)
-
-
-@task
-def create_future_remote_data_folder(
-    calcjob_uuid: str,
-    computer_label: str,
-):
-    """Create a RemoteData node pointing to CalcJob's work directory.
-
-    This enables streaming submission: we can submit job_2 immediately with a RemoteData
-    node pointing to job_1's work directory, even though outputs don't exist yet. The SLURM
-    dependency ensures job_2 only executes after job_1 completes and files are available.
-
-    For ICON restart files, the restart file will be in the CalcJob's work directory.
-    We create a RemoteData pointing to that directory, which the dependent CalcJob can use.
-
-    Args:
-        calcjob_uuid: UUID string of the source CalcJob (WorkGraph extracts value from aiida.orm.Str)
-        computer_label: Computer label where files exist
-
-    Returns:
-        RemoteData node pointing to the CalcJob's remote work directory
-    """
-    from aiida.orm import Computer, RemoteData
-    import os
-
-    computer = Computer.collection.get(label=computer_label)
-    uuid_str = calcjob_uuid  # Already a string (WorkGraph extracted it)
-
-    # Construct path to CalcJob's work directory using AiiDA's sharding structure
-    # Path format: {workdir}/nodes/{uuid[:2]}/{uuid[2:4]}/{uuid}/
-    workdir = computer.get_workdir()
-    remote_path = os.path.join(
-        workdir,
-        "nodes",
-        uuid_str[:2],
-        uuid_str[2:4],
-        uuid_str,
-    )
-
-    print(f"DEBUG: Creating future RemoteData folder at {remote_path}")
-
-    # Create the RemoteData node (do NOT call .store() - calcfunction handles that)
-    remote_data = RemoteData(computer=computer, remote_path=remote_path)
-
-    return remote_data
-
-
 @task.graph
 def launch_shell_task_with_dependency(
     task_spec: dict,
     input_data_nodes: Annotated[dict, dynamic(aiida.orm.Data)] | None = None,
-    parent_folders: Annotated[dict, dynamic(int)] = None,
     job_ids: Annotated[dict, dynamic(int)] | None = None,
 ) -> Annotated[dict, dynamic(aiida.orm.Data)]:
     """Launch a shell task with optional SLURM job dependencies.
-
-    Following Xing's approach: accept parent_folders as PKs and job_ids as ints,
-    load RemoteData from PKs inside this function.
 
     Args:
         task_spec: Dict from _build_shell_task_spec() containing:
@@ -239,9 +127,7 @@ def launch_shell_task_with_dependency(
             - outputs: List of output file paths
             - input_data_info: List of input data information dicts
             - output_data_info: List of output data information dicts
-            - port_to_dep_mapping: Dict mapping port names to dependency labels
         input_data_nodes: Dict mapping port names to AiiDA data nodes
-        parent_folders: Dict of {dep_label: remote_folder_pk} from get_job_data
         job_ids: Optional dict of {dependency_label: job_id} for SLURM dependencies
 
     Returns:
@@ -257,23 +143,6 @@ def launch_shell_task_with_dependency(
     # Handle None input_data_nodes
     if input_data_nodes is None:
         input_data_nodes = {}
-
-    # Load RemoteData nodes from their PKs (following Xing's pattern)
-    parent_folders_loaded = (
-        {key: aiida.orm.load_node(val.value) for key, val in parent_folders.items()}
-        if parent_folders
-        else None
-    )
-
-    # Map loaded RemoteData to input ports using port_to_dep_mapping
-    if parent_folders_loaded:
-        port_to_dep_mapping = task_spec.get("port_to_dep_mapping", {})
-        print(f"DEBUG: Shell '{label}' loading RemoteData from PKs...")
-        for port_name, dep_label in port_to_dep_mapping.items():
-            if dep_label in parent_folders_loaded:
-                remote_data = parent_folders_loaded[dep_label]
-                input_data_nodes[port_name] = remote_data
-                print(f"DEBUG: Loaded RemoteData for port '{port_name}' from dep '{dep_label}'")
 
     # Load the code from PK
     code = aiida.orm.load_node(task_spec["code_pk"])
@@ -346,24 +215,18 @@ def launch_shell_task_with_dependency(
         resolve_command=False,
     )
 
-    # Return outputs directly (WorkGraph will wrap them)
+    # Return the shell_task outputs directly
+    # We'll use output_port_mapping in the connection logic to map data names to link labels
     return shell_task.outputs
 
 
-IconTask = task(IconCalculation)
-
-@task.graph(outputs=IconTask.outputs)
+@task.graph
 def launch_icon_task_with_dependency(
     task_spec: dict,
     input_data_nodes: Annotated[dict, dynamic(aiida.orm.Data)] = None,
-    parent_folders: Annotated[dict, dynamic(int)] = None,
     job_ids: Annotated[dict, dynamic(int)] = None,
-):
-    """Launch an ICON task with SLURM dependencies from upstream tasks.
-
-    Following Xing's approach exactly: accept parent_folders as PKs and job_ids as ints,
-    load RemoteData from PKs inside this function.
-    This avoids socket dependencies while preserving provenance.
+) -> Annotated[dict, dynamic(aiida.orm.Data)]:
+    """Launch an ICON task with optional SLURM job dependencies.
 
     Args:
         task_spec: Dict from _build_icon_task_spec() containing:
@@ -374,55 +237,43 @@ def launch_icon_task_with_dependency(
             - wrapper_script_pk: Wrapper script PK (optional)
             - metadata: Base metadata dict
             - output_port_mapping: Dict mapping data names to ICON output port names
-            - port_to_dep_mapping: Dict mapping port names to dependency labels
-        input_data_nodes: Dict mapping port names to AvailableData nodes
-        parent_folders: Dict of {dep_label: remote_folder_pk} from get_job_data
-        job_ids: Dict of {dep_label: job_id} from get_job_data
+        input_data_nodes: Dict mapping port names to AiiDA data nodes
+        job_ids: Optional dict of {dependency_label: job_id} for SLURM dependencies
 
     Returns:
-        IconTask outputs
+        Builder outputs (output_streams, restart_file, finish_status, etc.)
     """
     label = task_spec["label"]
     output_port_mapping = task_spec["output_port_mapping"]
-    computer_label = task_spec["metadata"]["computer_label"]
 
-    # Handle None inputs
+    # Handle None input_data_nodes
     if input_data_nodes is None:
         input_data_nodes = {}
 
-    print(f"DEBUG: Launcher for '{label}' starting...")
+    # Reconstruct the builder from PKs
+    builder = IconCalculation.get_builder()
+    builder.code = aiida.orm.load_node(task_spec["code_pk"])
+    builder.master_namelist = aiida.orm.load_node(task_spec["master_namelist_pk"])
 
-    # Load RemoteData nodes from their PKs (following Xing's pattern exactly)
-    parent_folders_loaded = (
-        {key: aiida.orm.load_node(val.value) for key, val in parent_folders.items()}
-        if parent_folders
-        else None
-    )
+    # Load model namelists
+    for model_name, model_pk in task_spec["model_namelist_pks"].items():
+        setattr(builder.models, model_name, aiida.orm.load_node(model_pk))
 
-    # Map loaded RemoteData to input ports using port_to_dep_mapping
-    if parent_folders_loaded:
-        port_to_dep_mapping = task_spec.get("port_to_dep_mapping", {})
-        print(f"DEBUG: '{label}' loading RemoteData from PKs...")
-        for port_name, dep_label in port_to_dep_mapping.items():
-            if dep_label in parent_folders_loaded:
-                remote_data = parent_folders_loaded[dep_label]
-                input_data_nodes[port_name] = remote_data
-                print(f"DEBUG: Loaded RemoteData for port '{port_name}' from dep '{dep_label}'")
-
-    # Collect job IDs for SLURM dependencies (following Xing's pattern)
-    if job_ids:
-        dep_str = ":".join(str(jid.value) for jid in job_ids.values())
-        custom_cmd = f"#SBATCH --dependency=afterok:{dep_str}"
-        print(f"DEBUG: Task {label} - Setting SLURM dependency: {custom_cmd}")
+    # Load wrapper script if present
+    if task_spec["wrapper_script_pk"] is not None:
+        builder.wrapper_script = aiida.orm.load_node(task_spec["wrapper_script_pk"])
 
     # Reconstruct metadata with computer
     metadata = dict(task_spec["metadata"])
     metadata["options"] = dict(metadata["options"])
+    computer_label = metadata.pop("computer_label")
     computer = aiida.orm.Computer.collection.get(label=computer_label)
 
-    # Add SLURM job dependencies if we have any (following Xing's pattern)
+    # Add runtime job dependencies to custom_scheduler_commands
     if job_ids:
-        # custom_cmd was already set above
+        dep_str = ":".join(str(jid.value) for jid in job_ids.values())
+        custom_cmd = f"#SBATCH --dependency=afterok:{dep_str}"
+
         current_cmds = metadata["options"].get("custom_scheduler_commands", "")
         if current_cmds:
             metadata["options"]["custom_scheduler_commands"] = (
@@ -435,45 +286,43 @@ def launch_icon_task_with_dependency(
             f"DEBUG: Task {label} - custom_scheduler_commands = {metadata['options']['custom_scheduler_commands']}"
         )
 
-    # Prepare inputs dict for IconTask
-    # Start with code and namelists
-    inputs = {
-        'code': aiida.orm.load_node(task_spec["code_pk"]),
-        'master_namelist': aiida.orm.load_node(task_spec["master_namelist_pk"]),
-    }
+    # Set metadata on builder - set computer and options individually to avoid overwriting
+    builder.metadata.computer = computer
+    for option_key, option_value in metadata["options"].items():
+        setattr(builder.metadata.options, option_key, option_value)
 
-    # Add model namelists as a dict (namespace input)
-    models = {}
-    for model_name, model_pk in task_spec["model_namelist_pks"].items():
-        models[model_name] = aiida.orm.load_node(model_pk)
-    if models:
-        inputs['models'] = models
-
-    # Add wrapper script if present
-    if task_spec["wrapper_script_pk"] is not None:
-        inputs['wrapper_script'] = aiida.orm.load_node(task_spec["wrapper_script_pk"])
-
-    # Add ALL input data nodes (both AvailableData and future RemoteData for GeneratedData)
+    # Set input data nodes on the builder
     for port_name, data_node in input_data_nodes.items():
         print(
-            f"DEBUG: Setting {port_name} = {type(data_node).__name__} (node type)"
+            f"DEBUG: Setting builder.{port_name} = {type(data_node).__name__} (node type)"
         )
-        inputs[port_name] = data_node
+        if port_name == "restart_file":
+            print(
+                f"DEBUG: restart_file type check - expected RemoteData, got {type(data_node)}"
+            )
+            builder.restart_file = data_node
+        elif port_name == "dynamics_grid_file":
+            builder.dynamics_grid_file = data_node
+        elif port_name == "ecrad_data":
+            builder.ecrad_data = data_node
+        elif port_name == "cloud_opt_props":
+            builder.cloud_opt_props = data_node
+        elif port_name == "rrtmg_lw":
+            builder.rrtmg_lw = data_node
+        elif port_name == "dmin_wetgrowth_lookup":
+            builder.dmin_wetgrowth_lookup = data_node
+        else:
+            # Generic port setting
+            setattr(builder, port_name, data_node)
 
-    # Prepare metadata dict
-    metadata_dict = {
-        'computer': computer,
-        'options': metadata["options"],
-        'call_link_label': label,
-    }
-    inputs['metadata'] = metadata_dict
+    # Submit the builder via workgraph
+    wg = get_current_graph()
 
-    # Call IconTask directly (NOT wg.add_task!)
-    # This returns a TaskNode with proper output sockets
-    icon_task = IconTask(**inputs)
+    icon_task = wg.add_task(builder, name=label)
 
-    # Return the TaskNode (which has .outputs as sockets)
-    return icon_task
+    # Return the icon_task outputs directly
+    # We'll use output_port_mapping in the connection logic to map data names to port names
+    return icon_task.outputs
 
 
 def build_dynamic_sirocco_workgraph(
@@ -487,9 +336,8 @@ def build_dynamic_sirocco_workgraph(
     wg = WorkGraph("FULL-WG")
     set_current_graph(wg)
 
-    # Store get_job_data task outputs (namespace with job_id, remote_folder)
-    task_dep_info = {}  # {task_label: get_job_data task outputs}
-    prev_dep_tasks = {}  # {task_label: get_job_data task} for chaining with >>
+    job_ids = {}  # Store SLURM job ID futures by label
+    previous_job_id_task = None  # Track the previous job_id task
 
     # Helper to get task label
     def get_label(task):
@@ -500,35 +348,27 @@ def build_dynamic_sirocco_workgraph(
         for task in cycle.tasks:
             task_label = get_label(task)
 
-            # Collect ONLY AvailableData inputs
+            # Collect input data
             input_data_for_task = {}
             for port, input_data in task.input_data_items():
                 input_label = get_label(input_data)
                 if isinstance(input_data, core.AvailableData):
                     input_data_for_task[port] = aiida_data_nodes[input_label]
 
-            # Build port_to_dep_mapping: which port gets data from which dependency?
-            # Build parent_folders and job_ids dicts following Xing's pattern
-            port_to_dep_mapping = {}  # {port_name: dep_task_label}
-            parent_folders_for_task = {}  # {dep_label: remote_folder_pk}
-            job_ids_for_task = {}  # {dep_label: job_id}
-
+            # Build job_ids dict from data dependencies
+            dep_job_ids = {}
             for port, input_data in task.input_data_items():
                 if isinstance(input_data, core.GeneratedData):
-                    # Find producer task
                     for prev_task in core_workflow.tasks:
                         for out_port, out_data in prev_task.output_data_items():
                             if get_label(out_data) == get_label(input_data):
                                 prev_task_label = get_label(prev_task)
-                                if prev_task_label in task_dep_info:
-                                    # Map this port to the dependency
-                                    port_to_dep_mapping[port] = prev_task_label
-                                    # Get the job_data outputs (namespace with job_id, remote_folder)
-                                    job_data = task_dep_info[prev_task_label]
-                                    parent_folders_for_task[prev_task_label] = job_data.remote_folder
-                                    job_ids_for_task[prev_task_label] = job_data.job_id
+                                if prev_task_label in job_ids:
+                                    dep_job_ids[prev_task_label] = job_ids[
+                                        prev_task_label
+                                    ]
                                     print(
-                                        f"DEBUG: Task '{task_label}' port '{port}' will get data from '{prev_task_label}'"
+                                        f"DEBUG: Task '{task_label}' will depend on job_id from '{prev_task_label}' (data: {input_data.name})"
                                     )
                                 break
 
@@ -536,98 +376,75 @@ def build_dynamic_sirocco_workgraph(
                 task_spec = icon_task_specs[task_label]
                 launcher_name = f"launch_{task_label}"
 
-                # Add port_to_dep_mapping to task_spec
-                task_spec["port_to_dep_mapping"] = port_to_dep_mapping
-
-                # Create launcher task (following Xing's pattern)
+                # Create launcher task (starts immediately)
                 icon_launcher = wg.add_task(
                     launch_icon_task_with_dependency,
                     name=launcher_name,
                     task_spec=task_spec,
-                    input_data_nodes=input_data_for_task if input_data_for_task else None,
-                    parent_folders=parent_folders_for_task if parent_folders_for_task else None,
-                    job_ids=job_ids_for_task if job_ids_for_task else None,
+                    input_data_nodes=input_data_for_task
+                    if input_data_for_task
+                    else None,
+                    job_ids=dep_job_ids if dep_job_ids else None,
                 )
 
-                # Create get_job_data task (following Xing's pattern)
-                # Returns namespace with job_id (int) and remote_folder (int pk)
-                dep_task = wg.add_task(
-                    get_job_data,
-                    name=f"get_job_data_{task_label}",
+                # Create job_id fetcher for THIS launcher
+                job_id_task = wg.add_task(
+                    get_job_id,
+                    name=f"get_job_id_{task_label}",
                     workgraph_name=launcher_name,
                     task_name=task_label,
                 )
 
-                # Store the outputs namespace for dependent tasks
-                task_dep_info[task_label] = dep_task.outputs
+                # CRITICAL: Make this job_id_task wait for the PREVIOUS job_id_task
+                # This creates the job ID dependency chain
+                if previous_job_id_task is not None:
+                    previous_job_id_task >> job_id_task
 
-                # Chain with previous dependency tasks using >>
-                # This ensures get_job_data tasks wait for upstream dependencies (optional, like Xing's)
-                for dep_label in parent_folders_for_task.keys():
-                    if dep_label in prev_dep_tasks:
-                        prev_dep_tasks[dep_label] >> dep_task
-                        print(f"DEBUG: Chaining {dep_label} >> {task_label}")
+                # Store the job_id future for dependent tasks
+                job_ids[task_label] = job_id_task.outputs["result"]
 
-                # Store for next iteration
-                prev_dep_tasks[task_label] = dep_task
+                # Update previous job_id task for next iteration
+                previous_job_id_task = job_id_task
 
                 print(
-                    f"DEBUG: Created ICON task '{task_label}' with {len(parent_folders_for_task)} dependencies"
+                    f"DEBUG: Created task '{task_label}' with {len(dep_job_ids)} data dependencies"
                 )
 
             elif isinstance(task, core.ShellTask):
                 task_spec = shell_task_specs[task_label]
                 launcher_name = f"launch_{task_label}"
-                output_port_mapping = task_spec["output_port_mapping"]
 
-                # Add port_to_dep_mapping to task_spec (even though shell tasks don't use it yet)
-                task_spec["port_to_dep_mapping"] = port_to_dep_mapping
-
-                # Create launcher task (following Xing's pattern)
+                # Create launcher task
                 shell_launcher = wg.add_task(
                     launch_shell_task_with_dependency,
                     name=launcher_name,
                     task_spec=task_spec,
-                    input_data_nodes=input_data_for_task if input_data_for_task else None,
-                    parent_folders=parent_folders_for_task if parent_folders_for_task else None,
-                    job_ids=job_ids_for_task if job_ids_for_task else None,
+                    input_data_nodes=input_data_for_task
+                    if input_data_for_task
+                    else None,
+                    job_ids=dep_job_ids if dep_job_ids else None,
                 )
 
-                # Store output sockets (futures) for this task
-                # These are sockets, not actual data - they don't block!
-                for data_name, shell_port_name in output_port_mapping.items():
-                    # Get the output socket using the shell port name
-                    output_socket = getattr(shell_launcher.outputs, shell_port_name)
-                    # Find the corresponding GeneratedData to get its full label
-                    for out_data in task.output_data_nodes():
-                        if out_data.name == data_name:
-                            output_key = (data_name, get_label(out_data))
-                            print(
-                                f"DEBUG: Stored output socket '{data_name}' (port: {shell_port_name}) from task '{task_label}'"
-                            )
-                            break
-
-                # Create get_job_data task (following Xing's pattern)
-                dep_task = wg.add_task(
-                    get_job_data,
-                    name=f"get_job_data_{task_label}",
+                # Create job_id fetcher for THIS launcher
+                job_id_task = wg.add_task(
+                    get_job_id,
+                    name=f"get_job_id_{task_label}",
                     workgraph_name=launcher_name,
                     task_name=task_label,
                 )
 
-                # Store the outputs namespace for dependent tasks
-                task_dep_info[task_label] = dep_task.outputs
+                # Make this job_id_task wait for the PREVIOUS job_id_task
+                if previous_job_id_task is not None:
+                    previous_job_id_task >> job_id_task
 
-                # Chain with previous dependency tasks
-                for dep_label in parent_folders_for_task.keys():
-                    if dep_label in prev_dep_tasks:
-                        prev_dep_tasks[dep_label] >> dep_task
+                # Store the job_id future for dependent tasks
+                job_ids[task_label] = job_id_task.outputs["result"]
 
-                # Store for next iteration
-                prev_dep_tasks[task_label] = dep_task
+                # Update previous job_id task for next iteration
+                previous_job_id_task = job_id_task
 
                 print(
-                    f"DEBUG: Created Shell task '{task_label}' with {len(parent_folders_for_task)} dependencies"
+                    f"DEBUG: Created task '{task_label}' with {len(dep_job_ids)} data dependencies"
                 )
 
             else:
