@@ -105,127 +105,25 @@ async def get_job_data(
 
         await asyncio.sleep(interval)
 
-
-@task
-async def get_calcjob_uuid(
-    workgraph_name: str,
-    task_name: str,
-    interval: int = 2,
-    timeout: int = 60,
-):
-    """Get the UUID of a CalcJob immediately after its WorkGraph task is created.
-
-    This is MUCH faster than waiting for completion - typically takes 2-5 seconds.
-    We need the UUID to construct future RemoteData paths.
-
-    Args:
-        workgraph_name: Name of the launcher sub-WorkGraph
-        task_name: Name of the CalcJob task inside the sub-WorkGraph
-        interval: Polling interval in seconds
-        timeout: Maximum time to wait in seconds
-    """
-    from aiida import orm
-    from aiida_workgraph.engine.workgraph import WorkGraphEngine
-
-    start_time_unix = time.time()
-
-    print(f"DEBUG: Starting UUID polling for {task_name} in workgraph {workgraph_name}")
-
-    while True:
-        # Query for WorkGraphs created AFTER this task started polling
-        builder = orm.QueryBuilder()
-        builder.append(
-            WorkGraphEngine,
-            filters={
-                "attributes.process_label": {"==": f"WorkGraph<{workgraph_name}>"},
-                "ctime": {">": datetime.fromtimestamp(start_time_unix - 10)},
-            },
-            tag="process",
-        )
-
-        if builder.count() > 0:
-            workgraph_node = builder.all()[-1][0]
-            node_data = workgraph_node.task_processes.get(task_name, "")
-            if node_data:
-                node = yaml.load(node_data, Loader=AiiDALoader)
-                if node:
-                    uuid = node.uuid
-                    print(f"DEBUG: Successfully retrieved UUID {uuid} for {task_name}")
-                    return aiida.orm.Str(uuid)
-
-        # Check timeout
-        elapsed = time.time() - start_time_unix
-        if elapsed > timeout:
-            raise TimeoutError(
-                f"Timeout waiting for CalcJob UUID for task {task_name} after {timeout}s"
-            )
-
-        await asyncio.sleep(interval)
-
-
-@task
-def create_future_remote_data_folder(
-    calcjob_uuid: str,
-    computer_label: str,
-):
-    """Create a RemoteData node pointing to CalcJob's work directory.
-
-    This enables streaming submission: we can submit job_2 immediately with a RemoteData
-    node pointing to job_1's work directory, even though outputs don't exist yet. The SLURM
-    dependency ensures job_2 only executes after job_1 completes and files are available.
-
-    For ICON restart files, the restart file will be in the CalcJob's work directory.
-    We create a RemoteData pointing to that directory, which the dependent CalcJob can use.
-
-    Args:
-        calcjob_uuid: UUID string of the source CalcJob (WorkGraph extracts value from aiida.orm.Str)
-        computer_label: Computer label where files exist
-
-    Returns:
-        RemoteData node pointing to the CalcJob's remote work directory
-    """
-    from aiida.orm import Computer, RemoteData
-    import os
-
-    computer = Computer.collection.get(label=computer_label)
-    uuid_str = calcjob_uuid  # Already a string (WorkGraph extracted it)
-
-    # Construct path to CalcJob's work directory using AiiDA's sharding structure
-    # Path format: {workdir}/nodes/{uuid[:2]}/{uuid[2:4]}/{uuid}/
-    workdir = computer.get_workdir()
-    remote_path = os.path.join(
-        workdir,
-        "nodes",
-        uuid_str[:2],
-        uuid_str[2:4],
-        uuid_str,
-    )
-
-    print(f"DEBUG: Creating future RemoteData folder at {remote_path}")
-
-    # Create the RemoteData node (do NOT call .store() - calcfunction handles that)
-    remote_data = RemoteData(computer=computer, remote_path=remote_path)
-
-    return remote_data
-
-
 @task.graph
 def launch_shell_task_with_dependency(
     task_spec: dict,
     input_data_nodes: Annotated[dict, dynamic(aiida.orm.Data)] | None = None,
-    parent_folders: Annotated[dict, dynamic(int)] = None,
+    parent_folders: Annotated[dict, dynamic(int)] | None = None,
     job_ids: Annotated[dict, dynamic(int)] | None = None,
-) -> Annotated[dict, dynamic(aiida.orm.Data)]:
+) -> Annotated[dict, dynamic()]:
+# ) -> Annotated[dict, dynamic(aiida.orm.Data)]:
     """Launch a shell task with optional SLURM job dependencies."""
     from aiida_workgraph.tasks.shelljob_task import _build_shelljob_nodespec
 
     # Get pre-computed data
+
     label = task_spec["label"]
     input_data_info = task_spec["input_data_info"]
     output_data_info = task_spec["output_data_info"]
 
     # Handle None input_data_nodes
-    if input_data_nodes is None:
+    if input_data_nodes == None:
         input_data_nodes = {}
 
     # Load RemoteData nodes from their PKs
@@ -235,20 +133,20 @@ def launch_shell_task_with_dependency(
         else None
     )
 
+    # Create a mapping from original placeholder names to the actual node keys we create
+    placeholder_to_node_key = {}
+
     # Map loaded RemoteData to input ports using port_to_dep_mapping
     if parent_folders_loaded:
         port_to_dep_mapping = task_spec.get("port_to_dep_mapping", {})
         print(f"DEBUG: Shell '{label}' loading RemoteData from PKs...")
         print(f"DEBUG:   port_to_dep_mapping = {port_to_dep_mapping}")
-        print(
-            f"DEBUG:   parent_folders_loaded keys = {list(parent_folders_loaded.keys())}"
-        )
+        print(f"DEBUG:   parent_folders_loaded keys = {list(parent_folders_loaded.keys())}")
 
         # Collect ALL RemoteData nodes and add them as inputs
-        remote_data_counter = 0
         for port_name, dep_info_list in port_to_dep_mapping.items():
-            # dep_info_list is a list of (dep_task_label, filename) tuples
-            for dep_label, filename in dep_info_list:
+            # dep_info_list is a list of (dep_task_label, filename, data_label) tuples
+            for dep_label, filename, data_label in dep_info_list:
                 if dep_label in parent_folders_loaded:
                     workdir_remote_data = parent_folders_loaded[dep_label]
                     workdir_path = workdir_remote_data.get_remote_path()
@@ -257,28 +155,27 @@ def launch_shell_task_with_dependency(
                     print(f"DEBUG:   Workdir path: {workdir_path}")
                     print(f"DEBUG:   Filename from config: {filename}")
 
+                    # Create unique key for this dependency
+                    unique_key = f"{dep_label}_remote"
+                    
                     if filename:
                         # Create RemoteData pointing to the specific file
                         specific_file_path = f"{workdir_path}/{filename}"
                         file_remote_data = aiida.orm.RemoteData(
                             computer=workdir_remote_data.computer,
-                            remote_path=specific_file_path,
+                            remote_path=specific_file_path
                         )
-                        # Use unique keys for each remote folder/file
-                        unique_key = f"{dep_label}_remote"
                         input_data_nodes[unique_key] = file_remote_data
-                        print(
-                            f"DEBUG:   Added RemoteData '{unique_key}' for specific file: {specific_file_path}"
-                        )
+                        print(f"DEBUG:   Added RemoteData '{unique_key}' for specific file: {specific_file_path}")
                     else:
                         # No specific filename, use the workdir itself
-                        unique_key = f"{dep_label}_remote"
                         input_data_nodes[unique_key] = workdir_remote_data
-                        print(
-                            f"DEBUG:   Added RemoteData '{unique_key}' for workdir: {workdir_path}"
-                        )
+                        print(f"DEBUG:   Added RemoteData '{unique_key}' for workdir: {workdir_path}")
 
-                    remote_data_counter += 1
+                    # Map the data label to the node key we created
+                    # The data_label is the actual label of the data used in argument placeholders
+                    placeholder_to_node_key[data_label] = unique_key
+                    print(f"DEBUG:   Mapped placeholder '{data_label}' -> node key '{unique_key}'")
 
     # Load the code from PK
     code = aiida.orm.load_node(task_spec["code_pk"])
@@ -296,6 +193,7 @@ def launch_shell_task_with_dependency(
     computer = aiida.orm.Computer.collection.get(label=metadata.pop("computer_label"))
     metadata["computer"] = computer
 
+    # CRITICAL: Make sure we have job dependencies for ALL upstream tasks
     if job_ids:
         dep_str = ":".join(str(jid.value) for jid in job_ids.values())
         custom_cmd = f"#SBATCH --dependency=afterok:{dep_str}"
@@ -305,53 +203,56 @@ def launch_shell_task_with_dependency(
         else:
             metadata["options"]["custom_scheduler_commands"] = custom_cmd
 
-    # Use pre-resolved arguments template but split into separate arguments
+    # Use pre-resolved arguments template but update placeholders to match actual node keys
     arguments_template = task_spec["arguments_template"]
-
-    # Split the arguments to handle multiple placeholders properly
-    # Original: "cleanup.py {placeholder1} {placeholder2} {placeholder3}"
-    # Convert to: ["cleanup.py", "{placeholder1}", "{placeholder2}", "{placeholder3}"]
-    import shlex
-
-    arguments_list = shlex.split(arguments_template)
-
-    # Now process each argument to ensure only one placeholder per argument
+    
+    # Split the arguments into a list where each argument is a separate element
+    if arguments_template:
+        arguments_list = arguments_template.split()
+    else:
+        arguments_list = []
+    
+    # Update placeholders to match the actual node keys we created
     processed_arguments = []
     for arg in arguments_list:
-        # Count placeholders in this argument
-        placeholders = [
-            part for part in arg.split() if part.startswith("{") and part.endswith("}")
-        ]
-
-        if len(placeholders) > 1:
-            # Split arguments with multiple placeholders into separate arguments
-            # e.g., "{a} {b}" becomes ["{a}", "{b}"]
-            processed_arguments.extend(placeholders)
+        # Check if this argument is a placeholder
+        if arg.startswith('{') and arg.endswith('}'):
+            placeholder_name = arg[1:-1]  # Remove the braces
+            # Map to the actual node key if we have a mapping
+            if placeholder_name in placeholder_to_node_key:
+                actual_node_key = placeholder_to_node_key[placeholder_name]
+                processed_arguments.append(f"{{{actual_node_key}}}")
+                print(f"DEBUG:   Mapped argument placeholder '{arg}' -> '{{{actual_node_key}}}'")
+            else:
+                # Keep original if no mapping found
+                processed_arguments.append(arg)
+                print(f"DEBUG:   No mapping found for placeholder '{arg}', keeping original")
         else:
             processed_arguments.append(arg)
-
+    
     arguments = processed_arguments
 
     # Merge script nodes with input data nodes
     for port, data_node in input_data_nodes.items():
-        # Skip RemoteData nodes we added for symlinking (they have _remote suffix)
-        if port.endswith("_remote"):
-            # These will be passed directly as nodes for symlinking
-            all_nodes[port] = data_node
-            print(f"DEBUG: Added RemoteData '{port}' for symlinking")
-        else:
-            # Find the label for this port from pre-computed info
-            matching_info = [info for info in input_data_info if info["port"] == port]
-            if matching_info:
-                node_label = matching_info[0]["label"]
-                all_nodes[node_label] = data_node
-                print(f"DEBUG: Mapped port '{port}' to label '{node_label}'")
+        # All our RemoteData nodes should be added directly to all_nodes
+        all_nodes[port] = data_node
+        print(f"DEBUG: Added node '{port}' for symlinking")
 
     # Use pre-computed outputs
     outputs = task_spec["outputs"]
 
-    # Use pre-computed filenames
-    filenames = task_spec["filenames"]
+    # Use pre-computed filenames - but we need to update these too for the new node keys
+    original_filenames = task_spec["filenames"]
+    filenames = {}
+    
+    # Update filenames mapping to use the actual node keys
+    for placeholder_name, filename in original_filenames.items():
+        if placeholder_name in placeholder_to_node_key:
+            actual_node_key = placeholder_to_node_key[placeholder_name]
+            filenames[actual_node_key] = filename
+            print(f"DEBUG:   Mapped filename '{placeholder_name}' -> '{actual_node_key}'")
+        else:
+            filenames[placeholder_name] = filename
 
     print(f"DEBUG: Shell '{label}' final configuration:")
     print(f"DEBUG:   arguments = {arguments}")
@@ -363,6 +264,8 @@ def launch_shell_task_with_dependency(
     parser_outputs = [
         output_info["name"] for output_info in output_data_info if output_info["path"]
     ]
+
+    breakpoint()
 
     spec = _build_shelljob_nodespec(
         identifier=f"shelljob_{label}",
@@ -377,7 +280,7 @@ def launch_shell_task_with_dependency(
         spec,
         name=label,
         command=code,
-        arguments=arguments,  # Use the processed arguments list
+        arguments=arguments,
         nodes=all_nodes,
         outputs=outputs,
         filenames=filenames,
@@ -389,14 +292,15 @@ def launch_shell_task_with_dependency(
     return shell_task.outputs
 
 
+
 IconTask = task(IconCalculation)
 
 
 @task.graph(outputs=IconTask.outputs)
 def launch_icon_task_with_dependency(
     task_spec: dict,
-    input_data_nodes: Annotated[dict, dynamic(aiida.orm.Data)] = None,
-    parent_folders: Annotated[dict, dynamic(int)] = None,
+    input_data_nodes: Annotated[dict, dynamic(aiida.orm.Data)] | None = None,
+    parent_folders: Annotated[dict, dynamic(int)] | None = None,
     job_ids: Annotated[dict, dynamic(int)] = None,
 ):
     """Launch an ICON task with SLURM dependencies from upstream tasks.
@@ -453,10 +357,10 @@ def launch_icon_task_with_dependency(
         )
 
         for port_name, dep_info_list in port_to_dep_mapping.items():
-            # dep_info_list is a list of (dep_task_label, filename) tuples
+            # dep_info_list is a list of (dep_task_label, filename, data_label) tuples
             # For ICON restart_file, should only be one dependency
             if dep_info_list:
-                dep_label, filename = dep_info_list[0]  # Unpack the tuple
+                dep_label, filename, data_label = dep_info_list[0]  # Unpack the tuple (data_label unused for ICON)
                 if dep_label in parent_folders_loaded:
                     workdir_remote_data = parent_folders_loaded[dep_label]
                     workdir_path = workdir_remote_data.get_remote_path()
@@ -621,9 +525,10 @@ def build_dynamic_sirocco_workgraph(
                     input_data_for_task[port] = aiida_data_nodes[input_label]
                     print(f"DEBUG:   AvailableData '{port}' -> {input_label}")
 
-            # Build port_to_dep_mapping: map each port to list of (dependency_label, filename) tuples
+            # Build port_to_dep_mapping: map each port to list of (dependency_label, filename, data_label) tuples
             # The filename is extracted from input_data.path and will be used to create specific symlinks
-            port_to_dep_mapping = {}  # {port_name: [(dep_task_label, filename), ...]}
+            # The data_label is used for Shell task placeholder resolution
+            port_to_dep_mapping = {}  # {port_name: [(dep_task_label, filename, data_label), ...]}
             parent_folders_for_task = {}  # {dep_label: remote_folder_pk}
             job_ids_for_task = {}  # {dep_label: job_id}
 
@@ -648,11 +553,11 @@ def build_dynamic_sirocco_workgraph(
 
                                 if prev_task_label in task_dep_info:
                                     # Add to port mapping (supports multiple dependencies per port)
-                                    # Store as tuple: (dep_task_label, filename)
+                                    # Store as tuple: (dep_task_label, filename, data_label)
                                     if port not in port_to_dep_mapping:
                                         port_to_dep_mapping[port] = []
                                     port_to_dep_mapping[port].append(
-                                        (prev_task_label, filename)
+                                        (prev_task_label, filename, input_data_label)
                                     )
 
                                     # Add to parent_folders and job_ids (avoid duplicates)
@@ -1506,3 +1411,185 @@ class AiidaWorkGraph:
 #
 #     # Return outputs directly (WorkGraph will wrap them)
 #     return shell_task.outputs
+
+
+# @task.graph
+# def launch_shell_task_with_dependency(
+#     task_spec: dict,
+#     input_data_nodes: Annotated[dict, dynamic(aiida.orm.Data)] | None = None,
+#     parent_folders: Annotated[dict, dynamic(int)] = None,
+#     job_ids: Annotated[dict, dynamic(int)] | None = None,
+# ) -> Annotated[dict, dynamic(aiida.orm.Data)]:
+#     """Launch a shell task with optional SLURM job dependencies."""
+#     from aiida_workgraph.tasks.shelljob_task import _build_shelljob_nodespec
+#
+#     # Get pre-computed data
+#     label = task_spec["label"]
+#     input_data_info = task_spec["input_data_info"]
+#     output_data_info = task_spec["output_data_info"]
+#
+#     # Handle None input_data_nodes
+#     if input_data_nodes is None:
+#         input_data_nodes = {}
+#
+#     # Load RemoteData nodes from their PKs
+#     parent_folders_loaded = (
+#         {key: aiida.orm.load_node(val.value) for key, val in parent_folders.items()}
+#         if parent_folders
+#         else None
+#     )
+#
+#     # Map loaded RemoteData to input ports using port_to_dep_mapping
+#     if parent_folders_loaded:
+#         port_to_dep_mapping = task_spec.get("port_to_dep_mapping", {})
+#         print(f"DEBUG: Shell '{label}' loading RemoteData from PKs...")
+#         print(f"DEBUG:   port_to_dep_mapping = {port_to_dep_mapping}")
+#         print(
+#             f"DEBUG:   parent_folders_loaded keys = {list(parent_folders_loaded.keys())}"
+#         )
+#
+#         # Collect ALL RemoteData nodes and add them as inputs
+#         remote_data_counter = 0
+#         for port_name, dep_info_list in port_to_dep_mapping.items():
+#             # dep_info_list is a list of (dep_task_label, filename) tuples
+#             for dep_label, filename in dep_info_list:
+#                 if dep_label in parent_folders_loaded:
+#                     workdir_remote_data = parent_folders_loaded[dep_label]
+#                     workdir_path = workdir_remote_data.get_remote_path()
+#
+#                     print(f"DEBUG: Processing dep '{dep_label}' for port '{port_name}'")
+#                     print(f"DEBUG:   Workdir path: {workdir_path}")
+#                     print(f"DEBUG:   Filename from config: {filename}")
+#
+#                     if filename:
+#                         # Create RemoteData pointing to the specific file
+#                         specific_file_path = f"{workdir_path}/{filename}"
+#                         file_remote_data = aiida.orm.RemoteData(
+#                             computer=workdir_remote_data.computer,
+#                             remote_path=specific_file_path,
+#                         )
+#                         # Use unique keys for each remote folder/file
+#                         unique_key = f"{dep_label}_remote"
+#                         input_data_nodes[unique_key] = file_remote_data
+#                         print(
+#                             f"DEBUG:   Added RemoteData '{unique_key}' for specific file: {specific_file_path}"
+#                         )
+#                     else:
+#                         # No specific filename, use the workdir itself
+#                         unique_key = f"{dep_label}_remote"
+#                         input_data_nodes[unique_key] = workdir_remote_data
+#                         print(
+#                             f"DEBUG:   Added RemoteData '{unique_key}' for workdir: {workdir_path}"
+#                         )
+#
+#                     remote_data_counter += 1
+#
+#     # Load the code from PK
+#     code = aiida.orm.load_node(task_spec["code_pk"])
+#
+#     # Load nodes from PKs
+#     all_nodes = {
+#         key: aiida.orm.load_node(pk) for key, pk in task_spec["node_pks"].items()
+#     }
+#
+#     # Copy and modify metadata with runtime job_ids
+#     metadata = dict(task_spec["metadata"])
+#     metadata["options"] = dict(metadata["options"])
+#
+#     # Load computer from label
+#     computer = aiida.orm.Computer.collection.get(label=metadata.pop("computer_label"))
+#     metadata["computer"] = computer
+#
+#     if job_ids:
+#         dep_str = ":".join(str(jid.value) for jid in job_ids.values())
+#         custom_cmd = f"#SBATCH --dependency=afterok:{dep_str}"
+#
+#         if "custom_scheduler_commands" in metadata["options"]:
+#             metadata["options"]["custom_scheduler_commands"] += f"\n{custom_cmd}"
+#         else:
+#             metadata["options"]["custom_scheduler_commands"] = custom_cmd
+#
+#     # Use pre-resolved arguments template but split into separate arguments
+#     arguments_template = task_spec["arguments_template"]
+#
+#     # Split the arguments to handle multiple placeholders properly
+#     # Original: "cleanup.py {placeholder1} {placeholder2} {placeholder3}"
+#     # Convert to: ["cleanup.py", "{placeholder1}", "{placeholder2}", "{placeholder3}"]
+#     import shlex
+#
+#     arguments_list = shlex.split(arguments_template)
+#
+#     # Now process each argument to ensure only one placeholder per argument
+#     processed_arguments = []
+#     for arg in arguments_list:
+#         # Count placeholders in this argument
+#         placeholders = [
+#             part for part in arg.split() if part.startswith("{") and part.endswith("}")
+#         ]
+#
+#         if len(placeholders) > 1:
+#             # Split arguments with multiple placeholders into separate arguments
+#             # e.g., "{a} {b}" becomes ["{a}", "{b}"]
+#             processed_arguments.extend(placeholders)
+#         else:
+#             processed_arguments.append(arg)
+#
+#     arguments = processed_arguments
+#
+#     # Merge script nodes with input data nodes
+#     for port, data_node in input_data_nodes.items():
+#         # Skip RemoteData nodes we added for symlinking (they have _remote suffix)
+#         if port.endswith("_remote"):
+#             # These will be passed directly as nodes for symlinking
+#             all_nodes[port] = data_node
+#             print(f"DEBUG: Added RemoteData '{port}' for symlinking")
+#         else:
+#             # Find the label for this port from pre-computed info
+#             matching_info = [info for info in input_data_info if info["port"] == port]
+#             if matching_info:
+#                 node_label = matching_info[0]["label"]
+#                 all_nodes[node_label] = data_node
+#                 print(f"DEBUG: Mapped port '{port}' to label '{node_label}'")
+#
+#     # Use pre-computed outputs
+#     outputs = task_spec["outputs"]
+#
+#     # Use pre-computed filenames
+#     filenames = task_spec["filenames"]
+#
+#     print(f"DEBUG: Shell '{label}' final configuration:")
+#     print(f"DEBUG:   arguments = {arguments}")
+#     print(f"DEBUG:   all_nodes keys = {list(all_nodes.keys())}")
+#     print(f"DEBUG:   outputs = {outputs}")
+#     print(f"DEBUG:   filenames = {filenames}")
+#
+#     # Build the shelljob NodeSpec
+#     parser_outputs = [
+#         output_info["name"] for output_info in output_data_info if output_info["path"]
+#     ]
+#
+#     spec = _build_shelljob_nodespec(
+#         identifier=f"shelljob_{label}",
+#         outputs=outputs,
+#         parser_outputs=parser_outputs,
+#     )
+#
+#     # Create the shell task
+#     wg = get_current_graph()
+#
+#     shell_task = wg.add_task(
+#         spec,
+#         name=label,
+#         command=code,
+#         arguments=arguments,  # Use the processed arguments list
+#         nodes=all_nodes,
+#         outputs=outputs,
+#         filenames=filenames,
+#         metadata=metadata,
+#         resolve_command=False,
+#     )
+#
+#     # Return outputs directly (WorkGraph will wrap them)
+#     return shell_task.outputs
+#
+#
