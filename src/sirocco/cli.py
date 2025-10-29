@@ -8,7 +8,7 @@ from rich.console import Console
 from rich.traceback import install as install_rich_traceback
 
 from sirocco import core, parsing, pretty_print, vizgraph
-from sirocco.workgraph import AiidaWorkGraph
+from sirocco.workgraph import build_sirocco_workgraph
 
 # --- Typer App and Rich Console Setup ---
 # Print tracebacks with syntax highlighting and rich formatting
@@ -24,24 +24,34 @@ app = typer.Typer(
 console = Console()
 
 
-def _create_aiida_workflow(workflow_file: Path) -> AiidaWorkGraph:
+def _create_aiida_workflow(workflow_file: Path) -> tuple[core.Workflow, "WorkGraph"]:
+    """Load workflow file and build WorkGraph.
+
+    Returns:
+        Tuple of (core_workflow, aiida_workgraph)
+    """
     load_profile()
     config_workflow = parsing.ConfigWorkflow.from_config_file(str(workflow_file))
     core_wf = core.Workflow.from_config_workflow(config_workflow)
-    return AiidaWorkGraph(core_wf)
+    wg = build_sirocco_workgraph(core_wf)
+    return core_wf, wg
 
 
-def create_aiida_workflow(workflow_file: Path) -> AiidaWorkGraph:
-    """Helper to prepare AiidaWorkGraph from workflow file."""
+def create_aiida_workflow(workflow_file: Path) -> tuple[core.Workflow, "WorkGraph"]:
+    """Helper to prepare WorkGraph from workflow file.
+
+    Returns:
+        Tuple of (core_workflow, aiida_workgraph)
+    """
 
     from aiida.common import ProfileConfigurationError
 
     try:
-        aiida_wg = _create_aiida_workflow(workflow_file=workflow_file)
+        core_wf, wg = _create_aiida_workflow(workflow_file=workflow_file)
         console.print(
-            f"⚙️ Workflow [magenta]'{aiida_wg._workgraph.name}'[/magenta] prepared for AiiDA execution."
-        )  # noqa: SLF001 | private-member-access
-        return aiida_wg  # noqa: TRY300 | try-consider-else -> shouldn't move this to `else` block
+            f"⚙️ Workflow [magenta]'{wg.name}'[/magenta] prepared for AiiDA execution."
+        )
+        return core_wf, wg  # noqa: TRY300 | try-consider-else -> shouldn't move this to `else` block
     except ProfileConfigurationError as e:
         console.print(f"[bold red]❌ No AiiDA profile set up: {e}[/bold red]")
         console.print(
@@ -196,12 +206,12 @@ def run(
         ),
     ],
 ):
-    aiida_wg = create_aiida_workflow(workflow_file)
+    core_wf, wg = create_aiida_workflow(workflow_file)
     console.print(
-        f"▶️ Running workflow [magenta]'{aiida_wg._core_workflow.name}'[/magenta] directly (blocking)..."  # noqa: SLF001 | private-member-access
+        f"▶️ Running workflow [magenta]'{core_wf.name}'[/magenta] directly (blocking)..."
     )
     try:
-        _ = aiida_wg.run(inputs=None)
+        _ = wg.run(inputs=None)
         console.print("[green]✅ Workflow execution finished.[/green]")
     except Exception as e:
         console.print(
@@ -227,12 +237,15 @@ def submit(
 ):
     """Submit the workflow to the AiiDA daemon."""
 
-    aiida_wg = create_aiida_workflow(workflow_file)
+    core_wf, wg = create_aiida_workflow(workflow_file)
     try:
         console.print(
-            f"🚀 Submitting workflow [magenta]'{aiida_wg._core_workflow.name}'[/magenta] to AiiDA daemon..."  # noqa: SLF001 | private-member-access
+            f"🚀 Submitting workflow [magenta]'{core_wf.name}'[/magenta] to AiiDA daemon..."
         )
-        results_node = aiida_wg.submit(inputs=None)
+        wg.submit(inputs=None)
+
+        if (results_node := wg.process) is None:
+            raise RuntimeError("Something went wrong when submitting workgraph")
 
         console.print(f"[green]✅ Workflow submitted. PK: {results_node.pk}[/green]")
 
