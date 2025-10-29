@@ -49,8 +49,7 @@ async def get_job_data(
 ):
     """Monitor CalcJob and return job_id and remote_folder PK when available.
 
-    Following Xing's pattern: when job_id is ready, remote_folder is also available.
-    Return both as a namespace for use in dependent tasks.
+    Generic function for all task types.
 
     Args:
         workgraph_name: Name of the launcher sub-WorkGraph
@@ -266,14 +265,47 @@ def launch_shell_task_with_dependency(
     )
 
     # Map loaded RemoteData to input ports using port_to_dep_mapping
+    # For shell tasks, a port may have MULTIPLE dependencies (e.g., cleanup needs finish from all ICON tasks)
+    # We need to pass ALL remote folders so they all get symlinked
+    # port_to_dep_mapping[port_name] = [(dep_label, filename), ...] (list of (dep, filename) tuples)
     if parent_folders_loaded:
         port_to_dep_mapping = task_spec.get("port_to_dep_mapping", {})
         print(f"DEBUG: Shell '{label}' loading RemoteData from PKs...")
-        for port_name, dep_label in port_to_dep_mapping.items():
-            if dep_label in parent_folders_loaded:
-                remote_data = parent_folders_loaded[dep_label]
-                input_data_nodes[port_name] = remote_data
-                print(f"DEBUG: Loaded RemoteData for port '{port_name}' from dep '{dep_label}'")
+        print(f"DEBUG:   port_to_dep_mapping = {port_to_dep_mapping}")
+        print(f"DEBUG:   parent_folders_loaded keys = {list(parent_folders_loaded.keys())}")
+
+        # Collect ALL RemoteData nodes and add them as inputs
+        # Each dependency's remote_folder will be symlinked
+        remote_data_counter = 0
+        for port_name, dep_info_list in port_to_dep_mapping.items():
+            # dep_info_list is a list of (dep_task_label, filename) tuples
+            for dep_label, filename in dep_info_list:
+                if dep_label in parent_folders_loaded:
+                    workdir_remote_data = parent_folders_loaded[dep_label]
+                    workdir_path = workdir_remote_data.get_remote_path()
+
+                    print(f"DEBUG: Processing dep '{dep_label}' for port '{port_name}'")
+                    print(f"DEBUG:   Workdir path: {workdir_path}")
+                    print(f"DEBUG:   Filename from config: {filename}")
+
+                    if filename:
+                        # Create RemoteData pointing to the specific file
+                        specific_file_path = f"{workdir_path}/{filename}"
+                        file_remote_data = aiida.orm.RemoteData(
+                            computer=workdir_remote_data.computer,
+                            remote_path=specific_file_path
+                        )
+                        # Use unique keys for each remote folder/file (they'll all get symlinked)
+                        unique_key = f"{dep_label}_remote"
+                        input_data_nodes[unique_key] = file_remote_data
+                        print(f"DEBUG:   Added RemoteData '{unique_key}' for specific file: {specific_file_path}")
+                    else:
+                        # No specific filename, use the workdir itself
+                        unique_key = f"{dep_label}_remote"
+                        input_data_nodes[unique_key] = workdir_remote_data
+                        print(f"DEBUG:   Added RemoteData '{unique_key}' for workdir: {workdir_path}")
+
+                    remote_data_counter += 1
 
     # Load the code from PK
     code = aiida.orm.load_node(task_spec["code_pk"])
@@ -304,18 +336,33 @@ def launch_shell_task_with_dependency(
     arguments = task_spec["arguments_template"]
 
     # Merge script nodes with input data nodes
+    # Only merge nodes that are in input_data_info (original spec)
+    # Remote folders added for symlinking (ending in _remote) are NOT in input_data_info
     for port, data_node in input_data_nodes.items():
-        # Find the label for this port from pre-computed info
-        node_label = next(
-            info["label"] for info in input_data_info if info["port"] == port
-        )
-        all_nodes[node_label] = data_node
+        # Skip RemoteData nodes we added for symlinking (they have _remote suffix)
+        if port.endswith("_remote"):
+            # These will be passed directly as nodes for symlinking
+            all_nodes[port] = data_node
+            print(f"DEBUG: Added RemoteData '{port}' for symlinking")
+        else:
+            # Find the label for this port from pre-computed info
+            matching_info = [info for info in input_data_info if info["port"] == port]
+            if matching_info:
+                node_label = matching_info[0]["label"]
+                all_nodes[node_label] = data_node
+                print(f"DEBUG: Mapped port '{port}' to label '{node_label}'")
 
     # Use pre-computed outputs
     outputs = task_spec["outputs"]
 
     # Use pre-computed filenames
     filenames = task_spec["filenames"]
+
+    print(f"DEBUG: Shell '{label}' final configuration:")
+    print(f"DEBUG:   arguments = {arguments}")
+    print(f"DEBUG:   all_nodes keys = {list(all_nodes.keys())}")
+    print(f"DEBUG:   outputs = {outputs}")
+    print(f"DEBUG:   filenames = {filenames}")
 
     # Build the shelljob NodeSpec
     # Create parser_outputs list (output names as strings)
@@ -382,6 +429,9 @@ def launch_icon_task_with_dependency(
     Returns:
         IconTask outputs
     """
+    from aiida_icon.iconutils.modelnml import read_latest_restart_file_link_name
+    import f90nml
+    
     label = task_spec["label"]
     output_port_mapping = task_spec["output_port_mapping"]
     computer_label = task_spec["metadata"]["computer_label"]
@@ -400,14 +450,64 @@ def launch_icon_task_with_dependency(
     )
 
     # Map loaded RemoteData to input ports using port_to_dep_mapping
+    # port_to_dep_mapping[port_name] = [(dep_label, filename), ...] (list of (dep, filename) tuples)
     if parent_folders_loaded:
         port_to_dep_mapping = task_spec.get("port_to_dep_mapping", {})
         print(f"DEBUG: '{label}' loading RemoteData from PKs...")
-        for port_name, dep_label in port_to_dep_mapping.items():
-            if dep_label in parent_folders_loaded:
-                remote_data = parent_folders_loaded[dep_label]
-                input_data_nodes[port_name] = remote_data
-                print(f"DEBUG: Loaded RemoteData for port '{port_name}' from dep '{dep_label}'")
+        print(f"DEBUG:   port_to_dep_mapping = {port_to_dep_mapping}")
+        print(f"DEBUG:   parent_folders_loaded keys = {list(parent_folders_loaded.keys())}")
+
+        for port_name, dep_info_list in port_to_dep_mapping.items():
+            # dep_info_list is a list of (dep_task_label, filename) tuples
+            # For ICON restart_file, should only be one dependency
+            if dep_info_list:
+                dep_label, filename = dep_info_list[0]  # Unpack the tuple
+                if dep_label in parent_folders_loaded:
+                    workdir_remote_data = parent_folders_loaded[dep_label]
+                    workdir_path = workdir_remote_data.get_remote_path()
+
+                    print(f"DEBUG: Processing port '{port_name}' from dep '{dep_label}'")
+                    print(f"DEBUG:   Workdir RemoteData path: {workdir_path}")
+                    print(f"DEBUG:   Filename from config: {filename}")
+
+                    if filename:
+                        # Create RemoteData pointing to the specific file inside the workdir
+                        specific_file_path = f"{workdir_path}/{filename}"
+                        file_remote_data = aiida.orm.RemoteData(
+                            computer=workdir_remote_data.computer,
+                            remote_path=specific_file_path
+                        )
+                        input_data_nodes[port_name] = file_remote_data
+                        print(f"DEBUG:   Created RemoteData for specific file: {specific_file_path}")
+                    else:
+                        # No specific filename, use aiida-icon to determine restart filename
+                        try:
+                            # Get the model namelist for this task (assuming 'atm' model)
+                            model_namelist_pk = task_spec["model_namelist_pks"]["atm"]
+                            model_namelist_node = aiida.orm.load_node(model_namelist_pk)
+                            
+                            # Read and parse the namelist content
+                            with model_namelist_node.open(mode='r') as f:
+                                nml_content = f.read()
+                            
+                            nml = f90nml.reads(nml_content)
+                            
+                            # Use aiida-icon function to get the restart file link name
+                            restart_link_name = read_latest_restart_file_link_name(nml)
+                            specific_file_path = f"{workdir_path}/{restart_link_name}"
+                            
+                            file_remote_data = aiida.orm.RemoteData(
+                                computer=workdir_remote_data.computer,
+                                remote_path=specific_file_path
+                            )
+                            input_data_nodes[port_name] = file_remote_data
+                            print(f"DEBUG:   Using aiida-icon determined restart file: {specific_file_path}")
+                            
+                        except Exception as e:
+                            print(f"DEBUG:   Failed to determine restart filename using aiida-icon: {e}")
+                            # Fallback: use the workdir itself
+                            input_data_nodes[port_name] = workdir_remote_data
+                            print(f"DEBUG:   Falling back to workdir RemoteData (no specific filename)")
 
     # Collect job IDs for SLURM dependencies (following Xing's pattern)
     if job_ids:
@@ -454,10 +554,14 @@ def launch_icon_task_with_dependency(
         inputs['wrapper_script'] = aiida.orm.load_node(task_spec["wrapper_script_pk"])
 
     # Add ALL input data nodes (both AvailableData and future RemoteData for GeneratedData)
+    print(f"DEBUG: Setting ICON inputs for '{label}':")
     for port_name, data_node in input_data_nodes.items():
-        print(
-            f"DEBUG: Setting {port_name} = {type(data_node).__name__} (node type)"
-        )
+        node_type = type(data_node).__name__
+        if hasattr(data_node, 'get_remote_path'):
+            remote_path = data_node.get_remote_path()
+            print(f"DEBUG:   {port_name} = {node_type} (path: {remote_path}, pk: {data_node.pk})")
+        else:
+            print(f"DEBUG:   {port_name} = {node_type} (pk: {data_node.pk})")
         inputs[port_name] = data_node
 
     # Prepare metadata dict
@@ -474,7 +578,6 @@ def launch_icon_task_with_dependency(
 
     # Return the TaskNode (which has .outputs as sockets)
     return icon_task
-
 
 def build_dynamic_sirocco_workgraph(
     core_workflow: core.Workflow,
@@ -500,35 +603,52 @@ def build_dynamic_sirocco_workgraph(
         for task in cycle.tasks:
             task_label = get_label(task)
 
+            print(f"DEBUG: Building dependencies for task '{task_label}'")
+
             # Collect ONLY AvailableData inputs
             input_data_for_task = {}
             for port, input_data in task.input_data_items():
                 input_label = get_label(input_data)
                 if isinstance(input_data, core.AvailableData):
                     input_data_for_task[port] = aiida_data_nodes[input_label]
+                    print(f"DEBUG:   AvailableData '{port}' -> {input_label}")
 
-            # Build port_to_dep_mapping: which port gets data from which dependency?
-            # Build parent_folders and job_ids dicts following Xing's pattern
-            port_to_dep_mapping = {}  # {port_name: dep_task_label}
+            # Build port_to_dep_mapping: map each port to list of (dependency_label, filename) tuples
+            # The filename is extracted from input_data.path and will be used to create specific symlinks
+            port_to_dep_mapping = {}  # {port_name: [(dep_task_label, filename), ...]}
             parent_folders_for_task = {}  # {dep_label: remote_folder_pk}
             job_ids_for_task = {}  # {dep_label: job_id}
 
             for port, input_data in task.input_data_items():
                 if isinstance(input_data, core.GeneratedData):
-                    # Find producer task
+                    input_data_label = get_label(input_data)
+                    print(f"DEBUG:   Processing GeneratedData '{input_data.name}' (input has no path, will get from output)")
+
+                    # Find producer task - get filename from the OUTPUT specification
                     for prev_task in core_workflow.tasks:
                         for out_port, out_data in prev_task.output_data_items():
-                            if get_label(out_data) == get_label(input_data):
+                            if get_label(out_data) == input_data_label:
                                 prev_task_label = get_label(prev_task)
+
+                                # Get filename from the OUTPUT data specification
+                                filename = out_data.path.name if out_data.path else None
+                                print(f"DEBUG:   Found producer '{prev_task_label}', output path: {out_data.path}, filename: {filename}")
+
                                 if prev_task_label in task_dep_info:
-                                    # Map this port to the dependency
-                                    port_to_dep_mapping[port] = prev_task_label
-                                    # Get the job_data outputs (namespace with job_id, remote_folder)
-                                    job_data = task_dep_info[prev_task_label]
-                                    parent_folders_for_task[prev_task_label] = job_data.remote_folder
-                                    job_ids_for_task[prev_task_label] = job_data.job_id
+                                    # Add to port mapping (supports multiple dependencies per port)
+                                    # Store as tuple: (dep_task_label, filename)
+                                    if port not in port_to_dep_mapping:
+                                        port_to_dep_mapping[port] = []
+                                    port_to_dep_mapping[port].append((prev_task_label, filename))
+
+                                    # Add to parent_folders and job_ids (avoid duplicates)
+                                    if prev_task_label not in parent_folders_for_task:
+                                        job_data = task_dep_info[prev_task_label]
+                                        parent_folders_for_task[prev_task_label] = job_data.remote_folder
+                                        job_ids_for_task[prev_task_label] = job_data.job_id
+
                                     print(
-                                        f"DEBUG: Task '{task_label}' port '{port}' will get data from '{prev_task_label}'"
+                                        f"DEBUG:   GeneratedData port '{port}' <- dep '{prev_task_label}' (data: {input_data.name}, filename: {filename})"
                                     )
                                 break
 
@@ -572,7 +692,7 @@ def build_dynamic_sirocco_workgraph(
                 prev_dep_tasks[task_label] = dep_task
 
                 print(
-                    f"DEBUG: Created ICON task '{task_label}' with {len(parent_folders_for_task)} dependencies"
+                    f"DEBUG: Created ICON launcher '{launcher_name}' with {len(parent_folders_for_task)} parent_folders, {len(job_ids_for_task)} job_ids"
                 )
 
             elif isinstance(task, core.ShellTask):
@@ -593,19 +713,7 @@ def build_dynamic_sirocco_workgraph(
                     job_ids=job_ids_for_task if job_ids_for_task else None,
                 )
 
-                # Store output sockets (futures) for this task
-                # These are sockets, not actual data - they don't block!
-                for data_name, shell_port_name in output_port_mapping.items():
-                    # Get the output socket using the shell port name
-                    output_socket = getattr(shell_launcher.outputs, shell_port_name)
-                    # Find the corresponding GeneratedData to get its full label
-                    for out_data in task.output_data_nodes():
-                        if out_data.name == data_name:
-                            output_key = (data_name, get_label(out_data))
-                            print(
-                                f"DEBUG: Stored output socket '{data_name}' (port: {shell_port_name}) from task '{task_label}'"
-                            )
-                            break
+                print(f"DEBUG: Created shell launcher '{launcher_name}' with {len(parent_folders_for_task)} parent_folders")
 
                 # Create get_job_data task (following Xing's pattern)
                 dep_task = wg.add_task(
@@ -627,13 +735,16 @@ def build_dynamic_sirocco_workgraph(
                 prev_dep_tasks[task_label] = dep_task
 
                 print(
-                    f"DEBUG: Created Shell task '{task_label}' with {len(parent_folders_for_task)} dependencies"
+                    f"DEBUG: Created Shell launcher '{launcher_name}' with {len(parent_folders_for_task)} parent_folders, {len(job_ids_for_task)} job_ids"
                 )
 
             else:
                 raise TypeError(f"Unknown task type: {type(task)}")
 
-            print(f"DEBUG: Created task '{task_label}'")
+    print(f"\nDEBUG: WorkGraph build complete:")
+    print(f"  Total tasks in workflow: {sum(len(cycle.tasks) for cycle in core_workflow.cycles)}")
+    print(f"  Total launcher tasks created: {len([t for t in wg.tasks if 'launch_' in t.name])}")
+    print(f"  Total get_job_data tasks created: {len([t for t in wg.tasks if 'get_job_data_' in t.name])}")
 
     return wg
 
@@ -1610,3 +1721,158 @@ class AiidaWorkGraph:
 #             print(f"DEBUG: Created task '{task_label}'")
 #
 #     return wg
+
+
+# @task.graph(outputs=IconTask.outputs)
+# def launch_icon_task_with_dependency(
+#     task_spec: dict,
+#     input_data_nodes: Annotated[dict, dynamic(aiida.orm.Data)] = None,
+#     parent_folders: Annotated[dict, dynamic(int)] = None,
+#     job_ids: Annotated[dict, dynamic(int)] = None,
+# ):
+#     """Launch an ICON task with SLURM dependencies from upstream tasks.
+#
+#     Following Xing's approach exactly: accept parent_folders as PKs and job_ids as ints,
+#     load RemoteData from PKs inside this function.
+#     This avoids socket dependencies while preserving provenance.
+#
+#     Args:
+#         task_spec: Dict from _build_icon_task_spec() containing:
+#             - label: Task label
+#             - code_pk: ICON code PK
+#             - master_namelist_pk: Master namelist PK
+#             - model_namelist_pks: Dict of model name -> namelist PK
+#             - wrapper_script_pk: Wrapper script PK (optional)
+#             - metadata: Base metadata dict
+#             - output_port_mapping: Dict mapping data names to ICON output port names
+#             - port_to_dep_mapping: Dict mapping port names to dependency labels
+#         input_data_nodes: Dict mapping port names to AvailableData nodes
+#         parent_folders: Dict of {dep_label: remote_folder_pk} from get_job_data
+#         job_ids: Dict of {dep_label: job_id} from get_job_data
+#
+#     Returns:
+#         IconTask outputs
+#     """
+#     label = task_spec["label"]
+#     output_port_mapping = task_spec["output_port_mapping"]
+#     computer_label = task_spec["metadata"]["computer_label"]
+#
+#     # Handle None inputs
+#     if input_data_nodes is None:
+#         input_data_nodes = {}
+#
+#     print(f"DEBUG: Launcher for '{label}' starting...")
+#
+#     # Load RemoteData nodes from their PKs (following Xing's pattern exactly)
+#     parent_folders_loaded = (
+#         {key: aiida.orm.load_node(val.value) for key, val in parent_folders.items()}
+#         if parent_folders
+#         else None
+#     )
+#
+#     # Map loaded RemoteData to input ports using port_to_dep_mapping
+#     # port_to_dep_mapping[port_name] = [(dep_label, filename), ...] (list of (dep, filename) tuples)
+#     if parent_folders_loaded:
+#         port_to_dep_mapping = task_spec.get("port_to_dep_mapping", {})
+#         print(f"DEBUG: '{label}' loading RemoteData from PKs...")
+#         print(f"DEBUG:   port_to_dep_mapping = {port_to_dep_mapping}")
+#         print(f"DEBUG:   parent_folders_loaded keys = {list(parent_folders_loaded.keys())}")
+#
+#         for port_name, dep_info_list in port_to_dep_mapping.items():
+#             # dep_info_list is a list of (dep_task_label, filename) tuples
+#             # For ICON restart_file, should only be one dependency
+#             if dep_info_list:
+#                 dep_label, filename = dep_info_list[0]  # Unpack the tuple
+#                 if dep_label in parent_folders_loaded:
+#                     workdir_remote_data = parent_folders_loaded[dep_label]
+#                     workdir_path = workdir_remote_data.get_remote_path()
+#
+#                     print(f"DEBUG: Processing port '{port_name}' from dep '{dep_label}'")
+#                     print(f"DEBUG:   Workdir RemoteData path: {workdir_path}")
+#                     print(f"DEBUG:   Filename from config: {filename}")
+#
+#                     if filename:
+#                         # Create RemoteData pointing to the specific file inside the workdir
+#                         specific_file_path = f"{workdir_path}/{filename}"
+#                         file_remote_data = aiida.orm.RemoteData(
+#                             computer=workdir_remote_data.computer,
+#                             remote_path=specific_file_path
+#                         )
+#                         input_data_nodes[port_name] = file_remote_data
+#                         print(f"DEBUG:   Created RemoteData for specific file: {specific_file_path}")
+#                     else:
+#                         # No specific filename, use the workdir itself
+#                         input_data_nodes[port_name] = workdir_remote_data
+#                         print(f"DEBUG:   Using workdir RemoteData (no specific filename)")
+#
+#     # Collect job IDs for SLURM dependencies (following Xing's pattern)
+#     if job_ids:
+#         dep_str = ":".join(str(jid.value) for jid in job_ids.values())
+#         custom_cmd = f"#SBATCH --dependency=afterok:{dep_str}"
+#         print(f"DEBUG: Task {label} - Setting SLURM dependency: {custom_cmd}")
+#
+#     # Reconstruct metadata with computer
+#     metadata = dict(task_spec["metadata"])
+#     metadata["options"] = dict(metadata["options"])
+#     computer = aiida.orm.Computer.collection.get(label=computer_label)
+#
+#     # Add SLURM job dependencies if we have any (following Xing's pattern)
+#     if job_ids:
+#         # custom_cmd was already set above
+#         current_cmds = metadata["options"].get("custom_scheduler_commands", "")
+#         if current_cmds:
+#             metadata["options"]["custom_scheduler_commands"] = (
+#                 current_cmds + f"\n{custom_cmd}"
+#             )
+#         else:
+#             metadata["options"]["custom_scheduler_commands"] = custom_cmd
+#
+#         print(
+#             f"DEBUG: Task {label} - custom_scheduler_commands = {metadata['options']['custom_scheduler_commands']}"
+#         )
+#
+#     # Prepare inputs dict for IconTask
+#     # Start with code and namelists
+#     inputs = {
+#         'code': aiida.orm.load_node(task_spec["code_pk"]),
+#         'master_namelist': aiida.orm.load_node(task_spec["master_namelist_pk"]),
+#     }
+#
+#     # Add model namelists as a dict (namespace input)
+#     models = {}
+#     for model_name, model_pk in task_spec["model_namelist_pks"].items():
+#         models[model_name] = aiida.orm.load_node(model_pk)
+#     if models:
+#         inputs['models'] = models
+#
+#     # Add wrapper script if present
+#     if task_spec["wrapper_script_pk"] is not None:
+#         inputs['wrapper_script'] = aiida.orm.load_node(task_spec["wrapper_script_pk"])
+#
+#     # Add ALL input data nodes (both AvailableData and future RemoteData for GeneratedData)
+#     print(f"DEBUG: Setting ICON inputs for '{label}':")
+#     breakpoint()
+#     for port_name, data_node in input_data_nodes.items():
+#         node_type = type(data_node).__name__
+#         if hasattr(data_node, 'get_remote_path'):
+#             remote_path = data_node.get_remote_path()
+#             print(f"DEBUG:   {port_name} = {node_type} (path: {remote_path}, pk: {data_node.pk})")
+#         else:
+#             print(f"DEBUG:   {port_name} = {node_type} (pk: {data_node.pk})")
+#         inputs[port_name] = data_node
+#
+#     # Prepare metadata dict
+#     metadata_dict = {
+#         'computer': computer,
+#         'options': metadata["options"],
+#         'call_link_label': label,
+#     }
+#     inputs['metadata'] = metadata_dict
+#
+#     # Call IconTask directly (NOT wg.add_task!)
+#     # This returns a TaskNode with proper output sockets
+#     icon_task = IconTask(**inputs)
+#
+#     # Return the TaskNode (which has .outputs as sockets)
+#     return icon_task
+#
