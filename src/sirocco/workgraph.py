@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     )
 
 
+# TODO: This assumes only dattime objects so far, but will be other data types in the future
 def serialize_coordinates(coordinates: dict) -> dict:
     """Convert coordinates dict to JSON-serializable format.
 
@@ -44,7 +45,7 @@ def serialize_coordinates(coordinates: dict) -> dict:
 async def get_job_data(
     workgraph_name: str,
     task_name: str,
-    interval: int = 5,
+    interval: int = 5,  # TODO: Possibly set to safe_interval of aiida-core
     timeout: int = 180,
 ):
     """Monitor CalcJob and return job_id and remote_folder PK when available.
@@ -67,6 +68,7 @@ async def get_job_data(
 
     print(f"DEBUG: Starting job_data polling for {task_name} in {workgraph_name}")
 
+    # TODO: Apparently this is anti-pattern
     while True:
         # Query for WorkGraphs created AFTER this task started polling
         builder = orm.QueryBuilder()
@@ -104,6 +106,7 @@ async def get_job_data(
             )
 
         await asyncio.sleep(interval)
+
 
 @task.graph
 def launch_shell_task_with_dependency(
@@ -268,11 +271,84 @@ def launch_icon_task_with_dependency(
     return icon_task
 
 
+def calculate_task_depths(core_workflow: core.Workflow) -> dict[str, int]:
+    """Calculate the depth of each task in the DAG.
+
+    Depth is defined as the maximum distance from any root node (task with no dependencies).
+    Root nodes have depth 0, their direct dependents have depth 1, etc.
+
+    Args:
+        core_workflow: The workflow containing all tasks
+
+    Returns:
+        Dict mapping task labels to their depths
+    """
+    from collections import deque
+
+    # Helper to get task label
+    def get_label(item):
+        return get_aiida_label_from_graph_item(item)
+
+    # Build task lookup by label
+    all_tasks = {get_label(task): task for cycle in core_workflow.cycles for task in cycle.tasks}
+
+    # Build dependency graph: task_label -> set of predecessor task labels
+    dependencies = {label: set() for label in all_tasks}
+
+    for task_label, task in all_tasks.items():
+        # Add wait_on dependencies
+        for dep_task in task.wait_on:
+            dep_label = get_label(dep_task)
+            if dep_label in dependencies:
+                dependencies[task_label].add(dep_label)
+
+        # Add GeneratedData dependencies
+        for input_data in task.input_data_nodes():
+            if isinstance(input_data, core.GeneratedData):
+                # Find the producer task
+                for prev_task in core_workflow.tasks:
+                    for out_data in prev_task.output_data_nodes():
+                        if get_label(out_data) == get_label(input_data):
+                            prev_label = get_label(prev_task)
+                            if prev_label in dependencies:
+                                dependencies[task_label].add(prev_label)
+                            break
+
+    # Find root nodes (tasks with no dependencies)
+    root_nodes = [label for label, deps in dependencies.items() if not deps]
+
+    # BFS to calculate depths
+    depths = {}
+    queue = deque((label, 0) for label in root_nodes)
+
+    while queue:
+        task_label, depth = queue.popleft()
+
+        # Update depth if we haven't seen this task or found a longer path
+        if task_label not in depths or depth > depths[task_label]:
+            depths[task_label] = depth
+
+            # Add dependent tasks to queue
+            for dependent_label, dep_set in dependencies.items():
+                if task_label in dep_set:
+                    # This dependent should be at least depth + 1
+                    queue.append((dependent_label, depth + 1))
+
+    # Sanity check: all tasks should have a depth
+    for label in all_tasks:
+        if label not in depths:
+            print(f"WARNING: Task '{label}' has no computed depth, setting to 0")
+            depths[label] = 0
+
+    return depths
+
+
 def build_dynamic_sirocco_workgraph(
     core_workflow: core.Workflow,
     aiida_data_nodes: dict,
     shell_task_specs: dict,
     icon_task_specs: dict,
+    max_depth: int | None = None,
 ):
     from aiida_workgraph.manager import set_current_graph
 
@@ -287,12 +363,23 @@ def build_dynamic_sirocco_workgraph(
     def get_label(task):
         return get_aiida_label_from_graph_item(task)
 
+    # Calculate task depths if max_depth is specified (for rolling wave submission)
+    task_depths = None
+    if max_depth is not None:
+        task_depths = calculate_task_depths(core_workflow)
+        print(f"DEBUG: Calculated task depths for rolling wave with max_depth={max_depth}:")
+        for label, depth in sorted(task_depths.items(), key=lambda x: x[1]):
+            print(f"  {label}: depth={depth}")
+
     # Process all tasks in the workflow in cycle order
     for cycle in core_workflow.cycles:
         for task in cycle.tasks:
             task_label = get_label(task)
 
-            print(f"DEBUG: Building dependencies for task '{task_label}'")
+            # Get task depth for rolling wave logic
+            task_depth = task_depths[task_label] if task_depths is not None else 0
+
+            print(f"DEBUG: Building task '{task_label}' at depth {task_depth if task_depths else 'N/A'}")
 
             # Collect AvailableData inputs
             input_data_for_task = collect_available_data_inputs(
@@ -335,6 +422,56 @@ def build_dynamic_sirocco_workgraph(
 
             else:
                 raise TypeError(f"Unknown task type: {type(task)}")
+
+            # Rolling wave logic: Add depth-based dependency to control submission frontier
+            # Tasks at depth N must wait for at least one task at depth N-1 to complete
+            # This creates a moving execution frontier that progresses through the DAG
+            if max_depth is not None and task_depth > 0:
+                # Calculate the "relative depth" - how many steps ahead of the frontier this task is
+                # Frontier starts at depth 0, so:
+                # - Depth 1 tasks are 1 step ahead (relative_depth = 1)
+                # - Depth 2 tasks are 2 steps ahead (relative_depth = 2)
+                # - etc.
+                relative_depth = task_depth
+
+                # Check if this task is beyond the initial submission frontier
+                if relative_depth > max_depth:
+                    # Task is beyond max_depth from roots
+                    # It must wait for tasks at (task_depth - max_depth) to complete
+                    # This ensures a rolling window of max_depth
+                    required_predecessor_depth = task_depth - max_depth
+
+                    # Find a task at the required predecessor depth and add dependency
+                    for prev_label, prev_get_job_data_task in prev_dep_tasks.items():
+                        prev_depth = task_depths.get(prev_label, 0)
+                        if prev_depth == required_predecessor_depth:
+                            # Add dependency: task at (depth - max_depth) must complete before this task launches
+                            get_job_data_task = prev_dep_tasks.get(task_label)
+                            if get_job_data_task is not None:
+                                prev_get_job_data_task >> get_job_data_task
+                                print(f"DEBUG:   Rolling wave: '{prev_label}' (depth {prev_depth}) >> '{task_label}' (depth {task_depth}) [window={max_depth}]")
+                            break
+                else:
+                    # Task is within initial max_depth from roots
+                    # Add dependency on depth-1 if no natural one exists
+                    has_depth_predecessor = False
+                    for dep_label in parent_folders_for_task.keys():
+                        dep_task_depth = task_depths.get(dep_label, 0)
+                        if dep_task_depth == task_depth - 1:
+                            has_depth_predecessor = True
+                            print(f"DEBUG:   Task '{task_label}' (depth {task_depth}) naturally depends on '{dep_label}' (depth {dep_task_depth})")
+                            break
+
+                    if not has_depth_predecessor:
+                        # Find first task at depth-1 and add artificial dependency
+                        for prev_label, prev_get_job_data_task in prev_dep_tasks.items():
+                            prev_depth = task_depths.get(prev_label, 0)
+                            if prev_depth == task_depth - 1:
+                                get_job_data_task = prev_dep_tasks.get(task_label)
+                                if get_job_data_task is not None:
+                                    prev_get_job_data_task >> get_job_data_task
+                                    print(f"DEBUG:   Added wave dependency: '{prev_label}' (depth {prev_depth}) >> '{task_label}' (depth {task_depth})")
+                                break
 
     print(f"\nDEBUG: WorkGraph build complete:")
     print(
@@ -489,6 +626,7 @@ def create_icon_launcher_task(
     )
 
     # Create get_job_data task
+    # TODO: Programmatically set the timeout to the walltime of the job
     dep_task = wg.add_task(
         get_job_data,
         name=f"get_job_data_{task_label}",
@@ -562,6 +700,7 @@ def create_shell_launcher_task(
     )
 
     # Create get_job_data task
+    # TODO: Programmatically set the timeout to the walltime of the job
     dep_task = wg.add_task(
         get_job_data,
         name=f"get_job_data_{task_label}",
@@ -1605,13 +1744,16 @@ class AiidaWorkGraph:
 # =============================================================================
 
 
-def build_sirocco_workgraph(core_workflow: core.Workflow) -> WorkGraph:
+def build_sirocco_workgraph(core_workflow: core.Workflow, max_depth: int | None = None) -> WorkGraph:
     """Build a Sirocco WorkGraph from a core workflow.
 
     This is the main entry point for building Sirocco workflows functionally.
 
     Args:
         core_workflow: The core workflow to convert
+        max_depth: Maximum DAG depth for streaming SLURM submission.
+                   Tasks with depth > max_depth will not be submitted.
+                   None means unlimited (all tasks submitted in streaming fashion).
 
     Returns:
         A WorkGraph ready for submission
@@ -1648,6 +1790,7 @@ def build_sirocco_workgraph(core_workflow: core.Workflow) -> WorkGraph:
         aiida_data_nodes=aiida_data_nodes,
         shell_task_specs=shell_task_specs,
         icon_task_specs=icon_task_specs,
+        max_depth=max_depth,
     )
 
     return wg

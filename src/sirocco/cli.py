@@ -24,8 +24,12 @@ app = typer.Typer(
 console = Console()
 
 
-def _create_aiida_workflow(workflow_file: Path) -> tuple[core.Workflow, "WorkGraph"]:
+def _create_aiida_workflow(workflow_file: Path, max_depth: int | None = None) -> tuple[core.Workflow, "WorkGraph"]:
     """Load workflow file and build WorkGraph.
+
+    Args:
+        workflow_file: Path to the workflow configuration file
+        max_depth: Maximum DAG depth for streaming SLURM submission
 
     Returns:
         Tuple of (core_workflow, aiida_workgraph)
@@ -33,12 +37,16 @@ def _create_aiida_workflow(workflow_file: Path) -> tuple[core.Workflow, "WorkGra
     load_profile()
     config_workflow = parsing.ConfigWorkflow.from_config_file(str(workflow_file))
     core_wf = core.Workflow.from_config_workflow(config_workflow)
-    wg = build_sirocco_workgraph(core_wf)
+    wg = build_sirocco_workgraph(core_wf, max_depth=max_depth)
     return core_wf, wg
 
 
-def create_aiida_workflow(workflow_file: Path) -> tuple[core.Workflow, "WorkGraph"]:
+def create_aiida_workflow(workflow_file: Path, max_depth: int | None = None) -> tuple[core.Workflow, "WorkGraph"]:
     """Helper to prepare WorkGraph from workflow file.
+
+    Args:
+        workflow_file: Path to the workflow configuration file
+        max_depth: Maximum DAG depth for streaming SLURM submission
 
     Returns:
         Tuple of (core_workflow, aiida_workgraph)
@@ -47,7 +55,7 @@ def create_aiida_workflow(workflow_file: Path) -> tuple[core.Workflow, "WorkGrap
     from aiida.common import ProfileConfigurationError
 
     try:
-        core_wf, wg = _create_aiida_workflow(workflow_file=workflow_file)
+        core_wf, wg = _create_aiida_workflow(workflow_file=workflow_file, max_depth=max_depth)
         console.print(
             f"⚙️ Workflow [magenta]'{wg.name}'[/magenta] prepared for AiiDA execution."
         )
@@ -205,11 +213,25 @@ def run(
             help="Path to the workflow definition YAML file.",
         ),
     ],
+    max_depth: Annotated[
+        int | None,
+        typer.Option(
+            "--max-depth",
+            "-d",
+            envvar="SIROCCO_MAX_DEPTH",
+            help="Maximum DAG depth for streaming SLURM submission. 0=roots only, 1=roots+1 level, etc. None=unlimited (default).",
+        ),
+    ] = None,
 ):
-    core_wf, wg = create_aiida_workflow(workflow_file)
-    console.print(
-        f"▶️ Running workflow [magenta]'{core_wf.name}'[/magenta] directly (blocking)..."
-    )
+    core_wf, wg = create_aiida_workflow(workflow_file, max_depth=max_depth)
+    if max_depth is not None:
+        console.print(
+            f"▶️ Running workflow [magenta]'{core_wf.name}'[/magenta] directly (blocking) with max_depth={max_depth}..."
+        )
+    else:
+        console.print(
+            f"▶️ Running workflow [magenta]'{core_wf.name}'[/magenta] directly (blocking)..."
+        )
     try:
         _ = wg.run(inputs=None)
         console.print("[green]✅ Workflow execution finished.[/green]")
@@ -234,14 +256,28 @@ def submit(
             help="Path to the workflow definition YAML file.",
         ),
     ],
+    max_depth: Annotated[
+        int | None,
+        typer.Option(
+            "--max-depth",
+            "-d",
+            envvar="SIROCCO_MAX_DEPTH",
+            help="Maximum DAG depth for streaming SLURM submission. 0=roots only, 1=roots+1 level, etc. None=unlimited (default).",
+        ),
+    ] = None,
 ):
     """Submit the workflow to the AiiDA daemon."""
 
-    core_wf, wg = create_aiida_workflow(workflow_file)
+    core_wf, wg = create_aiida_workflow(workflow_file, max_depth=max_depth)
     try:
-        console.print(
-            f"🚀 Submitting workflow [magenta]'{core_wf.name}'[/magenta] to AiiDA daemon..."
-        )
+        if max_depth is not None:
+            console.print(
+                f"🚀 Submitting workflow [magenta]'{core_wf.name}'[/magenta] to AiiDA daemon with max_depth={max_depth}..."
+            )
+        else:
+            console.print(
+                f"🚀 Submitting workflow [magenta]'{core_wf.name}'[/magenta] to AiiDA daemon..."
+            )
         wg.submit(inputs=None)
 
         if (results_node := wg.process) is None:
