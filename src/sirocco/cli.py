@@ -34,6 +34,7 @@ def _create_aiida_workflow(workflow_file: Path) -> tuple[core.Workflow, "WorkGra
     config_workflow = parsing.ConfigWorkflow.from_config_file(str(workflow_file))
     core_wf = core.Workflow.from_config_workflow(config_workflow)
     wg = build_sirocco_workgraph(core_wf)
+    wg.to_html()
     return core_wf, wg
 
 
@@ -291,7 +292,7 @@ def create_symlink_tree(
     The command is incremental: existing symlinks are skipped, and new ones are added
     as the workflow progresses.
     """
-    from aiida.orm import load_node, WorkflowNode
+    from aiida.orm import load_node, WorkflowNode, CalcJobNode
     try:
         load_profile()
         import re
@@ -315,7 +316,7 @@ def create_symlink_tree(
         workflow_name = re.sub(r"<[^>]*>", "", workflow_name)
 
         # Query all CalcJobNodes that are descendants of this workflow
-        calcjob_nodes = node.called_descendants
+        calcjob_nodes = [n for n in node.called_descendants if isinstance(n, CalcJobNode)]
 
         if not calcjob_nodes:
             console.print(
@@ -369,9 +370,9 @@ def create_symlink_tree(
                     try:
                         remote_workdir = calcjob.get_remote_workdir()
                     except Exception as e:
-                        console.print(
-                            f"[yellow]⚠️  Could not get remote workdir for {calcjob.process_label} (PK: {calcjob.pk}): {e}[/yellow]"
-                        )
+                        # console.print(
+                        #     f"[yellow]⚠️  Could not get remote workdir for {calcjob.process_label} (PK: {calcjob.pk}): {e}[/yellow]"
+                        # )
                         continue
 
                     if remote_workdir is None:
@@ -414,9 +415,10 @@ def create_symlink_tree(
                             try:
                                 transport.symlink(full_output_path, back_symlink_path)
                             except Exception as e:
-                                console.print(
-                                    f"[yellow]⚠️  Could not create back-reference symlink in {symlink_name}: {e}[/yellow]"
-                                )
+                                pass
+                                # console.print(
+                                #     f"[yellow]⚠️  Could not create back-reference symlink in {symlink_name}: {e}[/yellow]"
+                                # )
                     except Exception as e:
                         console.print(
                             f"[bold red]❌ Failed to create symlink {symlink_name}: {e}[/bold red]"

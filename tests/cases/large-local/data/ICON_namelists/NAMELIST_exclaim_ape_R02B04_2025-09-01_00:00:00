@@ -1,0 +1,186 @@
+&parallel_nml
+    nproma = 96
+    nblocks_c = 0
+    nproma_sub = 48
+    p_test_run = .false.
+    num_io_procs = 0
+    num_restart_procs = 0
+    iorder_sendrecv = 3
+/
+
+&grid_nml
+    dynamics_grid_filename = ' ./icon_grid_0013_R02B04_R.nc'
+    lredgrid_phys = .false.
+/
+
+&run_nml
+    num_lev = 60
+    dtime = 2
+    ldynamics = .true.
+    ltransport = .true.
+    iforcing = 3
+    ltestcase = .true.
+    ntracer = 5
+    msg_level = 12
+    ltimer = .true.
+    timers_level = 10
+    check_uuid_gracefully = .true.
+    output = 'nml'
+/
+
+&nwp_phy_nml
+    inwp_gscp = 2
+    mu_rain = 0.5
+    rain_n0_factor = 0.1
+    inwp_convection = 1
+    lshallowconv_only = .false.
+    inwp_radiation = 4
+    latm_above_top = .true.
+    inwp_cldcover = 1
+    inwp_turb = 1
+    inwp_satad = 1
+    inwp_sso = 0
+    inwp_gwd = 1
+    inwp_surface = 0
+    dt_rad = 12
+    dt_ccov = 4
+    dt_gwd = 8
+    dt_conv = 4
+/
+
+&turbdiff_nml
+    tkhmin = 0.01
+    tkhmin_strat = 0.01
+    tkmmin = 0.01
+    tkmmin_strat = 0.01
+    rlam_heat = 1.0
+    pat_len = 100.0
+    rat_sea = 9.0
+    q_crit = 1.6
+    tur_len = 150
+/
+
+&radiation_nml
+    ecrad_isolver = 2
+    izenith = 3
+    albedo_type = 3
+    albedo_fixed = 0.2
+    irad_o3 = 0
+    irad_aero = 2
+    irad_h2o = 1
+    irad_co2 = 0
+    irad_ch4 = 0
+    irad_n2o = 0
+    irad_o2 = 0
+    irad_cfc11 = 0
+    irad_cfc12 = 0
+    icld_overlap = 2
+    ecrad_data_path = './ecrad_data'
+/
+
+&nonhydrostatic_nml
+    iadv_rhotheta = 2
+    ivctype = 2
+    itime_scheme = 4
+    ndyn_substeps = 5
+    damp_height = 50000.0
+    rayleigh_coeff = 0.1
+    divdamp_order = 4
+    divdamp_type = 3
+    divdamp_fac = 0.0025
+    l_zdiffu_t = .false.
+    htop_moist_proc = 22500.0
+    hbot_qvsubstep = 22500.0
+/
+
+&sleve_nml
+    min_lay_thckn = 50.0
+    top_height = 75000.0
+    stretch_fac = 0.9
+    decay_scale_1 = 4000.0
+    decay_scale_2 = 2500.0
+    decay_exp = 1.2
+    flat_height = 16000.0
+/
+
+&dynamics_nml
+    lcoriolis = .true.
+/
+
+&nh_testcase_nml
+    nh_test_name = 'APE_nwp'
+    ape_sst_case = 'sst_qobs'
+    zp_ape = 101325
+    ztmc_ape = 50.006
+/
+
+&transport_nml
+    ihadv_tracer = 52, 2, 2, 2, 2, 2
+    itype_hlimit = 3, 4, 4, 4, 4, 4
+    ivadv_tracer = 3, 3, 3, 3, 3, 3
+    itype_vlimit = 1, 2, 1, 2, 3, 1
+    llsq_svd = .true.
+/
+
+&diffusion_nml
+    lhdiff_vn = .true.
+    lhdiff_temp = .true.
+    lhdiff_w = .true.
+    hdiff_order = 5
+    itype_vn_diffu = 1
+    itype_t_diffu = 2
+    hdiff_efdt_ratio = 24.0
+    hdiff_smag_fac = 0.025
+/
+
+&io_nml
+    lnetcdf_flt64_output = .true.
+    write_last_restart = .true.
+    itype_pres_msl = 4
+    restart_file_type = 5
+    restart_write_mode = 'joint procs multifile'
+    itype_rh = 1
+/
+
+&initicon_nml
+    pinit_seed = -1
+    pinit_amplitude = 0.0
+/
+
+&output_nml
+    output_filename = 'atm_2d'
+    filetype = 5
+    filename_format = '<output_filename>exclaim_ape_R02B04_atm_2d_<datetime2>'
+    output_start = '2000-01-01T00:00:03Z'
+    output_end = '2000-01-01T00:00:30Z'
+    output_interval = 'PT2S'
+    file_interval = 'P1D'
+    include_last = .true.
+    remap = 0
+    reg_lat_def = -90, 0.5, 90.0
+    reg_lon_def = -180, 0.5, 179.5
+    output_grid = .true.
+    ml_varlist = 'pres_sfc', 'tqv', 'tqc', 'tqi', 'tqr', 'tqs', 'clch',
+                 'clcm', 'clcl', 'clct', 'tot_prec', 'prec_gsp', 't_2m',
+                 'qv_2m', 'u_10m', 'v_10m', 't_g', 'rh_2m', 'qv_s', 'tcm',
+                 'tch', 'lhfl_s', 'shfl_s', 'umfl_s', 'vmfl_s', 'sob_s',
+                 'sob_t', 'sod_t', 'sou_s', 'thb_s', 'thb_t', 'thu_s', 'pres_sfc'
+/
+
+&output_nml
+    output_filename = './atm_3d_pl/'
+    filetype = 5
+    filename_format = '<output_filename>exclaim_ape_R02B04_atm_3d_pl_<datetime2>'
+    output_start = '2000-01-01T00:00:00Z'
+    output_end = '2000-01-01T00:00:30Z'
+    output_interval = 'PT2S'
+    file_interval = 'P1D'
+    include_last = .true.
+    remap = 0
+    reg_lat_def = -90, 0.5, 90.0
+    reg_lon_def = -180, 0.5, 179.5
+    output_grid = .true.
+    p_levels = 10000, 20000, 25000, 30000, 50000, 70000, 85000, 90000, 95000,
+               100000
+    pl_varlist = 'geopot', 'temp', 'u', 'v', 'w', 'qv', 'qc', 'qi'
+/

@@ -1,0 +1,1 @@
+{"codes_info": [{"stdin_name": "aiida.in", "stdout_name": "aiida.out", "code_uuid": "c6c042e2-a741-4a5d-8fde-7c73c00f26a2"}], "retrieve_list": ["aiida.out", "_scheduler-stdout.txt", "_scheduler-stderr.txt"], "uuid": "581082fa-b651-4368-98e4-706e4c02edd3", "file_copy_operation_order": [2, 0, 1]}

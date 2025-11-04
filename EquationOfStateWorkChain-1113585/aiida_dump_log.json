@@ -1,0 +1,369 @@
+{
+    "calculations": {
+        "f488e5fc-63c1-45d6-99f1-8d84a0f9452b": {
+            "path": "01-scale_structure-1113746",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:19.377931+01:00",
+            "dir_size": 12590
+        },
+        "0819b0fe-843e-4320-96fc-b98a9307398d": {
+            "path": "02-QuantumEspressoCommonRelaxWorkChain-1114126/01-PwRelaxWorkChain-1114384/01-iteration_01-PwBaseWorkChain-1115624/01-create_kpoints_from_distance-1116946",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:19.465503+01:00",
+            "dir_size": 2420
+        },
+        "ff5eb6eb-c78a-4d47-9d3b-074ca8f80286": {
+            "path": "02-QuantumEspressoCommonRelaxWorkChain-1114126/01-PwRelaxWorkChain-1114384/01-iteration_01-PwBaseWorkChain-1115624/02-iteration_01-PwCalculation-1117133",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:19.588899+01:00",
+            "dir_size": 1887242
+        },
+        "80f47f03-cdbb-4707-8663-c63a85814452": {
+            "path": "02-QuantumEspressoCommonRelaxWorkChain-1114126/02-extract_from_parameters-1124035",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:19.600840+01:00",
+            "dir_size": 3405
+        },
+        "557aaef7-f66b-4060-95dc-c381fd6bd7cd": {
+            "path": "02-QuantumEspressoCommonRelaxWorkChain-1114126/03-extract_from_trajectory-1124124",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:19.656568+01:00",
+            "dir_size": 6149
+        },
+        "ae80a80b-1639-4f39-abb6-fdfb288ee109": {
+            "path": "03-scale_structure-1125111",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:19.664529+01:00",
+            "dir_size": 12590
+        },
+        "684e0a05-6669-4552-913e-970a10c84c36": {
+            "path": "04-QuantumEspressoCommonRelaxWorkChain-1125160/01-PwRelaxWorkChain-1125552/01-iteration_01-PwBaseWorkChain-1132127/01-iteration_01-PwCalculation-1132581",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:19.827730+01:00",
+            "dir_size": 1887259
+        },
+        "765ce253-8387-42ad-bbbb-26be7001be18": {
+            "path": "04-QuantumEspressoCommonRelaxWorkChain-1125160/02-extract_from_parameters-1140733",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:19.843652+01:00",
+            "dir_size": 3405
+        },
+        "8bf281c8-94eb-4f2d-8952-57f3b30b23a2": {
+            "path": "04-QuantumEspressoCommonRelaxWorkChain-1125160/03-extract_from_trajectory-1140783",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:19.895399+01:00",
+            "dir_size": 6149
+        },
+        "8c4226c0-1897-4d83-bd0d-cf34c5baf754": {
+            "path": "05-scale_structure-1125162",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:19.907341+01:00",
+            "dir_size": 12590
+        },
+        "703e1008-a7bc-4e15-b373-b36304832142": {
+            "path": "06-QuantumEspressoCommonRelaxWorkChain-1125214/01-PwRelaxWorkChain-1125394/01-iteration_01-PwBaseWorkChain-1125456/01-iteration_01-PwCalculation-1126000",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.066551+01:00",
+            "dir_size": 1887254
+        },
+        "9701825a-d3fe-43f1-a5e9-f77b480f179e": {
+            "path": "06-QuantumEspressoCommonRelaxWorkChain-1125214/02-extract_from_parameters-1133318",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.078491+01:00",
+            "dir_size": 3405
+        },
+        "ae6054cb-8ebe-4570-805e-38cceb860014": {
+            "path": "06-QuantumEspressoCommonRelaxWorkChain-1125214/03-extract_from_trajectory-1133986",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.126249+01:00",
+            "dir_size": 6149
+        },
+        "e0045644-51ab-48f5-91d6-7f086769922f": {
+            "path": "07-scale_structure-1125219",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.138189+01:00",
+            "dir_size": 12590
+        },
+        "c37ab832-2732-4344-b211-d2e81dc796ac": {
+            "path": "08-QuantumEspressoCommonRelaxWorkChain-1125318/01-PwRelaxWorkChain-1125650/01-iteration_01-PwBaseWorkChain-1132140/01-iteration_01-PwCalculation-1132744",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.285444+01:00",
+            "dir_size": 1887246
+        },
+        "2a44d6cd-e22b-4bcb-bd8b-f7f0e017598d": {
+            "path": "08-QuantumEspressoCommonRelaxWorkChain-1125318/02-extract_from_parameters-1140815",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.297383+01:00",
+            "dir_size": 3405
+        },
+        "80dc5e73-192f-4b0e-91dc-1adadc6c1821": {
+            "path": "08-QuantumEspressoCommonRelaxWorkChain-1125318/03-extract_from_trajectory-1140899",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.345142+01:00",
+            "dir_size": 6149
+        },
+        "1264df84-a257-46ec-90b3-b21ad33e253a": {
+            "path": "09-scale_structure-1125322",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.353101+01:00",
+            "dir_size": 12590
+        },
+        "691e60f4-8346-410b-83d0-8bae7cecbee6": {
+            "path": "10-QuantumEspressoCommonRelaxWorkChain-1125353/01-PwRelaxWorkChain-1126816/01-iteration_01-PwBaseWorkChain-1126890/01-iteration_01-PwCalculation-1127194",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.492397+01:00",
+            "dir_size": 1887257
+        },
+        "908fe6e3-92eb-4a5d-ba45-ae4ec7a4d7d0": {
+            "path": "10-QuantumEspressoCommonRelaxWorkChain-1125353/02-extract_from_parameters-1135801",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.500356+01:00",
+            "dir_size": 3405
+        },
+        "07667b6e-cb77-4d28-a07d-42e8c75238c0": {
+            "path": "10-QuantumEspressoCommonRelaxWorkChain-1125353/03-extract_from_trajectory-1135829",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.544135+01:00",
+            "dir_size": 6149
+        },
+        "12e52f34-2db3-4704-9313-30c6089caefa": {
+            "path": "11-scale_structure-1125357",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.556074+01:00",
+            "dir_size": 12590
+        },
+        "8d14d529-8e20-4abc-9b2a-7323a43d317d": {
+            "path": "12-QuantumEspressoCommonRelaxWorkChain-1126742/01-PwRelaxWorkChain-1126831/01-iteration_01-PwBaseWorkChain-1127788/01-iteration_01-PwCalculation-1132353",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.695370+01:00",
+            "dir_size": 1887262
+        },
+        "11bbef62-b51e-416a-8caf-264f6c0032b8": {
+            "path": "12-QuantumEspressoCommonRelaxWorkChain-1126742/02-extract_from_parameters-1141324",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.707309+01:00",
+            "dir_size": 3405
+        },
+        "ec8e79a6-844d-4491-8701-0099a5e80feb": {
+            "path": "12-QuantumEspressoCommonRelaxWorkChain-1126742/03-extract_from_trajectory-1141328",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.755068+01:00",
+            "dir_size": 6149
+        },
+        "1c6ab260-8d19-4719-b4a8-32b37cab8427": {
+            "path": "13-scale_structure-1126744",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.767007+01:00",
+            "dir_size": 12590
+        },
+        "60fa6083-6c99-4ae2-8854-99301dae88aa": {
+            "path": "14-QuantumEspressoCommonRelaxWorkChain-1126842/01-PwRelaxWorkChain-1127198/01-iteration_01-PwBaseWorkChain-1127858/01-iteration_01-PwCalculation-1128415",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.914262+01:00",
+            "dir_size": 1887264
+        },
+        "b1a24e38-e99a-4ed6-914b-d10ec30199a7": {
+            "path": "14-QuantumEspressoCommonRelaxWorkChain-1126842/02-extract_from_parameters-1135412",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.926202+01:00",
+            "dir_size": 3405
+        },
+        "fedf77c9-3875-4e87-bb45-a17bc81b8100": {
+            "path": "14-QuantumEspressoCommonRelaxWorkChain-1126842/03-extract_from_trajectory-1137745",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.969980+01:00",
+            "dir_size": 6149
+        }
+    },
+    "workflows": {
+        "d4d3af69-e1d4-47ce-8f4e-b28cde53c0b3": {
+            "path": ".",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.969980+01:00",
+            "dir_size": 13384335
+        },
+        "2c5c7a57-f1fe-415c-9322-17bed4f7695c": {
+            "path": "02-QuantumEspressoCommonRelaxWorkChain-1114126",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:19.656568+01:00",
+            "dir_size": 1901431
+        },
+        "c0ee7101-e6c2-4281-874e-b3b2b3f842c0": {
+            "path": "02-QuantumEspressoCommonRelaxWorkChain-1114126/01-PwRelaxWorkChain-1114384",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:19.588899+01:00",
+            "dir_size": 1891110
+        },
+        "14e76e22-8f7f-4c0a-b94e-05ad36142148": {
+            "path": "02-QuantumEspressoCommonRelaxWorkChain-1114126/01-PwRelaxWorkChain-1114384/01-iteration_01-PwBaseWorkChain-1115624",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:19.588899+01:00",
+            "dir_size": 1890385
+        },
+        "5677bfd9-142f-4664-974f-521c969414de": {
+            "path": "04-QuantumEspressoCommonRelaxWorkChain-1125160",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:19.895399+01:00",
+            "dir_size": 1899028
+        },
+        "c2933026-7274-47d1-9e45-a9351522b3de": {
+            "path": "04-QuantumEspressoCommonRelaxWorkChain-1125160/01-PwRelaxWorkChain-1125552",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:19.827730+01:00",
+            "dir_size": 1888707
+        },
+        "14c17616-a3e4-4084-8b56-39c7b0143663": {
+            "path": "04-QuantumEspressoCommonRelaxWorkChain-1125160/01-PwRelaxWorkChain-1125552/01-iteration_01-PwBaseWorkChain-1132127",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:19.827730+01:00",
+            "dir_size": 1887982
+        },
+        "4ea15fa8-0faa-443a-a1d0-8ac77eec4a39": {
+            "path": "06-QuantumEspressoCommonRelaxWorkChain-1125214",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.126249+01:00",
+            "dir_size": 1899023
+        },
+        "9e595ee4-8e54-42f2-8df1-572a2457d178": {
+            "path": "06-QuantumEspressoCommonRelaxWorkChain-1125214/01-PwRelaxWorkChain-1125394",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.066551+01:00",
+            "dir_size": 1888702
+        },
+        "9feb0f0d-4e0f-4873-ae3f-ccc42c36280c": {
+            "path": "06-QuantumEspressoCommonRelaxWorkChain-1125214/01-PwRelaxWorkChain-1125394/01-iteration_01-PwBaseWorkChain-1125456",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.066551+01:00",
+            "dir_size": 1887977
+        },
+        "e3c81c73-c066-4339-9449-96c2760bbb4b": {
+            "path": "08-QuantumEspressoCommonRelaxWorkChain-1125318",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.345142+01:00",
+            "dir_size": 1899015
+        },
+        "508663a7-d5f0-496e-8865-6aa5dd493f10": {
+            "path": "08-QuantumEspressoCommonRelaxWorkChain-1125318/01-PwRelaxWorkChain-1125650",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.285444+01:00",
+            "dir_size": 1888694
+        },
+        "fe9805d1-619a-4e09-af60-b02b347742f1": {
+            "path": "08-QuantumEspressoCommonRelaxWorkChain-1125318/01-PwRelaxWorkChain-1125650/01-iteration_01-PwBaseWorkChain-1132140",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.285444+01:00",
+            "dir_size": 1887969
+        },
+        "19345f14-021f-4b8d-82df-501a7b96fcd1": {
+            "path": "10-QuantumEspressoCommonRelaxWorkChain-1125353",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.544135+01:00",
+            "dir_size": 1899026
+        },
+        "3403fe60-4ffb-4c8a-843b-4fa26c9f317d": {
+            "path": "10-QuantumEspressoCommonRelaxWorkChain-1125353/01-PwRelaxWorkChain-1126816",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.492397+01:00",
+            "dir_size": 1888705
+        },
+        "01dd10a3-b16c-43ba-9d0a-7c0dd7f3c0f1": {
+            "path": "10-QuantumEspressoCommonRelaxWorkChain-1125353/01-PwRelaxWorkChain-1126816/01-iteration_01-PwBaseWorkChain-1126890",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.492397+01:00",
+            "dir_size": 1887980
+        },
+        "34f948af-39ff-4469-8043-c48e56706b4f": {
+            "path": "12-QuantumEspressoCommonRelaxWorkChain-1126742",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.755068+01:00",
+            "dir_size": 1899031
+        },
+        "ebfed7c1-7870-492a-addd-2c634815b6ff": {
+            "path": "12-QuantumEspressoCommonRelaxWorkChain-1126742/01-PwRelaxWorkChain-1126831",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.695370+01:00",
+            "dir_size": 1888710
+        },
+        "20cb5f35-b9f0-4adc-9ed9-74bd9138f2a5": {
+            "path": "12-QuantumEspressoCommonRelaxWorkChain-1126742/01-PwRelaxWorkChain-1126831/01-iteration_01-PwBaseWorkChain-1127788",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.695370+01:00",
+            "dir_size": 1887985
+        },
+        "465db98b-f72e-48cd-b6c3-0a47a70f7ed1": {
+            "path": "14-QuantumEspressoCommonRelaxWorkChain-1126842",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.969980+01:00",
+            "dir_size": 1899033
+        },
+        "53adc67a-17e5-429c-81f7-571ac88a3569": {
+            "path": "14-QuantumEspressoCommonRelaxWorkChain-1126842/01-PwRelaxWorkChain-1127198",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.914262+01:00",
+            "dir_size": 1888712
+        },
+        "ec77ef1f-bf32-4d8f-a187-1271fa01798b": {
+            "path": "14-QuantumEspressoCommonRelaxWorkChain-1126842/01-PwRelaxWorkChain-1127198/01-iteration_01-PwBaseWorkChain-1127858",
+            "symlinks": [],
+            "duplicates": [],
+            "dir_mtime": "2025-11-04T14:52:20.914262+01:00",
+            "dir_size": 1887987
+        }
+    },
+    "groups": {},
+    "last_dump_time": "2025-11-04T14:52:18.919953+01:00",
+    "group_node_mapping": {
+        "group_to_nodes": {},
+        "node_to_groups": {}
+    }
+}

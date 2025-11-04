@@ -1,0 +1,30 @@
+---
+Node data:
+  label: ''
+  description: ''
+  pk: 1132127
+  uuid: 14c17616-a3e4-4084-8b56-39c7b0143663
+  ctime: 2022-04-08 09:45:59.375748+00:00
+  mtime: 2022-04-08 09:53:05.045824+00:00
+  node_type: process.workflow.workchain.WorkChainNode.
+  process_type: aiida.workflows:quantumespresso.pw.base
+  is_finished_ok: true
+User data:
+  first_name: Marnik
+  last_name: Bercx
+  email: marnik.bercx@epfl.ch
+  institution: EPFL
+Computer data:
+  label: lumi-small
+  hostname: lumi.csc.fi
+  scheduler_type: core.slurm
+  transport_type: core.ssh
+Node attributes:
+  sealed: true
+  version:
+    core: 1.6.5
+    plugin: 3.5.2
+  exit_status: 0
+  process_label: PwBaseWorkChain
+  process_state: finished
+  stepper_state_info: 5:results

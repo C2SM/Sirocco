@@ -1,0 +1,29 @@
+---
+Node data:
+  label: multiply
+  description: ''
+  pk: 5708
+  uuid: ba539c43-0b75-48b6-a9e5-38106c52a932
+  ctime: 2025-11-04 13:30:09.115345+00:00
+  mtime: 2025-11-04 13:30:09.474056+00:00
+  node_type: process.calculation.calcfunction.CalcFunctionNode.
+  process_type: aiida.workflows.arithmetic.multiply_add.multiply
+  is_finished_ok: true
+User data:
+  first_name: ''
+  last_name: ''
+  email: aiida@localhost
+  institution: ''
+Node attributes:
+  process_state: finished
+  process_label: multiply
+  metadata_inputs: null
+  version:
+    core: 2.7.1.post0
+    plugin: 2.7.1.post0
+  function_name: multiply
+  function_starting_line_number: 17
+  function_number_of_lines: 3
+  function_namespace: aiida.workflows.arithmetic.multiply_add
+  exit_status: 0
+  sealed: true

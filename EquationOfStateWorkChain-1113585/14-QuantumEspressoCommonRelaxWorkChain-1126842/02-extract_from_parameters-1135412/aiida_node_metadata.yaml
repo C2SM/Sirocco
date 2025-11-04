@@ -1,0 +1,27 @@
+---
+Node data:
+  label: extract_from_parameters
+  description: ''
+  pk: 1135412
+  uuid: b1a24e38-e99a-4ed6-914b-d10ec30199a7
+  ctime: 2022-04-08 09:49:39.722765+00:00
+  mtime: 2022-04-08 09:49:45.362139+00:00
+  node_type: process.calculation.calcfunction.CalcFunctionNode.
+  process_type: aiida_common_workflows.workflows.relax.quantum_espresso.workchain.extract_from_parameters
+  is_finished_ok: true
+User data:
+  first_name: Marnik
+  last_name: Bercx
+  email: marnik.bercx@epfl.ch
+  institution: EPFL
+Node attributes:
+  sealed: true
+  version:
+    core: 1.6.5
+    plugin: 0.1.0
+  exit_status: 0
+  function_name: extract_from_parameters
+  process_label: extract_from_parameters
+  process_state: finished
+  function_namespace: aiida_common_workflows.workflows.relax.quantum_espresso.workchain
+  function_starting_line_number: 30

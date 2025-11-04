@@ -1,0 +1,27 @@
+---
+Node data:
+  label: extract_from_trajectory
+  description: ''
+  pk: 1140899
+  uuid: 80dc5e73-192f-4b0e-91dc-1adadc6c1821
+  ctime: 2022-04-08 09:55:00.732329+00:00
+  mtime: 2022-04-08 09:55:03.215891+00:00
+  node_type: process.calculation.calcfunction.CalcFunctionNode.
+  process_type: aiida_common_workflows.workflows.relax.quantum_espresso.workchain.extract_from_trajectory
+  is_finished_ok: true
+User data:
+  first_name: Marnik
+  last_name: Bercx
+  email: marnik.bercx@epfl.ch
+  institution: EPFL
+Node attributes:
+  sealed: true
+  version:
+    core: 1.6.5
+    plugin: 0.1.0
+  exit_status: 0
+  function_name: extract_from_trajectory
+  process_label: extract_from_trajectory
+  process_state: finished
+  function_namespace: aiida_common_workflows.workflows.relax.quantum_espresso.workchain
+  function_starting_line_number: 14

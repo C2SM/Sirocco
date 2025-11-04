@@ -276,7 +276,8 @@ def build_dynamic_sirocco_workgraph(
 ):
     from aiida_workgraph.manager import set_current_graph
 
-    wg = WorkGraph("FULL-WG")
+    wg_name = core_workflow.name or "SIROCCO-WF"
+    wg = WorkGraph(wg_name)
     set_current_graph(wg)
 
     # Store get_job_data task outputs (namespace with job_id, remote_folder)
@@ -1225,9 +1226,9 @@ def build_shell_task_spec(task: core.ShellTask) -> dict:
         node_pks[f"SCRIPT__{label}"] = script_node.pk
 
     # Create or load code
-    code_label = f"{cmd}@{computer.label}"
+    code_label = f"{cmd}"
     try:
-        code = aiida.orm.load_code(code_label)
+        code = aiida.orm.load_code(f"code_label@{computer.label}")
     except NotExistent:
         code = ShellCode(
             label=code_label,
@@ -1363,9 +1364,9 @@ def build_icon_task_spec(task: core.IconTask) -> dict:
         raise ValueError(msg) from err
 
     # Create or load ICON code
-    icon_code_label = f"icon@{computer.label}"
+    icon_code_label = "icon"
     try:
-        icon_code = aiida.orm.load_code(icon_code_label)
+        icon_code = aiida.orm.load_code(f"icon_code_label@{computer.label}")
     except NotExistent:
         icon_code = aiida.orm.InstalledCode(
             label=icon_code_label,
@@ -1685,6 +1686,8 @@ def submit_sirocco_workgraph(
     """
     wg = build_sirocco_workgraph(core_workflow)
 
+    wg.to_html()
+    raise SystemExit()
     wg.submit(
         inputs=inputs, wait=wait, timeout=timeout, metadata=metadata
     )

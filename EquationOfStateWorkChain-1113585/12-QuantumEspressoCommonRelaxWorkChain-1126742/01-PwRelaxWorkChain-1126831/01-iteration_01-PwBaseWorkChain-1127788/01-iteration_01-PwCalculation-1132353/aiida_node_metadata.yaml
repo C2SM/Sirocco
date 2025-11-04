@@ -1,0 +1,72 @@
+---
+Node data:
+  label: ''
+  description: ''
+  pk: 1132353
+  uuid: 8d14d529-8e20-4abc-9b2a-7323a43d317d
+  ctime: 2022-04-08 09:46:14.081485+00:00
+  mtime: 2022-04-08 09:49:28.912753+00:00
+  node_type: process.calculation.calcjob.CalcJobNode.
+  process_type: aiida.calculations:quantumespresso.pw
+  is_finished_ok: true
+User data:
+  first_name: Marnik
+  last_name: Bercx
+  email: marnik.bercx@epfl.ch
+  institution: EPFL
+Computer data:
+  label: lumi-small
+  hostname: lumi.csc.fi
+  scheduler_type: core.slurm
+  transport_type: core.ssh
+Node attributes:
+  job_id: '1033339'
+  sealed: true
+  account: mr0
+  version:
+    core: 1.6.5
+    plugin: 3.5.2
+  withmpi: true
+  resources:
+    num_machines: 1
+  append_text: ''
+  exit_status: 0
+  parser_name: quantumespresso.pw
+  prepend_text: ''
+  process_label: PwCalculation
+  process_state: finished
+  retrieve_list:
+  - aiida.out
+  - ./out/aiida.save/data-file-schema.xml
+  - ./out/aiida.save/data-file.xml
+  - _scheduler-stdout.txt
+  - _scheduler-stderr.txt
+  input_filename: aiida.in
+  remote_workdir: /pfs/lustrep3/scratch/project_465000106/mbercx/8d/14/d529-8e20-4abc-9b2a-7323a43d317d
+  output_filename: aiida.out
+  scheduler_state: done
+  scheduler_stderr: _scheduler-stderr.txt
+  scheduler_stdout: _scheduler-stdout.txt
+  detailed_job_info:
+    retval: 0
+    stderr: ''
+    stdout: 'AllocCPUS|Account|AssocID|AveCPU|AvePages|AveRSS|AveVMSize|Cluster|Comment|CPUTime|CPUTimeRAW|DerivedExitCode|Elapsed|Eligible|End|ExitCode|GID|Group|JobID|JobName|MaxRSS|MaxRSSNode|MaxRSSTask|MaxVMSize|MaxVMSizeNode|MaxVMSizeTask|MinCPU|MinCPUNode|MinCPUTask|NCPUS|NNodes|NodeList|NTasks|Priority|Partition|QOSRAW|ReqCPUS|Reserved|ResvCPU|ResvCPURAW|Start|State|Submit|Suspended|SystemCPU|Timelimit|TotalCPU|UID|User|UserCPU|
+
+      256|project_465000106|3858|||||lumi||00:55:28|3328|0:0|00:00:13|2022-04-08T12:47:52|2022-04-08T12:48:08|0:0|327000074|pepr_mabercx|1033339|aiida-1132353||||||||||256|1|nid002442||818|small|1|128|00:00:03|00:06:24|384|2022-04-08T12:47:55|COMPLETED|2022-04-08T12:47:52|00:00:00|00:48.304|02:00:00|21:21.826|327000074|mabercx|20:33.522|
+
+      256|project_465000106|3858|00:00:00|0|3788K|149500K|lumi||00:55:28|3328||00:00:13|2022-04-08T12:47:55|2022-04-08T12:48:08|0:0|||1033339.batch|batch|3788K|nid002442|0|149500K|nid002442|0|00:00:00|nid002442|0|256|1|nid002442|1||||256||||2022-04-08T12:47:55|COMPLETED|2022-04-08T12:47:55|00:00:00|00:00.168||00:01.014|||00:00.845|
+
+      256|project_465000106|3858|00:00:09|0|4402912|228468992|lumi||00:42:40|2560||00:00:10|2022-04-08T12:47:58|2022-04-08T12:48:08|0:0|||1033339.0|pw.x|56512K|nid002442|58|298076K|nid002442|58|00:00:00|nid002442|49|256|1|nid002442|128||||256||||2022-04-08T12:47:58|COMPLETED|2022-04-08T12:47:58|00:00:00|00:48.135||21:20.812|||20:32.677|
+
+      '
+  mpirun_extra_params: []
+  environment_variables: {}
+  max_wallclock_seconds: 7200
+  import_sys_environment: true
+  submit_script_filename: _aiidasubmit.sh
+  retrieve_temporary_list:
+  - - ./out/aiida.save/K*[0-9]/eigenval*.xml
+    - .
+    - 2
+  scheduler_lastchecktime: '2022-04-08T09:48:54.208481+00:00'
+  custom_scheduler_commands: ''
