@@ -1,12 +1,7 @@
-from pathlib import Path
-from typing import Annotated
 
-import typer
 from aiida.manage.configuration import load_profile
-from rich.console import Console
-from rich.traceback import install as install_rich_traceback
 
-from sirocco import core, parsing, pretty_print, vizgraph
+from sirocco import core, parsing
 from sirocco.workgraph import build_sirocco_workgraph
 
 load_profile()
