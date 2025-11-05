@@ -1,4 +1,5 @@
 import shutil
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -252,6 +253,7 @@ def start(
         ),
     ] = False,
 ):
+    console.print(add_now())
     wf = core.Workflow.from_config_file(workflow_file)
     if cleanup:
         console.print(f"▶️ Cleaning up workflow at {wf.config_rootdir} ...")
@@ -293,6 +295,7 @@ def restart(
         ),
     ],
 ):
+    console.print(add_now())
     wf = core.Workflow.from_config_file(workflow_file)
     console.print(f"▶️ Restarting workflow at {wf.config_rootdir} ...")
     with (wf.config_rootdir / core.SiroccoContinueTask.STDOUTERR_FILENAME).open("a") as logfile:
@@ -334,6 +337,7 @@ def stop(
         ),
     ] = False,
 ):
+    console.print(add_now())
     wf = core.Workflow.from_config_file(workflow_file)
     msg = f"▶️ Stopping workflow at {wf.config_rootdir}"
     if cool_down:
@@ -377,6 +381,7 @@ def continue_wf(
         ),
     ] = False,
 ):
+    console.print(add_now())
     if not from_wf:
         msg = "Do not use interactively, the continue command is reserved for internal use"
         raise ValueError(msg)
@@ -394,6 +399,14 @@ def continue_wf(
         console.print(f"❌ Workflow continuation failed: {e}")
         console.print_exception()
         raise typer.Exit(code=1) from e
+
+
+def add_now(width: int = 20) -> str:
+    rule = width * "─"
+    space = width * " "
+    date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # noqa: DTZ005
+    date_rule = (len(date_str) + 2) * "─"
+    return "\n".join([f"{space}╭{date_rule}╮", f"{rule}┤ {date_str} ├{rule}", f"{space}╰{date_rule}╯"])
 
 
 # --- Main entry point for the script ---
