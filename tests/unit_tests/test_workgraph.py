@@ -1,9 +1,9 @@
 import pytest
+from aiida_workgraph.workgraph import BUILTIN_NODES
 
 from sirocco.core import Workflow
 from sirocco.parsing.yaml_data_models import ConfigWorkflow
 from sirocco.workgraph import AiidaWorkGraph
-from aiida_workgraph.workgraph import BUILTIN_NODES
 
 
 # Hardcoded, explicit integration test based on the `parameters` case for now

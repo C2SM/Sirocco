@@ -15,7 +15,7 @@ from aiida.common.exceptions import NotExistent
 from aiida.orm.utils.serialize import AiiDALoader
 from aiida_icon.calculations import IconCalculation
 from aiida_shell.parsers.shell import ShellParser
-from aiida_workgraph import WorkGraph, dynamic, task, get_current_graph, namespace
+from aiida_workgraph import WorkGraph, dynamic, get_current_graph, namespace, task
 
 from sirocco import core
 from sirocco.parsing._utils import TimeUtils
@@ -105,6 +105,7 @@ async def get_job_data(
 
         await asyncio.sleep(interval)
 
+
 @task.graph
 def launch_shell_task_with_dependency(
     task_spec: dict,
@@ -112,7 +113,7 @@ def launch_shell_task_with_dependency(
     parent_folders: Annotated[dict, dynamic(int)] | None = None,
     job_ids: Annotated[dict, dynamic(int)] | None = None,
 ) -> Annotated[dict, dynamic()]:
-# ) -> Annotated[dict, dynamic(aiida.orm.Data)]:
+    # ) -> Annotated[dict, dynamic(aiida.orm.Data)]:
     """Launch a shell task with optional SLURM job dependencies."""
     from aiida_workgraph.tasks.shelljob_task import _build_shelljob_nodespec
 
@@ -138,26 +139,27 @@ def launch_shell_task_with_dependency(
     placeholder_to_node_key = {}
     filenames = {}
     if parent_folders:
-        dep_nodes, placeholder_to_node_key, filenames = load_and_process_shell_dependencies(
-            parent_folders,
-            task_spec.get("port_to_dep_mapping", {}),
-            task_spec["filenames"],
-            label
+        dep_nodes, placeholder_to_node_key, filenames = (
+            load_and_process_shell_dependencies(
+                parent_folders,
+                task_spec.get("port_to_dep_mapping", {}),
+                task_spec["filenames"],
+                label,
+            )
         )
         all_nodes.update(dep_nodes)
 
     # Build metadata with SLURM job dependencies
-    computer = aiida.orm.Computer.collection.get(label=task_spec["metadata"]["computer_label"])
+    computer = aiida.orm.Computer.collection.get(
+        label=task_spec["metadata"]["computer_label"]
+    )
     metadata = build_shell_metadata_with_slurm_dependencies(
-        task_spec["metadata"],
-        job_ids,
-        computer
+        task_spec["metadata"], job_ids, computer
     )
 
     # Process argument placeholders
     arguments = process_shell_argument_placeholders(
-        task_spec["arguments_template"],
-        placeholder_to_node_key
+        task_spec["arguments_template"], placeholder_to_node_key
     )
 
     # Use pre-computed outputs
@@ -199,7 +201,6 @@ def launch_shell_task_with_dependency(
     return shell_task.outputs
 
 
-
 IconTask = task(IconCalculation)
 
 
@@ -239,26 +240,18 @@ def launch_icon_task_with_dependency(
         parent_folders,
         task_spec.get("port_to_dep_mapping", {}),
         task_spec["model_namelist_pks"],
-        label
+        label,
     )
     input_data_nodes.update(remote_data_nodes)
 
     # Build metadata with SLURM job dependencies
     computer = aiida.orm.Computer.collection.get(label=computer_label)
     metadata_dict = build_icon_metadata_with_slurm_dependencies(
-        task_spec["metadata"],
-        job_ids,
-        computer,
-        label
+        task_spec["metadata"], job_ids, computer, label
     )
 
     # Prepare complete inputs dict for IconTask
-    inputs = prepare_icon_task_inputs(
-        task_spec,
-        input_data_nodes,
-        metadata_dict,
-        label
-    )
+    inputs = prepare_icon_task_inputs(task_spec, input_data_nodes, metadata_dict, label)
 
     # Call IconTask directly (NOT wg.add_task!)
     # This returns a TaskNode with proper output sockets
@@ -337,7 +330,7 @@ def build_dynamic_sirocco_workgraph(
             else:
                 raise TypeError(f"Unknown task type: {type(task)}")
 
-    print(f"\nDEBUG: WorkGraph build complete:")
+    print("\nDEBUG: WorkGraph build complete:")
     print(
         f"  Total tasks in workflow: {sum(len(cycle.tasks) for cycle in core_workflow.cycles)}"
     )
@@ -357,9 +350,7 @@ def build_dynamic_sirocco_workgraph(
 
 
 def collect_available_data_inputs(
-    task: core.Task,
-    aiida_data_nodes: dict,
-    get_label_func
+    task: core.Task, aiida_data_nodes: dict, get_label_func
 ) -> dict:
     """Collect AvailableData input nodes for a task.
 
@@ -381,10 +372,7 @@ def collect_available_data_inputs(
 
 
 def build_dependency_mapping(
-    task: core.Task,
-    core_workflow: core.Workflow,
-    task_dep_info: dict,
-    get_label_func
+    task: core.Task, core_workflow: core.Workflow, task_dep_info: dict, get_label_func
 ) -> tuple[dict, dict, dict]:
     """Build dependency mapping for GeneratedData inputs.
 
@@ -435,9 +423,7 @@ def build_dependency_mapping(
                                 parent_folders_for_task[prev_task_label] = (
                                     job_data.remote_folder
                                 )
-                                job_ids_for_task[prev_task_label] = (
-                                    job_data.job_id
-                                )
+                                job_ids_for_task[prev_task_label] = job_data.job_id
 
                             print(
                                 f"DEBUG:   GeneratedData port '{port}' <- dep '{prev_task_label}' (data: {input_data.name}, filename: {filename})"
@@ -456,7 +442,7 @@ def create_icon_launcher_task(
     job_ids_for_task: dict,
     port_to_dep_mapping: dict,
     task_dep_info: dict,
-    prev_dep_tasks: dict
+    prev_dep_tasks: dict,
 ) -> tuple[dict, dict]:
     """Create ICON launcher and get_job_data tasks.
 
@@ -501,7 +487,7 @@ def create_icon_launcher_task(
     task_dep_info[task_label] = dep_task.outputs
 
     # Chain with previous dependency tasks using >>
-    for dep_label in parent_folders_for_task.keys():
+    for dep_label in parent_folders_for_task:
         if dep_label in prev_dep_tasks:
             prev_dep_tasks[dep_label] >> dep_task
             print(f"DEBUG: Chaining {dep_label} >> {task_label}")
@@ -525,7 +511,7 @@ def create_shell_launcher_task(
     job_ids_for_task: dict,
     port_to_dep_mapping: dict,
     task_dep_info: dict,
-    prev_dep_tasks: dict
+    prev_dep_tasks: dict,
 ) -> tuple[dict, dict]:
     """Create Shell launcher and get_job_data tasks.
 
@@ -574,7 +560,7 @@ def create_shell_launcher_task(
     task_dep_info[task_label] = dep_task.outputs
 
     # Chain with previous dependency tasks
-    for dep_label in parent_folders_for_task.keys():
+    for dep_label in parent_folders_for_task:
         if dep_label in prev_dep_tasks:
             prev_dep_tasks[dep_label] >> dep_task
 
@@ -672,7 +658,7 @@ def parse_mpi_cmd_to_aiida(mpi_cmd: str) -> str:
 def resolve_icon_restart_file(
     workdir_path: str,
     model_namelist_node: aiida.orm.SinglefileData,
-    workdir_remote_data: aiida.orm.RemoteData
+    workdir_remote_data: aiida.orm.RemoteData,
 ) -> aiida.orm.RemoteData:
     """Resolve ICON restart file path using aiida-icon utilities.
 
@@ -684,8 +670,8 @@ def resolve_icon_restart_file(
     Returns:
         RemoteData pointing to the restart file (or workdir if resolution fails)
     """
-    from aiida_icon.iconutils.modelnml import read_latest_restart_file_link_name
     import f90nml
+    from aiida_icon.iconutils.modelnml import read_latest_restart_file_link_name
 
     try:
         # Read and parse the namelist content
@@ -702,13 +688,15 @@ def resolve_icon_restart_file(
             computer=workdir_remote_data.computer,
             remote_path=specific_file_path,
         )
-        print(f"DEBUG:   Using aiida-icon determined restart file: {specific_file_path}")
+        print(
+            f"DEBUG:   Using aiida-icon determined restart file: {specific_file_path}"
+        )
         return file_remote_data
 
     except Exception as e:
         print(f"DEBUG:   Failed to determine restart filename using aiida-icon: {e}")
         # Fallback: use the workdir itself
-        print(f"DEBUG:   Falling back to workdir RemoteData (no specific filename)")
+        print("DEBUG:   Falling back to workdir RemoteData (no specific filename)")
         return workdir_remote_data
 
 
@@ -716,7 +704,7 @@ def load_icon_dependencies(
     parent_folders: dict | None,
     port_to_dep_mapping: dict,
     model_namelist_pks: dict,
-    label: str
+    label: str,
 ) -> dict:
     """Load RemoteData dependencies for ICON task and map to input ports.
 
@@ -736,8 +724,7 @@ def load_icon_dependencies(
 
     # Load RemoteData nodes from their PKs
     parent_folders_loaded = {
-        key: aiida.orm.load_node(val.value)
-        for key, val in parent_folders.items()
+        key: aiida.orm.load_node(val.value) for key, val in parent_folders.items()
     }
 
     print(f"DEBUG: '{label}' loading RemoteData from PKs...")
@@ -748,7 +735,9 @@ def load_icon_dependencies(
         # dep_info_list is a list of (dep_task_label, filename, data_label) tuples
         # For ICON restart_file, should only be one dependency
         if dep_info_list:
-            dep_label, filename, data_label = dep_info_list[0]  # Unpack (data_label unused for ICON)
+            dep_label, filename, data_label = dep_info_list[
+                0
+            ]  # Unpack (data_label unused for ICON)
             if dep_label in parent_folders_loaded:
                 workdir_remote_data = parent_folders_loaded[dep_label]
                 workdir_path = workdir_remote_data.get_remote_path()
@@ -765,30 +754,29 @@ def load_icon_dependencies(
                         remote_path=specific_file_path,
                     )
                     input_data_nodes[port_name] = file_remote_data
-                    print(f"DEBUG:   Created RemoteData for specific file: {specific_file_path}")
+                    print(
+                        f"DEBUG:   Created RemoteData for specific file: {specific_file_path}"
+                    )
                 else:
                     # No specific filename, use aiida-icon to determine restart filename
                     model_namelist_pk = model_namelist_pks.get("atm")
                     if model_namelist_pk:
                         model_namelist_node = aiida.orm.load_node(model_namelist_pk)
                         input_data_nodes[port_name] = resolve_icon_restart_file(
-                            workdir_path,
-                            model_namelist_node,
-                            workdir_remote_data
+                            workdir_path, model_namelist_node, workdir_remote_data
                         )
                     else:
                         # No model namelist, fall back to workdir
                         input_data_nodes[port_name] = workdir_remote_data
-                        print(f"DEBUG:   No model namelist for restart resolution, using workdir")
+                        print(
+                            "DEBUG:   No model namelist for restart resolution, using workdir"
+                        )
 
     return input_data_nodes
 
 
 def build_icon_metadata_with_slurm_dependencies(
-    base_metadata: dict,
-    job_ids: dict | None,
-    computer: aiida.orm.Computer,
-    label: str
+    base_metadata: dict, job_ids: dict | None, computer: aiida.orm.Computer, label: str
 ) -> dict:
     """Build ICON metadata dict with SLURM job dependencies.
 
@@ -811,11 +799,15 @@ def build_icon_metadata_with_slurm_dependencies(
 
         current_cmds = metadata["options"].get("custom_scheduler_commands", "")
         if current_cmds:
-            metadata["options"]["custom_scheduler_commands"] = current_cmds + f"\n{custom_cmd}"
+            metadata["options"]["custom_scheduler_commands"] = (
+                current_cmds + f"\n{custom_cmd}"
+            )
         else:
             metadata["options"]["custom_scheduler_commands"] = custom_cmd
 
-        print(f"DEBUG: Task {label} - custom_scheduler_commands = {metadata['options']['custom_scheduler_commands']}")
+        print(
+            f"DEBUG: Task {label} - custom_scheduler_commands = {metadata['options']['custom_scheduler_commands']}"
+        )
 
     return {
         "computer": computer,
@@ -825,10 +817,7 @@ def build_icon_metadata_with_slurm_dependencies(
 
 
 def prepare_icon_task_inputs(
-    task_spec: dict,
-    input_data_nodes: dict,
-    metadata_dict: dict,
-    label: str
+    task_spec: dict, input_data_nodes: dict, metadata_dict: dict, label: str
 ) -> dict:
     """Prepare complete inputs dict for ICON task.
 
@@ -864,7 +853,9 @@ def prepare_icon_task_inputs(
         node_type = type(data_node).__name__
         if hasattr(data_node, "get_remote_path"):
             remote_path = data_node.get_remote_path()
-            print(f"DEBUG:   {port_name} = {node_type} (path: {remote_path}, pk: {data_node.pk})")
+            print(
+                f"DEBUG:   {port_name} = {node_type} (path: {remote_path}, pk: {data_node.pk})"
+            )
         else:
             print(f"DEBUG:   {port_name} = {node_type} (pk: {data_node.pk})")
         inputs[port_name] = data_node
@@ -884,7 +875,7 @@ def load_and_process_shell_dependencies(
     parent_folders: dict,
     port_to_dep_mapping: dict,
     original_filenames: dict,
-    label: str
+    label: str,
 ) -> tuple[dict, dict, dict]:
     """Load RemoteData dependencies and build node/placeholder/filename mappings.
 
@@ -903,8 +894,7 @@ def load_and_process_shell_dependencies(
 
     # Load RemoteData nodes from their PKs
     parent_folders_loaded = {
-        key: aiida.orm.load_node(val.value)
-        for key, val in parent_folders.items()
+        key: aiida.orm.load_node(val.value) for key, val in parent_folders.items()
     }
 
     print(f"DEBUG: Shell '{label}' loading RemoteData from PKs...")
@@ -932,30 +922,36 @@ def load_and_process_shell_dependencies(
                     specific_file_path = f"{workdir_path}/{filename}"
                     all_nodes[unique_key] = aiida.orm.RemoteData(
                         computer=workdir_remote_data.computer,
-                        remote_path=specific_file_path
+                        remote_path=specific_file_path,
                     )
-                    print(f"DEBUG:   Added RemoteData '{unique_key}' for specific file: {specific_file_path}")
+                    print(
+                        f"DEBUG:   Added RemoteData '{unique_key}' for specific file: {specific_file_path}"
+                    )
                 else:
                     # No specific filename, use the workdir itself
                     all_nodes[unique_key] = workdir_remote_data
-                    print(f"DEBUG:   Added RemoteData '{unique_key}' for workdir: {workdir_path}")
+                    print(
+                        f"DEBUG:   Added RemoteData '{unique_key}' for workdir: {workdir_path}"
+                    )
 
                 # Build placeholder mapping for arguments
                 placeholder_to_node_key[data_label] = unique_key
-                print(f"DEBUG:   Mapped placeholder '{data_label}' -> node key '{unique_key}'")
+                print(
+                    f"DEBUG:   Mapped placeholder '{data_label}' -> node key '{unique_key}'"
+                )
 
                 # Build filename mapping (from original_filenames via data_label)
                 if data_label in original_filenames:
                     filenames[unique_key] = original_filenames[data_label]
-                    print(f"DEBUG:   Mapped filename '{data_label}' -> '{unique_key}': '{original_filenames[data_label]}'")
+                    print(
+                        f"DEBUG:   Mapped filename '{data_label}' -> '{unique_key}': '{original_filenames[data_label]}'"
+                    )
 
     return all_nodes, placeholder_to_node_key, filenames
 
 
 def build_shell_metadata_with_slurm_dependencies(
-    base_metadata: dict,
-    job_ids: dict | None,
-    computer: aiida.orm.Computer
+    base_metadata: dict, job_ids: dict | None, computer: aiida.orm.Computer
 ) -> dict:
     """Build metadata dict with SLURM job dependencies added.
 
@@ -983,15 +979,18 @@ def build_shell_metadata_with_slurm_dependencies(
         else:
             metadata["options"]["custom_scheduler_commands"] = custom_cmd
 
-        print(f"DEBUG: Task {base_metadata.get('label', 'unknown')} - Setting SLURM dependency: {custom_cmd}")
-        print(f"DEBUG: Task {base_metadata.get('label', 'unknown')} - custom_scheduler_commands = {metadata['options']['custom_scheduler_commands']}")
+        print(
+            f"DEBUG: Task {base_metadata.get('label', 'unknown')} - Setting SLURM dependency: {custom_cmd}"
+        )
+        print(
+            f"DEBUG: Task {base_metadata.get('label', 'unknown')} - custom_scheduler_commands = {metadata['options']['custom_scheduler_commands']}"
+        )
 
     return metadata
 
 
 def process_shell_argument_placeholders(
-    arguments_template: str | None,
-    placeholder_to_node_key: dict
+    arguments_template: str | None, placeholder_to_node_key: dict
 ) -> list[str]:
     """Process argument template and replace placeholders with actual node keys.
 
@@ -1010,17 +1009,21 @@ def process_shell_argument_placeholders(
 
     for arg in arguments_list:
         # Check if this argument is a placeholder
-        if arg.startswith('{') and arg.endswith('}'):
+        if arg.startswith("{") and arg.endswith("}"):
             placeholder_name = arg[1:-1]  # Remove the braces
             # Map to the actual node key if we have a mapping
             if placeholder_name in placeholder_to_node_key:
                 actual_node_key = placeholder_to_node_key[placeholder_name]
                 processed_arguments.append(f"{{{actual_node_key}}}")
-                print(f"DEBUG:   Mapped argument placeholder '{arg}' -> '{{{actual_node_key}}}'")
+                print(
+                    f"DEBUG:   Mapped argument placeholder '{arg}' -> '{{{actual_node_key}}}'"
+                )
             else:
                 # Keep original if no mapping found
                 processed_arguments.append(arg)
-                print(f"DEBUG:   No mapping found for placeholder '{arg}', keeping original")
+                print(
+                    f"DEBUG:   No mapping found for placeholder '{arg}', keeping original"
+                )
         else:
             processed_arguments.append(arg)
 
@@ -1055,9 +1058,7 @@ def validate_workflow(core_workflow: core.Workflow):
 
 
 def add_aiida_input_data_node(
-    data: core.AvailableData,
-    core_workflow: core.Workflow,
-    aiida_data_nodes: dict
+    data: core.AvailableData, core_workflow: core.Workflow, aiida_data_nodes: dict
 ) -> None:
     """Create an `aiida.orm.Data` instance from the provided available data.
 
@@ -1093,8 +1094,7 @@ def add_aiida_input_data_node(
             remote_path=str(data.path), label=label, computer=computer
         )
     elif (
-        computer.get_transport_class()
-        is aiida.transports.plugins.local.LocalTransport
+        computer.get_transport_class() is aiida.transports.plugins.local.LocalTransport
     ):
         if data.path.is_file():
             aiida_data_nodes[label] = aiida.orm.SinglefileData(
@@ -1121,9 +1121,7 @@ def get_scheduler_options_from_task(task: core.Task) -> dict[str, Any]:
     """
     options: dict[str, Any] = {}
     if task.walltime is not None:
-        options["max_wallclock_seconds"] = TimeUtils.walltime_to_seconds(
-            task.walltime
-        )
+        options["max_wallclock_seconds"] = TimeUtils.walltime_to_seconds(task.walltime)
     if task.mem is not None:
         options["max_memory_kb"] = task.mem * 1024
 
@@ -1319,7 +1317,6 @@ def build_shell_task_spec(task: core.ShellTask) -> dict:
             outputs.append(output_info["path"])
 
     # Build output port mapping: data_name -> shell output link_label
-    from aiida_shell.parsers.shell import ShellParser
 
     output_port_mapping = {}
     for output_info in output_data_info:
@@ -1430,177 +1427,6 @@ def build_icon_task_spec(task: core.IconTask) -> dict:
     }
 
 
-class AiidaWorkGraph:
-    """DEPRECATED: Use the functional API instead.
-
-    This class is maintained for backward compatibility but is no longer the recommended approach.
-
-    Migration Guide:
-        Old:
-            >>> aiida_wg = AiidaWorkGraph(core_wf)
-            >>> wg = aiida_wg.build()
-            >>> node = aiida_wg.submit()
-
-        New (Recommended):
-            >>> from sirocco.workgraph import build_sirocco_workgraph, submit_sirocco_workgraph
-            >>> wg = build_sirocco_workgraph(core_wf)
-            >>> # Or directly:
-            >>> node = submit_sirocco_workgraph(core_wf)
-
-    The functional API provides:
-    - Simpler, more testable code
-    - No hidden state
-    - Clear data flow
-    - Better composability
-    """
-
-    def __init__(self, core_workflow: core.Workflow):
-        """Initialize with minimal setup - only validate and prepare data.
-
-        DEPRECATED: Use build_sirocco_workgraph() instead.
-        """
-        self._core_workflow = core_workflow
-        validate_workflow(core_workflow)
-
-        # Only create available data nodes
-        self._aiida_data_nodes: dict[str, WorkgraphDataNode] = {}
-        for data in self._core_workflow.data:
-            if isinstance(data, core.AvailableData):
-                add_aiida_input_data_node(data, self._core_workflow, self._aiida_data_nodes)
-
-        # Don't create workgraph yet
-        self._workgraph = None
-
-    # Thin wrappers for backwards compatibility - delegate to module-level functions
-    @staticmethod
-    def replace_invalid_chars_in_label(label: str) -> str:
-        return replace_invalid_chars_in_label(label)
-
-    @classmethod
-    def get_aiida_label_from_graph_item(cls, obj: core.GraphItem) -> str:
-        return get_aiida_label_from_graph_item(obj)
-
-    @staticmethod
-    def split_cmd_arg(command_line: str) -> tuple[str, str]:
-        return split_cmd_arg(command_line)
-
-    @classmethod
-    def label_placeholder(cls, data: core.Data) -> str:
-        return label_placeholder(data)
-
-    @staticmethod
-    def get_wrapper_script_aiida_data(task) -> aiida.orm.SinglefileData | None:
-        return get_wrapper_script_aiida_data(task)
-
-    @staticmethod
-    def _get_default_wrapper_script() -> aiida.orm.SinglefileData | None:
-        return get_default_wrapper_script()
-
-    @staticmethod
-    def _parse_mpi_cmd_to_aiida(mpi_cmd: str) -> str:
-        return parse_mpi_cmd_to_aiida(mpi_cmd)
-
-    @staticmethod
-    def _translate_mpi_cmd_placeholder(placeholder: core.MpiCmdPlaceholder) -> str:
-        return translate_mpi_cmd_placeholder(placeholder)
-
-
-    def build(self) -> WorkGraph:
-        """Build the dynamic workgraph with SLURM job dependencies.
-
-        Returns:
-            A WorkGraph ready for submission
-        """
-        # Pre-build all task specs (no job dependencies yet)
-        shell_task_specs = {}
-        icon_task_specs = {}
-
-        for task in self._core_workflow.tasks:
-            label = get_aiida_label_from_graph_item(task)
-            if isinstance(task, core.ShellTask):
-                shell_task_specs[label] = build_shell_task_spec(task)
-            elif isinstance(task, core.IconTask):
-                icon_task_specs[label] = build_icon_task_spec(task)
-
-        # Build the dynamic workgraph
-        wg = build_dynamic_sirocco_workgraph(
-            core_workflow=self._core_workflow,
-            aiida_data_nodes=self._aiida_data_nodes,
-            shell_task_specs=shell_task_specs,
-            icon_task_specs=icon_task_specs,
-        )
-
-        self._workgraph = wg
-        return wg
-
-    def submit(
-        self,
-        *,
-        inputs: None | dict[str, Any] = None,
-        wait: bool = False,
-        timeout: int = 60,
-        metadata: None | dict[str, Any] = None,
-    ) -> aiida.orm.Node:
-        """Submit the workflow to the AiiDA daemon.
-
-        Builds the dynamic workgraph if not already built, then submits it.
-
-        Args:
-            inputs: Optional inputs to pass to the workgraph
-            wait: Whether to wait for completion
-            timeout: Timeout in seconds if wait=True
-            metadata: Optional metadata for the workgraph
-
-        Returns:
-            The AiiDA process node
-
-        Raises:
-            RuntimeError: If submission fails
-        """
-        if self._workgraph is None:
-            self.build()
-
-        self._workgraph.submit(
-            inputs=inputs, wait=wait, timeout=timeout, metadata=metadata
-        )
-
-        if (output_node := self._workgraph.process) is None:
-            msg = "Something went wrong when submitting workgraph. Please contact a developer."
-            raise RuntimeError(msg)
-
-        return output_node
-
-    def run(
-        self,
-        inputs: None | dict[str, Any] = None,
-        metadata: None | dict[str, Any] = None,
-    ) -> aiida.orm.Node:
-        """Run the workflow in a blocking fashion.
-
-        Builds the dynamic workgraph if not already built, then runs it.
-
-        Args:
-            inputs: Optional inputs to pass to the workgraph
-            metadata: Optional metadata for the workgraph
-
-        Returns:
-            The AiiDA process node
-
-        Raises:
-            RuntimeError: If execution fails
-        """
-        if self._workgraph is None:
-            self.build()
-
-        self._workgraph.run(inputs=inputs, metadata=metadata)
-
-        if (output_node := self._workgraph.process) is None:
-            msg = "Something went wrong when running workgraph. Please contact a developer."
-            raise RuntimeError(msg)
-
-        return output_node
-
-
 # =============================================================================
 # Public API - Main Entry Point Functions
 # =============================================================================
@@ -1686,11 +1512,8 @@ def submit_sirocco_workgraph(
     """
     wg = build_sirocco_workgraph(core_workflow)
 
-    wg.to_html()
-    raise SystemExit()
-    wg.submit(
-        inputs=inputs, wait=wait, timeout=timeout, metadata=metadata
-    )
+    raise SystemExit
+    wg.submit(inputs=inputs, wait=wait, timeout=timeout, metadata=metadata)
 
     if (output_node := wg.process) is None:
         msg = "Something went wrong when submitting workgraph. Please contact a developer."
@@ -1733,4 +1556,3 @@ def run_sirocco_workgraph(
         raise RuntimeError(msg)
 
     return output_node
-

@@ -1,4 +1,3 @@
-from datetime import datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -34,7 +33,6 @@ def _create_aiida_workflow(workflow_file: Path) -> tuple[core.Workflow, "WorkGra
     config_workflow = parsing.ConfigWorkflow.from_config_file(str(workflow_file))
     core_wf = core.Workflow.from_config_workflow(config_workflow)
     wg = build_sirocco_workgraph(core_wf)
-    wg.to_html()
     return core_wf, wg
 
 
@@ -292,7 +290,7 @@ def create_symlink_tree(
     The command is incremental: existing symlinks are skipped, and new ones are added
     as the workflow progresses.
     """
-    from aiida.orm import load_node, WorkflowNode, CalcJobNode
+    from aiida.orm import CalcJobNode, WorkflowNode, load_node
     try:
         load_profile()
         import re
@@ -343,8 +341,7 @@ def create_symlink_tree(
 
             # Determine output directory name
             if output_dirname is None:
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                output_dirname = f"{workflow_name}_{timestamp}"
+                output_dirname = f"{workflow_name}-{node.label}-{pk}"
 
             full_output_path = f"{base_directory}/workflows/{output_dirname}"
             console.print(
@@ -369,7 +366,7 @@ def create_symlink_tree(
                     # Get the remote working directory
                     try:
                         remote_workdir = calcjob.get_remote_workdir()
-                    except Exception as e:
+                    except Exception:
                         # console.print(
                         #     f"[yellow]⚠️  Could not get remote workdir for {calcjob.process_label} (PK: {calcjob.pk}): {e}[/yellow]"
                         # )
@@ -413,8 +410,10 @@ def create_symlink_tree(
                         # Only create if it doesn't exist already
                         if not transport.path_exists(back_symlink_path):
                             try:
-                                transport.symlink(full_output_path, back_symlink_path)
-                            except Exception as e:
+                                import os
+                                rel_path = os.path.relpath(full_output_path, remote_workdir)
+                                transport.symlink(rel_path, back_symlink_path)
+                            except Exception:
                                 pass
                                 # console.print(
                                 #     f"[yellow]⚠️  Could not create back-reference symlink in {symlink_name}: {e}[/yellow]"
