@@ -1,14 +1,29 @@
-# NOTE: relocatable option not available for `uv sync`
-#       so we have to mount it where it was generated
+#!/usr/bin/bash -l
 
+if [ $# != 0 ]; then
+    VENV="${1}/.venv"
+    VENV_SQUASHFS="${1}/venv.squashfs"
+    rm -rf ${VENV}
+    mkdir -p ${VENV}
+    ln -s ${VENV} .venv
+else
+    VENV=.venv
+    VENV_SQUASHFS=".venv.squashfs"
+fi
+
+uv venv --relocatable --python="$(which python)" --prompt="༄ sirocco ༄"
+source .venv/bin/activate
 CC=$(which gcc) \
 CFLAGS="-I/user-environment/env/default/include -I/user-environment/env/default/include/graphviz" \
 LDFLAGS="-L/user-environment/env/default/lib -L/user-environment/env/default/lib/graphviz" \
-uv sync --python="$(which python)" --no-cache --link-mode=copy
+uv sync --no-cache --link-mode=copy --compile-bytecode --active --no-editable --inexact || exit
 
-python -m compileall -j 8 -o 0 -o 1 -o 2 .venv/lib/python3.12/site-packages
+mksquashfs ${VENV} ${VENV_SQUASHFS} -no-recovery -noappend -Xcompression-level 3 || exit
 
-mksquashfs .venv .venv.squashfs -no-recovery -noappend -Xcompression-level 3
-# mv .venv .venv.save
-rm -rf .venv
-mkdir .venv
+rm -rf ${VENV}
+
+if [ -n "${1}" ]; then
+    rsync -av ${VENV_SQUASHFS} .
+    rm -rf ${1}
+fi
+
