@@ -37,6 +37,7 @@ class WorkflowStatus(enum.Enum):
     COMPLETED = 2
     FAILED = 3
     STOPPED = 4
+    RESTART_FAILED = 5
 
 
 class Workflow:
@@ -161,27 +162,33 @@ class Workflow:
             raise ValueError(msg)
         self.init_front(logger=logger)
         self.auto_submit()
+        self.dump_state()
 
     def continue_wf(self, log_type: Literal["std", "tee"] = "std") -> None:  # NOTE: cannot use "continue"
         logger = self.get_logger(log_type)
         self.load_state()
         self.propagate_front(logger=logger)
-        if self.status != WorkflowStatus.FAILED:
-            self.auto_submit()
+        self.auto_submit()
 
     def restart(self, log_type: Literal["std", "tee"] = "tee") -> None:
         self.load_state()
-        if self.scheduler.get_status(self.sirocco_continue_task) in (TaskStatus.RUNNING, TaskStatus.WAITING):
-            msg = "Workflow ongoing, cannot restart"
-            raise ValueError(msg)
         logger = self.get_logger(log_type)
+        if self.sirocco_continue_task.jobid != "_NO_ID_" and self.scheduler.get_status(self.sirocco_continue_task) in (
+            TaskStatus.RUNNING,
+            TaskStatus.WAITING,
+        ):
+            msg = "Workflow ongoing, cannot restart"
+            logger.error(msg)
+            self.status = WorkflowStatus.RESTART_FAILED
+            return
         if not (self.config_rootdir / self.RUN_ROOT).exists():
             msg = "Workflow did not start, cannot restart"
-            raise ValueError(msg)
+            logger.error(msg)
+            self.status = WorkflowStatus.RESTART_FAILED
+            return
         self.restart_front(logger=logger)
         self.propagate_front(logger=logger)
-        if self.status != WorkflowStatus.FAILED:
-            self.auto_submit()
+        self.auto_submit()
 
     def stop(self, mode: Literal["cancel", "cool-down"], log_type: Literal["std", "tee"] = "tee") -> None:
         self.load_state()
@@ -189,6 +196,10 @@ class Workflow:
             msg = "Workflow did not start, cannot stop"
             raise ValueError(msg)
         logger = self.get_logger(log_type)
+        if self.sirocco_continue_task.jobid == "_NO_ID_":
+            msg = "Workflow not running, no need to stop"
+            logger.error(msg)
+            return
         if self.scheduler.get_status(self.sirocco_continue_task) == TaskStatus.RUNNING:
             msg = "Sirocco task running, cannot stop workflow. Please retry"
             logger.error(msg)
@@ -196,6 +207,9 @@ class Workflow:
             return
         self.scheduler.cancel(self.sirocco_continue_task)
         self.cancel_all_tasks(mode=mode, logger=logger)
+        self.status = WorkflowStatus.STOPPED
+        self.sirocco_continue_task.jobid = "_NO_ID_"
+        self.dump_state()
 
     # =========== Helper methods for workflow control ===========
 
@@ -357,15 +371,18 @@ class Workflow:
                     self.scheduler.cancel(task)
                     msg = f"{task.label} ({task.jobid}) CANCELED"
                     logger.info(msg)
-        self.status = WorkflowStatus.STOPPED
 
     def auto_submit(self) -> None:
         """Submit next Sirocco task"""
-        if self.front[0]:
+
+        if self.status == WorkflowStatus.FAILED:
+            self.sirocco_continue_task.jobid = "_NO_ID_"
+        elif self.front[0]:
             self.sirocco_continue_task.parents = self.front[0]
             self.scheduler.submit(self.sirocco_continue_task, output_mode="append", dependency_type="ANY")
             self.status = WorkflowStatus.CONTINUE
         else:
+            self.sirocco_continue_task.jobid = "_NO_ID_"
             self.status = WorkflowStatus.COMPLETED
         self.dump_state()
 

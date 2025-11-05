@@ -303,7 +303,7 @@ def restart(
             console.print("✅ Workflow restarted successfully.")
         elif wf.status == core.workflow.WorkflowStatus.COMPLETED:
             console.print("✅ Workflow completed!")
-        elif wf.status == core.workflow.WorkflowStatus.FAILED:
+        elif wf.status == core.workflow.WorkflowStatus.RESTART_FAILED:
             console.print("❌ Workflow restart failed")
     except Exception as e:
         console.print(f"❌ Workflow restart failed: {e}")
