@@ -23,8 +23,17 @@ app = typer.Typer(
 console = Console()
 
 
-def _create_aiida_workflow(workflow_file: Path) -> tuple[core.Workflow, "WorkGraph"]:
+def _create_aiida_workflow(
+    workflow_file: Path,
+    window_size: int = 1,
+    max_queued_jobs: int | None = None,
+) -> tuple[core.Workflow, "WorkGraph"]:
     """Load workflow file and build WorkGraph.
+
+    Args:
+        workflow_file: Path to workflow configuration file
+        window_size: Number of topological fronts to keep active (default: 1)
+        max_queued_jobs: Maximum number of queued jobs (optional)
 
     Returns:
         Tuple of (core_workflow, aiida_workgraph)
@@ -32,12 +41,25 @@ def _create_aiida_workflow(workflow_file: Path) -> tuple[core.Workflow, "WorkGra
     load_profile()
     config_workflow = parsing.ConfigWorkflow.from_config_file(str(workflow_file))
     core_wf = core.Workflow.from_config_workflow(config_workflow)
-    wg = build_sirocco_workgraph(core_wf)
+    wg = build_sirocco_workgraph(
+        core_wf,
+        window_size=window_size,
+        max_queued_jobs=max_queued_jobs,
+    )
     return core_wf, wg
 
 
-def create_aiida_workflow(workflow_file: Path) -> tuple[core.Workflow, "WorkGraph"]:
+def create_aiida_workflow(
+    workflow_file: Path,
+    window_size: int = 1,
+    max_queued_jobs: int | None = None,
+) -> tuple[core.Workflow, "WorkGraph"]:
     """Helper to prepare WorkGraph from workflow file.
+
+    Args:
+        workflow_file: Path to workflow configuration file
+        window_size: Number of topological fronts to keep active (default: 1)
+        max_queued_jobs: Maximum number of queued jobs (optional)
 
     Returns:
         Tuple of (core_workflow, aiida_workgraph)
@@ -46,7 +68,11 @@ def create_aiida_workflow(workflow_file: Path) -> tuple[core.Workflow, "WorkGrap
     from aiida.common import ProfileConfigurationError
 
     try:
-        core_wf, wg = _create_aiida_workflow(workflow_file=workflow_file)
+        core_wf, wg = _create_aiida_workflow(
+            workflow_file=workflow_file,
+            window_size=window_size,
+            max_queued_jobs=max_queued_jobs,
+        )
         console.print(
             f"⚙️ Workflow [magenta]'{wg.name}'[/magenta] prepared for AiiDA execution."
         )
@@ -204,11 +230,33 @@ def run(
             help="Path to the workflow definition YAML file.",
         ),
     ],
+    window_size: Annotated[
+        int,
+        typer.Option(
+            "--window-size",
+            "-w",
+            help="Number of topological fronts to keep active. 0=sequential, 1=one front ahead (default), high value=streaming submission.",
+        ),
+    ] = 1,
+    max_queued_jobs: Annotated[
+        int | None,
+        typer.Option(
+            "--max-queued-jobs",
+            "-m",
+            help="Maximum number of jobs in CREATED/RUNNING state (optional hard limit).",
+        ),
+    ] = None,
 ):
-    core_wf, wg = create_aiida_workflow(workflow_file)
+    core_wf, wg = create_aiida_workflow(workflow_file, window_size, max_queued_jobs)
     console.print(
         f"▶️ Running workflow [magenta]'{core_wf.name}'[/magenta] directly (blocking)..."
     )
+    if window_size > 0:
+        console.print(f"   Window size: {window_size} fronts")
+    else:
+        console.print("   Sequential submission (window disabled)")
+    if max_queued_jobs:
+        console.print(f"   Max queued jobs: {max_queued_jobs}")
     try:
         _ = wg.run(inputs=None)
         console.print("[green]✅ Workflow execution finished.[/green]")
@@ -233,14 +281,37 @@ def submit(
             help="Path to the workflow definition YAML file.",
         ),
     ],
+    window_size: Annotated[
+        int,
+        typer.Option(
+            "--window-size",
+            "-w",
+            help="Number of topological fronts to keep active. 0=sequential, 1=one front ahead (default), high value=streaming submission.",
+        ),
+    ] = 1,
+    max_queued_jobs: Annotated[
+        int | None,
+        typer.Option(
+            "--max-queued-jobs",
+            "-m",
+            help="Maximum number of jobs in CREATED/RUNNING state (optional hard limit).",
+        ),
+    ] = None,
 ):
     """Submit the workflow to the AiiDA daemon."""
 
-    core_wf, wg = create_aiida_workflow(workflow_file)
+    core_wf, wg = create_aiida_workflow(workflow_file, window_size, max_queued_jobs)
     try:
         console.print(
             f"🚀 Submitting workflow [magenta]'{core_wf.name}'[/magenta] to AiiDA daemon..."
         )
+        if window_size > 0:
+            console.print(f"   Window size: {window_size} fronts")
+        else:
+            console.print("   Sequential submission (window disabled)")
+        if max_queued_jobs:
+            console.print(f"   Max queued jobs: {max_queued_jobs}")
+
         wg.submit(inputs=None)
 
         if (results_node := wg.process) is None:

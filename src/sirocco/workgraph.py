@@ -263,6 +263,110 @@ def launch_icon_task_with_dependency(
     return icon_task
 
 
+def get_task_dependencies_from_workgraph(wg: WorkGraph) -> dict[str, list[str]]:
+    """Extract dependency graph from WorkGraph.
+
+    The key insight: launcher tasks are intentionally disconnected to enable pre-submission.
+    Dependencies flow through get_job_data tasks. We need to:
+    1. Find which get_job_data tasks each launcher depends on
+    2. Map those back to the corresponding launcher tasks
+
+    For example:
+    - launch_icon_step1 -> get_job_data_step1 (provides job_id)
+    - launch_icon_step2 depends on get_job_data_step1.job_id
+    - Therefore: launch_icon_step2 depends on launch_icon_step1
+
+    Args:
+        wg: The WorkGraph to extract dependencies from
+
+    Returns:
+        Dict mapping launcher task_name -> list of parent launcher task names
+    """
+    deps = {}
+
+    # Build mapping: get_job_data_X -> launch_X
+    get_job_data_to_launcher = {}
+    for task in wg.tasks:
+        if task.name.startswith('get_job_data_'):
+            # Extract the base name (e.g., get_job_data_icon_step1 -> icon_step1)
+            base_name = task.name.replace('get_job_data_', '')
+            launcher_name = f'launch_{base_name}'
+            get_job_data_to_launcher[task.name] = launcher_name
+
+    # For each launcher task, find its dependencies
+    for task in wg.tasks:
+        task_name = task.name
+        if not task_name.startswith('launch_'):
+            continue
+
+        deps[task_name] = []
+
+        # Check which get_job_data tasks this launcher depends on
+        if hasattr(task.inputs, '_sockets'):
+            for socket_name, socket in task.inputs._sockets.items():
+                if hasattr(socket, 'links'):
+                    for link in socket.links:
+                        parent_task_name = link.from_socket.node.name
+
+                        # If parent is a get_job_data task, map it back to its launcher
+                        if parent_task_name.startswith('get_job_data_'):
+                            corresponding_launcher = get_job_data_to_launcher.get(parent_task_name)
+                            if corresponding_launcher and corresponding_launcher not in deps[task_name]:
+                                deps[task_name].append(corresponding_launcher)
+
+    return deps
+
+
+def compute_topological_levels(task_deps: dict[str, list[str]]) -> dict[str, int]:
+    """Compute topological level for each task using BFS.
+
+    Level 0 = no dependencies
+    Level k = max(parent levels) + 1
+
+    Args:
+        task_deps: Dict mapping task_name -> list of parent task names
+
+    Returns:
+        Dict mapping task_name -> topological level
+    """
+    from collections import deque
+
+    levels = {}
+    in_degree = {task: len(parents) for task, parents in task_deps.items()}
+
+    # Find all tasks with no dependencies (level 0)
+    queue = deque([task for task, degree in in_degree.items() if degree == 0])
+    for task in queue:
+        levels[task] = 0
+
+    # Build reverse dependency graph: task -> list of tasks that depend on it
+    children = {task: [] for task in task_deps}
+    for task, parents in task_deps.items():
+        for parent in parents:
+            if parent not in children:
+                children[parent] = []
+            children[parent].append(task)
+
+    # Process tasks in topological order
+    processed = set()
+    while queue:
+        current = queue.popleft()
+        processed.add(current)
+        current_level = levels[current]
+
+        # Update children's levels
+        for child in children.get(current, []):
+            parents = task_deps[child]
+            # Check if all parents have been processed
+            if all(p in processed for p in parents):
+                # Level is max of all parent levels + 1
+                parent_levels = [levels[p] for p in parents]
+                levels[child] = max(parent_levels) + 1
+                queue.append(child)
+
+    return levels
+
+
 def build_dynamic_sirocco_workgraph(
     core_workflow: core.Workflow,
     aiida_data_nodes: dict,
@@ -278,6 +382,10 @@ def build_dynamic_sirocco_workgraph(
     # Store get_job_data task outputs (namespace with job_id, remote_folder)
     task_dep_info = {}
     prev_dep_tasks = {}
+
+    # Track launcher task dependencies for rolling window
+    # Maps launch_task_name -> list of parent launch_task_names
+    launcher_dependencies = {}
 
     # Helper to get task label
     def get_label(task):
@@ -299,6 +407,13 @@ def build_dynamic_sirocco_workgraph(
             port_to_dep_mapping, parent_folders_for_task, job_ids_for_task = (
                 build_dependency_mapping(task, core_workflow, task_dep_info, get_label)
             )
+
+            # Track dependencies for rolling window
+            # parent_folders_for_task keys are the task labels this task depends on
+            launcher_name = f"launch_{task_label}"
+            launcher_dependencies[launcher_name] = [
+                f"launch_{dep_label}" for dep_label in parent_folders_for_task.keys()
+            ]
 
             # Create launcher task based on task type
             if isinstance(task, core.IconTask):
@@ -343,7 +458,7 @@ def build_dynamic_sirocco_workgraph(
         f"  Total get_job_data tasks created: {len([t for t in wg.tasks if 'get_job_data_' in t.name])}"
     )
 
-    return wg
+    return wg, launcher_dependencies
 
 
 # =============================================================================
@@ -1436,13 +1551,22 @@ def build_icon_task_spec(task: core.IconTask) -> dict:
 # =============================================================================
 
 
-def build_sirocco_workgraph(core_workflow: core.Workflow) -> WorkGraph:
+def build_sirocco_workgraph(
+    core_workflow: core.Workflow,
+    window_size: int = 1,
+    max_queued_jobs: int | None = None,
+) -> WorkGraph:
     """Build a Sirocco WorkGraph from a core workflow.
 
     This is the main entry point for building Sirocco workflows functionally.
 
     Args:
         core_workflow: The core workflow to convert
+        window_size: Number of topological fronts to keep active (default: 1)
+                    0 = sequential (wait for level N to finish before submitting N+1)
+                    1 = one front ahead (default)
+                    high value = streaming submission
+        max_queued_jobs: Maximum number of jobs in CREATED/RUNNING state (optional)
 
     Returns:
         A WorkGraph ready for submission
@@ -1451,7 +1575,7 @@ def build_sirocco_workgraph(core_workflow: core.Workflow) -> WorkGraph:
         >>> from sirocco import core
         >>> from sirocco.workgraph import build_sirocco_workgraph
         >>> wf = core.Workflow(...)
-        >>> wg = build_sirocco_workgraph(wf)
+        >>> wg = build_sirocco_workgraph(wf, window_size=2)
         >>> wg.submit()
     """
     # Validate workflow
@@ -1474,12 +1598,47 @@ def build_sirocco_workgraph(core_workflow: core.Workflow) -> WorkGraph:
             icon_task_specs[label] = build_icon_task_spec(task)
 
     # Build the dynamic workgraph
-    wg = build_dynamic_sirocco_workgraph(
+    wg, launcher_dependencies = build_dynamic_sirocco_workgraph(
         core_workflow=core_workflow,
         aiida_data_nodes=aiida_data_nodes,
         shell_task_specs=shell_task_specs,
         icon_task_specs=icon_task_specs,
     )
+
+    # Compute topological levels for rolling window submission
+    # Use the dependencies tracked during workgraph building
+    task_levels = compute_topological_levels(launcher_dependencies)
+
+    # Store window configuration in WorkGraph extras for persistence
+    # Use extras instead of context as it gets serialized with the WorkGraph
+    wg.extras = {
+        'window_config': {
+            'enabled': window_size >= 0,
+            'window_size': window_size,
+            'max_queued_jobs': max_queued_jobs,
+            'task_levels': task_levels,
+        }
+    }
+
+    # Print dependency and level information
+    if launcher_dependencies:
+        print(f"\nDEBUG: Task dependencies tracked:")
+        for task_name, parents in sorted(launcher_dependencies.items()):
+            if parents:
+                print(f"  {task_name} depends on: {', '.join(parents)}")
+            else:
+                print(f"  {task_name} (no dependencies)")
+
+    if task_levels:
+        max_level = max(task_levels.values()) if task_levels else 0
+        print(f"\nDEBUG: Topological levels computed:")
+        print(f"  Total levels (fronts): {max_level + 1}")
+        print(f"  Window size: {window_size} fronts")
+        for level in range(min(max_level + 1, 5)):  # Show first 5 levels
+            tasks_at_level = [name for name, l in task_levels.items() if l == level]
+            print(f"  Level {level}: {len(tasks_at_level)} tasks - {', '.join(tasks_at_level)}")
+        if max_level >= 5:
+            print(f"  ... (levels {5}-{max_level})")
 
     return wg
 

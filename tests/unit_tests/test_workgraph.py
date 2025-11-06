@@ -4,6 +4,7 @@ from aiida_workgraph.workgraph import BUILTIN_NODES
 from sirocco.core import Workflow
 from sirocco.parsing.yaml_data_models import ConfigWorkflow
 from sirocco.workgraph import AiidaWorkGraph
+from sirocco.workgraph import compute_topological_levels
 
 
 # Hardcoded, explicit integration test based on the `parameters` case for now
@@ -170,3 +171,76 @@ def test_aiida_icon_task_metadata(config_paths):
     # Now test that the default wrapper (currently `todi_cpu.sh`) is used
     for aiida_icon_task in [task for task in aiida_workflow._workgraph.tasks if task.identifier == "IconCalculation"]:  # noqa: SLF001
         assert aiida_icon_task.inputs.wrapper_script.value.filename == "todi_cpu.sh"
+
+
+def test_topological_levels_linear_chain():
+    """Test topological level calculation for a linear chain: A -> B -> C."""
+    task_deps = {
+        'launch_A': [],
+        'launch_B': ['launch_A'],
+        'launch_C': ['launch_B'],
+    }
+    levels = compute_topological_levels(task_deps)
+
+    assert levels['launch_A'] == 0
+    assert levels['launch_B'] == 1
+    assert levels['launch_C'] == 2
+
+
+def test_topological_levels_diamond():
+    """Test topological level calculation for a diamond: A -> B,C -> D."""
+    task_deps = {
+        'launch_A': [],
+        'launch_B': ['launch_A'],
+        'launch_C': ['launch_A'],
+        'launch_D': ['launch_B', 'launch_C'],
+    }
+    levels = compute_topological_levels(task_deps)
+
+    assert levels['launch_A'] == 0
+    assert levels['launch_B'] == 1
+    assert levels['launch_C'] == 1
+    assert levels['launch_D'] == 2
+
+
+def test_topological_levels_parallel():
+    """Test topological level calculation for parallel tasks."""
+    task_deps = {
+        'launch_A': [],
+        'launch_B': [],
+        'launch_C': [],
+    }
+    levels = compute_topological_levels(task_deps)
+
+    assert levels['launch_A'] == 0
+    assert levels['launch_B'] == 0
+    assert levels['launch_C'] == 0
+
+
+def test_topological_levels_complex():
+    """Test topological level calculation for a complex DAG."""
+    #     A
+    #    / \
+    #   B   C
+    #   |\ /|
+    #   | X |
+    #   |/ \|
+    #   D   E
+    #    \ /
+    #     F
+    task_deps = {
+        'launch_A': [],
+        'launch_B': ['launch_A'],
+        'launch_C': ['launch_A'],
+        'launch_D': ['launch_B', 'launch_C'],
+        'launch_E': ['launch_B', 'launch_C'],
+        'launch_F': ['launch_D', 'launch_E'],
+    }
+    levels = compute_topological_levels(task_deps)
+
+    assert levels['launch_A'] == 0
+    assert levels['launch_B'] == 1
+    assert levels['launch_C'] == 1
+    assert levels['launch_D'] == 2
+    assert levels['launch_E'] == 2
+    assert levels['launch_F'] == 3
