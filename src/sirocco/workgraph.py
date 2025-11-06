@@ -78,8 +78,10 @@ async def get_job_data(
             },
             tag="process",
         )
+        # breakpoint()
 
         if builder.count() > 0:
+            # breakpoint()
             workgraph_node = builder.all()[-1][0]
             node_data = workgraph_node.task_processes.get(task_name, "")
             if node_data:
@@ -274,8 +276,8 @@ def build_dynamic_sirocco_workgraph(
     set_current_graph(wg)
 
     # Store get_job_data task outputs (namespace with job_id, remote_folder)
-    task_dep_info = {}  # {task_label: get_job_data task outputs}
-    prev_dep_tasks = {}  # {task_label: get_job_data task} for chaining with >>
+    task_dep_info = {}
+    prev_dep_tasks = {}
 
     # Helper to get task label
     def get_label(task):
@@ -476,6 +478,7 @@ def create_icon_launcher_task(
     )
 
     # Create get_job_data task
+    # breakpoint()
     dep_task = wg.add_task(
         get_job_data,
         name=f"get_job_data_{task_label}",
@@ -549,6 +552,7 @@ def create_shell_launcher_task(
     )
 
     # Create get_job_data task
+    # breakpoint()
     dep_task = wg.add_task(
         get_job_data,
         name=f"get_job_data_{task_label}",
@@ -1167,7 +1171,7 @@ def build_base_metadata(task: core.Task) -> dict:
     """
     metadata = {}
     metadata["options"] = {}
-    metadata["options"]["account"] = "cwd01"
+    metadata["options"]["account"] = task.account
     metadata["options"]["additional_retrieve_list"] = [
         "_scheduler-stdout.txt",
         "_scheduler-stderr.txt",
