@@ -1609,16 +1609,17 @@ def build_sirocco_workgraph(
     # Use the dependencies tracked during workgraph building
     task_levels = compute_topological_levels(launcher_dependencies)
 
-    # Store window configuration in WorkGraph extras for persistence
-    # Use extras instead of context as it gets serialized with the WorkGraph
-    wg.extras = {
-        'window_config': {
-            'enabled': window_size >= 0,
-            'window_size': window_size,
-            'max_queued_jobs': max_queued_jobs,
-            'task_levels': task_levels,
-        }
+    # Store window configuration in WorkGraph extras
+    # This is now properly serialized/deserialized by aiida-workgraph
+    # (requires the extras serialization changes in workgraph.py)
+    window_config = {
+        'enabled': window_size >= 0,  # Enable window for any non-negative window_size
+        'window_size': window_size,
+        'max_queued_jobs': max_queued_jobs,  # Optional hard limit on concurrent jobs
+        'task_levels': task_levels,  # Topological levels for each launcher task
     }
+
+    wg.extras = {'window_config': window_config}
 
     # Print dependency and level information
     if launcher_dependencies:
