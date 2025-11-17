@@ -138,18 +138,6 @@ class AiidaWorkGraph:
                 except ValueError as exception:
                     msg = f"Raised error when validating output name '{output.name}': {exception.args[0]}"
                     raise ValueError(msg) from exception
-            # Validate resources combo
-            if (task.nodes is not None or task.ntasks_per_node is not None or task.cpus_per_task is not None) and (
-                task.nodes is None or task.ntasks_per_node is None or task.cpus_per_task is None
-            ):
-                msg = (
-                    "One of the fields 'nodes', 'ntasks_per_node' and 'cpus_per_task'"
-                    f" has been specified therefore all fields need to be specified for task {task.name}."
-                )
-                raise ValueError(msg)
-            if task.computer is None:
-                msg = f"task {task.name}: workgraph requires 'computer' to be set"
-                raise ValueError(msg)
 
     @staticmethod
     def replace_invalid_chars_in_label(label: str) -> str:
@@ -203,10 +191,6 @@ class AiidaWorkGraph:
         """
         Create an `aiida.orm.Data` instance from the provided `data` that needs to exist on initialization of workflow.
         """
-        if data.computer is None:
-            msg = f"{data.name}: workgraph requires 'computer' to be set for available data"
-            raise ValueError(msg)
-
         label = self.get_aiida_label_from_graph_item(data)
 
         try:
@@ -214,6 +198,7 @@ class AiidaWorkGraph:
         except NotExistent as err:
             msg = f"Could not find computer {data.computer!r} for input {data}."
             raise ValueError(msg) from err
+
         # `remote_path` must be str not PosixPath to be JSON-serializable
         transport = computer.get_transport()
         with transport:
@@ -221,12 +206,21 @@ class AiidaWorkGraph:
                 msg = f"Could not find available data {data.name} in path {data.path} on computer {data.computer}."
                 raise FileNotFoundError(msg)
 
-        if computer.get_transport_class() is aiida.transports.plugins.local.LocalTransport:
+        # Check if this data will be used by ICON tasks
+        used_by_icon_task = any(
+            isinstance(task, core.IconTask) and data in task.input_data_nodes() for task in self._core_workflow.tasks
+        )
+
+        if used_by_icon_task:
+            # ICON tasks require RemoteData
+            self._aiida_data_nodes[label] = aiida.orm.RemoteData(
+                remote_path=str(data.path), label=label, computer=computer
+            )
+        elif computer.get_transport_class() is aiida.transports.plugins.local.LocalTransport:
             if data.path.is_file():
                 self._aiida_data_nodes[label] = aiida.orm.SinglefileData(file=str(data.path), label=label)
             else:
                 self._aiida_data_nodes[label] = aiida.orm.FolderData(tree=str(data.path), label=label)
-
         else:
             self._aiida_data_nodes[label] = aiida.orm.RemoteData(
                 remote_path=str(data.path), label=label, computer=computer
@@ -319,28 +313,9 @@ class AiidaWorkGraph:
             msg = f"Could not find computer {task.computer!r} in AiiDA database. One needs to create and configure the computer before running a workflow."
             raise ValueError(msg) from err
 
-        # FIXME: computer needs to only created once per workflow per task, not for every instance of task
-        # Since the mpirun command is part of the computer and two tasks might use
-        # the same computer, we need to create a new computer for each task type
-        # see issue #169
-        label_uuid = str(uuid.uuid4())
-        from aiida.orm.utils.builders.computer import ComputerBuilder
-
-        computer_builder = ComputerBuilder.from_computer(computer)
-        computer_builder.label = computer.label + f"-{label_uuid}"
-
-        if task.mpi_cmd is not None:
-            computer_builder.mpirun_command = self._parse_mpi_cmd_to_aiida(task.mpi_cmd)
-
-        computer_config = computer.get_configuration()
-
-        # PRCOMMENT I kept the new computer approach because it is actually clearer if for each workflow (with fix #169)
-        #           we have a unique computer as we want to have the parameters to be in the config file
-        computer = computer_builder.new()
-        computer.configure(**computer_config)
-
+        # Use the original computer directly
         icon_code = aiida.orm.InstalledCode(
-            label=f"icon-{label_uuid}",
+            label=f"icon-{task_label}",
             description="aiida_icon",
             default_calc_job_plugin="icon.icon",
             computer=computer,
@@ -355,17 +330,24 @@ class AiidaWorkGraph:
 
         task.update_icon_namelists_from_workflow()
 
+        # Master namelist
         with io.StringIO() as buffer:
             task.master_namelist.namelist.write(buffer)
             buffer.seek(0)
             builder.master_namelist = aiida.orm.SinglefileData(buffer, task.master_namelist.name)
 
-        with io.StringIO() as buffer:
-            task.model_namelist.namelist.write(buffer)
-            buffer.seek(0)
-            builder.model_namelist = aiida.orm.SinglefileData(buffer, task.model_namelist.name)
+        # Handle multiple model namelists
+        for model_name, model_nml in task.model_namelists.copy().items():
+            with io.StringIO() as buffer:
+                model_nml.namelist.write(buffer)
+                buffer.seek(0)
+                setattr(
+                    builder.models,  # type: ignore[attr-defined]
+                    model_name,
+                    aiida.orm.SinglefileData(buffer, model_nml.name),
+                )
 
-        # Add wrapper script (either custom or default)
+        # Add wrapper script
         wrapper_script_data = AiidaWorkGraph.get_wrapper_script_aiida_data(task)
         if wrapper_script_data is not None:
             builder.wrapper_script = wrapper_script_data
@@ -376,7 +358,6 @@ class AiidaWorkGraph:
         options["additional_retrieve_list"] = []
 
         metadata["options"] = options
-        # the builder validation is not working
         builder.metadata = metadata
 
         self._aiida_task_nodes[task_label] = self._workgraph.add_task(builder, name=task_label)
@@ -407,7 +388,12 @@ class AiidaWorkGraph:
         return options
 
     @functools.singledispatchmethod
-    def _link_output_node_to_task(self, task: core.Task, port: str, output: core.GeneratedData):  # noqa: ARG002
+    def _link_output_node_to_task(
+        self,
+        task: core.Task,
+        port: str,  # noqa: ARG002
+        output: core.GeneratedData,  # noqa: ARG002
+    ):
         """Dispatch linking input to task based on task type."""
 
         msg = f"method not implemented for task type {type(task)}"
@@ -433,13 +419,19 @@ class AiidaWorkGraph:
         workgraph_task = self.task_from_core(task)
         output_label = self.get_aiida_label_from_graph_item(output)
 
-        if port is None:
-            # To avoid nested namespaces due to dots in name
+        if port == "output_streams":
+            # Use the existing output_streams namespace from IconCalculation
+            output_socket = workgraph_task.outputs._sockets.get("output_streams")  # noqa: SLF001
+            if output_socket is None:
+                msg = "Output socket 'output_streams' was not found for ICON task. This suggests the IconCalculation doesn't support output_streams."
+                raise ValueError(msg)
+        elif port is None:
+            # Existing logic for unnamed outputs
             output_socket = workgraph_task.add_output("workgraph.any", ShellParser.format_link_label(str(output.path)))
-
             workgraph_task.inputs.metadata.options.additional_retrieve_list.value.append(str(output.path))
         else:
-            output_socket = workgraph_task.outputs._sockets.get(port)  # noqa SLF001 # there so public accessor
+            # Other named ports (restart_file, finish_status, etc.)
+            output_socket = workgraph_task.outputs._sockets.get(port)  # noqa: SLF001
 
         if output_socket is None:
             msg = f"Output socket {output_label!r} was not successfully created. Please contact a developer."
@@ -510,9 +502,7 @@ class AiidaWorkGraph:
             raise ValueError(msg)
 
         # Build input_labels dictionary for port resolution
-        # NOTE: use str | None to satisfy mypy. This should go away
-        #       once ports are compulsary for outputs as well
-        input_labels: dict[str | None, list[str]] = {}
+        input_labels: dict[str, list[str]] = {}
         for port_name, input_list in task.inputs.items():
             input_labels[port_name] = []
             for input_ in input_list:
@@ -521,14 +511,15 @@ class AiidaWorkGraph:
                 input_labels[port_name].append(f"{{{input_label}}}")
 
         # Resolve the command with port placeholders replaced by input labels
-        _, arguments = self.split_cmd_arg(task.resolve_ports(input_labels))
+        _, arguments = self.split_cmd_arg(task.resolve_ports(input_labels))  # type: ignore[arg-type]
         workgraph_task_arguments.value = arguments
 
     @staticmethod
     def _parse_mpi_cmd_to_aiida(mpi_cmd: str) -> str:
         for placeholder in core.MpiCmdPlaceholder:
             mpi_cmd = mpi_cmd.replace(
-                f"{{{placeholder.value}}}", f"{{{AiidaWorkGraph._translate_mpi_cmd_placeholder(placeholder)}}}"
+                f"{{{placeholder.value}}}",
+                f"{{{AiidaWorkGraph._translate_mpi_cmd_placeholder(placeholder)}}}",
             )
         return mpi_cmd
 
@@ -594,7 +585,7 @@ class AiidaWorkGraph:
         """Get default wrapper script based on task type"""
 
         # Import the script directory from aiida-icon
-        from aiida_icon.site_support.cscs.todi import SCRIPT_DIR
+        from aiida_icon.site_support.cscs.alps import SCRIPT_DIR
 
         default_script_path = SCRIPT_DIR / "todi_cpu.sh"
         return aiida.orm.SinglefileData(file=default_script_path)

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 
 import f90nml
+from aiida_icon.iconutils import masternml
 
 from sirocco.core.graph_items import Data, GeneratedData, Task
 from sirocco.core.namelistfile import NamelistFile
@@ -24,14 +25,13 @@ LOGGER = logging.getLogger(__name__)
 class IconTask(models.ConfigIconTaskSpecs, Task):
     _MASTER_NAMELIST_NAME: ClassVar[str] = field(default="icon_master.namelist", repr=False)
     _MASTER_MODEL_NML_SECTION: ClassVar[str] = field(default="master_model_nml", repr=False)
-    _MODEL_NAMELIST_FILENAME_FIELD: ClassVar[str] = field(default="model_namelist_filename", repr=False)
     _AIIDA_ICON_RESTART_FILE_PORT_NAME: ClassVar[str] = field(default="restart_file", repr=False)
     _MAIN: ClassVar[str] = field(default="main.sh", repr=False)
     namelists: list[NamelistFile]
 
     def __post_init__(self):
         super().__post_init__()
-        # detect master namelist
+        # Detect master namelist
         master_namelist = None
         for namelist in self.namelists:
             if namelist.name == self._MASTER_NAMELIST_NAME:
@@ -42,27 +42,26 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             raise ValueError(msg)
         self._master_namelist = master_namelist
 
-        # retrieve model namelist name from master namelist
-        if (master_model_nml := self._master_namelist.namelist.get(self._MASTER_MODEL_NML_SECTION, None)) is None:
-            msg = "No model filename specified in master namelist: Could not find section '&master_model_nml'"
-            raise ValueError(msg)
-        if isinstance(master_model_nml, f90nml.namelist.Cogroup):
-            msg = f"multiple {self._MASTER_MODEL_NML_SECTION} not implemented yet"
-            raise NotImplementedError(msg)
-        if (model_namelist_filename := master_model_nml.get(self._MODEL_NAMELIST_FILENAME_FIELD, None)) is None:
-            msg = f"No model filename specified in master namelist: Could not find entry '{self._MODEL_NAMELIST_FILENAME_FIELD}' under section '&{self._MASTER_MODEL_NML_SECTION}'"
-            raise ValueError(msg)
+        # Parse master namelist to identify required model namelists
+        master_nml_data = f90nml.reads(str(self._master_namelist.namelist))
+        self._required_models = dict(masternml.iter_model_name_filepath(master_nml_data))
 
-        # detect model namelist
-        model_namelist = None
-        for namelist in self.namelists:
-            if namelist.name == model_namelist_filename:
-                model_namelist = namelist
-                break
-        if model_namelist is None:
-            msg = f"Failed to read model namelist. Could not find {model_namelist_filename!r} in namelists {self.namelists}"
-            raise ValueError(msg)
-        self._model_namelist = model_namelist
+        # Build mapping of available model namelists
+        self._model_namelists = {}
+        namelist_by_name = {nml.name: nml for nml in self.namelists}
+
+        for model_name, model_path in self._required_models.items():
+            # Look for the namelist file by filename
+            model_filename = model_path.name
+            if model_filename in namelist_by_name:
+                self._model_namelists[model_name] = namelist_by_name[model_filename]
+            elif not model_path.is_absolute():
+                # TODO: do not allow this case anymore
+                # For relative paths, require the namelist to be provided
+                msg = f"Missing model namelist for model '{model_name}': expected file '{model_filename}' not found in provided namelists"
+                raise ValueError(msg)
+            # For absolute paths, the file is expected to exist on the target system
+            # We don't validate this here as it will be handled by aiida-icon
 
         if self.wrapper_script is not None:
             self.wrapper_script = self._validate_wrapper_script(self.wrapper_script, self.config_rootdir)
@@ -80,8 +79,18 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         return self._master_namelist
 
     @property
+    def model_namelists(self) -> dict[str, NamelistFile]:
+        """Return mapping of model names to their namelist files."""
+        return self._model_namelists
+
+    @property
     def model_namelist(self) -> NamelistFile:
-        return self._model_namelist
+        # NOTE: This is a workaround until multiple models are implemented
+        if len(self._model_namelists) != 1:
+            msg = "multiple models not yet implemented"
+            raise NotImplementedError(msg)
+        nml = next(iter(self._model_namelists.values()))
+        return nml
 
     @property
     def is_restart(self) -> bool:
@@ -130,7 +139,7 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
     def prepare_for_submission(self) -> None:
         # Ensure either target or runscript is set
         # NOTE: This code is there as it is the first available place where we know the standalone orchestrator is used
-        # TODO: if standalone becomes the only orchestrator, make this a yaml model validator or better unify this with aiida-icon
+        # TODO: unify `runtime` spec with aiida-icon and then  make this a yaml model validator
         if self.target is None:
             if self.runtime is None:
                 msg = f"task {self.name}: 'runtime' is required when 'target' is unset"
@@ -332,6 +341,29 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             (self.run_dir / target_link_name).symlink_to(data.resolved_path)
         else:
             namelist[section][parameter] = str(data.resolved_path)
+
+    # FIXME: This is broken, `output_nml` as well as other namelist blocks can be present in multiple namelists
+    # SOLUTION: Implement a proper component level for the icon task, each having its model namelis, inputs and outputs
+    # TODO: Move this checker in aiida_icon.iconutils together with masternml
+    def _validate_output_streams(self, data_list: list[Data]) -> None:
+        """Validate output stream configuration against namelist"""
+        # Find the model namelist containing output_nml
+        model_namelist = None
+        for namelist in self.model_namelists.values():
+            if "output_nml" in namelist.namelist:
+                model_namelist = namelist
+                break
+
+        if model_namelist is None:
+            msg = f"for task {self.name}: could not find model namelist containing 'output_nml' sections"
+            raise ValueError(msg)
+
+        output_nml = model_namelist.namelist.get("output_nml", [])
+        nml_streams: list[f90nml.Namelist] = [output_nml] if isinstance(output_nml, f90nml.Namelist) else output_nml
+
+        if (n_nml := len(nml_streams)) != (n_yaml := len(data_list)):
+            msg = f"for task {self.name}: number of output streams specified in namelist ({n_nml}) differs from number of streams specified in the workflow config ({n_yaml})"
+            raise ValueError(msg)
 
     @classmethod
     def build_from_config(cls: type[Self], config: models.ConfigTask, config_rootdir: Path, **kwargs: Any) -> Self:
