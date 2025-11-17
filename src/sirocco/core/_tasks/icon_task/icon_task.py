@@ -89,8 +89,7 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         if len(self._model_namelists) != 1:
             msg = "multiple models not yet implemented"
             raise NotImplementedError(msg)
-        nml = next(iter(self._model_namelists.values()))
-        return nml
+        return next(iter(self._model_namelists.values()))
 
     @property
     def is_restart(self) -> bool:
