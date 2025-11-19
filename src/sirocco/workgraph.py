@@ -13,6 +13,7 @@ import aiida.transports.plugins.local
 import yaml
 from aiida.common.exceptions import NotExistent
 from aiida.orm.utils.serialize import AiiDALoader
+from aiida_icon.iconutils.namelists import create_namelist_singlefiledata_from_content
 from aiida_icon.calculations import IconCalculation
 from aiida_shell.parsers.shell import ShellParser
 from aiida_workgraph import WorkGraph, dynamic, get_current_graph, namespace, task
@@ -1500,23 +1501,23 @@ def build_icon_task_spec(task: core.IconTask) -> dict:
     # Update task namelists
     task.update_icon_namelists_from_workflow()
 
-    # Master namelist - store as PK
+    # Master namelist - store as PK with parsed content for queryability
     with io.StringIO() as buffer:
         task.master_namelist.namelist.write(buffer)
-        buffer.seek(0)
-        master_namelist_node = aiida.orm.SinglefileData(
-            buffer, task.master_namelist.name
+        content = buffer.getvalue()
+        master_namelist_node = create_namelist_singlefiledata_from_content(
+            content, task.master_namelist.name, store=True
         )
-        master_namelist_node.store()
 
-    # Model namelists - store as PKs
+    # Model namelists - store as PKs with parsed content for queryability
     model_namelist_pks = {}
     for model_name, model_nml in task.model_namelists.items():
         with io.StringIO() as buffer:
             model_nml.namelist.write(buffer)
-            buffer.seek(0)
-            model_node = aiida.orm.SinglefileData(buffer, model_nml.name)
-            model_node.store()
+            content = buffer.getvalue()
+            model_node = create_namelist_singlefiledata_from_content(
+                content, model_nml.name, store=True
+            )
             model_namelist_pks[model_name] = model_node.pk
 
     # Wrapper script - store as PK if present

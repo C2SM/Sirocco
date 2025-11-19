@@ -1,13 +1,13 @@
 ---
-name: AQUAPLANET-rolling
+name: AQUAPLANET-rolling-input-parsing
 start_date: &root_start_date '2000-01-01T00:00:00'
-stop_date: &root_stop_date '2000-01-01T00:00:30'
+stop_date: &root_stop_date '2000-01-01T00:02:00'
 cycles:
   - every_10s:
       cycling:
         start_date: *root_start_date
         stop_date: *root_stop_date
-        period: PT10S
+        period: PT30S
       tasks:
         - icon:
             inputs:
@@ -23,7 +23,7 @@ cycles:
                   when:
                     after: *root_start_date
                   target_cycle:
-                    lag: -PT10S
+                    lag: -PT30S
                   port: restart_file
             outputs:
               - finish:
@@ -41,7 +41,7 @@ cycles:
             inputs:
               - finish:
                   target_cycle:
-                    date: [2000-01-01T00:00:00, 2000-01-01T00:00:10, 2000-01-01T00:00:20]
+                    date: [2000-01-01T00:00:00, 2000-01-01T00:00:30, 2000-01-01T00:01:00, 2000-01-01T00:01:30]
                   port: positional
 tasks:
   - icon:
