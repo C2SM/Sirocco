@@ -1,7 +1,11 @@
+import logging
 from pathlib import Path
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 import typer
+
+if TYPE_CHECKING:
+    from aiida_workgraph import WorkGraph
 from aiida.manage.configuration import load_profile
 from rich.console import Console
 from rich.traceback import install as install_rich_traceback
@@ -21,6 +25,9 @@ app = typer.Typer(
 
 # Create a Rich console instance for printing
 console = Console()
+
+# Create logger
+logger = logging.getLogger(__name__)
 
 
 def _create_aiida_workflow(
@@ -73,15 +80,11 @@ def create_aiida_workflow(
             window_size=window_size,
             max_queued_jobs=max_queued_jobs,
         )
-        console.print(
-            f"⚙️ Workflow [magenta]'{wg.name}'[/magenta] prepared for AiiDA execution."
-        )
+        console.print(f"⚙️ Workflow [magenta]'{wg.name}'[/magenta] prepared for AiiDA execution.")
         return core_wf, wg  # noqa: TRY300 | try-consider-else -> shouldn't move this to `else` block
     except ProfileConfigurationError as e:
         console.print(f"[bold red]❌ No AiiDA profile set up: {e}[/bold red]")
-        console.print(
-            "[bold green]You can create one using `verdi presto`[/bold green]"
-        )
+        console.print("[bold green]You can create one using `verdi presto`[/bold green]")
         console.print_exception()
         raise typer.Exit(code=1) from e
     except Exception as e:
@@ -162,11 +165,7 @@ def visualize(
         viz_graph = vizgraph.VizGraph.from_core_workflow(core_workflow)
 
         # Determine output path
-        output_path = (
-            workflow_file.parent / f"{core_workflow.name}.svg"
-            if output_file is None
-            else output_file
-        )
+        output_path = workflow_file.parent / f"{core_workflow.name}.svg" if output_file is None else output_file
 
         # Ensure the output directory exists
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -174,9 +173,7 @@ def visualize(
         # Draw the graph
         viz_graph.draw(file_path=output_path)
 
-        console.print(
-            f"[green]✅ Visualization saved to:[/green] [cyan]{output_path.resolve()}[/cyan]"
-        )
+        console.print(f"[green]✅ Visualization saved to:[/green] [cyan]{output_path.resolve()}[/cyan]")
 
     except Exception as e:
         console.print("[bold red]❌ Failed to generate visualization:[/bold red]")
@@ -248,9 +245,7 @@ def run(
     ] = None,
 ):
     core_wf, wg = create_aiida_workflow(workflow_file, window_size, max_queued_jobs)
-    console.print(
-        f"▶️ Running workflow [magenta]'{core_wf.name}'[/magenta] directly (blocking)..."
-    )
+    console.print(f"▶️ Running workflow [magenta]'{core_wf.name}'[/magenta] directly (blocking)...")
     if window_size > 0:
         console.print(f"   Window size: {window_size} fronts")
     else:
@@ -261,9 +256,7 @@ def run(
         _ = wg.run(inputs=None)
         console.print("[green]✅ Workflow execution finished.[/green]")
     except Exception as e:
-        console.print(
-            f"[bold red]❌ Workflow execution failed during run: {e}[/bold red]"
-        )
+        console.print(f"[bold red]❌ Workflow execution failed during run: {e}[/bold red]")
         console.print_exception()
         raise typer.Exit(code=1) from e
 
@@ -302,9 +295,7 @@ def submit(
 
     core_wf, wg = create_aiida_workflow(workflow_file, window_size, max_queued_jobs)
     try:
-        console.print(
-            f"🚀 Submitting workflow [magenta]'{core_wf.name}'[/magenta] to AiiDA daemon..."
-        )
+        console.print(f"🚀 Submitting workflow [magenta]'{core_wf.name}'[/magenta] to AiiDA daemon...")
         if window_size > 0:
             console.print(f"   Window size: {window_size} fronts")
         else:
@@ -315,7 +306,8 @@ def submit(
         wg.submit(inputs=None)
 
         if (results_node := wg.process) is None:
-            raise RuntimeError("Something went wrong when submitting workgraph")
+            msg = "Something went wrong when submitting workgraph"
+            raise RuntimeError(msg)  # noqa: TRY301
 
         console.print(f"[green]✅ Workflow submitted. PK: {results_node.pk}[/green]")
 
@@ -362,8 +354,10 @@ def create_symlink_tree(
     as the workflow progresses.
     """
     from aiida.orm import CalcJobNode, WorkflowNode, load_node
+
     try:
         load_profile()
+        import os
         import re
 
         # Load the workflow node
@@ -371,14 +365,12 @@ def create_symlink_tree(
         try:
             node = load_node(pk)
         except Exception as e:
-            console.print(
-                f"[bold red]❌ Failed to load node with PK {pk}: {e}[/bold red]"
-            )
+            console.print(f"[bold red]❌ Failed to load node with PK {pk}: {e}[/bold red]")
             raise typer.Exit(code=1) from e
 
         if not isinstance(node, WorkflowNode):
             msg = f"Node with pk {pk} not a WorkflowNode but of type `{type(node)}`. Not supported."
-            raise ValueError(msg)
+            raise TypeError(msg)  # noqa: TRY301
 
         # Get workflow name
         workflow_name = node.process_label or node.label or f"workflow_{pk}"
@@ -388,116 +380,102 @@ def create_symlink_tree(
         calcjob_nodes = [n for n in node.called_descendants if isinstance(n, CalcJobNode)]
 
         if not calcjob_nodes:
-            console.print(
-                "[yellow]⚠️  No CalcJobNodes found for this workflow yet.[/yellow]"
-            )
+            console.print("[yellow]⚠️  No CalcJobNodes found for this workflow yet.[/yellow]")
             return
 
         console.print(f"Found [green]{len(calcjob_nodes)}[/green] CalcJobNode(s)")
 
-        # Get the computer and create transport
-        # We assume all CalcJobs run on the same computer
-        if calcjob_nodes:
-            for calcjob_node in calcjob_nodes:
+        # Get the computer from the first CalcJob that has one
+        computer = None
+        for calcjob_node in calcjob_nodes:
+            if calcjob_node.computer:
                 computer = calcjob_node.computer
-                if computer:
-                    break
+                break
 
-            # Use Computer's work directory as default if base_directory not specified
-            if base_directory is None:
-                base_directory = computer.get_workdir()
-                console.print(
-                    f"📂 Using Computer's work directory: [cyan]{base_directory}[/cyan]"
-                )
+        if computer is None:
+            console.print("[bold red]❌ No computer found for any CalcJobNode[/bold red]")
+            raise typer.Exit(code=1)  # noqa: TRY301
 
-            # Determine output directory name
-            if output_dirname is None:
-                output_dirname = f"{workflow_name}-{node.label}-{pk}"
+        # Use Computer's work directory as default if base_directory not specified
+        if base_directory is None:
+            base_directory = computer.get_workdir()
+            console.print(f"📂 Using Computer's work directory: [cyan]{base_directory}[/cyan]")
 
-            full_output_path = f"{base_directory}/workflows/{output_dirname}"
-            console.print(
-                f"📁 Creating symlink tree in: [cyan]{full_output_path}[/cyan]"
-            )
+        # Determine output directory name
+        if output_dirname is None:
+            output_dirname = f"{workflow_name}-{node.label}-{pk}"
 
-            transport = computer.get_transport()
+        full_output_path = f"{base_directory}/workflows/{output_dirname}"
+        console.print(f"📁 Creating symlink tree in: [cyan]{full_output_path}[/cyan]")
 
-            with transport:
-                # Create base directory if it doesn't exist
-                if not transport.path_exists(full_output_path):
-                    transport.makedirs(full_output_path)
-                    console.print(
-                        f"✅ Created directory: [cyan]{full_output_path}[/cyan]"
+        transport = computer.get_transport()
+
+        with transport:
+            # Create base directory if it doesn't exist
+            if not transport.path_exists(full_output_path):
+                transport.makedirs(full_output_path)
+                console.print(f"✅ Created directory: [cyan]{full_output_path}[/cyan]")
+
+            # Create symlinks for each CalcJobNode
+            created_count = 0
+            skipped_count = 0
+
+            for calcjob in calcjob_nodes:
+                # Get the remote working directory
+                try:
+                    remote_workdir = calcjob.get_remote_workdir()
+                except Exception as e:  # noqa: BLE001
+                    logger.debug(
+                        "Could not get remote workdir for %s (PK: %s): %s",
+                        calcjob.process_label,
+                        calcjob.pk,
+                        e,
                     )
+                    continue
 
-                # Create symlinks for each CalcJobNode
-                created_count = 0
-                skipped_count = 0
+                if remote_workdir is None:
+                    console.print(
+                        f"[yellow]⚠️  No remote workdir for {calcjob.process_label} (PK: {calcjob.pk})[/yellow]"
+                    )
+                    continue
 
-                for calcjob in calcjob_nodes:
-                    # Get the remote working directory
-                    try:
-                        remote_workdir = calcjob.get_remote_workdir()
-                    except Exception:
-                        # console.print(
-                        #     f"[yellow]⚠️  Could not get remote workdir for {calcjob.process_label} (PK: {calcjob.pk}): {e}[/yellow]"
-                        # )
-                        continue
+                # Create a human-readable name from metadata
+                symlink_name = calcjob.base.attributes.get("metadata_inputs")["metadata"]["call_link_label"]
+                symlink_path = f"{full_output_path}/{symlink_name}"
 
-                    if remote_workdir is None:
-                        console.print(
-                            f"[yellow]⚠️  No remote workdir for {calcjob.process_label} (PK: {calcjob.pk})[/yellow]"
-                        )
-                        continue
+                # Skip if symlink already exists
+                if transport.path_exists(symlink_path):
+                    skipped_count += 1
+                    continue
 
-                    # Create a human-readable name
-                    # Use the process label and add the PK for uniqueness
-                    # task_label = calcjob.process_label or f"task_{calcjob.pk}"
-                    # symlink_name = f"{task_label}_pk{calcjob.pk}"
-                    # TODO: Easier way to access that? maybe add to calcjob extras on WG construction?
-                    symlink_name = calcjob.base.attributes.get("metadata_inputs")[
-                        "metadata"
-                    ]["call_link_label"]
+                # Create the symlink
+                try:
+                    transport.symlink(remote_workdir, symlink_path)
+                    created_count += 1
+                    console.print(f"  🔗 Created: [green]{symlink_name}[/green] -> {remote_workdir}")
 
-                    symlink_path = f"{full_output_path}/{symlink_name}"
+                    # Create a back-reference symlink in the actual CalcJob directory
+                    back_symlink_name = "workflow_root"
+                    back_symlink_path = f"{remote_workdir}/{back_symlink_name}"
 
-                    # Check if symlink already exists
-                    if transport.path_exists(symlink_path):
-                        skipped_count += 1
-                        continue
+                    # Only create if it doesn't exist already
+                    if not transport.path_exists(back_symlink_path):
+                        try:
+                            rel_path = os.path.relpath(full_output_path, remote_workdir)
+                            transport.symlink(rel_path, back_symlink_path)
+                        except Exception as e:  # noqa: BLE001
+                            logger.debug(
+                                "Could not create back-reference symlink in %s: %s",
+                                symlink_name,
+                                e,
+                            )
+                except Exception as e:  # noqa: BLE001
+                    console.print(f"[bold red]❌ Failed to create symlink {symlink_name}: {e}[/bold red]")
 
-                    # Create the symlink
-                    try:
-                        transport.symlink(remote_workdir, symlink_path)
-                        created_count += 1
-                        console.print(
-                            f"  🔗 Created: [green]{symlink_name}[/green] -> {remote_workdir}"
-                        )
-
-                        # Create a back-reference symlink in the actual CalcJob directory
-                        # pointing to the workflow root, so users can navigate back easily
-                        back_symlink_name = "workflow_root"
-                        back_symlink_path = f"{remote_workdir}/{back_symlink_name}"
-
-                        # Only create if it doesn't exist already
-                        if not transport.path_exists(back_symlink_path):
-                            try:
-                                import os
-                                rel_path = os.path.relpath(full_output_path, remote_workdir)
-                                transport.symlink(rel_path, back_symlink_path)
-                            except Exception:
-                                pass
-                                # console.print(
-                                #     f"[yellow]⚠️  Could not create back-reference symlink in {symlink_name}: {e}[/yellow]"
-                                # )
-                    except Exception as e:
-                        console.print(
-                            f"[bold red]❌ Failed to create symlink {symlink_name}: {e}[/bold red]"
-                        )
-
-                console.print(
-                    f"\n✅ Done! Created [green]{created_count}[/green] new symlink(s), "
-                    f"skipped [yellow]{skipped_count}[/yellow] existing."
-                )
+            console.print(
+                f"\n✅ Done! Created [green]{created_count}[/green] new symlink(s), "
+                f"skipped [yellow]{skipped_count}[/yellow] existing."
+            )
 
     except Exception as e:
         console.print(f"[bold red]❌ Command failed: {e}[/bold red]")

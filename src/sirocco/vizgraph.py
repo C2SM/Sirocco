@@ -28,7 +28,12 @@ def node_colors(h: float) -> dict[str, str]:
 class VizGraph:
     """Class for visualizing a Sirocco workflow"""
 
-    node_base_kw: ClassVar[dict[str, Any]] = {"style": "filled", "fontname": "Fira Sans", "fontsize": 14, "penwidth": 2}
+    node_base_kw: ClassVar[dict[str, Any]] = {
+        "style": "filled",
+        "fontname": "Fira Sans",
+        "fontsize": 14,
+        "penwidth": 2,
+    }
     edge_base_kw: ClassVar[dict[str, Any]] = {"color": "#77767B", "penwidth": 1.5}
     data_node_base_kw: ClassVar[dict[str, Any]] = node_base_kw | {"shape": "ellipse"}
 
@@ -37,14 +42,23 @@ class VizGraph:
     task_node_kw: ClassVar[dict[str, Any]] = node_base_kw | {"shape": "box"} | node_colors(354)
     io_edge_kw: ClassVar[dict[str, Any]] = edge_base_kw
     wait_on_edge_kw: ClassVar[dict[str, Any]] = edge_base_kw | {"style": "dashed"}
-    cluster_kw: ClassVar[dict[str, Any]] = {"bgcolor": "#F6F5F4", "color": None, "fontsize": 16}
+    cluster_kw: ClassVar[dict[str, Any]] = {
+        "bgcolor": "#F6F5F4",
+        "color": None,
+        "fontsize": 16,
+    }
 
     def __init__(self, name: str, cycles: Store, data: Store) -> None:
         self.name = name
         self.agraph = AGraph(name=name, fontname="Fira Sans", newrank=True)
         for data_node in data:
             gv_kw = self.data_av_node_kw if isinstance(data_node, core.AvailableData) else self.data_gen_node_kw
-            self.agraph.add_node(data_node, tooltip=self.tooltip(data_node), label=data_node.name, **gv_kw)
+            self.agraph.add_node(
+                data_node,
+                tooltip=self.tooltip(data_node),
+                label=data_node.name,
+                **gv_kw,
+            )
 
         k = 1
         for cycle in cycles:
@@ -54,7 +68,10 @@ class VizGraph:
             for task_node in cycle.tasks:
                 cluster_nodes.append(task_node)
                 self.agraph.add_node(
-                    task_node, label=task_node.name, tooltip=self.tooltip(task_node), **self.task_node_kw
+                    task_node,
+                    label=task_node.name,
+                    tooltip=self.tooltip(task_node),
+                    **self.task_node_kw,
                 )
                 for data_node in task_node.input_data_nodes():
                     self.agraph.add_edge(data_node, task_node, **self.io_edge_kw)

@@ -6,7 +6,7 @@ import pytest
 from sirocco.core import Workflow
 from sirocco.core._tasks.icon_task import IconTask
 from sirocco.vizgraph import VizGraph
-from sirocco.workgraph import AiidaWorkGraph
+from sirocco.workgraph import build_sirocco_workgraph
 
 LOGGER = logging.getLogger(__name__)
 
@@ -50,13 +50,17 @@ def test_run_workgraph(config_paths):
     please run this in a separate file as the profile is deleted after test finishes.
     """
     core_workflow = Workflow.from_config_file(str(config_paths["yml"]))
-    aiida_workflow = AiidaWorkGraph(core_workflow)
-    output_node = aiida_workflow.run()
+    workgraph = build_sirocco_workgraph(core_workflow)
+    workgraph.run()
+    output_node = workgraph.process
     if not output_node.is_finished_ok:
         from aiida.cmdline.utils.common import get_calcjob_report, get_workchain_report
 
         # overall report but often not enough to really find the bug, one has to go to calcjob
-        LOGGER.error("Workchain report:\n%s", get_workchain_report(output_node, levelname="REPORT"))
+        LOGGER.error(
+            "Workchain report:\n%s",
+            get_workchain_report(output_node, levelname="REPORT"),
+        )
         # the calcjobs are typically stored in 'called_descendants'
         for node in output_node.called_descendants:
             LOGGER.error("%s workdir: %s", node.process_label, node.get_remote_workdir())
@@ -91,13 +95,17 @@ def test_run_workgraph_with_icon(icon_filepath_executable, config_paths, tmp_pat
     tmp_icon_bin_path.symlink_to(Path(icon_filepath_executable))
 
     core_workflow = Workflow.from_config_file(tmp_config_rootdir / config_paths["yml"].name)
-    aiida_workflow = AiidaWorkGraph(core_workflow)
-    output_node = aiida_workflow.run()
+    workgraph = build_sirocco_workgraph(core_workflow)
+    workgraph.run()
+    output_node = workgraph.process
     if not output_node.is_finished_ok:
         from aiida.cmdline.utils.common import get_calcjob_report, get_workchain_report
 
         # overall report but often not enough to really find the bug, one has to go to calcjob
-        LOGGER.error("Workchain report:\n%s", get_workchain_report(output_node, levelname="REPORT"))
+        LOGGER.error(
+            "Workchain report:\n%s",
+            get_workchain_report(output_node, levelname="REPORT"),
+        )
         # the calcjobs are typically stored in 'called_descendants'
         for node in output_node.called_descendants:
             LOGGER.error("%s workdir: %s", node.process_label, node.get_remote_workdir())

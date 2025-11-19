@@ -213,7 +213,9 @@ NAMED_BASE_T = typing.TypeVar("NAMED_BASE_T", bound=_NamedBaseModel)
 def make_named_model_list_converter(
     cls: type[NAMED_BASE_T],
 ) -> typing.Callable[[list[NAMED_BASE_T | str | dict] | None], list[NAMED_BASE_T]]:
-    def convert_named_model_list(values: list[NAMED_BASE_T | str | dict] | None) -> list[NAMED_BASE_T]:
+    def convert_named_model_list(
+        values: list[NAMED_BASE_T | str | dict] | None,
+    ) -> list[NAMED_BASE_T]:
         inputs: list[NAMED_BASE_T] = []
         if values is None:
             return inputs
@@ -238,13 +240,16 @@ class ConfigCycleTask(_NamedBaseModel):
     """
 
     inputs: Annotated[
-        list[ConfigCycleTaskInput], BeforeValidator(make_named_model_list_converter(ConfigCycleTaskInput))
+        list[ConfigCycleTaskInput],
+        BeforeValidator(make_named_model_list_converter(ConfigCycleTaskInput)),
     ] = []
     outputs: Annotated[
-        list[ConfigCycleTaskOutput], BeforeValidator(make_named_model_list_converter(ConfigCycleTaskOutput))
+        list[ConfigCycleTaskOutput],
+        BeforeValidator(make_named_model_list_converter(ConfigCycleTaskOutput)),
     ] = []
     wait_on: Annotated[
-        list[ConfigCycleTaskWaitOn], BeforeValidator(make_named_model_list_converter(ConfigCycleTaskWaitOn))
+        list[ConfigCycleTaskWaitOn],
+        BeforeValidator(make_named_model_list_converter(ConfigCycleTaskWaitOn)),
     ] = []
 
 
@@ -344,7 +349,9 @@ class ConfigShellTaskSpecs:
 
     command: str
     path: Path | None = field(
-        default=None, repr=False, metadata={"description": ("Script file relative to the config directory.")}
+        default=None,
+        repr=False,
+        metadata={"description": ("Script file relative to the config directory.")},
     )
 
     def resolve_ports(self, input_labels: dict[str, list[str]]) -> str:

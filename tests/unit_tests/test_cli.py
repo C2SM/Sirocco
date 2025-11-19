@@ -88,7 +88,12 @@ class TestCLICommands:
 
     def test_cli_module_loads(self):
         """Test that the CLI module can be imported and shows expected commands."""
-        result = subprocess.run(["python", "-m", "sirocco.cli", "--help"], capture_output=True, text=True, check=False)
+        result = subprocess.run(
+            ["python", "-m", "sirocco.cli", "--help"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
         assert result.returncode == 0
         # Verify expected commands are listed
         assert "verify" in result.stdout
@@ -159,7 +164,15 @@ class TestCLICommands:
     def test_visualize_invalid_output_path(self, runner, minimal_config_path):
         """Test visualize command with invalid output path."""
         # Try to write to a directory that doesn't exist
-        result = runner.invoke(app, ["visualize", str(minimal_config_path), "--output", "/nonexistent/path/output.svg"])
+        result = runner.invoke(
+            app,
+            [
+                "visualize",
+                str(minimal_config_path),
+                "--output",
+                "/nonexistent/path/output.svg",
+            ],
+        )
 
         assert result.exit_code == 1
 
@@ -178,7 +191,8 @@ class TestCLICommands:
         """Test the run command."""
         # Use the factory to create the mock function
         monkeypatch.setattr(
-            "sirocco.cli.create_aiida_workflow", mock_create_aiida_workflow_factory(mock_successful_run)
+            "sirocco.cli.create_aiida_workflow",
+            mock_create_aiida_workflow_factory(mock_successful_run),
         )
 
         result = runner.invoke(app, ["run", str(minimal_config_path)])
@@ -193,7 +207,10 @@ class TestCLICommands:
     def test_run_execution_failure(self, runner, minimal_config_path, mock_failed_run, monkeypatch):
         """Test handling of workflow execution failures."""
         # Use the factory to create the mock function
-        monkeypatch.setattr("sirocco.cli.create_aiida_workflow", mock_create_aiida_workflow_factory(mock_failed_run))
+        monkeypatch.setattr(
+            "sirocco.cli.create_aiida_workflow",
+            mock_create_aiida_workflow_factory(mock_failed_run),
+        )
 
         result = runner.invoke(app, ["run", str(minimal_config_path)])
 
@@ -205,7 +222,8 @@ class TestCLICommands:
         """Test the submit command."""
         # Use the factory to create the mock function
         monkeypatch.setattr(
-            "sirocco.cli.create_aiida_workflow", mock_create_aiida_workflow_factory(mock_successful_submit)
+            "sirocco.cli.create_aiida_workflow",
+            mock_create_aiida_workflow_factory(mock_successful_submit),
         )
 
         result = runner.invoke(app, ["submit", str(minimal_config_path)])
@@ -217,7 +235,10 @@ class TestCLICommands:
     def test_submit_execution_failure(self, runner, minimal_config_path, monkeypatch):
         """Test handling of workflow submission failures."""
         # Use the factory to create the mock function
-        monkeypatch.setattr("sirocco.cli.create_aiida_workflow", mock_create_aiida_workflow_factory(mock_failed_submit))
+        monkeypatch.setattr(
+            "sirocco.cli.create_aiida_workflow",
+            mock_create_aiida_workflow_factory(mock_failed_submit),
+        )
 
         result = runner.invoke(app, ["submit", str(minimal_config_path)])
 

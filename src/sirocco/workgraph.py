@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import io
+import logging
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Annotated, Any, TypeAlias, assert_never
 
 import aiida.common
@@ -13,18 +14,18 @@ import aiida.transports.plugins.local
 import yaml
 from aiida.common.exceptions import NotExistent
 from aiida.orm.utils.serialize import AiiDALoader
-from aiida_icon.iconutils.namelists import create_namelist_singlefiledata_from_content
 from aiida_icon.calculations import IconCalculation
+from aiida_icon.iconutils.namelists import create_namelist_singlefiledata_from_content
 from aiida_shell.parsers.shell import ShellParser
 from aiida_workgraph import WorkGraph, dynamic, get_current_graph, namespace, task
 
 from sirocco import core
 from sirocco.parsing._utils import TimeUtils
 
+logger = logging.getLogger(__name__)
+
 if TYPE_CHECKING:
-    WorkgraphDataNode: TypeAlias = (
-        aiida.orm.RemoteData | aiida.orm.SinglefileData | aiida.orm.FolderData
-    )
+    WorkgraphDataNode: TypeAlias = aiida.orm.RemoteData | aiida.orm.SinglefileData | aiida.orm.FolderData
 
 
 def serialize_coordinates(coordinates: dict) -> dict:
@@ -66,7 +67,7 @@ async def get_job_data(
 
     start_time_unix = time.time()
 
-    print(f"DEBUG: Starting job_data polling for {task_name} in {workgraph_name}")
+    logger.debug("Starting job_data polling for %s in %s", task_name, workgraph_name)
 
     while True:
         # Query for WorkGraphs created AFTER this task started polling
@@ -75,24 +76,25 @@ async def get_job_data(
             WorkGraphEngine,
             filters={
                 "attributes.process_label": {"==": f"WorkGraph<{workgraph_name}>"},
-                "ctime": {">": datetime.fromtimestamp(start_time_unix - 10)},
+                "ctime": {">": datetime.fromtimestamp(start_time_unix - 10, tz=UTC)},
             },
             tag="process",
         )
-        # breakpoint()
 
         if builder.count() > 0:
-            # breakpoint()
             workgraph_node = builder.all()[-1][0]
             node_data = workgraph_node.task_processes.get(task_name, "")
             if node_data:
-                node = yaml.load(node_data, Loader=AiiDALoader)
+                node = yaml.load(node_data, Loader=AiiDALoader)  # noqa: S506
                 if node:
                     job_id = node.get_job_id()
                     if job_id is not None:
                         # When job_id is ready, remote_folder is also available
-                        print(
-                            f"DEBUG: Retrieved job_id={job_id}, remote_folder_pk={node.outputs.remote_folder.pk} for {task_name}"
+                        logger.debug(
+                            "Retrieved job_id=%s, remote_folder_pk=%s for %s",
+                            job_id,
+                            node.outputs.remote_folder.pk,
+                            task_name,
                         )
                         return {
                             "job_id": int(job_id),
@@ -102,9 +104,8 @@ async def get_job_data(
         # Check timeout
         elapsed = time.time() - start_time_unix
         if elapsed > timeout:
-            raise TimeoutError(
-                f"Timeout waiting for job_id for task {task_name} after {timeout}s"
-            )
+            msg = f"Timeout waiting for job_id for task {task_name} after {timeout}s"
+            raise TimeoutError(msg)
 
         await asyncio.sleep(interval)
 
@@ -123,61 +124,48 @@ def launch_shell_task_with_dependency(
     # Get pre-computed data
 
     label = task_spec["label"]
-    input_data_info = task_spec["input_data_info"]
     output_data_info = task_spec["output_data_info"]
 
     # Load the code from PK
     code = aiida.orm.load_node(task_spec["code_pk"])
 
     # Load nodes from PKs and initialize structures
-    all_nodes = {
-        key: aiida.orm.load_node(pk) for key, pk in task_spec["node_pks"].items()
-    }
+    all_nodes = {key: aiida.orm.load_node(pk) for key, pk in task_spec["node_pks"].items()}
 
     # Add AvailableData nodes passed as parameter
     if input_data_nodes:
         all_nodes.update(input_data_nodes)
 
     # Process dependencies if present
-    placeholder_to_node_key = {}
-    filenames = {}
+    placeholder_to_node_key: dict[str, str] = {}
+    filenames: dict[str, str] = {}
     if parent_folders:
-        dep_nodes, placeholder_to_node_key, filenames = (
-            load_and_process_shell_dependencies(
-                parent_folders,
-                task_spec.get("port_to_dep_mapping", {}),
-                task_spec["filenames"],
-                label,
-            )
+        dep_nodes, placeholder_to_node_key, filenames = load_and_process_shell_dependencies(
+            parent_folders,
+            task_spec.get("port_to_dep_mapping", {}),
+            task_spec["filenames"],
+            label,
         )
         all_nodes.update(dep_nodes)
 
     # Build metadata with SLURM job dependencies
-    computer = aiida.orm.Computer.collection.get(
-        label=task_spec["metadata"]["computer_label"]
-    )
-    metadata = build_shell_metadata_with_slurm_dependencies(
-        task_spec["metadata"], job_ids, computer
-    )
+    computer = aiida.orm.Computer.collection.get(label=task_spec["metadata"]["computer_label"])
+    metadata = build_shell_metadata_with_slurm_dependencies(task_spec["metadata"], job_ids, computer)
 
     # Process argument placeholders
-    arguments = process_shell_argument_placeholders(
-        task_spec["arguments_template"], placeholder_to_node_key
-    )
+    arguments = process_shell_argument_placeholders(task_spec["arguments_template"], placeholder_to_node_key)
 
     # Use pre-computed outputs
     outputs = task_spec["outputs"]
 
-    print(f"DEBUG: Shell '{label}' final configuration:")
-    print(f"DEBUG:   arguments = {arguments}")
-    print(f"DEBUG:   all_nodes keys = {list(all_nodes.keys())}")
-    print(f"DEBUG:   outputs = {outputs}")
-    print(f"DEBUG:   filenames = {filenames}")
+    logger.debug("Shell '%s' final configuration:", label)
+    logger.debug("  arguments = %s", arguments)
+    logger.debug("  all_nodes keys = %s", list(all_nodes.keys()))
+    logger.debug("  outputs = %s", outputs)
+    logger.debug("  filenames = %s", filenames)
 
     # Build the shelljob NodeSpec
-    parser_outputs = [
-        output_info["name"] for output_info in output_data_info if output_info["path"]
-    ]
+    parser_outputs = [output_info["name"] for output_info in output_data_info if output_info["path"]]
 
     spec = _build_shelljob_nodespec(
         identifier=f"shelljob_{label}",
@@ -212,7 +200,7 @@ def launch_icon_task_with_dependency(
     task_spec: dict,
     input_data_nodes: Annotated[dict, dynamic(aiida.orm.Data)] | None = None,
     parent_folders: Annotated[dict, dynamic(int)] | None = None,
-    job_ids: Annotated[dict, dynamic(int)] = None,
+    job_ids: Annotated[dict, dynamic(int)] | None = None,
 ):
     """Launch an ICON task with SLURM dependencies from upstream tasks.
 
@@ -236,7 +224,7 @@ def launch_icon_task_with_dependency(
     if input_data_nodes is None:
         input_data_nodes = {}
 
-    print(f"DEBUG: Launcher for '{label}' starting...")
+    logger.debug("Launcher for '%s' starting...", label)
 
     # Load RemoteData dependencies (restart files, etc.)
     remote_data_nodes = load_icon_dependencies(
@@ -249,19 +237,14 @@ def launch_icon_task_with_dependency(
 
     # Build metadata with SLURM job dependencies
     computer = aiida.orm.Computer.collection.get(label=computer_label)
-    metadata_dict = build_icon_metadata_with_slurm_dependencies(
-        task_spec["metadata"], job_ids, computer, label
-    )
+    metadata_dict = build_icon_metadata_with_slurm_dependencies(task_spec["metadata"], job_ids, computer, label)
 
     # Prepare complete inputs dict for IconTask
     inputs = prepare_icon_task_inputs(task_spec, input_data_nodes, metadata_dict, label)
 
     # Call IconTask directly (NOT wg.add_task!)
     # This returns a TaskNode with proper output sockets
-    icon_task = IconTask(**inputs)
-
-    # Return the TaskNode (which has .outputs as sockets)
-    return icon_task
+    return IconTask(**inputs)
 
 
 def get_task_dependencies_from_workgraph(wg: WorkGraph) -> dict[str, list[str]]:
@@ -283,34 +266,34 @@ def get_task_dependencies_from_workgraph(wg: WorkGraph) -> dict[str, list[str]]:
     Returns:
         Dict mapping launcher task_name -> list of parent launcher task names
     """
-    deps = {}
+    deps: dict[str, list[str]] = {}
 
     # Build mapping: get_job_data_X -> launch_X
-    get_job_data_to_launcher = {}
-    for task in wg.tasks:
-        if task.name.startswith('get_job_data_'):
+    get_job_data_to_launcher: dict[str, str] = {}
+    for wg_task in wg.tasks:
+        if wg_task.name.startswith("get_job_data_"):
             # Extract the base name (e.g., get_job_data_icon_step1 -> icon_step1)
-            base_name = task.name.replace('get_job_data_', '')
-            launcher_name = f'launch_{base_name}'
-            get_job_data_to_launcher[task.name] = launcher_name
+            base_name = wg_task.name.replace("get_job_data_", "")
+            launcher_name = f"launch_{base_name}"
+            get_job_data_to_launcher[wg_task.name] = launcher_name
 
     # For each launcher task, find its dependencies
-    for task in wg.tasks:
-        task_name = task.name
-        if not task_name.startswith('launch_'):
+    for wg_task in wg.tasks:
+        task_name = wg_task.name
+        if not task_name.startswith("launch_"):
             continue
 
         deps[task_name] = []
 
         # Check which get_job_data tasks this launcher depends on
-        if hasattr(task.inputs, '_sockets'):
-            for socket_name, socket in task.inputs._sockets.items():
-                if hasattr(socket, 'links'):
+        if hasattr(wg_task.inputs, "_sockets"):
+            for socket in wg_task.inputs._sockets.values():  # noqa: SLF001
+                if hasattr(socket, "links"):
                     for link in socket.links:
                         parent_task_name = link.from_socket.node.name
 
                         # If parent is a get_job_data task, map it back to its launcher
-                        if parent_task_name.startswith('get_job_data_'):
+                        if parent_task_name.startswith("get_job_data_"):
                             corresponding_launcher = get_job_data_to_launcher.get(parent_task_name)
                             if corresponding_launcher and corresponding_launcher not in deps[task_name]:
                                 deps[task_name].append(corresponding_launcher)
@@ -333,27 +316,26 @@ def compute_topological_levels(task_deps: dict[str, list[str]]) -> dict[str, int
     from collections import deque
 
     levels = {}
-    in_degree = {task: len(parents) for task, parents in task_deps.items()}
+    in_degree = {task_name: len(parents) for task_name, parents in task_deps.items()}
 
     # Find all tasks with no dependencies (level 0)
-    queue = deque([task for task, degree in in_degree.items() if degree == 0])
-    for task in queue:
-        levels[task] = 0
+    queue = deque([task_name for task_name, degree in in_degree.items() if degree == 0])
+    for task_name in queue:
+        levels[task_name] = 0
 
     # Build reverse dependency graph: task -> list of tasks that depend on it
-    children = {task: [] for task in task_deps}
-    for task, parents in task_deps.items():
+    children: dict[str, list[str]] = {task_name: [] for task_name in task_deps}
+    for task_name, parents in task_deps.items():
         for parent in parents:
             if parent not in children:
                 children[parent] = []
-            children[parent].append(task)
+            children[parent].append(task_name)
 
     # Process tasks in topological order
     processed = set()
     while queue:
         current = queue.popleft()
         processed.add(current)
-        current_level = levels[current]
 
         # Update children's levels
         for child in children.get(current, []):
@@ -381,12 +363,12 @@ def build_dynamic_sirocco_workgraph(
     set_current_graph(wg)
 
     # Store get_job_data task outputs (namespace with job_id, remote_folder)
-    task_dep_info = {}
-    prev_dep_tasks = {}
+    task_dep_info: dict[str, Any] = {}
+    prev_dep_tasks: dict[str, Any] = {}
 
     # Track launcher task dependencies for rolling window
     # Maps launch_task_name -> list of parent launch_task_names
-    launcher_dependencies = {}
+    launcher_dependencies: dict[str, list[str]] = {}
 
     # Helper to get task label
     def get_label(task):
@@ -394,30 +376,26 @@ def build_dynamic_sirocco_workgraph(
 
     # Process all tasks in the workflow in cycle order
     for cycle in core_workflow.cycles:
-        for task in cycle.tasks:
-            task_label = get_label(task)
+        for core_task in cycle.tasks:
+            task_label = get_label(core_task)
 
-            print(f"DEBUG: Building dependencies for task '{task_label}'")
+            logger.debug("Building dependencies for task '%s'", task_label)
 
             # Collect AvailableData inputs
-            input_data_for_task = collect_available_data_inputs(
-                task, aiida_data_nodes, get_label
-            )
+            input_data_for_task = collect_available_data_inputs(core_task, aiida_data_nodes, get_label)
 
             # Build dependency mapping for GeneratedData inputs
-            port_to_dep_mapping, parent_folders_for_task, job_ids_for_task = (
-                build_dependency_mapping(task, core_workflow, task_dep_info, get_label)
+            port_to_dep_mapping, parent_folders_for_task, job_ids_for_task = build_dependency_mapping(
+                core_task, core_workflow, task_dep_info, get_label
             )
 
             # Track dependencies for rolling window
             # parent_folders_for_task keys are the task labels this task depends on
             launcher_name = f"launch_{task_label}"
-            launcher_dependencies[launcher_name] = [
-                f"launch_{dep_label}" for dep_label in parent_folders_for_task.keys()
-            ]
+            launcher_dependencies[launcher_name] = [f"launch_{dep_label}" for dep_label in parent_folders_for_task]
 
             # Create launcher task based on task type
-            if isinstance(task, core.IconTask):
+            if isinstance(core_task, core.IconTask):
                 task_spec = icon_task_specs[task_label]
                 task_dep_info, prev_dep_tasks = create_icon_launcher_task(
                     wg,
@@ -431,7 +409,7 @@ def build_dynamic_sirocco_workgraph(
                     prev_dep_tasks,
                 )
 
-            elif isinstance(task, core.ShellTask):
+            elif isinstance(core_task, core.ShellTask):
                 task_spec = shell_task_specs[task_label]
                 task_dep_info, prev_dep_tasks = create_shell_launcher_task(
                     wg,
@@ -446,17 +424,21 @@ def build_dynamic_sirocco_workgraph(
                 )
 
             else:
-                raise TypeError(f"Unknown task type: {type(task)}")
+                msg = f"Unknown task type: {type(core_task)}"
+                raise TypeError(msg)
 
-    print("\nDEBUG: WorkGraph build complete:")
-    print(
-        f"  Total tasks in workflow: {sum(len(cycle.tasks) for cycle in core_workflow.cycles)}"
+    logger.debug("WorkGraph build complete:")
+    logger.debug(
+        "  Total tasks in workflow: %s",
+        sum(len(cycle.tasks) for cycle in core_workflow.cycles),
     )
-    print(
-        f"  Total launcher tasks created: {len([t for t in wg.tasks if 'launch_' in t.name])}"
+    logger.debug(
+        "  Total launcher tasks created: %s",
+        len([t for t in wg.tasks if "launch_" in t.name]),
     )
-    print(
-        f"  Total get_job_data tasks created: {len([t for t in wg.tasks if 'get_job_data_' in t.name])}"
+    logger.debug(
+        "  Total get_job_data tasks created: %s",
+        len([t for t in wg.tasks if "get_job_data_" in t.name]),
     )
 
     return wg, launcher_dependencies
@@ -467,9 +449,7 @@ def build_dynamic_sirocco_workgraph(
 # =============================================================================
 
 
-def collect_available_data_inputs(
-    task: core.Task, aiida_data_nodes: dict, get_label_func
-) -> dict:
+def collect_available_data_inputs(task: core.Task, aiida_data_nodes: dict, get_label_func) -> dict:
     """Collect AvailableData input nodes for a task.
 
     Args:
@@ -485,7 +465,7 @@ def collect_available_data_inputs(
         input_label = get_label_func(input_data)
         if isinstance(input_data, core.AvailableData):
             input_data_for_task[port] = aiida_data_nodes[input_label]
-            print(f"DEBUG:   AvailableData '{port}' -> {input_label}")
+            logger.debug("  AvailableData '%s' -> %s", port, input_label)
     return input_data_for_task
 
 
@@ -503,27 +483,37 @@ def build_dependency_mapping(
     Returns:
         Tuple of (port_to_dep_mapping, parent_folders_for_task, job_ids_for_task)
     """
-    port_to_dep_mapping = {}  # {port_name: [(dep_task_label, filename, data_label), ...]}
-    parent_folders_for_task = {}  # {dep_label: remote_folder_pk}
-    job_ids_for_task = {}  # {dep_label: job_id}
+    port_to_dep_mapping: dict[str, list[tuple[str, str | None, str]]] = {}
+    parent_folders_for_task: dict[str, Any] = {}
+    job_ids_for_task: dict[str, Any] = {}
 
     for port, input_data in task.input_data_items():
         if isinstance(input_data, core.GeneratedData):
             input_data_label = get_label_func(input_data)
-            print(
-                f"DEBUG:   Processing GeneratedData '{input_data.name}' (input has no path, will get from output)"
+            logger.debug(
+                "Processing GeneratedData '%s' (input has no path, will get from output)",
+                input_data.name,
             )
 
             # Find producer task - get filename from the OUTPUT specification
             for prev_task in core_workflow.tasks:
-                for out_port, out_data in prev_task.output_data_items():
+                for _, out_data in prev_task.output_data_items():
                     if get_label_func(out_data) == input_data_label:
                         prev_task_label = get_label_func(prev_task)
 
                         # Get filename from the OUTPUT data specification
-                        filename = out_data.path.name if out_data.path else None
-                        print(
-                            f"DEBUG:   Found producer '{prev_task_label}', output path: {out_data.path}, filename: {filename}"
+                        # Only GeneratedData has a path attribute
+                        filename = None
+                        out_data_path = None
+                        if isinstance(out_data, core.GeneratedData):
+                            out_data_path = out_data.path
+                            filename = out_data.path.name if out_data.path else None
+
+                        logger.debug(
+                            "  Found producer '%s', output path: %s, filename: %s",
+                            prev_task_label,
+                            out_data_path,
+                            filename,
                         )
 
                         if prev_task_label in task_dep_info:
@@ -531,20 +521,20 @@ def build_dependency_mapping(
                             # Store as tuple: (dep_task_label, filename, data_label)
                             if port not in port_to_dep_mapping:
                                 port_to_dep_mapping[port] = []
-                            port_to_dep_mapping[port].append(
-                                (prev_task_label, filename, input_data_label)
-                            )
+                            port_to_dep_mapping[port].append((prev_task_label, filename, input_data_label))
 
                             # Add to parent_folders and job_ids (avoid duplicates)
                             if prev_task_label not in parent_folders_for_task:
                                 job_data = task_dep_info[prev_task_label]
-                                parent_folders_for_task[prev_task_label] = (
-                                    job_data.remote_folder
-                                )
+                                parent_folders_for_task[prev_task_label] = job_data.remote_folder
                                 job_ids_for_task[prev_task_label] = job_data.job_id
 
-                            print(
-                                f"DEBUG:   GeneratedData port '{port}' <- dep '{prev_task_label}' (data: {input_data.name}, filename: {filename})"
+                            logger.debug(
+                                "  GeneratedData port '%s' <- dep '%s' (data: %s, filename: %s)",
+                                port,
+                                prev_task_label,
+                                input_data.name,
+                                filename,
                             )
                         break
 
@@ -584,7 +574,7 @@ def create_icon_launcher_task(
     task_spec["port_to_dep_mapping"] = port_to_dep_mapping
 
     # Create launcher task
-    icon_launcher = wg.add_task(
+    wg.add_task(
         launch_icon_task_with_dependency,
         name=launcher_name,
         task_spec=task_spec,
@@ -609,13 +599,16 @@ def create_icon_launcher_task(
     for dep_label in parent_folders_for_task:
         if dep_label in prev_dep_tasks:
             prev_dep_tasks[dep_label] >> dep_task
-            print(f"DEBUG: Chaining {dep_label} >> {task_label}")
+            logger.debug("Chaining %s >> %s", dep_label, task_label)
 
     # Store for next iteration
     prev_dep_tasks[task_label] = dep_task
 
-    print(
-        f"DEBUG: Created ICON launcher '{launcher_name}' with {len(parent_folders_for_task)} parent_folders, {len(job_ids_for_task)} job_ids"
+    logger.debug(
+        "Created ICON launcher '%s' with %s parent_folders, %s job_ids",
+        launcher_name,
+        len(parent_folders_for_task),
+        len(job_ids_for_task),
     )
 
     return task_dep_info, prev_dep_tasks
@@ -654,7 +647,7 @@ def create_shell_launcher_task(
     task_spec["port_to_dep_mapping"] = port_to_dep_mapping
 
     # Create launcher task
-    shell_launcher = wg.add_task(
+    wg.add_task(
         launch_shell_task_with_dependency,
         name=launcher_name,
         task_spec=task_spec,
@@ -663,8 +656,10 @@ def create_shell_launcher_task(
         job_ids=job_ids_for_task if job_ids_for_task else None,
     )
 
-    print(
-        f"DEBUG: Created shell launcher '{launcher_name}' with {len(parent_folders_for_task)} parent_folders"
+    logger.debug(
+        "Created shell launcher '%s' with %s parent_folders",
+        launcher_name,
+        len(parent_folders_for_task),
     )
 
     # Create get_job_data task
@@ -687,8 +682,11 @@ def create_shell_launcher_task(
     # Store for next iteration
     prev_dep_tasks[task_label] = dep_task
 
-    print(
-        f"DEBUG: Created Shell launcher '{launcher_name}' with {len(parent_folders_for_task)} parent_folders, {len(job_ids_for_task)} job_ids"
+    logger.debug(
+        "Created Shell launcher '%s' with %s parent_folders, %s job_ids",
+        launcher_name,
+        len(parent_folders_for_task),
+        len(job_ids_for_task),
     )
 
     return task_dep_info, prev_dep_tasks
@@ -734,8 +732,7 @@ def get_aiida_label_from_graph_item(obj: core.GraphItem) -> str:
     through the replacement of invalid chars in the coordinates duplication can happen but it is unlikely.
     """
     return replace_invalid_chars_in_label(
-        f"{obj.name}"
-        + "__".join(f"_{key}_{value}" for key, value in obj.coordinates.items())
+        f"{obj.name}" + "__".join(f"_{key}_{value}" for key, value in obj.coordinates.items())
     )
 
 
@@ -808,16 +805,14 @@ def resolve_icon_restart_file(
             computer=workdir_remote_data.computer,
             remote_path=specific_file_path,
         )
-        print(
-            f"DEBUG:   Using aiida-icon determined restart file: {specific_file_path}"
-        )
-        return file_remote_data
-
-    except Exception as e:
-        print(f"DEBUG:   Failed to determine restart filename using aiida-icon: {e}")
+        logger.debug("  Using aiida-icon determined restart file: %s", specific_file_path)
+    except Exception as e:  # noqa: BLE001
+        logger.debug("  Failed to determine restart filename using aiida-icon: %s", e)
         # Fallback: use the workdir itself
-        print("DEBUG:   Falling back to workdir RemoteData (no specific filename)")
+        logger.debug("  Falling back to workdir RemoteData (no specific filename)")
         return workdir_remote_data
+    else:
+        return file_remote_data
 
 
 def load_icon_dependencies(
@@ -837,34 +832,30 @@ def load_icon_dependencies(
     Returns:
         Dict mapping port names to RemoteData nodes
     """
-    input_data_nodes = {}
+    input_data_nodes: dict[str, aiida.orm.RemoteData] = {}
 
     if not parent_folders:
         return input_data_nodes
 
     # Load RemoteData nodes from their PKs
-    parent_folders_loaded = {
-        key: aiida.orm.load_node(val.value) for key, val in parent_folders.items()
-    }
+    parent_folders_loaded = {key: aiida.orm.load_node(val.value) for key, val in parent_folders.items()}
 
-    print(f"DEBUG: '{label}' loading RemoteData from PKs...")
-    print(f"DEBUG:   port_to_dep_mapping = {port_to_dep_mapping}")
-    print(f"DEBUG:   parent_folders_loaded keys = {list(parent_folders_loaded.keys())}")
+    logger.debug("'%s' loading RemoteData from PKs...", label)
+    logger.debug("  port_to_dep_mapping = %s", port_to_dep_mapping)
+    logger.debug("  parent_folders_loaded keys = %s", list(parent_folders_loaded.keys()))
 
     for port_name, dep_info_list in port_to_dep_mapping.items():
         # dep_info_list is a list of (dep_task_label, filename, data_label) tuples
         # For ICON restart_file, should only be one dependency
         if dep_info_list:
-            dep_label, filename, data_label = dep_info_list[
-                0
-            ]  # Unpack (data_label unused for ICON)
+            dep_label, filename, data_label = dep_info_list[0]  # Unpack (data_label unused for ICON)
             if dep_label in parent_folders_loaded:
                 workdir_remote_data = parent_folders_loaded[dep_label]
                 workdir_path = workdir_remote_data.get_remote_path()
 
-                print(f"DEBUG: Processing port '{port_name}' from dep '{dep_label}'")
-                print(f"DEBUG:   Workdir RemoteData path: {workdir_path}")
-                print(f"DEBUG:   Filename from config: {filename}")
+                logger.debug("Processing port '%s' from dep '%s'", port_name, dep_label)
+                logger.debug("  Workdir RemoteData path: %s", workdir_path)
+                logger.debug("  Filename from config: %s", filename)
 
                 if filename:
                     # Create RemoteData pointing to the specific file inside the workdir
@@ -874,23 +865,21 @@ def load_icon_dependencies(
                         remote_path=specific_file_path,
                     )
                     input_data_nodes[port_name] = file_remote_data
-                    print(
-                        f"DEBUG:   Created RemoteData for specific file: {specific_file_path}"
-                    )
+                    logger.debug("  Created RemoteData for specific file: %s", specific_file_path)
                 else:
                     # No specific filename, use aiida-icon to determine restart filename
                     model_namelist_pk = model_namelist_pks.get("atm")
                     if model_namelist_pk:
-                        model_namelist_node = aiida.orm.load_node(model_namelist_pk)
-                        input_data_nodes[port_name] = resolve_icon_restart_file(
-                            workdir_path, model_namelist_node, workdir_remote_data
+                        model_namelist_node: aiida.orm.SinglefileData = aiida.orm.load_node(model_namelist_pk)  # type: ignore[assignment]
+                        input_data_nodes[port_name] = resolve_icon_restart_file(  # type: ignore[arg-type]
+                            workdir_path,
+                            model_namelist_node,
+                            workdir_remote_data,  # type: ignore[arg-type]
                         )
                     else:
                         # No model namelist, fall back to workdir
-                        input_data_nodes[port_name] = workdir_remote_data
-                        print(
-                            "DEBUG:   No model namelist for restart resolution, using workdir"
-                        )
+                        input_data_nodes[port_name] = workdir_remote_data  # type: ignore[assignment]
+                        logger.debug("  No model namelist for restart resolution, using workdir")
 
     return input_data_nodes
 
@@ -915,18 +904,18 @@ def build_icon_metadata_with_slurm_dependencies(
     if job_ids:
         dep_str = ":".join(str(jid.value) for jid in job_ids.values())
         custom_cmd = f"#SBATCH --dependency=afterok:{dep_str}"
-        print(f"DEBUG: Task {label} - Setting SLURM dependency: {custom_cmd}")
+        logger.debug("Task %s - Setting SLURM dependency: %s", label, custom_cmd)
 
         current_cmds = metadata["options"].get("custom_scheduler_commands", "")
         if current_cmds:
-            metadata["options"]["custom_scheduler_commands"] = (
-                current_cmds + f"\n{custom_cmd}"
-            )
+            metadata["options"]["custom_scheduler_commands"] = current_cmds + f"\n{custom_cmd}"
         else:
             metadata["options"]["custom_scheduler_commands"] = custom_cmd
 
-        print(
-            f"DEBUG: Task {label} - custom_scheduler_commands = {metadata['options']['custom_scheduler_commands']}"
+        logger.debug(
+            "Task %s - custom_scheduler_commands = %s",
+            label,
+            metadata["options"]["custom_scheduler_commands"],
         )
 
     return {
@@ -936,9 +925,7 @@ def build_icon_metadata_with_slurm_dependencies(
     }
 
 
-def prepare_icon_task_inputs(
-    task_spec: dict, input_data_nodes: dict, metadata_dict: dict, label: str
-) -> dict:
+def prepare_icon_task_inputs(task_spec: dict, input_data_nodes: dict, metadata_dict: dict, label: str) -> dict:
     """Prepare complete inputs dict for ICON task.
 
     Args:
@@ -961,27 +948,31 @@ def prepare_icon_task_inputs(
     for model_name, model_pk in task_spec["model_namelist_pks"].items():
         models[model_name] = aiida.orm.load_node(model_pk)
     if models:
-        inputs["models"] = models
+        inputs["models"] = models  # type: ignore[assignment]
 
     # Add wrapper script if present
     if task_spec["wrapper_script_pk"] is not None:
-        inputs["wrapper_script"] = aiida.orm.load_node(task_spec["wrapper_script_pk"])
+        inputs["wrapper_script"] = aiida.orm.load_node(task_spec["wrapper_script_pk"])  # type: ignore[assignment]
 
     # Add ALL input data nodes (both AvailableData and RemoteData for GeneratedData)
-    print(f"DEBUG: Setting ICON inputs for '{label}':")
+    logger.debug("Setting ICON inputs for '%s':", label)
     for port_name, data_node in input_data_nodes.items():
         node_type = type(data_node).__name__
         if hasattr(data_node, "get_remote_path"):
             remote_path = data_node.get_remote_path()
-            print(
-                f"DEBUG:   {port_name} = {node_type} (path: {remote_path}, pk: {data_node.pk})"
+            logger.debug(
+                "  %s = %s (path: %s, pk: %s)",
+                port_name,
+                node_type,
+                remote_path,
+                data_node.pk,
             )
         else:
-            print(f"DEBUG:   {port_name} = {node_type} (pk: {data_node.pk})")
+            logger.debug("  %s = %s (pk: %s)", port_name, node_type, data_node.pk)
         inputs[port_name] = data_node
 
     # Add metadata
-    inputs["metadata"] = metadata_dict
+    inputs["metadata"] = metadata_dict  # type: ignore[assignment]
 
     return inputs
 
@@ -1008,18 +999,16 @@ def load_and_process_shell_dependencies(
     Returns:
         Tuple of (all_nodes, placeholder_to_node_key, filenames) dicts
     """
-    all_nodes = {}
-    placeholder_to_node_key = {}
-    filenames = {}
+    all_nodes: dict[str, aiida.orm.RemoteData] = {}
+    placeholder_to_node_key: dict[str, str] = {}
+    filenames: dict[str, str] = {}
 
     # Load RemoteData nodes from their PKs
-    parent_folders_loaded = {
-        key: aiida.orm.load_node(val.value) for key, val in parent_folders.items()
-    }
+    parent_folders_loaded: dict[str, Any] = {key: aiida.orm.load_node(val.value) for key, val in parent_folders.items()}
 
-    print(f"DEBUG: Shell '{label}' loading RemoteData from PKs...")
-    print(f"DEBUG:   port_to_dep_mapping = {port_to_dep_mapping}")
-    print(f"DEBUG:   parent_folders_loaded keys = {list(parent_folders_loaded.keys())}")
+    logger.debug("Shell '%s' loading RemoteData from PKs...", label)
+    logger.debug("  port_to_dep_mapping = %s", port_to_dep_mapping)
+    logger.debug("  parent_folders_loaded keys = %s", list(parent_folders_loaded.keys()))
 
     # Process ALL dependencies: create nodes, map placeholders, and map filenames
     for port_name, dep_info_list in port_to_dep_mapping.items():
@@ -1029,9 +1018,9 @@ def load_and_process_shell_dependencies(
                 workdir_remote_data = parent_folders_loaded[dep_label]
                 workdir_path = workdir_remote_data.get_remote_path()
 
-                print(f"DEBUG: Processing dep '{dep_label}' for port '{port_name}'")
-                print(f"DEBUG:   Workdir path: {workdir_path}")
-                print(f"DEBUG:   Filename from config: {filename}")
+                logger.debug("Processing dep '%s' for port '%s'", dep_label, port_name)
+                logger.debug("  Workdir path: %s", workdir_path)
+                logger.debug("  Filename from config: %s", filename)
 
                 # Create unique key for this dependency
                 unique_key = f"{dep_label}_remote"
@@ -1044,27 +1033,32 @@ def load_and_process_shell_dependencies(
                         computer=workdir_remote_data.computer,
                         remote_path=specific_file_path,
                     )
-                    print(
-                        f"DEBUG:   Added RemoteData '{unique_key}' for specific file: {specific_file_path}"
+                    logger.debug(
+                        "  Added RemoteData '%s' for specific file: %s",
+                        unique_key,
+                        specific_file_path,
                     )
                 else:
                     # No specific filename, use the workdir itself
-                    all_nodes[unique_key] = workdir_remote_data
-                    print(
-                        f"DEBUG:   Added RemoteData '{unique_key}' for workdir: {workdir_path}"
+                    all_nodes[unique_key] = workdir_remote_data  # type: ignore[assignment]
+                    logger.debug(
+                        "  Added RemoteData '%s' for workdir: %s",
+                        unique_key,
+                        workdir_path,
                     )
 
                 # Build placeholder mapping for arguments
                 placeholder_to_node_key[data_label] = unique_key
-                print(
-                    f"DEBUG:   Mapped placeholder '{data_label}' -> node key '{unique_key}'"
-                )
+                logger.debug("  Mapped placeholder '%s' -> node key '%s'", data_label, unique_key)
 
                 # Build filename mapping (from original_filenames via data_label)
                 if data_label in original_filenames:
                     filenames[unique_key] = original_filenames[data_label]
-                    print(
-                        f"DEBUG:   Mapped filename '{data_label}' -> '{unique_key}': '{original_filenames[data_label]}'"
+                    logger.debug(
+                        "  Mapped filename '%s' -> '%s': '%s'",
+                        data_label,
+                        unique_key,
+                        original_filenames[data_label],
                     )
 
     return all_nodes, placeholder_to_node_key, filenames
@@ -1099,19 +1093,21 @@ def build_shell_metadata_with_slurm_dependencies(
         else:
             metadata["options"]["custom_scheduler_commands"] = custom_cmd
 
-        print(
-            f"DEBUG: Task {base_metadata.get('label', 'unknown')} - Setting SLURM dependency: {custom_cmd}"
+        logger.debug(
+            "Task %s - Setting SLURM dependency: %s",
+            base_metadata.get("label", "unknown"),
+            custom_cmd,
         )
-        print(
-            f"DEBUG: Task {base_metadata.get('label', 'unknown')} - custom_scheduler_commands = {metadata['options']['custom_scheduler_commands']}"
+        logger.debug(
+            "Task %s - custom_scheduler_commands = %s",
+            base_metadata.get("label", "unknown"),
+            metadata["options"]["custom_scheduler_commands"],
         )
 
     return metadata
 
 
-def process_shell_argument_placeholders(
-    arguments_template: str | None, placeholder_to_node_key: dict
-) -> list[str]:
+def process_shell_argument_placeholders(arguments_template: str | None, placeholder_to_node_key: dict) -> list[str]:
     """Process argument template and replace placeholders with actual node keys.
 
     Args:
@@ -1135,15 +1131,11 @@ def process_shell_argument_placeholders(
             if placeholder_name in placeholder_to_node_key:
                 actual_node_key = placeholder_to_node_key[placeholder_name]
                 processed_arguments.append(f"{{{actual_node_key}}}")
-                print(
-                    f"DEBUG:   Mapped argument placeholder '{arg}' -> '{{{actual_node_key}}}'"
-                )
+                logger.debug("  Mapped argument placeholder '%s' -> '{%s}'", arg, actual_node_key)
             else:
                 # Keep original if no mapping found
                 processed_arguments.append(arg)
-                print(
-                    f"DEBUG:   No mapping found for placeholder '{arg}', keeping original"
-                )
+                logger.debug("  No mapping found for placeholder '%s', keeping original", arg)
         else:
             processed_arguments.append(arg)
 
@@ -1157,19 +1149,19 @@ def process_shell_argument_placeholders(
 
 def validate_workflow(core_workflow: core.Workflow):
     """Checks if the core workflow uses valid AiiDA names for its tasks and data."""
-    for task in core_workflow.tasks:
+    for core_task in core_workflow.tasks:
         try:
-            aiida.common.validate_link_label(task.name)
+            aiida.common.validate_link_label(core_task.name)
         except ValueError as exception:
-            msg = f"Raised error when validating task name '{task.name}': {exception.args[0]}"
+            msg = f"Raised error when validating task name '{core_task.name}': {exception.args[0]}"
             raise ValueError(msg) from exception
-        for input_ in task.input_data_nodes():
+        for input_ in core_task.input_data_nodes():
             try:
                 aiida.common.validate_link_label(input_.name)
             except ValueError as exception:
                 msg = f"Raised error when validating input name '{input_.name}': {exception.args[0]}"
                 raise ValueError(msg) from exception
-        for output in task.output_data_nodes():
+        for output in core_task.output_data_nodes():
             try:
                 aiida.common.validate_link_label(output.name)
             except ValueError as exception:
@@ -1177,9 +1169,7 @@ def validate_workflow(core_workflow: core.Workflow):
                 raise ValueError(msg) from exception
 
 
-def add_aiida_input_data_node(
-    data: core.AvailableData, core_workflow: core.Workflow, aiida_data_nodes: dict
-) -> None:
+def add_aiida_input_data_node(data: core.AvailableData, core_workflow: core.Workflow, aiida_data_nodes: dict) -> None:
     """Create an `aiida.orm.Data` instance from the provided available data.
 
     Args:
@@ -1204,30 +1194,19 @@ def add_aiida_input_data_node(
 
     # Check if this data will be used by ICON tasks
     used_by_icon_task = any(
-        isinstance(task, core.IconTask) and data in task.input_data_nodes()
-        for task in core_workflow.tasks
+        isinstance(task, core.IconTask) and data in task.input_data_nodes() for task in core_workflow.tasks
     )
 
     if used_by_icon_task:
         # ICON tasks require RemoteData
-        aiida_data_nodes[label] = aiida.orm.RemoteData(
-            remote_path=str(data.path), label=label, computer=computer
-        )
-    elif (
-        computer.get_transport_class() is aiida.transports.plugins.local.LocalTransport
-    ):
+        aiida_data_nodes[label] = aiida.orm.RemoteData(remote_path=str(data.path), label=label, computer=computer)
+    elif computer.get_transport_class() is aiida.transports.plugins.local.LocalTransport:
         if data.path.is_file():
-            aiida_data_nodes[label] = aiida.orm.SinglefileData(
-                file=str(data.path), label=label
-            )
+            aiida_data_nodes[label] = aiida.orm.SinglefileData(file=str(data.path), label=label)
         else:
-            aiida_data_nodes[label] = aiida.orm.FolderData(
-                tree=str(data.path), label=label
-            )
+            aiida_data_nodes[label] = aiida.orm.FolderData(tree=str(data.path), label=label)
     else:
-        aiida_data_nodes[label] = aiida.orm.RemoteData(
-            remote_path=str(data.path), label=label, computer=computer
-        )
+        aiida_data_nodes[label] = aiida.orm.RemoteData(remote_path=str(data.path), label=label, computer=computer)
 
 
 def get_scheduler_options_from_task(task: core.Task) -> dict[str, Any]:
@@ -1258,11 +1237,7 @@ def get_scheduler_options_from_task(task: core.Task) -> dict[str, Any]:
             options["custom_scheduler_commands"] += "\n"
         options["custom_scheduler_commands"] += f"#SBATCH --view={task.view}"
 
-    if (
-        task.nodes is not None
-        or task.ntasks_per_node is not None
-        or task.cpus_per_task is not None
-    ):
+    if task.nodes is not None or task.ntasks_per_node is not None or task.cpus_per_task is not None:
         resources = {}
         if task.nodes is not None:
             resources["num_machines"] = task.nodes
@@ -1285,7 +1260,7 @@ def build_base_metadata(task: core.Task) -> dict:
     Returns:
         Metadata dict with computer_label and options
     """
-    metadata = {}
+    metadata: dict[str, Any] = {}
     metadata["options"] = {}
     metadata["options"]["account"] = task.account
     metadata["options"]["additional_retrieve_list"] = [
@@ -1348,7 +1323,7 @@ def build_shell_task_spec(task: core.ShellTask) -> dict:
     try:
         code = aiida.orm.load_code(f"code_label@{computer.label}")
     except NotExistent:
-        code = ShellCode(
+        code = ShellCode(  # type: ignore[assignment]
             label=code_label,
             computer=computer,
             filepath_executable=cmd,
@@ -1366,7 +1341,7 @@ def build_shell_task_spec(task: core.ShellTask) -> dict:
             "label": get_aiida_label_from_graph_item(input_),
             "is_available": isinstance(input_, core.AvailableData),
             "is_generated": isinstance(input_, core.GeneratedData),
-            "path": str(input_.path) if input_.path is not None else None,
+            "path": str(input_.path) if input_.path is not None else "",  # type: ignore[attr-defined]
         }
         input_data_info.append(input_info)
 
@@ -1378,14 +1353,14 @@ def build_shell_task_spec(task: core.ShellTask) -> dict:
             "coordinates": serialize_coordinates(output.coordinates),
             "label": get_aiida_label_from_graph_item(output),
             "is_generated": isinstance(output, core.GeneratedData),
-            "path": str(output.path) if output.path is not None else None,
+            "path": str(output.path) if output.path is not None else "",  # type: ignore[attr-defined]
         }
         output_data_info.append(output_info)
 
     # Build input labels for argument resolution
-    input_labels = {}
+    input_labels: dict[str, list[str]] = {}
     for input_info in input_data_info:
-        port_name = input_info["port"]
+        port_name = input_info["port"]  # type: ignore[assignment]
         input_label = input_info["label"]
         if port_name not in input_labels:
             input_labels[port_name] = []
@@ -1409,39 +1384,30 @@ def build_shell_task_spec(task: core.ShellTask) -> dict:
         if input_info["is_available"]:
             from pathlib import Path
 
-            filenames[input_info["name"]] = (
-                Path(input_info["path"]).name
-                if input_info["path"]
-                else input_info["name"]
-            )
+            filenames[input_info["name"]] = Path(input_info["path"]).name if input_info["path"] else input_info["name"]  # type: ignore[arg-type]
         elif input_info["is_generated"]:
             # Count how many inputs have the same name
-            same_name_count = sum(
-                1 for info in input_data_info if info["name"] == input_info["name"]
-            )
+            same_name_count = sum(1 for info in input_data_info if info["name"] == input_info["name"])
             if same_name_count > 1:
                 filenames[input_label] = input_label
             else:
                 from pathlib import Path
 
-                filenames[input_label] = (
-                    Path(input_info["path"]).name
-                    if input_info["path"]
-                    else input_info["name"]
-                )
+                filenames[input_label] = Path(input_info["path"]).name if input_info["path"] else input_info["name"]  # type: ignore[arg-type]
 
     # Build outputs list
-    outputs = []
-    for output_info in output_data_info:
-        if output_info["is_generated"] and output_info["path"] is not None:
-            outputs.append(output_info["path"])
+    outputs = [
+        output_info["path"]
+        for output_info in output_data_info
+        if output_info["is_generated"] and output_info["path"] is not None
+    ]
 
     # Build output port mapping: data_name -> shell output link_label
 
     output_port_mapping = {}
     for output_info in output_data_info:
         if output_info["path"]:
-            link_label = ShellParser.format_link_label(output_info["path"])
+            link_label = ShellParser.format_link_label(output_info["path"])  # type: ignore[arg-type]
             output_port_mapping[output_info["name"]] = link_label
 
     return {
@@ -1493,7 +1459,8 @@ def build_icon_task_spec(task: core.IconTask) -> dict:
             filepath_executable=str(task.bin),
             with_mpi=bool(task.mpi_cmd),
             use_double_quotes=True,
-        ).store()
+        )
+        _ = icon_code.store()
 
     # Build base metadata (no job dependencies yet)
     metadata = build_base_metadata(task)
@@ -1515,9 +1482,7 @@ def build_icon_task_spec(task: core.IconTask) -> dict:
         with io.StringIO() as buffer:
             model_nml.namelist.write(buffer)
             content = buffer.getvalue()
-            model_node = create_namelist_singlefiledata_from_content(
-                content, model_nml.name, store=True
-            )
+            model_node = create_namelist_singlefiledata_from_content(content, model_nml.name, store=True)
             model_namelist_pks[model_name] = model_node.pk
 
     # Wrapper script - store as PK if present
@@ -1591,12 +1556,12 @@ def build_sirocco_workgraph(
     # Build task specs
     shell_task_specs = {}
     icon_task_specs = {}
-    for task in core_workflow.tasks:
-        label = get_aiida_label_from_graph_item(task)
-        if isinstance(task, core.ShellTask):
-            shell_task_specs[label] = build_shell_task_spec(task)
-        elif isinstance(task, core.IconTask):
-            icon_task_specs[label] = build_icon_task_spec(task)
+    for task_ in core_workflow.tasks:
+        label = get_aiida_label_from_graph_item(task_)
+        if isinstance(task_, core.ShellTask):
+            shell_task_specs[label] = build_shell_task_spec(task_)
+        elif isinstance(task_, core.IconTask):
+            icon_task_specs[label] = build_icon_task_spec(task_)
 
     # Build the dynamic workgraph
     wg, launcher_dependencies = build_dynamic_sirocco_workgraph(
@@ -1614,33 +1579,39 @@ def build_sirocco_workgraph(
     # This is now properly serialized/deserialized by aiida-workgraph
     # (requires the extras serialization changes in workgraph.py)
     window_config = {
-        'enabled': window_size >= 0,  # Enable window for any non-negative window_size
-        'window_size': window_size,
-        'max_queued_jobs': max_queued_jobs,  # Optional hard limit on concurrent jobs
-        'task_levels': task_levels,  # Topological levels for each launcher task
+        "enabled": window_size >= 0,  # Enable window for any non-negative window_size
+        "window_size": window_size,
+        "max_queued_jobs": max_queued_jobs,  # Optional hard limit on concurrent jobs
+        "task_levels": task_levels,  # Topological levels for each launcher task
     }
 
-    wg.extras = {'window_config': window_config}
+    wg.extras = {"window_config": window_config}
 
     # Print dependency and level information
     if launcher_dependencies:
-        print(f"\nDEBUG: Task dependencies tracked:")
+        logger.debug("Task dependencies tracked:")
         for task_name, parents in sorted(launcher_dependencies.items()):
             if parents:
-                print(f"  {task_name} depends on: {', '.join(parents)}")
+                logger.debug("  %s depends on: %s", task_name, ", ".join(parents))
             else:
-                print(f"  {task_name} (no dependencies)")
+                logger.debug("  %s (no dependencies)", task_name)
 
     if task_levels:
         max_level = max(task_levels.values()) if task_levels else 0
-        print(f"\nDEBUG: Topological levels computed:")
-        print(f"  Total levels (fronts): {max_level + 1}")
-        print(f"  Window size: {window_size} fronts")
-        for level in range(min(max_level + 1, 5)):  # Show first 5 levels
-            tasks_at_level = [name for name, l in task_levels.items() if l == level]
-            print(f"  Level {level}: {len(tasks_at_level)} tasks - {', '.join(tasks_at_level)}")
-        if max_level >= 5:
-            print(f"  ... (levels {5}-{max_level})")
+        logger.debug("Topological levels computed:")
+        logger.debug("  Total levels (fronts): %s", max_level + 1)
+        logger.debug("  Window size: %s fronts", window_size)
+        max_levels_to_show = 5
+        for level in range(min(max_level + 1, max_levels_to_show)):
+            tasks_at_level = [name for name, level_num in task_levels.items() if level_num == level]
+            logger.debug(
+                "  Level %s: %s tasks - %s",
+                level,
+                len(tasks_at_level),
+                ", ".join(tasks_at_level),
+            )
+        if max_level >= max_levels_to_show:
+            logger.debug("  ... (levels %s-%s)", max_levels_to_show, max_level)
 
     return wg
 
@@ -1677,7 +1648,6 @@ def submit_sirocco_workgraph(
     """
     wg = build_sirocco_workgraph(core_workflow)
 
-    raise SystemExit
     wg.submit(inputs=inputs, wait=wait, timeout=timeout, metadata=metadata)
 
     if (output_node := wg.process) is None:

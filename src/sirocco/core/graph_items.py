@@ -3,7 +3,7 @@ from __future__ import annotations
 import enum
 from dataclasses import dataclass, field
 from itertools import chain, product
-from typing import TYPE_CHECKING, Any, ClassVar, Self, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, Self, TypeVar, cast
 
 from sirocco.parsing.target_cycle import DateList, LagList, NoTargetCycle
 from sirocco.parsing.yaml_data_models import (
@@ -176,7 +176,7 @@ class Cycle(GraphItem):
     tasks: list[Task]
 
 
-class Array[GRAPH_ITEM_T]:
+class Array(Generic[GRAPH_ITEM_T]):
     """Dictionnary of GRAPH_ITEM_T objects accessed by arbitrary dimensions"""
 
     def __init__(self, name: str) -> None:
@@ -248,7 +248,7 @@ class Array[GRAPH_ITEM_T]:
         yield from self._dict.values()
 
 
-class Store[GRAPH_ITEM_T]:
+class Store(Generic[GRAPH_ITEM_T]):
     """Container for GRAPH_ITEM_T Arrays"""
 
     def __init__(self) -> None:

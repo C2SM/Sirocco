@@ -37,7 +37,7 @@ dependencies = [
   "aiida-core @ git+https://github.com/khsrali/aiida-core.git@afed03cba3078f6818b0370fde756a6c546a9314",
   "aiida-firecrest@git+https://github.com/aiidateam/aiida-firecrest",
   "pyfirecrest",
-  "aiida-icon>=0.4.0",
+  "aiida-icon @ git+https://github.com/aiida-icon/aiida-icon.git@38df329b9baadbf3609793f10d9afaf809da3ffd",
   # "aiida-workgraph==1.0.0b4",  # need latest for presubmission
   "aiida-workgraph @ git+https://github.com/GeigerJ2/aiida-workgraph.git@f73d0036883cad42462e5c234f01e8752946eb11",
   "ipdb",
@@ -153,11 +153,16 @@ extra-dependencies = [
   "types-colorama",
   "types-Pygments",
   "types-termcolor",
-  "types-requests"
+  "types-requests",
+  "types-PyYAML"
+
 ]
 
 [tool.hatch.envs.types.scripts]
 check = "mypy --exclude 'tests/cases/*' --no-incremental {args:.}"
+
+[tool.mypy]
+disable_error_code = ["import-untyped"]
 
 [[tool.mypy.overrides]]
 module = ["isoduration", "isoduration.*"]

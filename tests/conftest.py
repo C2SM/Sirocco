@@ -72,7 +72,11 @@ def minimal_config() -> models.ConfigWorkflow:
         tasks=[models.ConfigShellTask(name="some_task", command="some_command", computer="localhost")],
         data=models.ConfigData(
             available=[
-                models.ConfigAvailableData(name="available", computer="localhost", path=pathlib.Path("/foo.txt"))
+                models.ConfigAvailableData(
+                    name="available",
+                    computer="localhost",
+                    path=pathlib.Path("/foo.txt"),
+                )
             ],
             generated=[models.ConfigGeneratedData(name="bar", path=pathlib.Path("bar"))],
         ),
@@ -108,7 +112,11 @@ def minimal_invert_task_io_config() -> models.ConfigWorkflow:
         ],
         data=models.ConfigData(
             available=[
-                models.ConfigAvailableData(name="available", computer="localhost", path=pathlib.Path("/foo.txt"))
+                models.ConfigAvailableData(
+                    name="available",
+                    computer="localhost",
+                    path=pathlib.Path("/foo.txt"),
+                )
             ],
             generated=[
                 models.ConfigGeneratedData(name="output_a", path=pathlib.Path("bar")),
@@ -145,7 +153,10 @@ def generate_config_paths(test_case: str):
 def config_paths(config_case, icon_grid_path, tmp_path, test_rootdir) -> dict[str, pathlib.Path]:
     config = generate_config_paths(config_case)
     # Copy test directory to tmp path and adapt config
-    shutil.copytree(test_rootdir / f"tests/cases/{config_case}", tmp_path / f"tests/cases/{config_case}")
+    shutil.copytree(
+        test_rootdir / f"tests/cases/{config_case}",
+        tmp_path / f"tests/cases/{config_case}",
+    )
     for key, value in config.items():
         config[key] = tmp_path / value
 
@@ -237,7 +248,10 @@ def aiida_computer_session(tmp_path_factory) -> t.Callable[[], "Computer"]:
 
         try:
             computer = Computer.collection.get(
-                label=label, hostname=hostname, scheduler_type=scheduler_type, transport_type=transport_type
+                label=label,
+                hostname=hostname,
+                scheduler_type=scheduler_type,
+                transport_type=transport_type,
             )
         except NotExistent:
             # Create a temporary directory for this computer instance
