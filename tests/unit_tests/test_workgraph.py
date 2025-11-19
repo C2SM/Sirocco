@@ -43,8 +43,19 @@ def test_shell_filenames_nodes_arguments(config_paths):
         task_spec = build_shell_task_spec(task)
         filenames_list.append(task_spec["filenames"])
         arguments_list.append(task_spec["arguments_template"])
-        # node_pks keys represent the node names
-        nodes_list.append(list(task_spec["node_pks"].keys()))
+
+        # In the new architecture, nodes come from two sources:
+        # 1. Scripts (in node_pks)
+        # 2. Input data (in input_data_info)
+        # Note: Use 'name' for AvailableData, 'label' for GeneratedData
+        nodes = list(task_spec["node_pks"].keys())
+        for input_info in task_spec["input_data_info"]:
+            # AvailableData uses simple names, GeneratedData uses full labels
+            if input_info["is_available"]:
+                nodes.append(input_info["name"])
+            else:
+                nodes.append(input_info["label"])
+        nodes_list.append(nodes)
 
     expected_filenames_list = [
         {"initial_conditions": "initial_conditions", "forcing": "forcing"},
@@ -203,8 +214,10 @@ def test_build_workgraph(config_paths):
     get_job_data_tasks = [t for t in workgraph.tasks if t.name.startswith("get_job_data_")]
 
     # Each core task should have a launcher and get_job_data task
-    assert len(launcher_tasks) == len(core_workflow.tasks)
-    assert len(get_job_data_tasks) == len(core_workflow.tasks)
+    # core_workflow.tasks is a Store object, convert to list for length
+    num_core_tasks = len(list(core_workflow.tasks))
+    assert len(launcher_tasks) == num_core_tasks
+    assert len(get_job_data_tasks) == num_core_tasks
 
     # Verify window config is stored in extras
     assert "window_config" in workgraph.extras

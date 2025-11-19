@@ -75,10 +75,20 @@ def mock_failed_run(mock_aiida_wg):
 
 
 def mock_create_aiida_workflow_factory(mock_wg):
-    """Factory function to create a mock_create_aiida_workflow function."""
+    """Factory function to create a mock_create_aiida_workflow function.
 
-    def mock_create_aiida_workflow(_workflow_file):
-        return mock_wg
+    The new create_aiida_workflow signature is:
+    create_aiida_workflow(workflow_file, window_size=1, max_queued_jobs=None)
+    and returns: tuple[core.Workflow, WorkGraph]
+    """
+    from unittest.mock import Mock
+
+    def mock_create_aiida_workflow(_workflow_file, _window_size=1, _max_queued_jobs=None):
+        # Create a mock core_workflow
+        mock_core_wf = Mock()
+        mock_core_wf.name = "test_workflow"
+        # Return tuple (core_workflow, workgraph)
+        return mock_core_wf, mock_wg
 
     return mock_create_aiida_workflow
 

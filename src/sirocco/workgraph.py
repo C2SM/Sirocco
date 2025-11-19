@@ -1537,12 +1537,19 @@ def build_sirocco_workgraph(
     Returns:
         A WorkGraph ready for submission
 
-    Example:
-        >>> from sirocco import core
-        >>> from sirocco.workgraph import build_sirocco_workgraph
-        >>> wf = core.Workflow(...)
-        >>> wg = build_sirocco_workgraph(wf, window_size=2)
-        >>> wg.submit()
+    Example::
+
+        from sirocco import core
+        from sirocco.workgraph import build_sirocco_workgraph
+
+        # Build your core workflow
+        wf = core.Workflow.from_config_file("workflow.yml")
+
+        # Build the WorkGraph with window_size=2
+        wg = build_sirocco_workgraph(wf, window_size=2)
+
+        # Submit to AiiDA daemon
+        wg.submit()
     """
     # Validate workflow
     validate_workflow(core_workflow)
@@ -1639,12 +1646,17 @@ def submit_sirocco_workgraph(
     Raises:
         RuntimeError: If submission fails
 
-    Example:
-        >>> from sirocco import core
-        >>> from sirocco.workgraph import submit_sirocco_workgraph
-        >>> wf = core.Workflow(...)
-        >>> node = submit_sirocco_workgraph(wf)
-        >>> print(f"Submitted as PK={node.pk}")
+    Example::
+
+        from sirocco import core
+        from sirocco.workgraph import submit_sirocco_workgraph
+
+        # Build your core workflow
+        wf = core.Workflow.from_config_file("workflow.yml")
+
+        # Submit the workflow
+        node = submit_sirocco_workgraph(wf)
+        print(f"Submitted as PK={node.pk}")
     """
     wg = build_sirocco_workgraph(core_workflow)
 
@@ -1675,12 +1687,17 @@ def run_sirocco_workgraph(
     Raises:
         RuntimeError: If execution fails
 
-    Example:
-        >>> from sirocco import core
-        >>> from sirocco.workgraph import run_sirocco_workgraph
-        >>> wf = core.Workflow(...)
-        >>> node = run_sirocco_workgraph(wf)
-        >>> print(f"Completed as PK={node.pk}")
+    Example::
+
+        from sirocco import core
+        from sirocco.workgraph import run_sirocco_workgraph
+
+        # Build your core workflow
+        wf = core.Workflow.from_config_file("workflow.yml")
+
+        # Run the workflow (blocking)
+        node = run_sirocco_workgraph(wf)
+        print(f"Completed as PK={node.pk}")
     """
     wg = build_sirocco_workgraph(core_workflow)
 
