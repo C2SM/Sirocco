@@ -1,3 +1,4 @@
+import logging
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -5,6 +6,11 @@ from typing import Literal, assert_never
 
 from sirocco.core.graph_items import Task, TaskStatus
 
+LOGGER = logging.getLogger(__name__)
+
+
+class SchedulerCommandError(RuntimeError):
+    ...
 
 @dataclass(kw_only=True)
 class Scheduler:
@@ -93,6 +99,15 @@ class Scheduler:
         msg = f"Scheduler {key} not implemented"
         raise NotImplementedError(msg)
 
+    @staticmethod
+    def run_command(cmd: list[str], **subprocess_kw) -> subprocess.CompletedProcess:
+        try:
+            result = subprocess.run(cmd, capture_output=True, check=True, **subprocess_kw)
+            return result
+        except subprocess.CalledProcessError as e:
+            msg = f"Command {cmd} failed with the following error:\n{e.stderr.decode()}"
+            raise SchedulerCommandError(msg)
+
 
 @dataclass(kw_only=True)
 class Slurm(Scheduler):
@@ -137,12 +152,7 @@ class Slurm(Scheduler):
         return header
 
     def submit_to_scheduler(self, task: Task) -> str:
-        result = subprocess.run(
-            ["sbatch", "--parsable", task.SUBMIT_FILENAME],  # noqa: S607
-            capture_output=True,
-            cwd=task.run_dir,
-            check=True,
-        )
+        result = self.run_command(["sbatch", "--parsable", task.SUBMIT_FILENAME], cwd=task.run_dir)
         return result.stdout.decode().strip()
 
     def cancel(self, task: Task):
@@ -151,16 +161,12 @@ class Slurm(Scheduler):
         if task.jobid == "_NO_ID_":
             msg = f"task {task.label} cannot be canceled as it does not have a jobid"
             raise ValueError(msg)
-        subprocess.run(["scancel", task.jobid], check=True)  # noqa: S607
+        self.run_command(["scancel", task.jobid])
 
     def get_status(self, task: Task) -> TaskStatus:
         """Infer task status using sacct"""
 
-        result = subprocess.run(
-            ["sacct", "-o", "state", "-p", "-j", task.jobid],  # noqa: S607
-            capture_output=True,
-            check=True,
-        )
+        result = self.run_command(["sacct", "-o", "state", "-p", "-j", task.jobid])
         status_str = result.stdout.decode().strip().split("\n")[1][:-1]
         # NOTE: For a complete list of SLURM state codes, see
         #       https://slurm.schedmd.com/job_state_codes.html
