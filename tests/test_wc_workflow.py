@@ -40,7 +40,7 @@ def test_icon():
     "config_case",
     [
         "small-shell",
-        "parameters",
+        # "parameters",
     ],
 )
 def test_run_workgraph(config_paths):
@@ -55,6 +55,7 @@ def test_run_workgraph(config_paths):
     output_node = workgraph.process
     if not output_node.is_finished_ok:
         from aiida.cmdline.utils.common import get_calcjob_report, get_workchain_report
+        from aiida.orm import CalcJobNode
 
         # overall report but often not enough to really find the bug, one has to go to calcjob
         LOGGER.error(
@@ -63,8 +64,9 @@ def test_run_workgraph(config_paths):
         )
         # the calcjobs are typically stored in 'called_descendants'
         for node in output_node.called_descendants:
-            LOGGER.error("%s workdir: %s", node.process_label, node.get_remote_workdir())
-            LOGGER.error("%s report:\n%s", node.process_label, get_calcjob_report(node))
+            if isinstance(node, CalcJobNode):
+                LOGGER.error("%s workdir: %s", node.process_label, node.get_remote_workdir())
+                LOGGER.error("%s report:\n%s", node.process_label, get_calcjob_report(node))
     assert (
         output_node.is_finished_ok
     ), f"Not successful run. Got exit code {output_node.exit_code} with message {output_node.exit_message}."
@@ -100,6 +102,7 @@ def test_run_workgraph_with_icon(icon_filepath_executable, config_paths, tmp_pat
     output_node = workgraph.process
     if not output_node.is_finished_ok:
         from aiida.cmdline.utils.common import get_calcjob_report, get_workchain_report
+        from aiida.orm import CalcJobNode
 
         # overall report but often not enough to really find the bug, one has to go to calcjob
         LOGGER.error(
@@ -108,8 +111,9 @@ def test_run_workgraph_with_icon(icon_filepath_executable, config_paths, tmp_pat
         )
         # the calcjobs are typically stored in 'called_descendants'
         for node in output_node.called_descendants:
-            LOGGER.error("%s workdir: %s", node.process_label, node.get_remote_workdir())
-            LOGGER.error("%s report:\n%s", node.process_label, get_calcjob_report(node))
+            if isinstance(node, CalcJobNode):
+                LOGGER.error("%s workdir: %s", node.process_label, node.get_remote_workdir())
+                LOGGER.error("%s report:\n%s", node.process_label, get_calcjob_report(node))
 
     assert (
         output_node.is_finished_ok

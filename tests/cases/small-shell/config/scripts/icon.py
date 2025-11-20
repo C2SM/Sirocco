@@ -11,6 +11,7 @@ options:
 """
 
 import argparse
+import time
 from pathlib import Path
 
 LOG_FILE = Path("icon.log")
@@ -30,6 +31,9 @@ def main():
     parser.add_argument("--forcing", nargs="?", type=str, help="The icon forcing file.")
 
     args = parser.parse_args()
+
+    # Sleep to simulate computation time and allow job monitoring to catch the job
+    time.sleep(5)
 
     output = Path("icon_output")
     output.write_text("")

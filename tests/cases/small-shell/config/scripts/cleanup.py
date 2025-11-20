@@ -1,7 +1,12 @@
 #!/usr/bin/env python
 
+import time
+
 
 def main():
+    # Sleep to simulate computation time and allow job monitoring to catch the job
+    time.sleep(5)
+
     # Main script execution continues here
     print("Cleaning")
 

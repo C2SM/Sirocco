@@ -132,9 +132,20 @@ def launch_shell_task_with_dependency(
     # Load nodes from PKs and initialize structures
     all_nodes = {key: aiida.orm.load_node(pk) for key, pk in task_spec["node_pks"].items()}
 
-    # Add AvailableData nodes passed as parameter
+    # Add AvailableData nodes passed as parameter, remapping from port names to data labels
+    # so they match the placeholders in arguments (which use data labels)
     if input_data_nodes:
-        all_nodes.update(input_data_nodes)
+        # Build mapping from port names to data labels for AvailableData
+        port_to_label = {}
+        for input_info in task_spec["input_data_info"]:
+            if input_info["is_available"]:
+                port_to_label[input_info["port"]] = input_info["label"]
+
+        # Add nodes with data labels as keys (not port names)
+        for port_name, node in input_data_nodes.items():
+            data_label = port_to_label.get(port_name, port_name)
+            all_nodes[data_label] = node
+            logger.debug("  Mapped AvailableData port '%s' -> key '%s'", port_name, data_label)
 
     # Process dependencies if present
     placeholder_to_node_key: dict[str, str] = {}
@@ -465,7 +476,7 @@ def collect_available_data_inputs(task: core.Task, aiida_data_nodes: dict, get_l
         input_label = get_label_func(input_data)
         if isinstance(input_data, core.AvailableData):
             input_data_for_task[port] = aiida_data_nodes[input_label]
-            logger.debug("  AvailableData '%s' -> %s", port, input_label)
+            logger.debug("  AvailableData port '%s' -> data label '%s'", port, input_label)
     return input_data_for_task
 
 
