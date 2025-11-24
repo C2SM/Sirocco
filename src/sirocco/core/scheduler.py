@@ -152,7 +152,7 @@ class Slurm(Scheduler):
         return header
 
     def submit_to_scheduler(self, task: Task) -> str:
-        result = self.run_command(["sbatch", "--parsable", task.SUBMIT_FILENAME], cwd=task.run_dir)
+        result = self.run_command(["env", "--ignore-environment", "sbatch", "--parsable", task.SUBMIT_FILENAME], cwd=task.run_dir)
         return result.stdout.decode().strip()
 
     def cancel(self, task: Task):
