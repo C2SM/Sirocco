@@ -154,9 +154,9 @@ class Slurm(Scheduler):
     def submit_to_scheduler(self, task: Task) -> str:
         submit_cmd: list[str] = [self.sbatch, "--parsable"]
         if uenv := task.uenv:
-            submit_cmd.append(f" --uenv=\"{uenv}\"")
+            submit_cmd.append(f"--uenv={uenv}")
         if view := task.view:
-            submit_cmd.append(f" --view=\"{view}\"")
+            submit_cmd.append(f"--view={view}")
         submit_cmd.append(task.SUBMIT_FILENAME)
 
         result = self.run_command(submit_cmd, cwd=task.run_dir)
