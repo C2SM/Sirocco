@@ -111,6 +111,10 @@ class Scheduler:
 
 @dataclass(kw_only=True)
 class Slurm(Scheduler):
+
+    def __post_init__(self):
+        self.sbatch = shutil.which("sbatch")
+
     def header_lines(
         self,
         task: Task,
@@ -152,7 +156,7 @@ class Slurm(Scheduler):
         return header
 
     def submit_to_scheduler(self, task: Task) -> str:
-        result = self.run_command(["env", "--ignore-environment", "sbatch", "--parsable", task.SUBMIT_FILENAME], cwd=task.run_dir)
+        result = self.run_command(["env", "--ignore-environment", self.sbatch, "--parsable", task.SUBMIT_FILENAME], cwd=task.run_dir)
         return result.stdout.decode().strip()
 
     def cancel(self, task: Task):
