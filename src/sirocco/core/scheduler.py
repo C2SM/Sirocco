@@ -134,10 +134,6 @@ class Slurm(Scheduler):
             header.append(f"#SBATCH --nodes={nodes}")
         if ntasks_per_node := task.ntasks_per_node:
             header.append(f"#SBATCH --ntasks-per-node={ntasks_per_node}")
-        if uenv := task.uenv:
-            header.append(f"#SBATCH --uenv={uenv}")
-        if view := task.view:
-            header.append(f"#SBATCH --view={view}")
         if output_mode == "append":
             header.append("#SBATCH --open-mode=append")
         if parent_ids := [parent.jobid for parent in task.parents if parent.rank >= 0]:
@@ -156,7 +152,14 @@ class Slurm(Scheduler):
         return header
 
     def submit_to_scheduler(self, task: Task) -> str:
-        result = self.run_command(["env", "--ignore-environment", "HOME=$HOME", self.sbatch, "--parsable", task.SUBMIT_FILENAME], cwd=task.run_dir)
+        submit_cmd: list[str] = [self.sbatch, "--parsable"]
+        if uenv := task.uenv:
+            submit_cmd.append(f" --uenv={uenv}")
+        if view := task.view:
+            submit_cmd.append(f" --view={view}")
+        submit_cmd.append(task.SUBMIT_FILENAME)
+
+        result = self.run_command(submit_cmd, cwd=task.run_dir)
         return result.stdout.decode().strip()
 
     def cancel(self, task: Task):
