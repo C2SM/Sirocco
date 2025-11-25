@@ -18,7 +18,7 @@ install_rich_traceback(show_locals=False)
 
 # Create the Typer app instance
 app = typer.Typer(
-    help="Sirocco Weather and Climate Workflow Management Tool.",
+    help="Sirocco Climate and Weather Workflow Management Tool.",
     add_completion=True,
 )
 
@@ -174,7 +174,7 @@ def represent(
         raise typer.Exit(code=1) from e
 
 
-@app.command(help="Run the workflow in a blocking fashion.")
+@app.command(help="Run the workflow in a blocking fashion. [AiiDA]")
 def run(
     workflow_file: Annotated[
         Path,
@@ -201,7 +201,7 @@ def run(
         raise typer.Exit(code=1) from e
 
 
-@app.command(help="Submit the workflow to the AiiDA daemon.")
+@app.command(help="Submit the workflow to the AiiDA daemon. [AiiDA]")
 def submit(
     workflow_file: Annotated[
         Path,
@@ -232,7 +232,7 @@ def submit(
         raise typer.Exit(code=1) from e
 
 
-@app.command(help="Start a standalone workflow.")
+@app.command(help="Start a workflow. [standalone]")
 def start(
     workflow_file: Annotated[
         Path,
@@ -281,7 +281,7 @@ def start(
         logfile.write(console.export_text(clear=True))
 
 
-@app.command(help="Start a standalone workflow.")
+@app.command(help="Restart a stopped workflow. [standalone]")
 def restart(
     workflow_file: Annotated[
         Path,
@@ -316,7 +316,7 @@ def restart(
         logfile.write(console.export_text(clear=True))
 
 
-@app.command(help="Stop a standalone workflow.")
+@app.command(help="Stop a workflow. [standalone]")
 def stop(
     workflow_file: Annotated[
         Path,
@@ -360,7 +360,7 @@ def stop(
         logfile.write(console.export_text(clear=True))
 
 
-@app.command(name="continue", help="Continue a standalone workflow.")
+@app.command(name="continue", hidden=True)
 def continue_wf(
     workflow_file: Annotated[
         Path,

@@ -9,20 +9,21 @@ from sirocco.parsing import yaml_data_models as models
 # reasons eventhough it's not allowed to be part of the graph
 @dataclass(kw_only=True)
 class SiroccoContinueTask(models.ConfigSiroccoTaskSpecs, Task):
-    """Special Task for orchestrating the workflow"""
+    """Special Sirocco Task for continuing the workflow"""
 
-    SUBMIT_FILENAME: ClassVar[str] = field(default="sirocco_run_script.sh", repr=False)
+    SUBMIT_FILENAME: ClassVar[str] = field(default=".sirocco_continue.sh", repr=False)
     STDOUTERR_FILENAME: ClassVar[str] = field(default="sirocco.log", repr=False)
     CLEAN_UP_BEFORE_SUBMIT: ClassVar[bool] = field(default=False, repr=False)  # Clean up directory when submitting
+    LOCK_FILE_NAME: ClassVar[str] = field(default=".sirocco.lock", repr=False)
 
     name: str = "SIROCCO"
-    computer: str = "dummy"
+    computer: str | None = "dummy"
     rank: int = 0
     config_filename: str
 
     def __post_init__(self) -> None:
-        self.label = "Sirocco"
         self.run_dir = self.config_rootdir
+        self.label = "Sirocco_continue"
 
     def resolve_output_data_paths(self) -> None:
         pass
@@ -31,8 +32,8 @@ class SiroccoContinueTask(models.ConfigSiroccoTaskSpecs, Task):
         pass
 
     def runscript_lines(self) -> list[str]:
-        script_lines = []
+        script_lines: list[str] = []
         if self.venv:
             script_lines.append(f"source {self.venv}")
-        script_lines.append(f"sirocco continue --from_wf {self.config_rootdir}/{self.config_filename}")
+        script_lines.append(f"sirocco continue --from_wf {self.config_filename} || exit")
         return script_lines

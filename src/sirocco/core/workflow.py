@@ -37,14 +37,15 @@ class WorkflowStatus(enum.Enum):
     COMPLETED = 2
     FAILED = 3
     STOPPED = 4
-    RESTART_FAILED = 5
+    STOPPING = 5
+    RESTART_FAILED = 6
 
 
 class Workflow:
     """Internal representation of a workflow"""
 
     RUN_ROOT: str = Task.RUN_ROOT
-    STATE_FILE: str = "state.yaml"
+    STATE_FILE_NAME: str = "state.yaml"
 
     def __init__(
         self,
@@ -153,35 +154,59 @@ class Workflow:
             **config_kwargs,
         )
 
+    @property
+    def config_rootdir(self) -> Path:
+        return self._config_rootdir
+
+    @property
+    def rundir(self) -> Path:
+        return self.config_rootdir / self.RUN_ROOT
+
+    @property
+    def state_file(self) -> Path:
+        return self.rundir / self.STATE_FILE_NAME
+
+    @property
+    def lock_file(self) -> Path:
+        return self.rundir / SiroccoContinueTask.LOCK_FILE_NAME
+
+    @property
+    def locked(self) -> bool:
+        return self.lock_file.exists()
+
     # =========== Methods to control workflow ===========
 
     def start(self, log_type: Literal["std", "tee"] = "tee") -> None:
         logger = self.get_logger(log_type)
-        if (self.config_rootdir / self.RUN_ROOT).exists():
-            msg = "Workflow already exists, cannot start"
-            raise ValueError(msg)
         self.init_front(logger=logger)
         self.auto_submit()
         self.dump_state()
 
     def continue_wf(self, log_type: Literal["std", "tee"] = "std") -> None:  # NOTE: cannot use "continue"
         logger = self.get_logger(log_type)
+        if not self.locked:
+            self.lock()
+        else:
+            msg = "Workflow getting stopped, not continuing"
+            logger.info(msg)
+            self.status = WorkflowStatus.STOPPING
+            return
+
         self.load_state()
         self.propagate_front(logger=logger)
         self.auto_submit()
+        self.dump_state()
+        self.unlock()
 
     def restart(self, log_type: Literal["std", "tee"] = "tee") -> None:
         self.load_state()
         logger = self.get_logger(log_type)
-        if self.sirocco_continue_task.jobid != "_NO_ID_" and self.scheduler.get_status(self.sirocco_continue_task) in (
-            TaskStatus.RUNNING,
-            TaskStatus.WAITING,
-        ):
+        if self.sirocco_continue_task.jobid != "_NO_ID_":
             msg = "Workflow ongoing, cannot restart"
             logger.error(msg)
             self.status = WorkflowStatus.RESTART_FAILED
             return
-        if not (self.config_rootdir / self.RUN_ROOT).exists():
+        if not self.rundir.exists():
             msg = "Workflow did not start, cannot restart"
             logger.error(msg)
             self.status = WorkflowStatus.RESTART_FAILED
@@ -189,27 +214,32 @@ class Workflow:
         self.restart_front(logger=logger)
         self.propagate_front(logger=logger)
         self.auto_submit()
+        self.dump_state()
 
     def stop(self, mode: Literal["cancel", "cool-down"], log_type: Literal["std", "tee"] = "tee") -> None:
         self.load_state()
-        if not (self.config_rootdir / self.RUN_ROOT).exists():
+        if not self.rundir.exists():
             msg = "Workflow did not start, cannot stop"
             raise ValueError(msg)
         logger = self.get_logger(log_type)
+        if not self.locked:
+            self.lock()
+        else:
+            msg = "Workflow continuaiton ongoing, please retry"
+            logger.info(msg)
+            self.status = WorkflowStatus.CONTINUE
+            return
         if self.sirocco_continue_task.jobid == "_NO_ID_":
             msg = "Workflow not running, no need to stop"
             logger.error(msg)
-            return
-        if self.scheduler.get_status(self.sirocco_continue_task) == TaskStatus.RUNNING:
-            msg = "Sirocco task running, cannot stop workflow. Please retry"
-            logger.error(msg)
-            self.status = WorkflowStatus.CONTINUE
+            self.unlock()
             return
         self.scheduler.cancel(self.sirocco_continue_task)
         self.cancel_all_tasks(mode=mode, logger=logger)
         self.status = WorkflowStatus.STOPPED
         self.sirocco_continue_task.jobid = "_NO_ID_"
         self.dump_state()
+        self.unlock()
 
     # =========== Helper methods for workflow control ===========
 
@@ -235,6 +265,12 @@ class Workflow:
 
         return logger
 
+    def lock(self) -> None:
+        self.lock_file.touch()
+
+    def unlock(self) -> None:
+        self.lock_file.unlink()
+
     def dump_state(self) -> None:
         yaml_front: list[list[dict[str, dict[str, Any]]]] = [[] for _ in range(self.front_depth)]
         yaml_completed_tasks = [task.to_yaml_state() for task in self.completed_tasks]
@@ -247,11 +283,11 @@ class Workflow:
                 "cool_down_tasks": yaml_cool_down_tasks,
                 "front": yaml_front,
             },
-            self.config_rootdir / self.RUN_ROOT / self.STATE_FILE,
+            self.state_file,
         )
 
     def load_state(self) -> None:
-        yaml_state = YAML().load(self.config_rootdir / self.RUN_ROOT / self.STATE_FILE)
+        yaml_state = YAML().load(self.state_file)
         self.sirocco_continue_task.jobid = yaml_state["sirocco_jobid"]
         self.completed_tasks = [self.task_from_yaml_state(yaml_task, -1) for yaml_task in yaml_state["completed_tasks"]]
         self.cool_down_tasks = [self.task_from_yaml_state(yaml_task, 0) for yaml_task in yaml_state["cool_down_tasks"]]
@@ -384,11 +420,6 @@ class Workflow:
         else:
             self.sirocco_continue_task.jobid = "_NO_ID_"
             self.status = WorkflowStatus.COMPLETED
-        self.dump_state()
-
-    @property
-    def config_rootdir(self) -> Path:
-        return self._config_rootdir
 
     @classmethod
     def from_config_file(

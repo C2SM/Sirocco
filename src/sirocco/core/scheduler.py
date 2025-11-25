@@ -9,8 +9,8 @@ from sirocco.core.graph_items import Task, TaskStatus
 LOGGER = logging.getLogger(__name__)
 
 
-class SchedulerCommandError(RuntimeError):
-    ...
+class SchedulerCommandError(RuntimeError): ...
+
 
 @dataclass(kw_only=True)
 class Scheduler:
@@ -102,19 +102,14 @@ class Scheduler:
     @staticmethod
     def run_command(cmd: list[str], **subprocess_kw) -> subprocess.CompletedProcess:
         try:
-            result = subprocess.run(cmd, capture_output=True, check=True, **subprocess_kw)
-            return result
+            return subprocess.run(cmd, capture_output=True, check=True, **subprocess_kw)
         except subprocess.CalledProcessError as e:
             msg = f"Command {cmd} failed with the following error:\n{e.stderr.decode()}"
-            raise SchedulerCommandError(msg)
+            raise SchedulerCommandError(msg) from e
 
 
 @dataclass(kw_only=True)
 class Slurm(Scheduler):
-
-    def __post_init__(self):
-        self.sbatch = shutil.which("sbatch")
-
     def header_lines(
         self,
         task: Task,
@@ -152,7 +147,7 @@ class Slurm(Scheduler):
         return header
 
     def submit_to_scheduler(self, task: Task) -> str:
-        submit_cmd: list[str] = [self.sbatch, "--parsable"]
+        submit_cmd: list[str] = ["sbatch", "--parsable"]
         if uenv := task.uenv:
             submit_cmd.append(f"--uenv={uenv}")
         if view := task.view:
