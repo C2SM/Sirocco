@@ -35,7 +35,8 @@ dependencies = [
   "ruamel.yaml",
   # "aiida-core>=2.5",
     # "yourpackage @ git+https://github.com/yourname/your-fork.git@your-branch",
-  "aiida-core @ git+https://github.com/khsrali/aiida-core.git@scheduler_prejudice_bug",
+  # "aiida-core @ git+https://github.com/khsrali/aiida-core.git@scheduler_prejudice_bug",
+  "aiida-core @ git+https://github.com/khsrali/aiida-core.git@aaf42fa0526af8c7b4ef496f736de1f26373af24",  # scheduler_prejudice_bug, sleep solution
   "aiida-firecrest@git+https://github.com/aiidateam/aiida-firecrest",
   "pyfirecrest",
   "aiida-icon @ git+https://github.com/aiida-icon/aiida-icon.git@38df329b9baadbf3609793f10d9afaf809da3ffd",
