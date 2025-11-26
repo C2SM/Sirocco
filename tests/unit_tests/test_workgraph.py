@@ -224,7 +224,7 @@ def test_build_workgraph(config_paths):
     window_config = workgraph.extras["window_config"]
     assert "enabled" in window_config
     assert "window_size" in window_config
-    assert "task_levels" in window_config
+    assert "task_dependencies" in window_config
 
 
 @pytest.mark.usefixtures("config_case", "aiida_localhost", "aiida_remote_computer")

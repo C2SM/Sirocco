@@ -440,15 +440,15 @@ def build_dynamic_sirocco_workgraph(
 
     logger.debug("WorkGraph build complete:")
     logger.debug(
-        "  Total tasks in workflow: %s",
+        "Total tasks in workflow: %s",
         sum(len(cycle.tasks) for cycle in core_workflow.cycles),
     )
     logger.debug(
-        "  Total launcher tasks created: %s",
+        "Total launcher tasks created: %s",
         len([t for t in wg.tasks if "launch_" in t.name]),
     )
     logger.debug(
-        "  Total get_job_data tasks created: %s",
+        "Total get_job_data tasks created: %s",
         len([t for t in wg.tasks if "get_job_data_" in t.name]),
     )
 
@@ -1589,23 +1589,20 @@ def build_sirocco_workgraph(
         icon_task_specs=icon_task_specs,
     )
 
-    # Compute topological levels for rolling window submission
-    # Use the dependencies tracked during workgraph building
-    task_levels = compute_topological_levels(launcher_dependencies)
-
     # Store window configuration in WorkGraph extras
     # This is now properly serialized/deserialized by aiida-workgraph
     # (requires the extras serialization changes in workgraph.py)
+    # Levels will be computed dynamically at runtime by TaskManager
     window_config = {
         "enabled": window_size >= 0,  # Enable window for any non-negative window_size
         "window_size": window_size,
         "max_queued_jobs": max_queued_jobs,  # Optional hard limit on concurrent jobs
-        "task_levels": task_levels,  # Topological levels for each launcher task
+        "task_dependencies": launcher_dependencies,  # Dependency graph for dynamic level computation
     }
 
     wg.extras = {"window_config": window_config}
 
-    # Print dependency and level information
+    # Print dependency information
     if launcher_dependencies:
         logger.debug("Task dependencies tracked:")
         for task_name, parents in sorted(launcher_dependencies.items()):
@@ -1613,23 +1610,8 @@ def build_sirocco_workgraph(
                 logger.debug("  %s depends on: %s", task_name, ", ".join(parents))
             else:
                 logger.debug("  %s (no dependencies)", task_name)
-
-    if task_levels:
-        max_level = max(task_levels.values()) if task_levels else 0
-        logger.debug("Topological levels computed:")
-        logger.debug("  Total levels (fronts): %s", max_level + 1)
-        logger.debug("  Window size: %s fronts", window_size)
-        max_levels_to_show = 5
-        for level in range(min(max_level + 1, max_levels_to_show)):
-            tasks_at_level = [name for name, level_num in task_levels.items() if level_num == level]
-            logger.debug(
-                "  Level %s: %s tasks - %s",
-                level,
-                len(tasks_at_level),
-                ", ".join(tasks_at_level),
-            )
-        if max_level >= max_levels_to_show:
-            logger.debug("  ... (levels %s-%s)", max_levels_to_show, max_level)
+        logger.debug("  Window size: %s levels", window_size)
+        logger.debug("  Note: Topological levels will be computed dynamically at runtime")
 
     return wg
 
