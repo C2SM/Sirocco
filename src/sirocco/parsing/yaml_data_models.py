@@ -327,7 +327,7 @@ class ConfigRootTask(ConfigBaseTask):
 
 @dataclass(kw_only=True)
 class ConfigSiroccoTaskSpecs:
-    plugin: ClassVar[Literal["_sirocco"]] = "_sirocco"
+    plugin: ClassVar[Literal["_sirocco", "sirocco_continue"]] = "_sirocco"
     venv: Path | None = field(default=None, repr=False)
 
 

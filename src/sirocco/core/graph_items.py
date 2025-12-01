@@ -4,7 +4,7 @@ import enum
 from dataclasses import dataclass, field
 from itertools import chain, product
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, TypeAlias, TypeVar, cast
 
 from sirocco.parsing import cycling
 from sirocco.parsing.target_cycle import DateList, LagList, NoTargetCycle
@@ -42,7 +42,8 @@ class TaskStatus(enum.Enum):
     COMPLETED = 2
     FAILED = 3
 
-
+viz_status_t: TypeAlias = Literal["undefined", "active", "waiting", "inactive"]
+    
 @dataclass(kw_only=True)
 class GraphItem:
     """base class for Data Tasks and Cycles"""
@@ -52,6 +53,7 @@ class GraphItem:
     name: str
     coordinates: dict
     label: str = field(init=False, repr=False)
+    viz_status: viz_status_t = field(default="undefined", repr=False)
 
     def __post_init__(self):
         self.label = self.name
@@ -135,6 +137,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     jobid: str = field(default="_NO_ID_", repr=False)
     rank: int = field(init=False, repr=False)
     cycle_point: CyclePoint
+    cycle: Cycle = field(init=False, repr=False)
 
     inputs: dict[str, list[Data]] = field(default_factory=dict)
     outputs: dict[str | None, list[GeneratedData]] = field(default_factory=dict)
@@ -240,25 +243,15 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
 
     def link_parents_children(self) -> None:
         # Parent tasks
-        self.parents = self.unique_task_list(
+        self.parents = unique_item_list(
             chain(
                 self.wait_on,
                 (data_in.origin_task for data_in in self.input_data_nodes() if isinstance(data_in, GeneratedData)),
             )
         )
-        self.children = self.unique_task_list(
+        self.children = unique_item_list(
             chain(self.waiters, *chain(data_out.downstream_tasks for data_out in self.output_data_nodes()))
         )
-
-    @staticmethod
-    def unique_task_list(task_candidates: Iterator[Task]) -> list[Task]:
-        unique_labels: list[str] = []
-        unique_tasks: list[Task] = []
-        for task in task_candidates:
-            if task.label not in unique_labels:
-                unique_labels.append(task.label)
-                unique_tasks.append(task)
-        return unique_tasks
 
     def sirocco_environemnt(self) -> list[str]:
         # TODO: Add parameters
@@ -293,6 +286,11 @@ class Cycle(GraphItem):
     color: ClassVar[str] = field(default="light_green", repr=False)
 
     tasks: list[Task]
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        for task in self.tasks:
+            task.cycle = self
 
 
 class Array[GRAPH_ITEM_T]:
@@ -393,3 +391,13 @@ class Store[GRAPH_ITEM_T]:
 
     def __iter__(self) -> Iterator[GRAPH_ITEM_T]:
         yield from chain(*(self._dict.values()))
+
+
+def unique_item_list(item_candidates: Iterator[GRAPH_ITEM_T]) -> list[GRAPH_ITEM_T]:
+    unique_labels: list[str] = []
+    unique_items: list[GRAPH_ITEM_T] = []
+    for item in item_candidates:
+        if item.label not in unique_labels:
+            unique_labels.append(item.label)
+            unique_items.append(item)
+    return unique_items

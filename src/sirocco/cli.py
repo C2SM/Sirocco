@@ -401,6 +401,34 @@ def continue_wf(
         raise typer.Exit(code=1) from e
 
 
+@app.command(help="Visualize workflow status. [standalone]")
+def stviz(
+    workflow_file: Annotated[
+        Path,
+        typer.Argument(
+            ...,
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            help="Path to the workflow definition YAML file.",
+        ),
+    ],
+):
+    console.print(f"📊 Visualizing workflow status from: [cyan]{workflow_file!s}[/cyan]")
+    try:
+        wf = core.Workflow.from_config_file(workflow_file)
+        wf.load_state()
+        viz_graph = vizgraph.VizGraph.from_status_workflow(wf)
+        viz_graph.draw(file_path=Path("./status.svg"))
+        console.print("[green]✅ Status visualization saved to:[/green] [cyan]./status.svg[/cyan]")
+
+    except Exception as e:
+        console.print("[bold red]❌ Failed to generate status visualization:[/bold red]")
+        console.print_exception()
+        raise typer.Exit(code=1) from e
+
+
 def add_now(width: int = 20) -> str:
     rule = width * "─"
     space = width * " "

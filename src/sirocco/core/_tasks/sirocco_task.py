@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import ClassVar
+from typing import ClassVar, Literal
 
 from sirocco.core.graph_items import Task
 from sirocco.parsing import yaml_data_models as models
@@ -11,6 +11,7 @@ from sirocco.parsing import yaml_data_models as models
 class SiroccoContinueTask(models.ConfigSiroccoTaskSpecs, Task):
     """Special Sirocco Task for continuing the workflow"""
 
+    plugin: ClassVar[Literal["_sirocco", "sirocco_continue"]] = "sirocco_continue"
     SUBMIT_FILENAME: ClassVar[str] = field(default=".sirocco_continue.sh", repr=False)
     STDOUTERR_FILENAME: ClassVar[str] = field(default="sirocco.log", repr=False)
     CLEAN_UP_BEFORE_SUBMIT: ClassVar[bool] = field(default=False, repr=False)  # Clean up directory when submitting
