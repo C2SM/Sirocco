@@ -42,8 +42,10 @@ class TaskStatus(enum.Enum):
     COMPLETED = 2
     FAILED = 3
 
-viz_status_t: TypeAlias = Literal["undefined", "active", "waiting", "inactive"]
-    
+
+VIZ_STATUS_T: TypeAlias = Literal["undefined", "active", "waiting", "inactive"]
+
+
 @dataclass(kw_only=True)
 class GraphItem:
     """base class for Data Tasks and Cycles"""
@@ -53,7 +55,7 @@ class GraphItem:
     name: str
     coordinates: dict
     label: str = field(init=False, repr=False)
-    viz_status: viz_status_t = field(default="undefined", repr=False)
+    viz_status: VIZ_STATUS_T = field(default="undefined", repr=False)
 
     def __post_init__(self):
         self.label = self.name

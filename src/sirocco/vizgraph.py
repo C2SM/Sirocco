@@ -4,7 +4,7 @@ import enum
 from colorsys import hsv_to_rgb
 from itertools import chain
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Self
+from typing import TYPE_CHECKING, Any, ClassVar, Self
 
 from lxml import etree
 from pygraphviz import AGraph
@@ -13,7 +13,8 @@ from sirocco import core
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
-    from core.graph_items import viz_status_t, GRAPH_ITEM_T
+
+    from sirocco.core.graph_items import GRAPH_ITEM_T, VIZ_STATUS_T
 
 
 def hsv_to_hex(h: float, s: float, v: float) -> str:
@@ -21,9 +22,7 @@ def hsv_to_hex(h: float, s: float, v: float) -> str:
     return "#{:02x}{:02x}{:02x}".format(*map(round, (255 * r, 255 * g, 255 * b)))
 
 
-def node_colors(
-    h: float, *, status: viz_status_t = "undefined"
-) -> dict[str, str]:
+def node_colors(h: float, *, status: VIZ_STATUS_T = "undefined") -> dict[str, str]:
     match status:
         case "undefined" | "waiting":
             fill = hsv_to_hex(h / 365, 0.15, 1)
@@ -40,9 +39,7 @@ def node_colors(
     return {"fillcolor": fill, "color": border, "fontcolor": font}
 
 
-def edge_color(
-    h: float, *, status: viz_status_t = "undefined"
-) -> dict[str, str]:
+def edge_color(h: float, *, status: VIZ_STATUS_T = "undefined") -> dict[str, str]:
     match status:
         case "undefined" | "waiting":
             color = hsv_to_hex(h / 365, 0.05, 0.5)
@@ -63,21 +60,19 @@ class Hue(enum.Enum):
 
 class EdgeFace(enum.Enum):
     _value_: dict[str, Any]
-    __EDGE = {"penwidth": 1.5}  # noqa: RUF012
-    __ACTIVE = {"penwidth": 2}  # noqa: RUF012
-    __WAIT = {"style": "dashed"}  # noqa: RUF012
+    __EDGE: ClassVar = {"penwidth": 1.5}
+    __ACTIVE: ClassVar = {"penwidth": 2}
+    __WAIT: ClassVar = {"style": "dashed"}
 
-    EDGE = __EDGE | edge_color(Hue.EDGE.value) 
+    EDGE = __EDGE | edge_color(Hue.EDGE.value)
     EDGE_ACTIVE = __EDGE | __ACTIVE | edge_color(Hue.EDGE.value, status="active")
-    EDGE_INACTIVE =  __EDGE | edge_color(Hue.EDGE.value, status="inactive")
-    WAIT_ON_EDGE = EDGE | __WAIT
-    WAIT_ON_EDGE_ACTIVE = EDGE_ACTIVE | __WAIT
-    WAIT_ON_EDGE_INACTIVE = EDGE_INACTIVE | __WAIT
+    EDGE_INACTIVE = __EDGE | edge_color(Hue.EDGE.value, status="inactive")
+    WAIT_ON_EDGE = EDGE | __WAIT  # type: ignore[operator] # dict[str, float | str] and dict[str, str] are compatible with _value_: dict[str, Any]
+    WAIT_ON_EDGE_ACTIVE = EDGE_ACTIVE | __WAIT  # type: ignore[operator] # same
+    WAIT_ON_EDGE_INACTIVE = EDGE_INACTIVE | __WAIT  # type: ignore[operator] # same
 
     @classmethod
-    def from_status(
-            cls, task_status: viz_status_t, *, wait: bool = False
-    ) -> EdgeFace:
+    def from_status(cls, task_status: VIZ_STATUS_T, *, wait: bool = False) -> EdgeFace:
         if task_status == "active":
             return cls.WAIT_ON_EDGE_ACTIVE if wait else cls.EDGE_ACTIVE
         if task_status == "waiting":
@@ -89,10 +84,10 @@ class EdgeFace(enum.Enum):
 
 class NodeFace(enum.Enum):
     _value_: dict[str, Any]
-    __NODE = {"style": "filled", "fontname": "Adwaita Sans", "fontsize": 14, "penwidth": 2}  # noqa: RUF012
+    __NODE: ClassVar = {"style": "filled", "fontname": "Adwaita Sans", "fontsize": 14, "penwidth": 2}
+    __ACTIVE: ClassVar = {"penwidth": 3.5, "fontsize": 20}
     __DATA = __NODE | {"shape": "ellipse"}
     __TASK = __NODE | {"shape": "box"}
-    __ACTIVE = {"penwidth": 3.5, "fontsize": 20}
 
     CLUSTER = {"bgcolor": "#F6F5F4", "color": None, "fontsize": 16}  # noqa: RUF012
     DATA_AV = __DATA | node_colors(Hue.DATA_AV.value)
@@ -260,7 +255,7 @@ class VizGraph:
             # default to inactive status
             if isinstance(item, core.Data | core.Task):
                 item.viz_status = "inactive"
-    
+
     @classmethod
     def from_status_workflow(cls, workflow: core.Workflow) -> Self:
         cycles: list[core.Cycle] = []
@@ -292,5 +287,5 @@ class VizGraph:
             for data_node in chain(task.output_data_nodes(), task.input_data_nodes()):
                 if data_node.viz_status == "inactive":
                     data_node.viz_status = "waiting"
-                
+
         return cls(name=workflow.name, tasks=tasks, data=data, cycles=cycles)
