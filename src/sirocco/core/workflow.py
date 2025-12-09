@@ -373,7 +373,7 @@ class Workflow:
                 task.rank = k - 1
                 self.front[k].remove(task)
                 self.front[k - 1].append(task)
-                msg = f"{task.label} ({task.jobid}) PROMOTED from rank {k} to {k-1}"
+                msg = f"{task.label} ({task.jobid}) PROMOTED from rank {k} to {k - 1}"
                 logger.info(msg)
 
         # Add new tasks to the last generation of the front

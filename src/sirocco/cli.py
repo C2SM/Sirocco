@@ -36,7 +36,7 @@ def _create_aiida_workflow(workflow_file: Path) -> AiidaWorkGraph:
 def create_aiida_workflow(workflow_file: Path) -> AiidaWorkGraph:
     """Helper to prepare AiidaWorkGraph from workflow file."""
 
-    from aiida.common import ProfileConfigurationError
+    from aiida.common import ProfileConfigurationError  # noqa: PLC0415
 
     try:
         aiida_wg = _create_aiida_workflow(workflow_file=workflow_file)

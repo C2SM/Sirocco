@@ -3,7 +3,7 @@ from __future__ import annotations
 import functools
 import io
 import uuid
-from typing import TYPE_CHECKING, Any, TypeAlias, assert_never
+from typing import TYPE_CHECKING, Any, assert_never
 
 import aiida.common
 import aiida.orm
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from aiida_workgraph.socket import TaskSocket  # type: ignore[import-untyped]
     from aiida_workgraph.sockets.builtins import SocketAny
 
-    WorkgraphDataNode: TypeAlias = aiida.orm.RemoteData | aiida.orm.SinglefileData | aiida.orm.FolderData
+    type WorkgraphDataNode = aiida.orm.RemoteData | aiida.orm.SinglefileData | aiida.orm.FolderData
 
 
 # This is a workaround required when splitting the initialization of the task and its linked nodes Merging this into
@@ -31,8 +31,8 @@ if TYPE_CHECKING:
 # https://github.com/aiidateam/aiida-workgraph/issues/168 The function is a copy of the original function in
 # aiida-workgraph. The modifications are marked by comments.
 def _execute(self, engine_process, args=None, kwargs=None, var_kwargs=None):  # noqa: ARG001 # unused arguments need name because the name is given as keyword in usage
-    from aiida_shell import ShellJob
-    from aiida_workgraph.utils import create_and_pause_process  # type: ignore[import-untyped]
+    from aiida_shell import ShellJob  # noqa: PLC0415
+    from aiida_workgraph.utils import create_and_pause_process  # type: ignore[import-untyped]  # noqa: PLC0415
 
     inputs = aiida_workgraph.tasks.factory.shelljob_task.prepare_for_shell_task(kwargs)
 
@@ -242,7 +242,7 @@ class AiidaWorkGraph:
         # Split command line between command and arguments (this is required by aiida internals)
         cmd, _ = self.split_cmd_arg(task.command)
 
-        from aiida_shell import ShellCode
+        from aiida_shell import ShellCode  # noqa: PLC0415
 
         try:
             computer = aiida.orm.Computer.collection.get(label=task.computer)
@@ -254,7 +254,7 @@ class AiidaWorkGraph:
         # FIXME: create for each workflow and task computer issue #169
         # we create a computer for each task to override some properties
 
-        from aiida.orm.utils.builders.computer import ComputerBuilder
+        from aiida.orm.utils.builders.computer import ComputerBuilder  # noqa: PLC0415
 
         computer_builder = ComputerBuilder.from_computer(computer)
         computer_builder.label = computer.label + f"-{label_uuid}"
@@ -391,8 +391,8 @@ class AiidaWorkGraph:
     def _link_output_node_to_task(
         self,
         task: core.Task,
-        port: str,  # noqa: ARG002
-        output: core.GeneratedData,  # noqa: ARG002
+        port: str,
+        output: core.GeneratedData,
     ):
         """Dispatch linking input to task based on task type."""
 
@@ -439,7 +439,7 @@ class AiidaWorkGraph:
         self._aiida_socket_nodes[output_label] = output_socket
 
     @functools.singledispatchmethod
-    def _link_input_node_to_task(self, task: core.Task, port: str, input_: core.Data):  # noqa: ARG002
+    def _link_input_node_to_task(self, task: core.Task, port: str, input_: core.Data):
         """ "Dispatch linking input to task based on task type"""
 
         msg = f"method not implemented for task type {type(task)}"
@@ -585,7 +585,7 @@ class AiidaWorkGraph:
         """Get default wrapper script based on task type"""
 
         # Import the script directory from aiida-icon
-        from aiida_icon.site_support.cscs.alps import SCRIPT_DIR
+        from aiida_icon.site_support.cscs.alps import SCRIPT_DIR  # noqa: PLC0415
 
         default_script_path = SCRIPT_DIR / "todi_cpu.sh"
         return aiida.orm.SinglefileData(file=default_script_path)

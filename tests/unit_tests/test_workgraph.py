@@ -14,7 +14,7 @@ from sirocco.workgraph import AiidaWorkGraph
     ],
 )
 def test_shell_filenames_nodes_arguments(config_paths):
-    import datetime
+    import datetime  # noqa: PLC0415
 
     config_workflow = ConfigWorkflow.from_config_file(str(config_paths["yml"]))
 

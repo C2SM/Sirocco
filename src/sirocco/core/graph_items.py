@@ -4,7 +4,7 @@ import enum
 from dataclasses import dataclass, field
 from itertools import chain, product
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, TypeAlias, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, TypeVar, cast
 
 from sirocco.parsing import cycling
 from sirocco.parsing.target_cycle import DateList, LagList, NoTargetCycle
@@ -43,7 +43,8 @@ class TaskStatus(enum.Enum):
     FAILED = 3
 
 
-VIZ_STATUS_T: TypeAlias = Literal["undefined", "active", "waiting", "inactive"]
+# VIZ_STATUS_T: TypeAlias = Literal["undefined", "active", "waiting", "inactive"]
+type VIZ_STATUS_T = Literal["undefined", "active", "waiting", "inactive"]
 
 
 @dataclass(kw_only=True)
@@ -374,7 +375,7 @@ class Store[GRAPH_ITEM_T]:
         self._dict: dict[str, Array[GRAPH_ITEM_T]] = {}
 
     def add(self, item: GRAPH_ITEM_T) -> None:
-        graph_item = cast(GraphItem, item)  # mypy can somehow not deduce this
+        graph_item = cast("GraphItem", item)  # mypy can somehow not deduce this
         name, coordinates = graph_item.name, graph_item.coordinates
         if name not in self._dict:
             self._dict[name] = Array[GRAPH_ITEM_T](name)
@@ -395,7 +396,7 @@ class Store[GRAPH_ITEM_T]:
         yield from chain(*(self._dict.values()))
 
 
-def unique_item_list(item_candidates: Iterator[GRAPH_ITEM_T]) -> list[GRAPH_ITEM_T]:
+def unique_item_list[GRAPH_ITEM_T: GraphItem](item_candidates: Iterator[GRAPH_ITEM_T]) -> list[GRAPH_ITEM_T]:
     unique_labels: list[str] = []
     unique_items: list[GRAPH_ITEM_T] = []
     for item in item_candidates:

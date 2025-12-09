@@ -28,12 +28,10 @@ from sirocco.parsing.cycling import Cycling, DateCycling, OneOff
 from sirocco.parsing.target_cycle import DateList, LagList, NoTargetCycle, TargetCycle
 from sirocco.parsing.when import AnyWhen, AtDate, BeforeAfterDate, When
 
-ITEM_T = typing.TypeVar("ITEM_T")
-
 LOGGER = logging.getLogger(__name__)
 
 
-def list_not_empty(value: list[ITEM_T]) -> list[ITEM_T]:
+def list_not_empty[ITEM_T](value: list[ITEM_T]) -> list[ITEM_T]:
     if len(value) < 1:
         msg = "At least one element is required."
         raise ValueError(msg)
@@ -210,10 +208,7 @@ class ConfigCycleTaskOutput(_NamedBaseModel):
     port: str | None = None
 
 
-NAMED_BASE_T = typing.TypeVar("NAMED_BASE_T", bound=_NamedBaseModel)
-
-
-def make_named_model_list_converter(
+def make_named_model_list_converter[NAMED_BASE_T: _NamedBaseModel](
     cls: type[NAMED_BASE_T],
 ) -> typing.Callable[[list[NAMED_BASE_T | str | dict] | None], list[NAMED_BASE_T]]:
     def convert_named_model_list(values: list[NAMED_BASE_T | str | dict] | None) -> list[NAMED_BASE_T]:
@@ -887,7 +882,7 @@ class ConfigWorkflow(BaseModel):
 OBJECT_T = typing.TypeVar("OBJECT_T")
 
 
-def validate_yaml_content(cls: type[OBJECT_T], content: str) -> OBJECT_T:
+def validate_yaml_content[OBJECT_T](cls: type[OBJECT_T], content: str) -> OBJECT_T:
     """Parses the YAML content into a python object using generic types and subsequently validates it with pydantic.
 
     Args:

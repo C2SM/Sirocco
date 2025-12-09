@@ -1,5 +1,5 @@
 from . import core, parsing
 
-__all__ = ["parsing", "core"]
+__all__ = ["core", "parsing"]
 
 __version__ = "0.0.0-dev0"

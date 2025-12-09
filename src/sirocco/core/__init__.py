@@ -3,15 +3,15 @@ from .graph_items import AvailableData, Cycle, Data, GeneratedData, GraphItem, M
 from .workflow import Workflow
 
 __all__ = [
-    "Workflow",
-    "GraphItem",
-    "Data",
     "AvailableData",
-    "GeneratedData",
-    "Task",
     "Cycle",
-    "ShellTask",
+    "Data",
+    "GeneratedData",
+    "GraphItem",
     "IconTask",
-    "SiroccoContinueTask",
     "MpiCmdPlaceholder",
+    "ShellTask",
+    "SiroccoContinueTask",
+    "Task",
+    "Workflow",
 ]
