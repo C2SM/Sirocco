@@ -34,14 +34,15 @@ dependencies = [
   "pydantic",
   "ruamel.yaml",
   # "aiida-core>=2.5",
-    # "yourpackage @ git+https://github.com/yourname/your-fork.git@your-branch",
+  # "yourpackage @ git+https://github.com/yourname/your-fork.git@your-branch",
   # "aiida-core @ git+https://github.com/khsrali/aiida-core.git@scheduler_prejudice_bug",
-  "aiida-core @ git+https://github.com/khsrali/aiida-core.git@aaf42fa0526af8c7b4ef496f736de1f26373af24",  # scheduler_prejudice_bug, sleep solution
+  "aiida-core @ git+https://github.com/khsrali/aiida-core.git@aaf42fa0526af8c7b4ef496f736de1f26373af24", # scheduler_prejudice_bug, sleep solution
   "aiida-firecrest@git+https://github.com/aiidateam/aiida-firecrest",
   "pyfirecrest",
   "aiida-icon @ git+https://github.com/aiida-icon/aiida-icon.git@38df329b9baadbf3609793f10d9afaf809da3ffd",
   # "aiida-workgraph==1.0.0b4",  # need latest for presubmission
-  "aiida-workgraph @ git+https://github.com/GeigerJ2/aiida-workgraph.git@f73d0036883cad42462e5c234f01e8752946eb11",
+  "aiida-workgraph @ git+https://github.com/GeigerJ2/aiida-workgraph.git@task-window-dynamic",
+  "aiida-gui-workgraph",
   "ipdb",
   "termcolor",
   "pygraphviz",
@@ -50,6 +51,7 @@ dependencies = [
   "aiida-shell>=0.8.1",
   "rich~=14.0",
   "typer~=0.16.0",
+  "aiida-gui-workgraph>=0.1.3",
 ]
 license = {file = "LICENSE"}
 

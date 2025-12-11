@@ -770,6 +770,24 @@ class ConfigWorkflow(BaseModel):
         if content == "":
             msg = f"Workflow config file in path {config_resolved_path} is empty."
             raise ValueError(msg)
+
+        # Expand environment variables in the content
+        # Supports ${VAR} and ${VAR:-default} syntax
+        import os
+        import re
+        def expand_env_vars(text: str) -> str:
+            """Expand environment variables in text with ${VAR} or ${VAR:-default} syntax."""
+            def replace_var(match):
+                var_expr = match.group(1)
+                if ":-" in var_expr:
+                    var_name, default = var_expr.split(":-", 1)
+                    return os.environ.get(var_name, default)
+                else:
+                    return os.environ.get(var_expr, match.group(0))
+            return re.sub(r'\$\{([^}]+)\}', replace_var, text)
+
+        content = expand_env_vars(content)
+
         reader = YAML(typ="safe", pure=True)
         object_ = reader.load(StringIO(content))
         # If name was not specified, then we use filename without file extension
