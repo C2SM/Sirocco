@@ -84,6 +84,111 @@ LauncherDependencies: TypeAlias = dict[str, list[str]]  # {launcher_name: [paren
 
 
 # =============================================================================
+# Helper Functions - Dataclass Serialization
+# =============================================================================
+
+
+def _dependency_info_to_dict(dep_info: DependencyInfo) -> dict:
+    """Convert DependencyInfo to JSON-serializable dict.
+
+    Args:
+        dep_info: DependencyInfo instance
+
+    Returns:
+        Dict representation
+    """
+    return {
+        "dep_label": dep_info.dep_label,
+        "filename": dep_info.filename,
+        "data_label": dep_info.data_label,
+    }
+
+
+def _dependency_info_from_dict(data: dict) -> DependencyInfo:
+    """Convert dict to DependencyInfo.
+
+    Args:
+        data: Dict representation
+
+    Returns:
+        DependencyInfo instance
+    """
+    return DependencyInfo(
+        dep_label=data["dep_label"],
+        filename=data["filename"],
+        data_label=data["data_label"],
+    )
+
+
+def _port_to_dependencies_to_dict(port_to_dep: PortToDependencies) -> dict[str, list[dict]]:
+    """Convert PortToDependencies to JSON-serializable dict.
+
+    Args:
+        port_to_dep: PortToDependencies mapping
+
+    Returns:
+        Dict with list of dict values
+    """
+    return {
+        port: [_dependency_info_to_dict(dep) for dep in deps]
+        for port, deps in port_to_dep.items()
+    }
+
+
+def _port_to_dependencies_from_dict(data: dict[str, list[dict]]) -> PortToDependencies:
+    """Convert dict to PortToDependencies.
+
+    Args:
+        data: Dict representation
+
+    Returns:
+        PortToDependencies mapping
+    """
+    return {
+        port: [_dependency_info_from_dict(dep) for dep in deps]
+        for port, deps in data.items()
+    }
+
+
+def _input_data_info_to_dict(info: InputDataInfo) -> dict:
+    """Convert InputDataInfo to JSON-serializable dict.
+
+    Args:
+        info: InputDataInfo instance
+
+    Returns:
+        Dict representation
+    """
+    return {
+        "port": info.port,
+        "name": info.name,
+        "coordinates": info.coordinates,
+        "label": info.label,
+        "is_available": info.is_available,
+        "is_generated": info.is_generated,
+        "path": info.path,
+    }
+
+
+def _output_data_info_to_dict(info: OutputDataInfo) -> dict:
+    """Convert OutputDataInfo to JSON-serializable dict.
+
+    Args:
+        info: OutputDataInfo instance
+
+    Returns:
+        Dict representation
+    """
+    return {
+        "name": info.name,
+        "coordinates": info.coordinates,
+        "label": info.label,
+        "is_generated": info.is_generated,
+        "path": info.path,
+    }
+
+
+# =============================================================================
 # Helper Functions - Mapping Utilities
 # =============================================================================
 
@@ -286,10 +391,14 @@ def launch_shell_task_with_dependency(
     placeholder_to_node_key: dict[str, str] = {}
     filenames: dict[str, str] = {}
     if parent_folders:
+        # Convert port_to_dep_mapping from dict back to PortToDependencies
+        port_to_dep_dict = task_spec.get("port_to_dep_mapping", {})
+        port_to_dep = _port_to_dependencies_from_dict(port_to_dep_dict)
+
         dep_nodes, placeholder_to_node_key, filenames = (
             load_and_process_shell_dependencies(
                 parent_folders,
-                task_spec.get("port_to_dep_mapping", {}),
+                port_to_dep,
                 task_spec["filenames"],
                 label,
             )
@@ -383,9 +492,13 @@ def launch_icon_task_with_dependency(
     logger.debug("Launcher for '%s' starting...", label)
 
     # Load RemoteData dependencies (restart files, etc.)
+    # Convert port_to_dep_mapping from dict back to PortToDependencies
+    port_to_dep_dict = task_spec.get("port_to_dep_mapping", {})
+    port_to_dep = _port_to_dependencies_from_dict(port_to_dep_dict)
+
     remote_data_nodes = load_icon_dependencies(
         parent_folders,
-        task_spec.get("port_to_dep_mapping", {}),
+        port_to_dep,
         task_spec["model_namelist_pks"],
         label,
     )
@@ -738,8 +851,8 @@ def create_icon_launcher_task(
     """
     launcher_name = f"launch_{task_label}"
 
-    # Add port_to_dep_mapping to task_spec
-    task_spec["port_to_dep_mapping"] = port_to_dep_mapping
+    # Add port_to_dep_mapping to task_spec (convert to dict for JSON serialization)
+    task_spec["port_to_dep_mapping"] = _port_to_dependencies_to_dict(port_to_dep_mapping)
 
     # Create launcher task
     wg.add_task(
@@ -752,7 +865,7 @@ def create_icon_launcher_task(
     )
 
     # Create get_job_data task
-    breakpoint()
+    # breakpoint()
     dep_task = wg.add_task(
         get_job_data,
         name=f"get_job_data_{task_label}",
@@ -812,8 +925,8 @@ def create_shell_launcher_task(
     """
     launcher_name = f"launch_{task_label}"
 
-    # Add port_to_dep_mapping to task_spec
-    task_spec["port_to_dep_mapping"] = port_to_dep_mapping
+    # Add port_to_dep_mapping to task_spec (convert to dict for JSON serialization)
+    task_spec["port_to_dep_mapping"] = _port_to_dependencies_to_dict(port_to_dep_mapping)
 
     # Create launcher task
     wg.add_task(
@@ -832,7 +945,7 @@ def create_shell_launcher_task(
     )
 
     # Create get_job_data task
-    breakpoint()
+    # breakpoint()
     dep_task = wg.add_task(
         get_job_data,
         name=f"get_job_data_{task_label}",
@@ -1580,6 +1693,7 @@ def build_shell_task_spec(task: core.ShellTask) -> dict:
     try:
         code = aiida.orm.load_code(f"{code_label}@{computer.label}")
     except NotExistent:
+        breakpoint()
         code = ShellCode(  # type: ignore[assignment]
             label=code_label,
             computer=computer,
@@ -1681,8 +1795,8 @@ def build_shell_task_spec(task: core.ShellTask) -> dict:
         "arguments_template": resolved_arguments_template,
         "filenames": filenames,
         "outputs": outputs,
-        "input_data_info": input_data_info,
-        "output_data_info": output_data_info,
+        "input_data_info": [_input_data_info_to_dict(info) for info in input_data_info],
+        "output_data_info": [_output_data_info_to_dict(info) for info in output_data_info],
         "output_port_mapping": output_port_mapping,
     }
 
@@ -1714,6 +1828,7 @@ def build_icon_task_spec(task: core.IconTask) -> dict:
     try:
         icon_code = aiida.orm.load_code(f"{icon_code_label}@{computer.label}")
     except NotExistent:
+        breakpoint()
         icon_code = aiida.orm.InstalledCode(
             label=icon_code_label,
             description="aiida_icon",
