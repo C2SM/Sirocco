@@ -1332,7 +1332,7 @@ def build_shell_task_spec(task: core.ShellTask) -> dict:
     # Create or load code
     code_label = f"{cmd}"
     try:
-        code = aiida.orm.load_code(f"code_label@{computer.label}")
+        code = aiida.orm.load_code(f"{code_label}@{computer.label}")
     except NotExistent:
         code = ShellCode(  # type: ignore[assignment]
             label=code_label,
@@ -1460,7 +1460,7 @@ def build_icon_task_spec(task: core.IconTask) -> dict:
     # Create or load ICON code
     icon_code_label = "icon"
     try:
-        icon_code = aiida.orm.load_code(f"icon_code_label@{computer.label}")
+        icon_code = aiida.orm.load_code(f"{icon_code_label}@{computer.label}")
     except NotExistent:
         icon_code = aiida.orm.InstalledCode(
             label=icon_code_label,
