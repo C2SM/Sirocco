@@ -1,0 +1,113 @@
+# Test case for dynamic level branch independence
+# This workflow has a root task followed by two parallel branches:
+# - Fast branch: tasks complete quickly (1-2 seconds each)
+# - Slow branch: tasks complete slowly (8-10 seconds each)
+# With dynamic levels and window_size=1, the fast branch should complete
+# without waiting for the slow branch.
+name: dynamic-deps
+start_date: &root_start_date '2026-01-01T00:00'
+stop_date: &root_stop_date '2026-01-02T00:00'
+cycles:
+  - single_cycle:
+      cycling:
+        start_date: *root_start_date
+        stop_date: *root_stop_date
+        period: P1D
+      tasks:
+        # Root task that both branches depend on
+        - root:
+            outputs: [root_output]
+        # Fast branch (should complete quickly)
+        - fast_1:
+            inputs:
+              - root_output:
+                  port: root_data
+            outputs: [fast_1_output]
+        - fast_2:
+            inputs:
+              - fast_1_output:
+                  port: fast_1_data
+            outputs: [fast_2_output]
+        - fast_3:
+            inputs:
+              - fast_2_output:
+                  port: fast_2_data
+            outputs: [fast_3_output]
+        # Slow branch (should take longer)
+        - slow_1:
+            inputs:
+              - root_output:
+                  port: root_data
+            outputs: [slow_1_output]
+        - slow_2:
+            inputs:
+              - slow_1_output:
+                  port: slow_1_data
+            outputs: [slow_2_output]
+        - slow_3:
+            inputs:
+              - slow_2_output:
+                  port: slow_2_data
+            outputs: [slow_3_output]
+tasks:
+  # Root task (quick)
+  - root:
+      plugin: shell
+      computer: ${SIROCCO_COMPUTER:-localhost}
+      account: cwd01
+      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/fast_task.sh
+      command: "bash fast_task.sh root 5"
+  # Fast branch tasks (1-2 seconds each)
+  - fast_1:
+      plugin: shell
+      computer: ${SIROCCO_COMPUTER:-localhost}
+      account: cwd01
+      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/fast_task.sh
+      command: "bash fast_task.sh fast_1 10"
+  - fast_2:
+      plugin: shell
+      computer: ${SIROCCO_COMPUTER:-localhost}
+      account: cwd01
+      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/fast_task.sh
+      command: "bash fast_task.sh fast_2 10"
+  - fast_3:
+      plugin: shell
+      computer: ${SIROCCO_COMPUTER:-localhost}
+      account: cwd01
+      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/fast_task.sh
+      command: "bash fast_task.sh fast_3 10"
+  # Slow branch tasks (8-10 seconds each)
+  - slow_1:
+      plugin: shell
+      computer: ${SIROCCO_COMPUTER:-localhost}
+      account: cwd01
+      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/slow_task.sh
+      command: "bash slow_task.sh slow_1 100"
+  - slow_2:
+      plugin: shell
+      computer: ${SIROCCO_COMPUTER:-localhost}
+      account: cwd01
+      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/slow_task.sh
+      command: "bash slow_task.sh slow_2 100"
+  - slow_3:
+      plugin: shell
+      computer: ${SIROCCO_COMPUTER:-localhost}
+      account: cwd01
+      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/slow_task.sh
+      command: "bash slow_task.sh slow_3 100"
+data:
+  generated:
+    - root_output:
+        path: root_output
+    - fast_1_output:
+        path: fast_1_output
+    - fast_2_output:
+        path: fast_2_output
+    - fast_3_output:
+        path: fast_3_output
+    - slow_1_output:
+        path: slow_1_output
+    - slow_2_output:
+        path: slow_2_output
+    - slow_3_output:
+        path: slow_3_output

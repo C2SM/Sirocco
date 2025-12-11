@@ -1,0 +1,257 @@
+---
+# Complex multi-branch test case with cross-dependencies
+# This tests:
+# - 3 branches with different speeds (fast=5s, medium=20s, slow=60s)
+# - Cross-dependencies between branches
+# - Multiple cycles with inter-cycle dependencies
+# - Convergence points where all branches sync
+# - Dynamic level computation with complex dependency graphs
+
+start_date: &cycle_start '2026-01-01T00:00'
+stop_date: &cycle_stop '2026-04-01T00:00'
+
+cycles:
+  # Initialization cycle (runs once)
+  - init:
+      tasks:
+        - setup:
+            outputs: [setup_data]
+
+  # Main processing cycle (runs monthly for 3 iterations)
+  - main:
+      cycling:
+        start_date: *cycle_start
+        stop_date: *cycle_stop
+        period: P1M  # Monthly
+      tasks:
+        # ============================================================
+        # FAST BRANCH (5s tasks, mostly independent)
+        # ============================================================
+        - fast_1:
+            inputs:
+              - setup_data:
+                  port: setup_in
+            outputs: [fast_1_out]
+
+        - fast_2:
+            inputs:
+              - fast_1_out:
+                  port: fast_1_data
+            outputs: [fast_2_out]
+
+        - fast_3:
+            inputs:
+              - fast_2_out:
+                  port: fast_2_data
+            outputs: [fast_3_out]
+
+        # ============================================================
+        # MEDIUM BRANCH (20s tasks, depends on fast branch)
+        # ============================================================
+        - medium_1:
+            inputs:
+              - setup_data:
+                  port: setup_in
+            outputs: [medium_1_out]
+
+        # Cross-dependency: medium_2 waits for BOTH medium_1 AND fast_2
+        - medium_2:
+            inputs:
+              - medium_1_out:
+                  port: medium_1_data
+              - fast_2_out:
+                  port: fast_trigger
+            outputs: [medium_2_out]
+
+        - medium_3:
+            inputs:
+              - medium_2_out:
+                  port: medium_2_data
+            outputs: [medium_3_out]
+
+        # ============================================================
+        # SLOW BRANCH (60s tasks, depends on medium branch)
+        # ============================================================
+        - slow_1:
+            inputs:
+              - setup_data:
+                  port: setup_in
+            outputs: [slow_1_out]
+
+        # Cross-dependency: slow_2 waits for BOTH slow_1 AND medium_2
+        - slow_2:
+            inputs:
+              - slow_1_out:
+                  port: slow_1_data
+              - medium_2_out:
+                  port: medium_trigger
+            outputs: [slow_2_out]
+
+        - slow_3:
+            inputs:
+              - slow_2_out:
+                  port: slow_2_data
+            outputs: [slow_3_out]
+
+        # ============================================================
+        # CONVERGENCE POINT (waits for all branches)
+        # ============================================================
+        - finalize:
+            inputs:
+              - fast_3_out:
+                  port: fast_final
+              - medium_3_out:
+                  port: medium_final
+              - slow_3_out:
+                  port: slow_final
+            outputs: [cycle_complete]
+
+        # ============================================================
+        # INTER-CYCLE DEPENDENCY (optional, for next cycle)
+        # ============================================================
+        - prepare_next:
+            inputs:
+              - cycle_complete:
+                  port: prev_cycle
+              # Reference to previous cycle's output
+              - cycle_complete:
+                  when:
+                    after: '2026-01-01T00:00'
+                  target_cycle:
+                    lag: '-P1M'
+                  port: prev_cycle_ref
+            outputs: [next_cycle_data]
+
+# ============================================================
+# TASK DEFINITIONS
+# ============================================================
+tasks:
+
+  # Init cycle
+  - setup:
+      plugin: shell
+      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/fast_task.sh
+      command: "bash fast_task.sh setup 5"
+      computer: ${SIROCCO_COMPUTER:-localhost}
+      account: cwd01
+
+  # Fast branch tasks (5s each)
+  - fast_1:
+      plugin: shell
+      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/fast_task.sh
+      command: "bash fast_task.sh fast_1 5"
+      computer: ${SIROCCO_COMPUTER:-localhost}
+      account: cwd01
+
+  - fast_2:
+      plugin: shell
+      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/fast_task.sh
+      command: "bash fast_task.sh fast_2 5"
+      computer: ${SIROCCO_COMPUTER:-localhost}
+      account: cwd01
+
+  - fast_3:
+      plugin: shell
+      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/fast_task.sh
+      command: "bash fast_task.sh fast_3 5"
+      computer: ${SIROCCO_COMPUTER:-localhost}
+      account: cwd01
+
+  # Medium branch tasks (20s each)
+  - medium_1:
+      plugin: shell
+      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/medium_task.sh
+      command: "bash medium_task.sh medium_1 20"
+      computer: ${SIROCCO_COMPUTER:-localhost}
+      account: cwd01
+
+  - medium_2:
+      plugin: shell
+      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/medium_task.sh
+      command: "bash medium_task.sh medium_2 20"
+      computer: ${SIROCCO_COMPUTER:-localhost}
+      account: cwd01
+
+  - medium_3:
+      plugin: shell
+      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/medium_task.sh
+      command: "bash medium_task.sh medium_3 20"
+      computer: ${SIROCCO_COMPUTER:-localhost}
+      account: cwd01
+
+  # Slow branch tasks (60s each)
+  - slow_1:
+      plugin: shell
+      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/slow_task.sh
+      command: "bash slow_task.sh slow_1 60"
+      computer: ${SIROCCO_COMPUTER:-localhost}
+      account: cwd01
+
+  - slow_2:
+      plugin: shell
+      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/slow_task.sh
+      command: "bash slow_task.sh slow_2 60"
+      computer: ${SIROCCO_COMPUTER:-localhost}
+      account: cwd01
+
+  - slow_3:
+      plugin: shell
+      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/slow_task.sh
+      command: "bash slow_task.sh slow_3 60"
+      computer: ${SIROCCO_COMPUTER:-localhost}
+      account: cwd01
+
+  # Convergence and inter-cycle
+  - finalize:
+      plugin: shell
+      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/fast_task.sh
+      command: "bash fast_task.sh finalize 5"
+      computer: ${SIROCCO_COMPUTER:-localhost}
+      account: cwd01
+
+  - prepare_next:
+      plugin: shell
+      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/fast_task.sh
+      command: "bash fast_task.sh prepare_next 5"
+      computer: ${SIROCCO_COMPUTER:-localhost}
+      account: cwd01
+
+
+# ============================================================
+# DATA DEFINITIONS
+# ============================================================
+data:
+  generated:
+    # Init cycle
+    - setup_data:
+        path: setup_output
+
+    # Fast branch outputs
+    - fast_1_out:
+        path: fast_1_output
+    - fast_2_out:
+        path: fast_2_output
+    - fast_3_out:
+        path: fast_3_output
+
+    # Medium branch outputs
+    - medium_1_out:
+        path: medium_1_output
+    - medium_2_out:
+        path: medium_2_output
+    - medium_3_out:
+        path: medium_3_output
+
+    # Slow branch outputs
+    - slow_1_out:
+        path: slow_1_output
+    - slow_2_out:
+        path: slow_2_output
+    - slow_3_out:
+        path: slow_3_output
+
+    # Convergence outputs
+    - cycle_complete:
+        path: cycle_complete_output
+    - next_cycle_data:
+        path: next_cycle_output
