@@ -93,7 +93,7 @@ cycles:
 tasks:
   - extpar:
       plugin: shell  # no extpar plugin available yet
-      computer: santis-async-ssh
+      computer: ${SIROCCO_COMPUTER:-santis-async-ssh}
       path: scripts/extpar
       command: "extpar --verbose --input {PORT::obs}"
       nodes: 1
@@ -103,7 +103,7 @@ tasks:
       walltime: 00:02:00
   - preproc:
       plugin: shell
-      computer: santis-async-ssh
+      computer: ${SIROCCO_COMPUTER:-santis-async-ssh}
       path: scripts/cleanup.sh
       command: "bash cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}"
       nodes: 4
@@ -113,7 +113,7 @@ tasks:
       walltime: 00:02:00
   - icon:
       plugin: icon
-      computer: santis-async-ssh
+      computer: ${SIROCCO_COMPUTER:-santis-async-ssh}
       bin: /home/geiger_j/aiida_projects/swiss-twins/git-repos/Sirocco/tests/cases/large/config/ICON/bin/icon
       namelists:
         - ./ICON/icon_master.namelist:
@@ -131,7 +131,7 @@ tasks:
       uenv: icon/25.2:v3
   - postproc_1:
       plugin: shell
-      computer: santis-async-ssh
+      computer: ${SIROCCO_COMPUTER:-santis-async-ssh}
       path: scripts/main_script_ocn.sh
       command: "bash main_script_ocn.sh {PORT::None}"
       nodes: 2
@@ -140,7 +140,7 @@ tasks:
       walltime: 00:05:00
   - postproc_2:
       plugin: shell
-      computer: santis-async-ssh
+      computer: ${SIROCCO_COMPUTER:-santis-async-ssh}
       command: "bash main_script_atm.sh --input {PORT::streams}"
       multi_arg_sep: ","
       nodes: 2
@@ -149,7 +149,7 @@ tasks:
       walltime: 00:05:00
   - store_and_clean_1:
       plugin: shell
-      computer: santis-async-ssh
+      computer: ${SIROCCO_COMPUTER:-santis-async-ssh}
       path: scripts/post_clean.sh
       command: "bash post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}"
       nodes: 1
@@ -158,7 +158,7 @@ tasks:
       walltime: 00:01:00
   - store_and_clean_2:
       plugin: shell
-      computer: santis-async-ssh
+      computer: ${SIROCCO_COMPUTER:-santis-async-ssh}
       path: scripts/post_clean.sh
       command: "bash post_clean.sh --archive {PORT::archive} --clean {PORT::clean}"
       nodes: 1
@@ -168,13 +168,13 @@ tasks:
 data:
   available:
     - grid_file:
-        computer: santis-async-ssh
+        computer: ${SIROCCO_COMPUTER:-santis-async-ssh}
         path: /users/jgeiger/Sirocco/tests/cases/large/config/data/grid
     - obs_data:
-        computer: santis-async-ssh
+        computer: ${SIROCCO_COMPUTER:-santis-async-ssh}
         path: /users/jgeiger/Sirocco/tests/cases/large/config/data/obs_data
     - ERA5:
-        computer: santis-async-ssh
+        computer: ${SIROCCO_COMPUTER:-santis-async-ssh}
         path: /users/jgeiger/Sirocco/tests/cases/large/config/data/era5
   generated:
     - extpar_file:
