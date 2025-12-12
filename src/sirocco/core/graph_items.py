@@ -43,7 +43,6 @@ class TaskStatus(enum.Enum):
     FAILED = 3
 
 
-# VIZ_STATUS_T: TypeAlias = Literal["undefined", "active", "waiting", "inactive"]
 type VIZ_STATUS_T = Literal["undefined", "active", "waiting", "inactive"]
 
 
