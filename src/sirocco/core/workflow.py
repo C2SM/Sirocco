@@ -72,7 +72,7 @@ class Workflow:
         self.tasks: Store[Task] = Store()
         self.data: Store[Data] = Store()
         self.cycles: Store[Cycle] = Store()
-        self.status = WorkflowStatus.INIT
+        self.status: WorkflowStatus = WorkflowStatus.INIT
 
         config_data_dict: dict[str, ConfigBaseData] = {
             data.name: data for data in chain(config_data.available, config_data.generated)
