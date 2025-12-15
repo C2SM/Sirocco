@@ -6,7 +6,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Set environment variables
-export SIROCCO_COMPUTER="${SIROCCO_COMPUTER:-santis-async-ssh}"
+export SIROCCO_COMPUTER="${SIROCCO_COMPUTER:-santis-firecrest}"
 
 echo "Running APE_R02B04 workflow with:"
 echo "  Computer: $SIROCCO_COMPUTER"

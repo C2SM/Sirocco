@@ -4,7 +4,7 @@
 # - Slow branch: tasks complete slowly (8-10 seconds each)
 # With dynamic levels and window_size=1, the fast branch should complete
 # without waiting for the slow branch.
-name: dynamic-deps
+name: dynamic_deps
 start_date: &root_start_date '2026-01-01T00:00'
 stop_date: &root_stop_date '2026-01-02T00:00'
 cycles:
@@ -56,45 +56,45 @@ tasks:
       computer: ${SIROCCO_COMPUTER:-localhost}
       account: cwd01
       path: ${SIROCCO_SCRIPTS_DIR:-scripts}/fast_task.sh
-      command: "bash fast_task.sh root 5"
+      command: "bash fast_task.sh root 300"
   # Fast branch tasks (1-2 seconds each)
   - fast_1:
       plugin: shell
       computer: ${SIROCCO_COMPUTER:-localhost}
       account: cwd01
       path: ${SIROCCO_SCRIPTS_DIR:-scripts}/fast_task.sh
-      command: "bash fast_task.sh fast_1 10"
+      command: "bash fast_task.sh fast_1 120"
   - fast_2:
       plugin: shell
       computer: ${SIROCCO_COMPUTER:-localhost}
       account: cwd01
       path: ${SIROCCO_SCRIPTS_DIR:-scripts}/fast_task.sh
-      command: "bash fast_task.sh fast_2 10"
+      command: "bash fast_task.sh fast_2 120"
   - fast_3:
       plugin: shell
       computer: ${SIROCCO_COMPUTER:-localhost}
       account: cwd01
       path: ${SIROCCO_SCRIPTS_DIR:-scripts}/fast_task.sh
-      command: "bash fast_task.sh fast_3 10"
+      command: "bash fast_task.sh fast_3 120"
   # Slow branch tasks (8-10 seconds each)
   - slow_1:
       plugin: shell
       computer: ${SIROCCO_COMPUTER:-localhost}
       account: cwd01
       path: ${SIROCCO_SCRIPTS_DIR:-scripts}/slow_task.sh
-      command: "bash slow_task.sh slow_1 100"
+      command: "bash slow_task.sh slow_1 240"
   - slow_2:
       plugin: shell
       computer: ${SIROCCO_COMPUTER:-localhost}
       account: cwd01
       path: ${SIROCCO_SCRIPTS_DIR:-scripts}/slow_task.sh
-      command: "bash slow_task.sh slow_2 100"
+      command: "bash slow_task.sh slow_2 240"
   - slow_3:
       plugin: shell
       computer: ${SIROCCO_COMPUTER:-localhost}
       account: cwd01
       path: ${SIROCCO_SCRIPTS_DIR:-scripts}/slow_task.sh
-      command: "bash slow_task.sh slow_3 100"
+      command: "bash slow_task.sh slow_3 240"
 data:
   generated:
     - root_output:

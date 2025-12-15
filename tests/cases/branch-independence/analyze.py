@@ -26,13 +26,14 @@ n = orm.load_node(pk)
 # Extract launcher WorkGraph nodes with both creation and completion times
 timing_data = []
 for desc in n.called_descendants:
+    # breakpoint()
     if isinstance(desc, WorkGraphNode) and desc.label.startswith('launch_'):
         # Parse task name from label: "launch_fast_1_date_..." → "fast_1"
         label_parts = desc.label.split('_')
         if len(label_parts) >= 3:
             # Handle both "launch_root_date_..." and "launch_fast_1_date_..."
-            if label_parts[1] in ['root', 'fast', 'slow']:
-                if label_parts[1] == 'root':
+            if label_parts[8] in ['root', 'fast', 'slow']:
+                if label_parts[8] == 'root':
                     task_name = 'root'
                     branch = 'root'
                 else:

@@ -6,9 +6,9 @@
 # - Multiple cycles with inter-cycle dependencies
 # - Convergence points where all branches sync
 # - Dynamic level computation with complex dependency graphs
-
+name: dynamic_deps_complex
 start_date: &cycle_start '2026-01-01T00:00'
-stop_date: &cycle_stop '2026-04-01T00:00'
+stop_date: &cycle_stop '2026-03-01T00:00'
 
 cycles:
   # Initialization cycle (runs once)
@@ -252,6 +252,6 @@ data:
 
     # Convergence outputs
     - cycle_complete:
-        path: cycle_complete_output
+        path: finalize_output
     - next_cycle_data:
-        path: next_cycle_output
+        path: prepare_next_output

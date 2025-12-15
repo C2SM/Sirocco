@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Set environment variables
 # Note: Paths must be relative to the config directory for Sirocco validation
-export SIROCCO_COMPUTER="${SIROCCO_COMPUTER:-'santis-async-ssh'}"
+export SIROCCO_COMPUTER="${SIROCCO_COMPUTER:-'santis-ssh'}"
 export SIROCCO_SCRIPTS_DIR="scripts"  # Relative to config directory
 
 echo "Running branch-independence workflow with:"
