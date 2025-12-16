@@ -258,9 +258,13 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     def sirocco_environemnt(self) -> list[str]:
         # TODO: Add parameters
         env_list: list[str] = []
+        if uenv := self.uenv:
+            env_list.append(f"export SIROCCO_UENV={uenv}")
+        if view := self.view:
+            env_list.append(f"export SIROCCO_VIEW={view}")
         if isinstance(self.cycle_point, cycling.DateCyclePoint):
-            env_list.append(f"export START_DATE={self.cycle_point.chunk_start_date.isoformat()}")
-            env_list.append(f"export STOP_DATE={self.cycle_point.chunk_stop_date.isoformat()}")
+            env_list.append(f"export SIROCCO_START_DATE={self.cycle_point.chunk_start_date.isoformat()}")
+            env_list.append(f"export SIROCCO_STOP_DATE={self.cycle_point.chunk_stop_date.isoformat()}")
         return env_list
 
     def to_yaml_state(self) -> dict[str, dict[str, Any]]:

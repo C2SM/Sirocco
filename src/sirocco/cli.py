@@ -429,7 +429,7 @@ def stviz(
         raise typer.Exit(code=1) from e
 
 
-def add_now(width: int = 20) -> str:
+def add_now(width: int = 25) -> str:
     rule = width * "─"
     space = width * " "
     date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # noqa: DTZ005

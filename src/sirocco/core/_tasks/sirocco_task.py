@@ -13,6 +13,7 @@ class SiroccoContinueTask(models.ConfigSiroccoTaskSpecs, Task):
 
     plugin: ClassVar[Literal["_sirocco", "sirocco_continue"]] = "sirocco_continue"
     SUBMIT_FILENAME: ClassVar[str] = field(default=".sirocco_continue.sh", repr=False)
+    CMD_FILENAME: ClassVar[str] = field(default=".sirocco_cmd", repr=False)
     STDOUTERR_FILENAME: ClassVar[str] = field(default="sirocco.log", repr=False)
     CLEAN_UP_BEFORE_SUBMIT: ClassVar[bool] = field(default=False, repr=False)  # Clean up directory when submitting
     LOCK_FILE_NAME: ClassVar[str] = field(default=".sirocco.lock", repr=False)
@@ -30,11 +31,19 @@ class SiroccoContinueTask(models.ConfigSiroccoTaskSpecs, Task):
         pass
 
     def prepare_for_submission(self) -> None:
-        pass
+        lines: list[str] = []
+        if self.venv is not None:
+            lines.append(f"source {self.venv}")
+        lines.append(f"sirocco continue --from_wf {self.config_filename} || exit")
+        (self.run_dir / self.CMD_FILENAME).write_text("\n".join(lines))
+        (self.run_dir / self.CMD_FILENAME).chmod(0o755)
 
     def runscript_lines(self) -> list[str]:
-        script_lines: list[str] = []
-        if self.venv:
-            script_lines.append(f"source {self.venv}")
-        script_lines.append(f"sirocco continue --from_wf {self.config_filename} || exit")
-        return script_lines
+        cmd = ""
+        if self.uenv is not None:
+            cmd += "uenv run ${SIROCCO_UENV}"
+            if self.view is not None:
+                cmd += " --view ${SIROCCO_VIEW}"
+            cmd += " -- "
+        cmd += f"./{self.CMD_FILENAME}"
+        return [cmd]

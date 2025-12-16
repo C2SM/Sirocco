@@ -1,6 +1,8 @@
 import logging
+import os
 import shutil
 import subprocess
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Literal, assert_never
 
@@ -10,6 +12,16 @@ LOGGER = logging.getLogger(__name__)
 
 
 class SchedulerCommandError(RuntimeError): ...
+
+
+@contextmanager
+def ignore_env(*args: str):
+    ignored_vars: dict[str, str] = {var: os.environ.pop(var) for var in args if var in os.environ}
+    try:
+        yield
+    finally:
+        for var, value in ignored_vars.items():
+            os.environ[var] = value
 
 
 @dataclass(kw_only=True)
@@ -147,14 +159,9 @@ class Slurm(Scheduler):
         return header
 
     def submit_to_scheduler(self, task: Task) -> str:
-        submit_cmd: list[str] = ["sbatch", "--parsable"]
-        if uenv := task.uenv:
-            submit_cmd.append(f"--uenv={uenv}")
-        if view := task.view:
-            submit_cmd.append(f"--view={view}")
-        submit_cmd.append(task.SUBMIT_FILENAME)
-
-        result = self.run_command(submit_cmd, cwd=task.run_dir)
+        with ignore_env("UENV_MOUNT_LIST", "SIROCCO_UENV", "SIROCCO_VIEW"):
+            submit_cmd: list[str] = ["sbatch", "--parsable", task.SUBMIT_FILENAME]
+            result = self.run_command(submit_cmd, cwd=task.run_dir)
         return result.stdout.decode().strip()
 
     def cancel(self, task: Task):
