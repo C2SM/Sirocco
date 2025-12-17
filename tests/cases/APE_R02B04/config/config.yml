@@ -46,7 +46,7 @@ cycles:
 tasks:
   - icon:
       plugin: icon
-      computer: santis-async-ssh
+      computer: ${SIROCCO_COMPUTER:-santis-async-ssh}
       account: cwd01
       uenv: icon/25.2:v3
       nodes: 1
@@ -58,7 +58,7 @@ tasks:
         - ./ICON/NAMELIST_exclaim_ape_R02B04
   - cleanup:
       plugin: shell
-      computer: santis-async-ssh
+      computer: ${SIROCCO_COMPUTER:-santis-async-ssh}
       account: cwd01
       uenv: icon/25.2:v3
       nodes: 1
@@ -70,16 +70,16 @@ data:
   available:
      - icon_grid:
          path: /capstor/store/cscs/userlab/cwd01/leclairm/Sirocco_test_cases/exclaim_ape_R02B04/icon_grid_0013_R02B04_R.nc
-         computer: santis-async-ssh
+         computer: ${SIROCCO_COMPUTER:-santis-async-ssh}
      - rrtmg_lw:
          path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/data/rrtmg_lw.nc
-         computer: santis-async-ssh
+         computer: ${SIROCCO_COMPUTER:-santis-async-ssh}
      - ECHAM6_CldOptProps:
          path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/data/ECHAM6_CldOptProps.nc
-         computer: santis-async-ssh
+         computer: ${SIROCCO_COMPUTER:-santis-async-ssh}
      - ecrad_data:
          path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/externals/ecrad/data
-         computer: santis-async-ssh
+         computer: ${SIROCCO_COMPUTER:-santis-async-ssh}
   generated:
      - atm_2d: {}
      - atm_3d_pl: {}

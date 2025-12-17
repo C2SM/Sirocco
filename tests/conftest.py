@@ -150,7 +150,7 @@ def generate_config_paths(test_case: str):
 
 
 @pytest.fixture
-def config_paths(config_case, icon_grid_path, tmp_path, test_rootdir) -> dict[str, pathlib.Path]:
+def config_paths(config_case, icon_grid_path, tmp_path, test_rootdir, request) -> dict[str, pathlib.Path]:
     config = generate_config_paths(config_case)
     # Copy test directory to tmp path and adapt config
     shutil.copytree(
@@ -170,6 +170,21 @@ def config_paths(config_case, icon_grid_path, tmp_path, test_rootdir) -> dict[st
         config_icon_grid_path = pathlib.Path(config_rootdir / "./ICON/icon_grid_simple.nc")
         if not config_icon_grid_path.exists():
             config_icon_grid_path.symlink_to(icon_grid_path)
+
+    # Set environment variables for test cases that use them
+    # For branch-independence case, set computer and scripts directory
+    if config_case == "branch-independence":
+        import os
+        # Use relative path (relative to config directory) for validation
+        os.environ['SIROCCO_COMPUTER'] = 'remote'
+        os.environ['SIROCCO_SCRIPTS_DIR'] = 'scripts'
+
+        # Clean up after test
+        def cleanup():
+            os.environ.pop('SIROCCO_COMPUTER', None)
+            os.environ.pop('SIROCCO_SCRIPTS_DIR', None)
+        request.addfinalizer(cleanup)
+
     return config
 
 
