@@ -255,7 +255,7 @@ class Store(Generic[GRAPH_ITEM_T]):
         self._dict: dict[str, Array[GRAPH_ITEM_T]] = {}
 
     def add(self, item: GRAPH_ITEM_T) -> None:
-        graph_item = cast(GraphItem, item)  # mypy can somehow not deduce this
+        graph_item = cast("GraphItem", item)  # mypy can somehow not deduce this
         name, coordinates = graph_item.name, graph_item.coordinates
         if name not in self._dict:
             self._dict[name] = Array[GRAPH_ITEM_T](name)

@@ -106,7 +106,7 @@ class VizGraph:
         # https://github.com/BartBrood/dynamic-SVG-from-Graphviz
 
         # Parse svg
-        svg = etree.parse(file_path)  # noqa: S320 this svg is safe as generated internaly
+        svg = etree.parse(file_path)
         svg_root = svg.getroot()
         # Add 'onload' tag
         svg_root.set("onload", "addInteractivity(evt)")

@@ -391,26 +391,26 @@ def test_branch_independence_config(config_paths):
     task_deps = window_config["task_dependencies"]
 
     # Find actual task names (they use date format: launch_root_date_2026_01_01_00_00_00)
-    root_task = [t for t in launcher_tasks if t.startswith("launch_root_")][0]
-    fast_1_task = [t for t in launcher_tasks if t.startswith("launch_fast_1_")][0]
-    fast_2_task = [t for t in launcher_tasks if t.startswith("launch_fast_2_")][0]
-    fast_3_task = [t for t in launcher_tasks if t.startswith("launch_fast_3_")][0]
-    slow_1_task = [t for t in launcher_tasks if t.startswith("launch_slow_1_")][0]
-    slow_2_task = [t for t in launcher_tasks if t.startswith("launch_slow_2_")][0]
-    slow_3_task = [t for t in launcher_tasks if t.startswith("launch_slow_3_")][0]
+    root_task = next(t for t in launcher_tasks if t.startswith("launch_root_"))
+    fast_1_task = next(t for t in launcher_tasks if t.startswith("launch_fast_1_"))
+    fast_2_task = next(t for t in launcher_tasks if t.startswith("launch_fast_2_"))
+    fast_3_task = next(t for t in launcher_tasks if t.startswith("launch_fast_3_"))
+    slow_1_task = next(t for t in launcher_tasks if t.startswith("launch_slow_1_"))
+    slow_2_task = next(t for t in launcher_tasks if t.startswith("launch_slow_2_"))
+    slow_3_task = next(t for t in launcher_tasks if t.startswith("launch_slow_3_"))
 
     # Root has no dependencies
     assert task_deps[root_task] == [], f"Root task should have no dependencies, got: {task_deps[root_task]}"
 
     # Fast and slow branch first tasks depend on root
-    assert root_task in task_deps[fast_1_task], f"fast_1 should depend on root"
-    assert root_task in task_deps[slow_1_task], f"slow_1 should depend on root"
+    assert root_task in task_deps[fast_1_task], "fast_1 should depend on root"
+    assert root_task in task_deps[slow_1_task], "slow_1 should depend on root"
 
     # Verify chain dependencies within each branch
-    assert fast_1_task in task_deps[fast_2_task], f"fast_2 should depend on fast_1"
-    assert fast_2_task in task_deps[fast_3_task], f"fast_3 should depend on fast_2"
-    assert slow_1_task in task_deps[slow_2_task], f"slow_2 should depend on slow_1"
-    assert slow_2_task in task_deps[slow_3_task], f"slow_3 should depend on slow_2"
+    assert fast_1_task in task_deps[fast_2_task], "fast_2 should depend on fast_1"
+    assert fast_2_task in task_deps[fast_3_task], "fast_3 should depend on fast_2"
+    assert slow_1_task in task_deps[slow_2_task], "slow_2 should depend on slow_1"
+    assert slow_2_task in task_deps[slow_3_task], "slow_3 should depend on slow_2"
 
 
 @pytest.mark.slow
@@ -524,7 +524,7 @@ def test_branch_independence_execution(config_paths):
         assert_branch_independence(launcher_times, fast_branch='fast', slow_branch='slow')
         LOGGER.info("✓ PASS: Fast branch completed before slow branch")
     except AssertionError as e:
-        LOGGER.error(f"✗ FAIL: Branch independence assertion failed: {e}")
+        LOGGER.exception(f"✗ FAIL: Branch independence assertion failed: {e}")
         raise
 
     # ========================================================================
@@ -566,7 +566,7 @@ def test_branch_independence_execution(config_paths):
 
         LOGGER.info("✓ PASS: Submission order is correct")
     except AssertionError as e:
-        LOGGER.error(f"✗ FAIL: Submission order assertion failed: {e}")
+        LOGGER.exception(f"✗ FAIL: Submission order assertion failed: {e}")
         raise
 
     # ========================================================================
@@ -609,7 +609,7 @@ def test_branch_independence_execution(config_paths):
 @pytest.mark.slow
 @pytest.mark.usefixtures("config_case", "aiida_localhost", "aiida_remote_computer")
 @pytest.mark.parametrize(
-    "config_case,window_size",
+    ("config_case", "window_size"),
     [
         ("branch-independence", 0),  # Sequential execution
         ("branch-independence", 1),  # One level ahead (default)
@@ -701,7 +701,7 @@ def test_branch_independence_with_window_sizes(config_paths, window_size):
         assert_branch_independence(launcher_times, fast_branch='fast', slow_branch='slow')
         LOGGER.info("✓ PASS: Fast branch completed before slow branch")
     except AssertionError as e:
-        LOGGER.error(f"✗ FAIL: Branch independence assertion failed: {e}")
+        LOGGER.exception(f"✗ FAIL: Branch independence assertion failed: {e}")
         raise
 
     # ========================================================================
@@ -729,7 +729,7 @@ def test_branch_independence_with_window_sizes(config_paths, window_size):
     # Log success
     LOGGER.info("="*80)
     LOGGER.info(f"✓ Test passed with window_size={window_size}")
-    LOGGER.info(f"  ✓ Fast branch completed before slow branch")
+    LOGGER.info("  ✓ Fast branch completed before slow branch")
     LOGGER.info(f"  ✓ Total execution time: {total_time:.1f}s")
     LOGGER.info("="*80)
     LOGGER.info(f"Test completed. Log saved to {log_file.absolute()}")
@@ -847,7 +847,7 @@ def test_complex_workflow_with_cross_dependencies(config_paths):
         assert_branch_independence(launcher_times, fast_branch='fast', slow_branch='slow')
         LOGGER.info("✓ PASS: Fast branch completed before slow branch")
     except AssertionError as e:
-        LOGGER.error(f"✗ FAIL: Fast branch independence failed: {e}")
+        LOGGER.exception(f"✗ FAIL: Fast branch independence failed: {e}")
         raise
 
     # ========================================================================
@@ -858,7 +858,7 @@ def test_complex_workflow_with_cross_dependencies(config_paths):
         assert_branch_independence(launcher_times, fast_branch='medium', slow_branch='slow')
         LOGGER.info("✓ PASS: Medium branch completed before slow branch")
     except AssertionError as e:
-        LOGGER.error(f"✗ FAIL: Medium vs slow assertion failed: {e}")
+        LOGGER.exception(f"✗ FAIL: Medium vs slow assertion failed: {e}")
         raise
 
     # ========================================================================
@@ -891,7 +891,7 @@ def test_complex_workflow_with_cross_dependencies(config_paths):
             LOGGER.warning("⚠ SKIPPED: slow_2 cross-dependency check - tasks not found")
 
     except AssertionError as e:
-        LOGGER.error(f"✗ FAIL: Cross-dependency assertion failed: {e}")
+        LOGGER.exception(f"✗ FAIL: Cross-dependency assertion failed: {e}")
         raise
 
     # ========================================================================

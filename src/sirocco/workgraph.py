@@ -5,7 +5,7 @@ import io
 import logging
 import time
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Any, TypeAlias, assert_never
 
 import aiida.common
@@ -302,8 +302,9 @@ async def get_job_data(
     while True:
         # Timeout check early
         if time.time() - start > timeout:
+            msg = f"Timeout waiting for job_id for task {task_name} after {timeout}s"
             raise TimeoutError(
-                f"Timeout waiting for job_id for task {task_name} after {timeout}s"
+                msg
             )
 
         # Query for WorkGraphs created after polling start
@@ -1148,12 +1149,11 @@ def _resolve_icon_dependency(
     model_pk = model_namelist_pks.get("atm")
     if model_pk:
         model_node: aiida.orm.SinglefileData = aiida.orm.load_node(model_pk)  # type: ignore
-        remote_data = resolve_icon_restart_file(
+        return resolve_icon_restart_file(
             workdir_path,
             model_node,
             workdir_remote,  # type: ignore
         )
-        return remote_data
 
     # Case 3: Fallback to workdir
     logger.info("No model namelist; using workdir for restart resolution.")

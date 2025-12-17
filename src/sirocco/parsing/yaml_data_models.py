@@ -782,8 +782,7 @@ class ConfigWorkflow(BaseModel):
                 if ":-" in var_expr:
                     var_name, default = var_expr.split(":-", 1)
                     return os.environ.get(var_name, default)
-                else:
-                    return os.environ.get(var_expr, match.group(0))
+                return os.environ.get(var_expr, match.group(0))
             return re.sub(r'\$\{([^}]+)\}', replace_var, text)
 
         content = expand_env_vars(content)

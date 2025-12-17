@@ -9,7 +9,7 @@ These tests verify the algorithms for:
 
 import pytest
 
-from sirocco.workgraph import compute_topological_levels, get_task_dependencies_from_workgraph
+from sirocco.workgraph import compute_topological_levels
 
 
 class TestTopologicalLevels:

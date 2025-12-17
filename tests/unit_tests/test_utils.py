@@ -324,17 +324,10 @@ def print_timing_summary(timing_data: dict[str, dict[str, Any]]) -> None:
     """
     relative_times = compute_relative_times(timing_data)
 
-    print("\n" + "="*80)
-    print("TASK SUBMISSION AND COMPLETION TIMELINE")
-    print("="*80)
-    print(f"{'Task':<15} {'Branch':<10} {'Submit (s)':<12} {'Complete (s)':<12} {'Duration (s)':<12}")
-    print("-"*80)
 
     # Sort by submission time
     sorted_tasks = sorted(relative_times.items(), key=lambda x: x[1]['start'])
 
-    for task_name, times in sorted_tasks:
-        print(f"{task_name:<15} {times['branch']:<10} {times['start']:>10.1f}  "
-              f"{times['end']:>11.1f}  {times['duration']:>11.1f}")
+    for _task_name, _times in sorted_tasks:
+        pass
 
-    print("="*80)

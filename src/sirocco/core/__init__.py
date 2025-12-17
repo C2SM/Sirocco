@@ -11,14 +11,14 @@ from .graph_items import (
 from .workflow import Workflow
 
 __all__ = [
-    "Workflow",
-    "GraphItem",
-    "Data",
     "AvailableData",
-    "GeneratedData",
-    "Task",
     "Cycle",
-    "ShellTask",
+    "Data",
+    "GeneratedData",
+    "GraphItem",
     "IconTask",
     "MpiCmdPlaceholder",
+    "ShellTask",
+    "Task",
+    "Workflow",
 ]
