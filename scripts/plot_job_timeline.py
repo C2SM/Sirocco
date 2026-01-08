@@ -285,7 +285,39 @@ def plot_timeline(jobs, output_file=None):
     # Configure axes
     ax.set_ylim(-0.5, len(jobs) - 0.5)
     ax.set_yticks(range(len(jobs)))
-    ax.set_yticklabels([job['name'] for job in reversed(jobs)])
+
+    # Shorten job names: strip workflow prefix and date suffix
+    def extract_task_name(full_name):
+        """Extract just the task name from full job name.
+
+        Examples:
+        - "dynamic_deps_2026_01_07_14_50_root_date_2026_01_01_00_00_00" -> "root"
+        - "dynamic_deps_2026_01_07_14_50_fast_1_date_2026_01_01_00_00_00" -> "fast_1"
+        """
+        # Remove workflow prefix with timestamp (pattern: workflow_YYYY_MM_DD_HH_MM_)
+        parts = full_name.split('_')
+
+        # Find where task name starts (after workflow_name_YYYY_MM_DD_HH_MM)
+        # Look for pattern: 5 consecutive numeric parts (YYYY MM DD HH MM)
+        task_start_idx = 0
+        for i in range(len(parts) - 4):
+            # Check if we have 5 consecutive numeric parts
+            if all(p.isdigit() for p in parts[i:i+5]):
+                task_start_idx = i + 5
+                break
+
+        if task_start_idx > 0:
+            remaining = '_'.join(parts[task_start_idx:])
+        else:
+            remaining = full_name
+
+        # Remove date suffix (pattern: _date_YYYY_MM_DD_HH_MM_SS)
+        if '_date_' in remaining:
+            remaining = remaining.split('_date_')[0]
+
+        return remaining
+
+    ax.set_yticklabels([extract_task_name(job['name']) for job in reversed(jobs)])
 
     # Format x-axis as datetime
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S'))

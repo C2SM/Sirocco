@@ -4,6 +4,12 @@ from typing import TYPE_CHECKING, Annotated
 
 import typer
 
+# Apply patches for third-party libraries before any AiiDA operations
+from sirocco.patches import patch_firecrest_symlink, patch_slurm_dependency_handling
+
+patch_firecrest_symlink()
+patch_slurm_dependency_handling()
+
 if TYPE_CHECKING:
     from aiida_workgraph import WorkGraph
 from aiida.manage.configuration import load_profile
@@ -32,14 +38,14 @@ logger = logging.getLogger(__name__)
 
 def _create_aiida_workflow(
     workflow_file: Path,
-    window_size: int = 1,
+    window_size: int | None = None,
     max_queued_jobs: int | None = None,
 ) -> tuple[core.Workflow, "WorkGraph"]:
     """Load workflow file and build WorkGraph.
 
     Args:
         workflow_file: Path to workflow configuration file
-        window_size: Number of topological fronts to keep active (default: 1)
+        window_size: Number of topological fronts to keep active (None=use config, default: config value or 1)
         max_queued_jobs: Maximum number of queued jobs (optional)
 
     Returns:
@@ -47,6 +53,11 @@ def _create_aiida_workflow(
     """
     load_profile()
     config_workflow = parsing.ConfigWorkflow.from_config_file(str(workflow_file))
+
+    # Use window_size from config if not provided via CLI
+    if window_size is None:
+        window_size = config_workflow.window_size
+
     core_wf = core.Workflow.from_config_workflow(config_workflow)
     wg = build_sirocco_workgraph(
         core_wf,
@@ -58,14 +69,14 @@ def _create_aiida_workflow(
 
 def create_aiida_workflow(
     workflow_file: Path,
-    window_size: int = 1,
+    window_size: int | None = None,
     max_queued_jobs: int | None = None,
 ) -> tuple[core.Workflow, "WorkGraph"]:
     """Helper to prepare WorkGraph from workflow file.
 
     Args:
         workflow_file: Path to workflow configuration file
-        window_size: Number of topological fronts to keep active (default: 1)
+        window_size: Number of topological fronts to keep active (None=use config value)
         max_queued_jobs: Maximum number of queued jobs (optional)
 
     Returns:
@@ -244,10 +255,14 @@ def run(
         ),
     ] = None,
 ):
+    # Load config to get actual window_size if not provided
+    config_workflow = parsing.ConfigWorkflow.from_config_file(str(workflow_file))
+    actual_window_size = window_size if window_size is not None else config_workflow.window_size
+
     core_wf, wg = create_aiida_workflow(workflow_file, window_size, max_queued_jobs)
     console.print(f"▶️ Running workflow [magenta]'{core_wf.name}'[/magenta] directly (blocking)...")
-    if window_size > 0:
-        console.print(f"   Window size: {window_size} fronts")
+    if actual_window_size > 0:
+        console.print(f"   Window size: {actual_window_size} fronts")
     else:
         console.print("   Sequential submission (window disabled)")
     if max_queued_jobs:
@@ -293,11 +308,15 @@ def submit(
 ):
     """Submit the workflow to the AiiDA daemon."""
 
+    # Load config to get actual window_size if not provided
+    config_workflow = parsing.ConfigWorkflow.from_config_file(str(workflow_file))
+    actual_window_size = window_size if window_size is not None else config_workflow.window_size
+
     core_wf, wg = create_aiida_workflow(workflow_file, window_size, max_queued_jobs)
     try:
         console.print(f"🚀 Submitting workflow [magenta]'{core_wf.name}'[/magenta] to AiiDA daemon...")
-        if window_size > 0:
-            console.print(f"   Window size: {window_size} fronts")
+        if actual_window_size > 0:
+            console.print(f"   Window size: {actual_window_size} fronts")
         else:
             console.print("   Sequential submission (window disabled)")
         if max_queued_jobs:

@@ -341,8 +341,9 @@ async def get_job_data(
         # SUCCESS — return early
         remote_pk = node.outputs.remote_folder.pk
         logger.info(
-            "Retrieved job_id=%s, remote_folder_pk=%s for %s",
+            "Retrieved job_id=%s (from node PK=%s), remote_folder_pk=%s for %s",
             job_id,
+            node.pk,
             remote_pk,
             task_name,
         )
@@ -1607,6 +1608,8 @@ def get_scheduler_options_from_task(task: core.Task) -> dict[str, Any]:
         options["max_wallclock_seconds"] = TimeUtils.walltime_to_seconds(task.walltime)
     if task.mem is not None:
         options["max_memory_kb"] = task.mem * 1024
+    if task.queue_name is not None:
+        options["queue_name"] = task.queue_name
 
     # custom_scheduler_commands - initialize if not already set
     if "custom_scheduler_commands" not in options:

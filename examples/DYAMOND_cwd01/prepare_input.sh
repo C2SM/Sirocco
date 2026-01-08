@@ -20,6 +20,7 @@ for DIR in ${DATA_POOL} ${SST_ICE_DIR} ${OZONE_DIR} ${AERO_KINE_DIR} ${ICON_INPU
     fi
 done
 
+# TODO: Sirocco should export this information (dates and parameters)
 YYYY_START="${SIROCCO_START_DATE:0:4}"
 MM_START="${SIROCCO_START_DATE:5:2}"
 YYYY_STOP="${SIROCCO_STOP_DATE:0:4}"

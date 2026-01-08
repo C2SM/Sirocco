@@ -16,4 +16,4 @@ echo "  Scripts directory: $SIROCCO_SCRIPTS_DIR (relative to config dir)"
 echo ""
 
 # Run sirocco submit with the config
-sirocco run "${SCRIPT_DIR}/config/config_complex.yml" --window-size 1 "$@"
+sirocco run "${SCRIPT_DIR}/config/config_complex.yml" "$@"

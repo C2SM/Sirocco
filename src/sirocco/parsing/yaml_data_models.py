@@ -289,6 +289,7 @@ class ConfigBaseTaskSpecs:
     computer: str
     host: str | None = None
     account: str | None = None
+    queue_name: str | None = None  # SLURM option `--partition`, AiiDA option `queue_name`
     uenv: str | None = None
     view: str | None = None
     nodes: int | None = None  # SLURM option `--nodes`, AiiDA option `num_machines`
@@ -734,6 +735,11 @@ class ConfigWorkflow(BaseModel):
     tasks: Annotated[list[ConfigTask], BeforeValidator(list_not_empty)]
     data: ConfigData
     parameters: Annotated[dict[str, list], BeforeValidator(check_parameters_lists)] = {}
+    window_size: int = Field(
+        default=1,
+        description="Number of topological fronts to keep active. 0=sequential, 1=one front ahead (default), high value=streaming submission.",
+        ge=0,
+    )
 
     @model_validator(mode="after")
     def check_parameters(self) -> ConfigWorkflow:

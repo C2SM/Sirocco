@@ -1,7 +1,7 @@
 ---
 # Complex multi-branch test case with cross-dependencies
 # This tests:
-# - 3 branches with different speeds (fast=5s, medium=20s, slow=60s)
+# - 3 branches with different speeds (fast=30s, medium=60s, slow=120s)
 # - Cross-dependencies between branches
 # - Multiple cycles with inter-cycle dependencies
 # - Convergence points where all branches sync
@@ -9,6 +9,7 @@
 name: dynamic_deps_complex
 start_date: &cycle_start '2026-01-01T00:00'
 stop_date: &cycle_stop '2026-03-01T00:00'
+window_size: 2
 
 cycles:
   # Initialization cycle (runs once)
@@ -131,73 +132,73 @@ tasks:
   - setup:
       plugin: shell
       path: ${SIROCCO_SCRIPTS_DIR:-scripts}/fast_task.sh
-      command: "bash fast_task.sh setup 5"
+      command: "bash fast_task.sh setup 120"
       computer: ${SIROCCO_COMPUTER:-localhost}
       account: cwd01
 
-  # Fast branch tasks (5s each)
+  # Fast branch tasks (120s each - increased for timing measurements)
   - fast_1:
       plugin: shell
       path: ${SIROCCO_SCRIPTS_DIR:-scripts}/fast_task.sh
-      command: "bash fast_task.sh fast_1 5"
+      command: "bash fast_task.sh fast_1 120"
       computer: ${SIROCCO_COMPUTER:-localhost}
       account: cwd01
 
   - fast_2:
       plugin: shell
       path: ${SIROCCO_SCRIPTS_DIR:-scripts}/fast_task.sh
-      command: "bash fast_task.sh fast_2 5"
+      command: "bash fast_task.sh fast_2 120"
       computer: ${SIROCCO_COMPUTER:-localhost}
       account: cwd01
 
   - fast_3:
       plugin: shell
       path: ${SIROCCO_SCRIPTS_DIR:-scripts}/fast_task.sh
-      command: "bash fast_task.sh fast_3 5"
+      command: "bash fast_task.sh fast_3 120"
       computer: ${SIROCCO_COMPUTER:-localhost}
       account: cwd01
 
-  # Medium branch tasks (20s each)
+  # Medium branch tasks (300s each)
   - medium_1:
       plugin: shell
       path: ${SIROCCO_SCRIPTS_DIR:-scripts}/medium_task.sh
-      command: "bash medium_task.sh medium_1 20"
+      command: "bash medium_task.sh medium_1 300"
       computer: ${SIROCCO_COMPUTER:-localhost}
       account: cwd01
 
   - medium_2:
       plugin: shell
       path: ${SIROCCO_SCRIPTS_DIR:-scripts}/medium_task.sh
-      command: "bash medium_task.sh medium_2 20"
+      command: "bash medium_task.sh medium_2 300"
       computer: ${SIROCCO_COMPUTER:-localhost}
       account: cwd01
 
   - medium_3:
       plugin: shell
       path: ${SIROCCO_SCRIPTS_DIR:-scripts}/medium_task.sh
-      command: "bash medium_task.sh medium_3 20"
+      command: "bash medium_task.sh medium_3 300"
       computer: ${SIROCCO_COMPUTER:-localhost}
       account: cwd01
 
-  # Slow branch tasks (60s each)
+  # Slow branch tasks (600s each)
   - slow_1:
       plugin: shell
       path: ${SIROCCO_SCRIPTS_DIR:-scripts}/slow_task.sh
-      command: "bash slow_task.sh slow_1 60"
+      command: "bash slow_task.sh slow_1 600"
       computer: ${SIROCCO_COMPUTER:-localhost}
       account: cwd01
 
   - slow_2:
       plugin: shell
       path: ${SIROCCO_SCRIPTS_DIR:-scripts}/slow_task.sh
-      command: "bash slow_task.sh slow_2 60"
+      command: "bash slow_task.sh slow_2 600"
       computer: ${SIROCCO_COMPUTER:-localhost}
       account: cwd01
 
   - slow_3:
       plugin: shell
       path: ${SIROCCO_SCRIPTS_DIR:-scripts}/slow_task.sh
-      command: "bash slow_task.sh slow_3 60"
+      command: "bash slow_task.sh slow_3 600"
       computer: ${SIROCCO_COMPUTER:-localhost}
       account: cwd01
 
@@ -205,14 +206,14 @@ tasks:
   - finalize:
       plugin: shell
       path: ${SIROCCO_SCRIPTS_DIR:-scripts}/fast_task.sh
-      command: "bash fast_task.sh finalize 5"
+      command: "bash fast_task.sh finalize 120"
       computer: ${SIROCCO_COMPUTER:-localhost}
       account: cwd01
 
   - prepare_next:
       plugin: shell
       path: ${SIROCCO_SCRIPTS_DIR:-scripts}/fast_task.sh
-      command: "bash fast_task.sh prepare_next 5"
+      command: "bash fast_task.sh prepare_next 120"
       computer: ${SIROCCO_COMPUTER:-localhost}
       account: cwd01
 
