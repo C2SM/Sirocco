@@ -2,7 +2,11 @@
 """Plot job timeline from AiiDA WorkGraph showing dependency-blocked, queued, and running phases.
 
 Usage:
-    python plot_job_timeline.py <node_pk_or_uuid> [--output timeline.png]
+    python plot_job_timeline.py <node_pk_or_uuid> [--output timeline.png] [--custom-order]
+
+Options:
+    --custom-order: Use custom task ordering for complex workflows (setup → fast → medium → slow → finalize → prepare_next)
+                    Default ordering: root first, then alphabetically
 """
 
 import argparse
@@ -59,8 +63,12 @@ def parse_sacct_output(stdout: str) -> list[dict]:
     return list(reader)
 
 
-def collect_job_data(node):
+def collect_job_data(node, custom_order=False):
     """Collect job timing data from WorkGraph node.
+
+    Args:
+        node: WorkGraph node PK or UUID
+        custom_order: If True, use custom ordering for complex workflows
 
     Returns list of dicts with job info:
     [
@@ -180,16 +188,68 @@ def collect_job_data(node):
             'end': end,
         })
 
-    # Sort jobs: root first, then alphabetically
-    def sort_key(job):
-        name = job['name']
-        # Root tasks come first (sort key = 0)
-        if 'root' in name.lower():
-            return (0, name)
-        # All other tasks sorted alphabetically (sort key = 1)
-        return (1, name)
+    # Sort jobs based on ordering mode
+    if custom_order:
+        # Custom sorting for complex workflow: setup, fast branch, medium branch, slow branch, finalize, prepare_next
+        def sort_key_complex(job):
+            """Sort jobs by workflow structure.
 
-    jobs.sort(key=sort_key)
+            Within each branch, sort by:
+            1. Task number (fast_1 < fast_2 < fast_3)
+            2. Cycle date (2026-01 < 2026-02)
+            """
+            name = job['name']
+
+            # Define task ordering
+            task_order = {
+                'setup': 0,
+                'fast_1': 1,
+                'fast_2': 2,
+                'fast_3': 3,
+                'medium_1': 4,
+                'medium_2': 5,
+                'medium_3': 6,
+                'slow_1': 7,
+                'slow_2': 8,
+                'slow_3': 9,
+                'finalize': 10,
+                'prepare_next': 11,
+            }
+
+            # Find which task this is
+            task_type = None
+            for task_name in task_order.keys():
+                if task_name in name:
+                    task_type = task_name
+                    break
+
+            if task_type is None:
+                # Unknown task - put at end
+                return (999, name)
+
+            # Extract date for secondary sorting (format: date_YYYY_MM_DD)
+            date_str = ''
+            if 'date_' in name:
+                parts = name.split('date_')
+                if len(parts) > 1:
+                    # Extract YYYY_MM_DD portion
+                    date_parts = parts[1].split('_')[:3]
+                    date_str = '_'.join(date_parts)
+
+            return (task_order[task_type], date_str, name)
+
+        jobs.sort(key=sort_key_complex)
+    else:
+        # Default sorting: root first, then alphabetically
+        def sort_key(job):
+            name = job['name']
+            # Root tasks come first (sort key = 0)
+            if 'root' in name.lower():
+                return (0, name)
+            # All other tasks sorted alphabetically (sort key = 1)
+            return (1, name)
+
+        jobs.sort(key=sort_key)
 
     return jobs
 
@@ -374,11 +434,16 @@ def main():
         default=None,
         help='Output file path (default: show plot interactively)'
     )
+    parser.add_argument(
+        '--custom-order',
+        action='store_true',
+        help='Use custom task ordering for complex workflows (setup, fast, medium, slow, finalize, prepare_next)'
+    )
 
     args = parser.parse_args()
 
     try:
-        jobs = collect_job_data(args.node)
+        jobs = collect_job_data(args.node, custom_order=args.custom_order)
 
         if not jobs:
             print("No jobs found to plot")

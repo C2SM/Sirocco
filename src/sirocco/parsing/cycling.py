@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Iterator  # noqa: TC003 needed for pydantic
+from collections.abc import Iterator
 from dataclasses import dataclass
-from datetime import datetime  # noqa: TC003 needed for pydantic
+from datetime import datetime
 from typing import Annotated, Self
 
 from isoduration.types import Duration  # noqa: TC002 needed for pydantic

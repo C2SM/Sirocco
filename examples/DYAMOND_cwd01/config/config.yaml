@@ -63,22 +63,6 @@ cycles:
                   port: output_streams
               - stream_2:
                   port: output_streams
-              # - stream_3:
-              #     port: output_streams
-              # - stream_4:
-              #     port: output_streams
-              # - stream_5:
-              #     port: output_streams
-              # - stream_6:
-              #     port: output_streams
-              # - stream_7:
-              #     port: output_streams
-              # - stream_8:
-              #     port: output_streams
-              # - stream_9:
-              #     port: output_streams
-              # - stream_10:
-              #     port: output_streams
         - post_proc:
             inputs:
               - stream_1:
@@ -86,27 +70,21 @@ cycles:
               - stream_2:
                   port: stream
 tasks:
-  - ROOT:
-      computer: ${SIROCCO_COMPUTER:-santis-ssh}
-      account: cwd01
-  # NOTE: Not relevant for aiida-workgraph approach
-  # - SIROCCO:
-  #     walltime: 00:05:00
-  #     uenv: /capstor/scratch/cscs/leclairm/uenvs/sirocco_v0.0.1/store.squashfs
-  #     view: sirocco
-  #     venv: /user-tools/sirocco_venv/bin/activate  
+  # - ROOT:
+  #     computer: ${SIROCCO_COMPUTER}
+  #     account: ${SLURM_ACCOUNT}
   - prepare_input:
       plugin: shell
-      computer: ${SIROCCO_COMPUTER:-santis-ssh}
+      computer: ${SIROCCO_COMPUTER}
       walltime: 00:05:00
       nodes: 1
       ntasks_per_node: 1
       cpus_per_task: 1
-      path: prepare_input.sh
+      path: ./scripts/prepare_input.sh
       command: ./prepare_input.sh --pool={PORT::data_pool}  --sst-ice={PORT::sst_ice_dir} --ozone={PORT::ozone_dir} --aero-kine={PORT::aero_kine_dir} --icon-input={PORT::icon_input}
   - icon:
       plugin: icon
-      computer: ${SIROCCO_COMPUTER:-santis-ssh}
+      computer: ${SIROCCO_COMPUTER}
       bin: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_gpu_25.2-v3/bin/icon
       uenv: icon/25.2:v3
       walltime: 01:00:00
@@ -118,51 +96,52 @@ tasks:
       # bin_cpu: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/bin/icon
       # bin_gpu: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_gpu_25.2-v3/bin/icon
       namelists:
-        - ./ICON/icon_master.namelist
-        - ./ICON/NAMELIST_DYAMOND_R02B06L120:
+        - ../ICON/icon_master.namelist
+        - ../ICON/NAMELIST_DYAMOND_R02B06L120:
             radiation_nml:
               ecrad_isolver: 2  # 0 for cpu, 2 for gpu
             parallel_nml:
               num_io_procs: 1
   - post_proc:
       plugin: shell
-      computer: ${SIROCCO_COMPUTER:-santis-ssh}
+      computer: ${SIROCCO_COMPUTER}
       # Below not needed
       # uenv: /capstor/store/cscs/userlab/cws01/uenvs/climtools_25.2_v2.sqfs
       # view: default
-      path: ./post_proc.sh
+      path: ./scripts/post_proc.sh
+      # NOTE: This leads to a `uenv` AiiDA Code
       command: "uenv run /capstor/store/cscs/userlab/cws01/uenvs/climtools_25.2_v2.sqfs --view default -- post_proc.sh {PORT::stream}"
 data:
   available:
      - icon_grid:
-         computer: ${SIROCCO_COMPUTER:-santis-ssh}
-         path: /capstor/store/cscs/exclaim/excp01/ppothapa/data_from_santis/grids/MPI_grids/atmo/R02B06/icon_grid_0021_R02B06_G.nc
+         computer: ${SIROCCO_COMPUTER}
+         path: /capstor/store/cscs/userlab/cwd01/leclairm/Sirocco_test_data/R02B06/icon_grid_0021_R02B06_G.nc
      - analysis_file:
-         computer: ${SIROCCO_COMPUTER:-santis-ssh}
-         path: /capstor/store/cscs/exclaim/excp01/ppothapa/data_from_santis/grids/MPI_grids/atmo/R02B06/initial_conditions/ifs2icon_2020012000_0021_R02B06_G.nc
+         computer: ${SIROCCO_COMPUTER}
+         path: /capstor/store/cscs/userlab/cwd01/leclairm/Sirocco_test_data/R02B06/initial_conditions/ifs2icon_2020012000_0021_R02B06_G.nc
      - sst_ice_dir:
-         computer: ${SIROCCO_COMPUTER:-santis-ssh}
-         path: /capstor/store/cscs/exclaim/excp01/ppothapa/data_from_santis/grids/MPI_grids/atmo/R02B06/sst_and_seaice/r0001
+         computer: ${SIROCCO_COMPUTER}
+         path: /capstor/store/cscs/userlab/cwd01/leclairm/Sirocco_test_data/R02B06/sst_and_seaice/r0001
      - ozone_dir:
-         computer: ${SIROCCO_COMPUTER:-santis-ssh}
-         path: /capstor/store/cscs/exclaim/excp01/ppothapa/data_from_santis/grids/MPI_grids/atmo/R02B06/ozone/r0001
+         computer: ${SIROCCO_COMPUTER}
+         path: /capstor/store/cscs/userlab/cwd01/leclairm/Sirocco_test_data/R02B06/ozone/r0001
      - aero_kinne_dir:
-         computer: ${SIROCCO_COMPUTER:-santis-ssh}
-         path: /capstor/store/cscs/exclaim/excp01/ppothapa/data_from_santis/grids/MPI_grids/atmo/R02B06/aerosol_kinne/r0001
+         computer: ${SIROCCO_COMPUTER}
+         path: /capstor/store/cscs/userlab/cwd01/leclairm/Sirocco_test_data/R02B06/aerosol_kinne/r0001
      - extpar_file:
-         computer: ${SIROCCO_COMPUTER:-santis-ssh}
-         path: /capstor/store/cscs/exclaim/excp01/ppothapa/data_from_santis/grids/MPI_grids/atmo/R02B06/external_parameter/external_parameter_icon_0021_R02B06_G_tiles.nc
+         computer: ${SIROCCO_COMPUTER}
+         path: /capstor/store/cscs/userlab/cwd01/leclairm/Sirocco_test_data/R02B06/external_parameter/external_parameter_icon_0021_R02B06_G_tiles.nc
      - rrtmg_lw:
-         computer: ${SIROCCO_COMPUTER:-santis-ssh}
+         computer: ${SIROCCO_COMPUTER}
          path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/data/rrtmg_lw.nc
      - ECHAM6_CldOptProps:
-         computer: ${SIROCCO_COMPUTER:-santis-ssh}
+         computer: ${SIROCCO_COMPUTER}
          path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/data/ECHAM6_CldOptProps.nc
      - ecrad_data:
-         computer: ${SIROCCO_COMPUTER:-santis-ssh}
+         computer: ${SIROCCO_COMPUTER}
          path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/externals/ecrad/data
      - tmp_data_pool:
-         computer: ${SIROCCO_COMPUTER:-santis-ssh}
+         computer: ${SIROCCO_COMPUTER}
          # TODO: Put anything here
          # Don't just symlink always from /store, but use this tmp_data_pool instead
          path: /capstor/scratch/cscs/leclairm/DYAMOND_R02B06_input
@@ -171,12 +150,4 @@ data:
          path: 'icon_input'
      - stream_1: {}
      - stream_2: {}
-     # - stream_3: {}
-     # - stream_4: {}
-     # - stream_5: {}
-     # - stream_6: {}
-     # - stream_7: {}
-     # - stream_8: {}
-     # - stream_9: {}
-     # - stream_10: {}
      - restart: {}

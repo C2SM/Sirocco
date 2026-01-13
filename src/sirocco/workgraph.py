@@ -22,6 +22,7 @@ from aiida_workgraph import WorkGraph, dynamic, get_current_graph, namespace, ta
 
 from sirocco import core
 from sirocco.parsing._utils import TimeUtils
+from sirocco.parsing.cycling import DateCyclePoint
 
 logger = logging.getLogger(__name__)
 
@@ -222,51 +223,6 @@ def _map_unique_set(mapping: dict[str, Any], key: str, value: Any) -> bool:
 
 
 # =============================================================================
-# Helper Functions - Logging
-# =============================================================================
-
-
-def _log_dependency_processing(
-    dep_info: DependencyInfo,
-    port_name: str,
-    task_label: str,
-) -> None:
-    """Log dependency processing information.
-
-    Args:
-        dep_info: Dependency information being processed
-        port_name: Port name receiving the dependency
-        task_label: Label of the task processing the dependency
-    """
-    logger.info(
-        "Task '%s': Port '%s' <- dep '%s' (data: %s, filename: %s)",
-        task_label,
-        port_name,
-        dep_info.dep_label,
-        dep_info.data_label,
-        dep_info.filename,
-    )
-
-
-def _log_remote_data_details(
-    node_key: str,
-    remote_path: str,
-    is_file: bool = True,
-) -> None:
-    """Log RemoteData node creation details.
-
-    Args:
-        node_key: Unique key for the RemoteData node
-        remote_path: Path to the remote data
-        is_file: Whether this points to a specific file (vs directory)
-    """
-    if is_file:
-        logger.info("Created RemoteData '%s' for file: %s", node_key, remote_path)
-    else:
-        logger.info("Created RemoteData '%s' for directory: %s", node_key, remote_path)
-
-
-# =============================================================================
 # Workflow Functions
 # =============================================================================
 
@@ -424,6 +380,10 @@ def launch_shell_task_with_dependency(
     outputs = task_spec["outputs"]
 
     logger.info("Shell '%s' final configuration:", label)
+    logger.info("code type = %s", type(code).__name__)
+    logger.info("code pk = %s", code.pk)
+    logger.info("metadata keys = %s", list(metadata.keys()))
+    logger.info("metadata.computer = %s", metadata.get("computer"))
     logger.info("arguments = %s", arguments)
     logger.info("all_nodes keys = %s", list(all_nodes.keys()))
     logger.info("outputs = %s", outputs)
@@ -1615,11 +1575,12 @@ def get_scheduler_options_from_task(task: core.Task) -> dict[str, Any]:
     if "custom_scheduler_commands" not in options:
         options["custom_scheduler_commands"] = ""
 
-    if isinstance(task, core.IconTask) and task.uenv is not None:
+    # Support uenv and view for both IconTask and ShellTask
+    if isinstance(task, (core.IconTask, core.ShellTask)) and task.uenv is not None:
         if options["custom_scheduler_commands"]:
             options["custom_scheduler_commands"] += "\n"
         options["custom_scheduler_commands"] += f"#SBATCH --uenv={task.uenv}"
-    if isinstance(task, core.IconTask) and task.view is not None:
+    if isinstance(task, (core.IconTask, core.ShellTask)) and task.view is not None:
         if options["custom_scheduler_commands"]:
             options["custom_scheduler_commands"] += "\n"
         options["custom_scheduler_commands"] += f"#SBATCH --view={task.view}"
@@ -1638,6 +1599,101 @@ def get_scheduler_options_from_task(task: core.Task) -> dict[str, Any]:
             resources["num_cores_per_mpiproc"] = task.cpus_per_task
         options["resources"] = resources
     return options
+
+
+def create_shell_code(
+    task: core.ShellTask, computer: aiida.orm.Computer
+) -> tuple[aiida.orm.Code, str | None]:
+    """Create or load an AiiDA Code for a shell task.
+
+    If task.path is specified (relative path to script), creates an InstalledCode
+    for the script and returns the script path for separate node creation.
+    Otherwise, creates an InstalledCode (ShellCode) from the command.
+
+    Args:
+        task: The ShellTask to create code for
+        computer: The AiiDA computer
+
+    Returns:
+        Tuple of (code, script_path) where script_path is the absolute path
+        to the script file if path was specified, None otherwise
+    """
+    from pathlib import Path
+
+    from aiida_shell import ShellCode
+
+    if task.path is not None:
+        # Path was specified in config -> create InstalledCode for the script
+        script_path = Path(task.path)
+
+        if not script_path.is_absolute():
+            msg = f"Expected absolute path by this point, got {script_path}"
+            raise ValueError(msg)
+        if not script_path.exists():
+            msg = f"Script path does not exist: {script_path}"
+            raise FileNotFoundError(msg)
+        if not script_path.is_file():
+            msg = f"Script path is not a file: {script_path}"
+            raise ValueError(msg)
+
+        script_name = script_path.name
+
+        # Create code label from script name
+        code_label = script_name
+        if code_label.endswith(".sh"):
+            code_label = code_label[:-3]
+
+        # Create InstalledCode for the script on this specific computer
+        try:
+            code = aiida.orm.load_code(f"{code_label}@{computer.label}")
+            logger.info("Loaded existing code '%s@%s'", code_label, computer.label)
+        except NotExistent:
+            logger.info(
+                "Code '%s@%s' not found, creating InstalledCode for script %s",
+                code_label,
+                computer.label,
+                script_path,
+            )
+            code = ShellCode(  # type: ignore[assignment]
+                label=code_label,
+                computer=computer,
+                filepath_executable=str(script_path),
+                default_calc_job_plugin="core.shell",
+                use_double_quotes=True,
+            ).store()
+            logger.info(
+                "Created InstalledCode '%s@%s' (PK=%s) for script",
+                code_label,
+                computer.label,
+                code.pk,
+            )
+
+        return code, str(script_path)
+    else:
+        # No path specified -> create InstalledCode from command
+        cmd, _ = split_cmd_arg(task.command)
+        code_label = f"{cmd}"
+
+        if code_label.startswith("./"):
+            code_label = code_label[2:]
+
+        try:
+            code = aiida.orm.load_code(f"{code_label}@{computer.label}")
+        except NotExistent:
+            logger.info(
+                "Code '%s@%s' not found, creating new InstalledCode",
+                code_label,
+                computer.label,
+            )
+            code = ShellCode(  # type: ignore[assignment]
+                label=code_label,
+                computer=computer,
+                filepath_executable=cmd,
+                default_calc_job_plugin="core.shell",
+                use_double_quotes=True,
+            ).store()
+
+        return code, None
 
 
 def build_base_metadata(task: core.Task) -> dict:
@@ -1659,6 +1715,7 @@ def build_base_metadata(task: core.Task) -> dict:
         "_scheduler-stderr.txt",
     ]
     metadata["options"].update(get_scheduler_options_from_task(task))
+    _add_chunk_time_prepend_text(metadata, task)
 
     try:
         computer = aiida.orm.Computer.collection.get(label=task.computer)
@@ -1668,6 +1725,22 @@ def build_base_metadata(task: core.Task) -> dict:
         raise ValueError(msg) from err
 
     return metadata
+
+
+def _add_chunk_time_prepend_text(metadata: dict, task: core.Task) -> None:
+    """Append chunk start/stop exports to prepend_text when date cycling is available."""
+    if not isinstance(task.cycle_point, DateCyclePoint):
+        return
+
+    start_date = task.cycle_point.chunk_start_date.isoformat()
+    stop_date = task.cycle_point.chunk_stop_date.isoformat()
+    exports = f"export CHUNK_START_DATE={start_date}\nexport CHUNK_STOP_DATE={stop_date}"
+
+    current_prepend = metadata["options"].get("prepend_text", "")
+    if current_prepend:
+        metadata["options"]["prepend_text"] = f"{current_prepend}\n{exports}"
+    else:
+        metadata["options"]["prepend_text"] = exports
 
 
 def build_shell_task_spec(task: core.ShellTask) -> dict:
@@ -1684,10 +1757,7 @@ def build_shell_task_spec(task: core.ShellTask) -> dict:
     Returns:
         Dict containing all shell task parameters
     """
-    from aiida_shell import ShellCode
-
     label = get_aiida_label_from_graph_item(task)
-    cmd, _ = split_cmd_arg(task.command)
 
     # Get computer
     try:
@@ -1702,26 +1772,17 @@ def build_shell_task_spec(task: core.ShellTask) -> dict:
     # Add shell-specific metadata options
     metadata["options"]["use_symlinks"] = True
 
+    # Create or load code
+    code, script_path = create_shell_code(task, computer)
+
     # Build nodes (input files like scripts) - store as PKs
     node_pks = {}
-    if task.path is not None:
-        script_node = aiida.orm.SinglefileData(str(task.path))
+    if script_path is not None:
+        # Script path was specified, create SinglefileData node
+        script_node = aiida.orm.SinglefileData(script_path)
         script_node.store()
         node_pks[f"SCRIPT__{label}"] = script_node.pk
-
-    # Create or load code
-    code_label = f"{cmd}"
-    try:
-        code = aiida.orm.load_code(f"{code_label}@{computer.label}")
-    except NotExistent:
-        breakpoint()
-        code = ShellCode(  # type: ignore[assignment]
-            label=code_label,
-            computer=computer,
-            filepath_executable=cmd,
-            default_calc_job_plugin="core.shell",
-            use_double_quotes=True,
-        ).store()
+        logger.info("Created SinglefileData node (PK=%s) for script %s", script_node.pk, script_path)
 
     # Pre-compute input data information using dataclasses
     input_data_info: list[InputDataInfo] = []
@@ -1848,8 +1909,14 @@ def build_icon_task_spec(task: core.IconTask) -> dict:
     icon_code_label = "icon"
     try:
         icon_code = aiida.orm.load_code(f"{icon_code_label}@{computer.label}")
+        logger.info("Loaded existing ICON code '%s@%s'", icon_code_label, computer.label)
     except NotExistent:
-        breakpoint()
+        logger.info(
+            "ICON code '%s@%s' not found, creating new InstalledCode with executable %s",
+            icon_code_label,
+            computer.label,
+            task.bin,
+        )
         icon_code = aiida.orm.InstalledCode(
             label=icon_code_label,
             description="aiida_icon",
@@ -1859,7 +1926,8 @@ def build_icon_task_spec(task: core.IconTask) -> dict:
             with_mpi=bool(task.mpi_cmd),
             use_double_quotes=True,
         )
-        _ = icon_code.store()
+        icon_code.store()
+        logger.info("Created ICON InstalledCode (PK=%s)", icon_code.pk)
 
     # Build base metadata (no job dependencies yet)
     metadata = build_base_metadata(task)

@@ -1,7 +1,7 @@
 ---
 # Complex multi-branch test case with cross-dependencies
 # This tests:
-# - 3 branches with different speeds (fast=30s, medium=60s, slow=120s)
+# - 3 branches with different speeds (fast, medium, slow)
 # - Cross-dependencies between branches
 # - Multiple cycles with inter-cycle dependencies
 # - Convergence points where all branches sync
@@ -26,7 +26,7 @@ cycles:
         period: P1M  # Monthly
       tasks:
         # ============================================================
-        # FAST BRANCH (5s tasks, mostly independent)
+        # FAST BRANCH
         # ============================================================
         - fast_1:
             inputs:
@@ -71,7 +71,7 @@ cycles:
             outputs: [medium_3_out]
 
         # ============================================================
-        # SLOW BRANCH (60s tasks, depends on medium branch)
+        # SLOW BRANCH
         # ============================================================
         - slow_1:
             inputs:
@@ -131,91 +131,91 @@ tasks:
   # Init cycle
   - setup:
       plugin: shell
-      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/fast_task.sh
-      command: "bash fast_task.sh setup 120"
-      computer: ${SIROCCO_COMPUTER:-localhost}
-      account: cwd01
+      path: ${SIROCCO_SCRIPTS_DIR}/fast_task.sh
+      command: "bash fast_task.sh setup ${FAST_TIME}"
+      computer: ${SIROCCO_COMPUTER}
+      account: ${SLURM_ACCOUNT}
 
-  # Fast branch tasks (120s each - increased for timing measurements)
+  # Fast branch tasks
   - fast_1:
       plugin: shell
-      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/fast_task.sh
-      command: "bash fast_task.sh fast_1 120"
-      computer: ${SIROCCO_COMPUTER:-localhost}
-      account: cwd01
+      path: ${SIROCCO_SCRIPTS_DIR}/fast_task.sh
+      command: "bash fast_task.sh fast_1 ${FAST_TIME}"
+      computer: ${SIROCCO_COMPUTER}
+      account: ${SLURM_ACCOUNT}
 
   - fast_2:
       plugin: shell
-      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/fast_task.sh
-      command: "bash fast_task.sh fast_2 120"
-      computer: ${SIROCCO_COMPUTER:-localhost}
-      account: cwd01
+      path: ${SIROCCO_SCRIPTS_DIR}/fast_task.sh
+      command: "bash fast_task.sh fast_2 ${FAST_TIME}"
+      computer: ${SIROCCO_COMPUTER}
+      account: ${SLURM_ACCOUNT}
 
   - fast_3:
       plugin: shell
-      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/fast_task.sh
-      command: "bash fast_task.sh fast_3 120"
-      computer: ${SIROCCO_COMPUTER:-localhost}
-      account: cwd01
+      path: ${SIROCCO_SCRIPTS_DIR}/fast_task.sh
+      command: "bash fast_task.sh fast_3 ${FAST_TIME}"
+      computer: ${SIROCCO_COMPUTER}
+      account: ${SLURM_ACCOUNT}
 
-  # Medium branch tasks (300s each)
+  # Medium branch tasks
   - medium_1:
       plugin: shell
-      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/medium_task.sh
-      command: "bash medium_task.sh medium_1 300"
-      computer: ${SIROCCO_COMPUTER:-localhost}
-      account: cwd01
+      path: ${SIROCCO_SCRIPTS_DIR}/medium_task.sh
+      command: "bash medium_task.sh medium_1 ${MEDIUM_TIME}"
+      computer: ${SIROCCO_COMPUTER}
+      account: ${SLURM_ACCOUNT}
 
   - medium_2:
       plugin: shell
-      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/medium_task.sh
-      command: "bash medium_task.sh medium_2 300"
-      computer: ${SIROCCO_COMPUTER:-localhost}
-      account: cwd01
+      path: ${SIROCCO_SCRIPTS_DIR}/medium_task.sh
+      command: "bash medium_task.sh medium_2 ${MEDIUM_TIME}"
+      computer: ${SIROCCO_COMPUTER}
+      account: ${SLURM_ACCOUNT}
 
   - medium_3:
       plugin: shell
-      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/medium_task.sh
-      command: "bash medium_task.sh medium_3 300"
-      computer: ${SIROCCO_COMPUTER:-localhost}
-      account: cwd01
+      path: ${SIROCCO_SCRIPTS_DIR}/medium_task.sh
+      command: "bash medium_task.sh medium_3 ${MEDIUM_TIME}"
+      computer: ${SIROCCO_COMPUTER}
+      account: ${SLURM_ACCOUNT}
 
-  # Slow branch tasks (600s each)
+  # Slow branch tasks
   - slow_1:
       plugin: shell
-      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/slow_task.sh
-      command: "bash slow_task.sh slow_1 600"
-      computer: ${SIROCCO_COMPUTER:-localhost}
-      account: cwd01
+      path: ${SIROCCO_SCRIPTS_DIR}/slow_task.sh
+      command: "bash slow_task.sh slow_1 $SLOW_TIME"
+      computer: ${SIROCCO_COMPUTER}
+      account: ${SLURM_ACCOUNT}
 
   - slow_2:
       plugin: shell
-      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/slow_task.sh
-      command: "bash slow_task.sh slow_2 600"
-      computer: ${SIROCCO_COMPUTER:-localhost}
-      account: cwd01
+      path: ${SIROCCO_SCRIPTS_DIR}/slow_task.sh
+      command: "bash slow_task.sh slow_2 $SLOW_TIME"
+      computer: ${SIROCCO_COMPUTER}
+      account: ${SLURM_ACCOUNT}
 
   - slow_3:
       plugin: shell
-      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/slow_task.sh
-      command: "bash slow_task.sh slow_3 600"
-      computer: ${SIROCCO_COMPUTER:-localhost}
-      account: cwd01
+      path: ${SIROCCO_SCRIPTS_DIR}/slow_task.sh
+      command: "bash slow_task.sh slow_3 $SLOW_TIME"
+      computer: ${SIROCCO_COMPUTER}
+      account: ${SLURM_ACCOUNT}
 
   # Convergence and inter-cycle
   - finalize:
       plugin: shell
-      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/fast_task.sh
-      command: "bash fast_task.sh finalize 120"
-      computer: ${SIROCCO_COMPUTER:-localhost}
-      account: cwd01
+      path: ${SIROCCO_SCRIPTS_DIR}/fast_task.sh
+      command: "bash fast_task.sh finalize ${FAST_TIME}"
+      computer: ${SIROCCO_COMPUTER}
+      account: ${SLURM_ACCOUNT}
 
   - prepare_next:
       plugin: shell
-      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/fast_task.sh
-      command: "bash fast_task.sh prepare_next 120"
-      computer: ${SIROCCO_COMPUTER:-localhost}
-      account: cwd01
+      path: ${SIROCCO_SCRIPTS_DIR}/fast_task.sh
+      command: "bash fast_task.sh prepare_next ${FAST_TIME}"
+      computer: ${SIROCCO_COMPUTER}
+      account: ${SLURM_ACCOUNT}
 
 
 # ============================================================
