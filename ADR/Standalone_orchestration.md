@@ -61,28 +61,37 @@ The front is then propagating through the task DAG in the following way:
 - Then tasks are recursively promoted from generation `k` to `k-1` if the max rank of parent tasks is `k-2` (task rank is updated accordingly)
 - Finally new tasks are recruted amongst the children of the before last generation (`front_depth-2`) and added to the last generation (`front_depth-1`) if the max rank of a parent task is `front_depth-2` (task rank is updated accordingly).
 
+The main methods added to `core.Workflow` to implement this algorithm are:
+```python
+self.load_state()
+self.dump_state()
+self.init_front()
+self.restart_front()
+self.propagate_front()
+```
+
 ### The Sirocco task
 
-This is the special orchestrating task that does not appear in the IR graph. It is running on the target machine and submitted to the scheduler as any other task with a dependency on any of the rank `0` tasks terminating. In other words, if any of the currently running tasks finishes, regardless of its exit status, the sirocco orchastrating task is allowed by the scheduler to start. Its main role is to:
+This is the special orchestrating task that does not appear in the IR graph. It is running on the target machine and submitted to the scheduler as any other task with a dependency on any of the rank `0` tasks terminating. In other words, if any of the currently running tasks finishes, regardless of its exit status, the sirocco orchestrating task is allowed by the scheduler to start. Its main role is to:
 1. get the state of the workflow which is stored locally on disk
 2. Get the new status of rank `0` tasks by interrogating the scheduler and subsequently propagate the front, which includes the submission of new last generation tasks.
 3. update the workflow status and dump it to disk
-4. Resubmit itself
+4. Resubmit itself with a dependency on any rank `0` tasks terminating
 
 ### Scheduling capabilities for tasks
 
 As tasks are directly submitted by Sirocco and not AiiDA, 2 important elements are also added to core classes:
 - `core.Data` has a `resolved_path` attribute that is used by tasks to know the concrete location of data nodes.
 - All task (so `core.IconTask` and `core.ShellTask` and `core.SiroccoContinueTask`) implement 3 methods that replicate part of what AiiDA plugins (`aiida-shell` and `aiida-icon`) do:
-  - `runscript_lines` returns the core lines specific to the task to be added to the submittedd job script.
-  - `resolve_output_data_paths` sets the `recolved_path` attribute of output data
+  - `runscript_lines` returns the core lines of the submitted job script specific to the task.
+  - `resolve_output_data_paths` sets the `recolved_path` attribute of output data.
   - `prepare_for_submission` adds any required file to the task run directory (e.g. icon namelsists, users scripts)
 
 ### Interaction with the workflow
-
-TODO
-Added methods to `core.Workflow`: starting, stopping, restarting and, visualization and status visualizuation.
-
+Other methods are also added to `core.Workflow` with an interface in the `cli` module in order to control the workflow :
+- `start`, `restart` and `stop` are for interactive control by the users. 
+- `continue_wf` is meant to be only used by sirocco itself when resubmitting a sirocco task. 
+ 
 ## Future refactor
 
-TODO
+We aknowledge that a desirable implementation would disantangle the internal representation from the standalone orchestration in the same way it is done for the AiiDa-based orchestration. A future work could consist in migrating the standalone relevant parts in a dedicated module using inheritence or composition for the involved classes: `Workflow`, `IconTask` and `Shelltask`. A probable cost of that refactor would be a loss of readability / added complexity, which remains to be evaluated.
