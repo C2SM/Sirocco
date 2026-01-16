@@ -137,6 +137,8 @@ class Slurm(Scheduler):
             header.append(f"#SBATCH --account={account}")
         if time := task.walltime:
             header.append(f"#SBATCH --time={time}")
+        if partition := task.partition:
+            header.append(f"#SBATCH --partition={partition}")
         if nodes := task.nodes:
             header.append(f"#SBATCH --nodes={nodes}")
         if ntasks_per_node := task.ntasks_per_node:
