@@ -25,6 +25,9 @@ class NamelistFile(models.ConfigNamelistFileSpec):
     def __getitem__(self, k) -> Any:
         return self._namelist.__getitem__(k)
 
+    def __setitem__(self, k, v) -> None:
+        self._namelist.__setitem__(k, v)
+
     def get(self, key: str, default: Any = None) -> Any:
         return self._namelist.get(key, default=default)
 

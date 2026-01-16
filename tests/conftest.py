@@ -67,7 +67,9 @@ def icon_filepath_executable() -> str:
 def minimal_config() -> models.ConfigWorkflow:
     return models.ConfigWorkflow(
         name="minimal",
+        scheduler="slurm",
         rootdir=pathlib.Path("minimal"),
+        config_filename="config.yml",
         cycles=[models.ConfigCycle(name="minimal", tasks=[models.ConfigCycleTask(name="some_task")])],
         tasks=[models.ConfigShellTask(name="some_task", command="some_command", computer="localhost")],
         data=models.ConfigData(
@@ -84,7 +86,9 @@ def minimal_config() -> models.ConfigWorkflow:
 def minimal_invert_task_io_config() -> models.ConfigWorkflow:
     return models.ConfigWorkflow(
         name="minimal",
+        scheduler="slurm",
         rootdir=pathlib.Path("minimal"),
+        config_filename="config.yml",
         cycles=[
             models.ConfigCycle(
                 name="minimal",
@@ -228,10 +232,10 @@ def aiida_computer_session(tmp_path_factory) -> t.Callable[[], "Computer"]:
         default_mpiprocs_per_machine: int = 1,
         configuration_kwargs: dict[t.Any, t.Any] | None = None,
     ) -> "Computer":
-        import uuid
+        import uuid  # noqa: PLC0415
 
-        from aiida.common.exceptions import NotExistent
-        from aiida.orm import Computer
+        from aiida.common.exceptions import NotExistent  # noqa: PLC0415
+        from aiida.orm import Computer  # noqa: PLC0415
 
         label = label or f"test-computer-{uuid.uuid4().hex}"
 
@@ -320,6 +324,7 @@ def minimal_config_path(tmp_path):
     minimal_config = textwrap.dedent(
         """
         name: minimal
+        scheduler: slurm
         cycles:
           - minimal:
               tasks:

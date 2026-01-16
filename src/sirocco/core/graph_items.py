@@ -3,8 +3,10 @@ from __future__ import annotations
 import enum
 from dataclasses import dataclass, field
 from itertools import chain, product
-from typing import TYPE_CHECKING, Any, ClassVar, Self, TypeVar, cast
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, TypeVar, cast
 
+from sirocco.parsing import cycling
 from sirocco.parsing.target_cycle import DateList, LagList, NoTargetCycle
 from sirocco.parsing.yaml_data_models import (
     ConfigAvailableData,
@@ -16,7 +18,6 @@ from sirocco.parsing.yaml_data_models import (
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from pathlib import Path
 
     from sirocco.parsing.cycling import CyclePoint
     from sirocco.parsing.yaml_data_models import (
@@ -35,6 +36,16 @@ class MpiCmdPlaceholder(enum.Enum):
     MPI_TOTAL_PROCS = "MPI_TOTAL_PROCS"
 
 
+class TaskStatus(enum.Enum):
+    WAITING = 0
+    RUNNING = 1
+    COMPLETED = 2
+    FAILED = 3
+
+
+type VIZ_STATUS_T = Literal["undefined", "active", "waiting", "inactive"]
+
+
 @dataclass(kw_only=True)
 class GraphItem:
     """base class for Data Tasks and Cycles"""
@@ -43,9 +54,20 @@ class GraphItem:
 
     name: str
     coordinates: dict
+    label: str = field(init=False, repr=False)
+    viz_status: VIZ_STATUS_T = field(default="undefined", repr=False)
+
+    def __post_init__(self):
+        self.label = self.name
+        if self.coordinates:
+            self.label += "__" + "__".join(
+                f"{key}_{value}".replace(" ", "_") for key, value in self.coordinates.items()
+            )
 
 
 GRAPH_ITEM_T = TypeVar("GRAPH_ITEM_T", bound=GraphItem)
+
+_UNRESOLVED_PATH_ = Path("_UNRESOLVED_PATH_")
 
 
 @dataclass(kw_only=True)
@@ -53,6 +75,8 @@ class Data(ConfigBaseDataSpecs, GraphItem):
     """Internal representation of a data node"""
 
     color: ClassVar[str] = field(default="light_blue", repr=False)
+    downstream_tasks: list[Task] = field(default_factory=list, repr=False)
+    _resolved_path: Path = _UNRESOLVED_PATH_
 
     @classmethod
     def from_config(cls, config: ConfigBaseData, coordinates: dict) -> AvailableData | GeneratedData:
@@ -61,14 +85,42 @@ class Data(ConfigBaseDataSpecs, GraphItem):
         del config_kwargs["parameters"]
         return data_class(coordinates=coordinates, **config_kwargs)
 
+    @property
+    def resolved_path(self) -> Path:
+        return self._resolved_path
+
+    @resolved_path.setter
+    def resolved_path(self, path: Path):
+        if not path.is_absolute():
+            msg = "resolved path must be absolute"
+            raise ValueError(msg)
+        self._resolved_path = path
+
 
 @dataclass(kw_only=True)
 class AvailableData(Data, ConfigAvailableDataSpecs):
     computer: str
 
+    def __post_init__(self):
+        Data.__post_init__(self)
+        self.resolved_path = self.path
+
 
 @dataclass(kw_only=True)
-class GeneratedData(Data, ConfigGeneratedDataSpecs): ...
+class GeneratedData(Data, ConfigGeneratedDataSpecs):
+    origin_task: Task = field(init=False, repr=False)
+
+    @Data.resolved_path.getter  # type: ignore[attr-defined]
+    def resolved_path(self) -> Path:
+        """Make sure generated data path is resolved before returning it"""
+
+        # NOTE: The call to resolve_output_data_paths() has been placed here
+        #       in order to reduce algorithm complexity. There is no requirement
+        #       for the parts using Data.resolved_path to ensure it has indeed
+        #       been resolved.
+        if self._resolved_path is _UNRESOLVED_PATH_:
+            self.origin_task.resolve_output_data_paths()
+        return self._resolved_path
 
 
 @dataclass(kw_only=True)
@@ -77,17 +129,33 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
 
     plugin_classes: ClassVar[dict[str, type[Self]]] = field(default={}, repr=False)
     color: ClassVar[str] = field(default="light_red", repr=False)
+    SUBMIT_FILENAME: ClassVar[str] = field(default="run_script.sh", repr=False)
+    STDOUTERR_FILENAME: ClassVar[str] = field(default="run_script.%j.o", repr=False)
+    CLEAN_UP_BEFORE_SUBMIT: ClassVar[bool] = field(default=True, repr=False)  # Clean up directory when submitting
+    RUN_ROOT: ClassVar[Literal["run"]] = "run"
+
+    config_rootdir: Path
+    run_dir: Path = field(init=False, repr=False)
+    jobid: str = field(default="_NO_ID_", repr=False)
+    rank: int = field(init=False, repr=False)
+    cycle_point: CyclePoint
+    cycle: Cycle = field(init=False, repr=False)
 
     inputs: dict[str, list[Data]] = field(default_factory=dict)
-    outputs: dict[str | None, list[Data]] = field(default_factory=dict)
+    outputs: dict[str | None, list[GeneratedData]] = field(default_factory=dict)
     wait_on: list[Task] = field(default_factory=list)
-    config_rootdir: Path
-    cycle_point: CyclePoint
+    waiters: list[Task] = field(default_factory=list, repr=False)
+    parents: list[Task] = field(default_factory=list, repr=False)
+    children: list[Task] = field(default_factory=list, repr=False)
 
     _wait_on_specs: list[ConfigCycleTaskWaitOn] = field(default_factory=list, repr=False)
 
     def __post_init__(self):
-        pass
+        GraphItem.__post_init__(self)
+        if set(self.inputs.keys()).intersection(self.outputs.keys()):
+            msg = "port names must be unique, even between inputs and outputs"
+            raise ValueError(msg)
+        self.run_dir = (self.config_rootdir / self.RUN_ROOT / self.label).resolve()
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -102,7 +170,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     def input_data_items(self) -> Iterator[tuple[str, Data]]:
         yield from ((key, value) for key, values in self.inputs.items() for value in values)
 
-    def output_data_nodes(self) -> Iterator[Data]:
+    def output_data_nodes(self) -> Iterator[GeneratedData]:
         yield from chain(*self.outputs.values())
 
     def output_data_items(self) -> Iterator[tuple[str | None, Data]]:
@@ -148,6 +216,12 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
         #                                                and setting an underscored attribute from
         #                                                the class itself raises SLF001
 
+        # Link new task to input and output data nodes
+        for data in new.input_data_nodes():
+            data.downstream_tasks.append(new)
+        for data in new.output_data_nodes():
+            data.origin_task = new
+
         return new
 
     @classmethod
@@ -165,6 +239,50 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
                 )
             )
         )
+        # Add self to waiters of upstream task
+        for upstream_task in self.wait_on:
+            upstream_task.waiters.append(self)
+
+    def link_parents_children(self) -> None:
+        # Parent tasks
+        self.parents = unique_item_list(
+            chain(
+                self.wait_on,
+                (data_in.origin_task for data_in in self.input_data_nodes() if isinstance(data_in, GeneratedData)),
+            )
+        )
+        self.children = unique_item_list(
+            chain(self.waiters, *chain(data_out.downstream_tasks for data_out in self.output_data_nodes()))
+        )
+
+    def sirocco_environemnt(self) -> list[str]:
+        # TODO: Add parameters
+        env_list: list[str] = []
+        if uenv := self.uenv:
+            env_list.append(f"export SIROCCO_UENV={uenv}")
+        if view := self.view:
+            env_list.append(f"export SIROCCO_VIEW={view}")
+        if isinstance(self.cycle_point, cycling.DateCyclePoint):
+            env_list.append(f"export SIROCCO_START_DATE={self.cycle_point.chunk_start_date.isoformat()}")
+            env_list.append(f"export SIROCCO_STOP_DATE={self.cycle_point.chunk_stop_date.isoformat()}")
+        return env_list
+
+    def to_yaml_state(self) -> dict[str, dict[str, Any]]:
+        return {
+            self.name: {
+                "coordinates": {k: v.isoformat() if k == "date" else v for k, v in self.coordinates.items()},
+                "jobid": self.jobid,
+            }
+        }
+
+    def runscript_lines(self) -> list[str]:
+        raise NotImplementedError
+
+    def resolve_output_data_paths(self) -> None:
+        raise NotImplementedError
+
+    def prepare_for_submission(self) -> None:
+        raise NotImplementedError
 
 
 @dataclass(kw_only=True)
@@ -174,6 +292,11 @@ class Cycle(GraphItem):
     color: ClassVar[str] = field(default="light_green", repr=False)
 
     tasks: list[Task]
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        for task in self.tasks:
+            task.cycle = self
 
 
 class Array[GRAPH_ITEM_T]:
@@ -255,7 +378,7 @@ class Store[GRAPH_ITEM_T]:
         self._dict: dict[str, Array[GRAPH_ITEM_T]] = {}
 
     def add(self, item: GRAPH_ITEM_T) -> None:
-        graph_item = cast(GraphItem, item)  # mypy can somehow not deduce this
+        graph_item = cast("GraphItem", item)  # mypy can somehow not deduce this
         name, coordinates = graph_item.name, graph_item.coordinates
         if name not in self._dict:
             self._dict[name] = Array[GRAPH_ITEM_T](name)
@@ -274,3 +397,13 @@ class Store[GRAPH_ITEM_T]:
 
     def __iter__(self) -> Iterator[GRAPH_ITEM_T]:
         yield from chain(*(self._dict.values()))
+
+
+def unique_item_list[GRAPH_ITEM_T: GraphItem](item_candidates: Iterator[GRAPH_ITEM_T]) -> list[GRAPH_ITEM_T]:
+    unique_labels: list[str] = []
+    unique_items: list[GRAPH_ITEM_T] = []
+    for item in item_candidates:
+        if item.label not in unique_labels:
+            unique_labels.append(item.label)
+            unique_items.append(item)
+    return unique_items

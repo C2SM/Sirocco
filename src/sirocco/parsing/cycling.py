@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Iterator  # noqa: TCH003 needed for pydantic
+from collections.abc import Iterator  # noqa: TC003 needed for pydantic
 from dataclasses import dataclass
-from datetime import datetime  # noqa: TCH003 needed for pydantic
+from datetime import datetime  # noqa: TC003 needed for pydantic
 from typing import Annotated, Self
 
-from isoduration.types import Duration  # noqa: TCH002 needed for pydantic
+from isoduration.types import Duration  # noqa: TC002 needed for pydantic
 from pydantic import BaseModel, BeforeValidator, ConfigDict, model_validator
 
 from sirocco.parsing._utils import TimeUtils, convert_to_date, convert_to_duration

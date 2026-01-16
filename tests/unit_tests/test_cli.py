@@ -227,7 +227,7 @@ class TestCLICommands:
 
 def test_create_aiida_workflow_invalid_file(capsys):
     """Test workflow preparation with invalid config file."""
-    from sirocco.cli import create_aiida_workflow
+    from sirocco.cli import create_aiida_workflow  # noqa: PLC0415
 
     with pytest.raises(typer.Exit):
         create_aiida_workflow("nonexistent.yml")
@@ -238,7 +238,7 @@ def test_create_aiida_workflow_invalid_file(capsys):
 
 def test_create_aiida_workflow_malformed_config(tmp_path, capsys):
     """Test workflow preparation with malformed config file."""
-    from sirocco.cli import create_aiida_workflow
+    from sirocco.cli import create_aiida_workflow  # noqa: PLC0415
 
     # Create a malformed YAML file
     bad_config = tmp_path / "bad_config.yml"

@@ -17,9 +17,9 @@ def test_parse_config_file(config_paths, pprinter):
     if test_str != reference_str:
         new_path = Path(config_paths["txt"]).with_suffix(".new.txt")
         new_path.write_text(test_str)
-        assert (
-            reference_str == test_str
-        ), f"Workflow graph doesn't match serialized data. New graph string dumped to {new_path}."
+        assert reference_str == test_str, (
+            f"Workflow graph doesn't match serialized data. New graph string dumped to {new_path}."
+        )
 
 
 def test_vizgraph(config_paths):
@@ -53,7 +53,7 @@ def test_run_workgraph(config_paths):
     aiida_workflow = AiidaWorkGraph(core_workflow)
     output_node = aiida_workflow.run()
     if not output_node.is_finished_ok:
-        from aiida.cmdline.utils.common import get_calcjob_report, get_workchain_report
+        from aiida.cmdline.utils.common import get_calcjob_report, get_workchain_report  # noqa: PLC0415
 
         # overall report but often not enough to really find the bug, one has to go to calcjob
         LOGGER.error("Workchain report:\n%s", get_workchain_report(output_node, levelname="REPORT"))
@@ -61,9 +61,9 @@ def test_run_workgraph(config_paths):
         for node in output_node.called_descendants:
             LOGGER.error("%s workdir: %s", node.process_label, node.get_remote_workdir())
             LOGGER.error("%s report:\n%s", node.process_label, get_calcjob_report(node))
-    assert (
-        output_node.is_finished_ok
-    ), f"Not successful run. Got exit code {output_node.exit_code} with message {output_node.exit_message}."
+    assert output_node.is_finished_ok, (
+        f"Not successful run. Got exit code {output_node.exit_code} with message {output_node.exit_message}."
+    )
 
 
 @pytest.mark.requires_icon
@@ -94,7 +94,7 @@ def test_run_workgraph_with_icon(icon_filepath_executable, config_paths, tmp_pat
     aiida_workflow = AiidaWorkGraph(core_workflow)
     output_node = aiida_workflow.run()
     if not output_node.is_finished_ok:
-        from aiida.cmdline.utils.common import get_calcjob_report, get_workchain_report
+        from aiida.cmdline.utils.common import get_calcjob_report, get_workchain_report  # noqa: PLC0415
 
         # overall report but often not enough to really find the bug, one has to go to calcjob
         LOGGER.error("Workchain report:\n%s", get_workchain_report(output_node, levelname="REPORT"))
@@ -103,9 +103,9 @@ def test_run_workgraph_with_icon(icon_filepath_executable, config_paths, tmp_pat
             LOGGER.error("%s workdir: %s", node.process_label, node.get_remote_workdir())
             LOGGER.error("%s report:\n%s", node.process_label, get_calcjob_report(node))
 
-    assert (
-        output_node.is_finished_ok
-    ), f"Not successful run. Got exit code {output_node.exit_code} with message {output_node.exit_message}."
+    assert output_node.is_finished_ok, (
+        f"Not successful run. Got exit code {output_node.exit_code} with message {output_node.exit_message}."
+    )
 
 
 # configs containing task using icon plugin
