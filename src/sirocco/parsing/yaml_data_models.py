@@ -282,6 +282,7 @@ class ConfigBaseTaskSpecs:
     computer: str | None = None
     host: str | None = None
     account: str | None = None
+    partition: str | None = None
     uenv: str | None = None
     view: str | None = None
     nodes: int | None = None  # SLURM option `--nodes`, AiiDA option `num_machines`
@@ -428,7 +429,7 @@ class ConfigShellTaskSpecs:
                 return cmd.replace(full_match, opt + sep.join(input_labels[port]))
 
             if port not in input_labels:
-                msg = f"The input_labels dictionnary doesn't have the {port} key. If the port has a when condition, enclose the whole dedicated comand line part in square brackets e.g. command: ... [--arg={{PORT:my_port}}] ..."
+                msg = f"The input_labels dictionnary doesn't have the {port} key. If the port has a when condition, enclose the whole dedicated command line part in square brackets e.g. command: ... [--arg={{PORT:my_port}}] ..."
                 raise KeyError(msg)
             return cmd.replace(full_match, sep.join(input_labels[port]))
 
