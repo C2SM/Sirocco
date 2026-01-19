@@ -34,7 +34,7 @@ dependencies = [
   "pydantic",
   "ruamel.yaml",
   "aiida-core>=2.5",
-  "aiida-icon>=0.4.0",
+  "aiida-icon>=0.5.0",
   "aiida-workgraph==0.5.2",
   "termcolor",
   "pygraphviz",
