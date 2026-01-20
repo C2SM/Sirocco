@@ -6,6 +6,7 @@ Usage:
 """
 
 import sys
+import tempfile
 from pathlib import Path
 
 from aiida import orm, load_profile
@@ -135,15 +136,23 @@ def verify_workflow(workflow_pk):
             print(f"⚠️  {task_name} ({date or 'N/A'}): No remote work directory")
             continue
 
-        # Read value.txt
-        value_file = Path(remote_workdir) / f"{task_name}_output" / "value.txt"
+        # Read value.txt using AiiDA transport
+        value_file_path = str(Path(remote_workdir) / f"{task_name}_output" / "value.txt")
 
-        if not value_file.exists():
-            print(f"❌ {task_name} ({date or 'N/A'}): Missing {value_file}")
-            continue
-
+        # Get transport to access remote files
+        computer = calcjob.outputs.remote_folder.computer
         try:
-            actual = int(value_file.read_text().strip())
+            with computer.get_transport() as transport:
+                if not transport.isfile(value_file_path):
+                    print(f"❌ {task_name} ({date or 'N/A'}): Missing {value_file_path}")
+                    continue
+
+                # Download file to temporary location and read it
+                with tempfile.NamedTemporaryFile(mode='r', delete=True) as tmpfile:
+                    transport.get(value_file_path, tmpfile.name)
+                    tmpfile.flush()
+                    with open(tmpfile.name, 'r') as f:
+                        actual = int(f.read().strip())
         except Exception as e:
             print(f"❌ {task_name} ({date or 'N/A'}): Error reading value: {e}")
             continue

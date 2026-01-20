@@ -10,11 +10,21 @@ echo "[$TASK_NAME] Starting at $(date +%H:%M:%S)"
 # Read input values if they exist (for dependency verification)
 RESULT=0
 shopt -s nullglob  # Make non-matching globs expand to nothing
-INPUT_FILES=(*_output/value.txt)
+# Match both *_output/value.txt and *_date_*/value.txt patterns (for cycled inputs)
+INPUT_FILES=(*_output/value.txt *_date_*/value.txt)
 shopt -u nullglob
-if [ ${#INPUT_FILES[@]} -gt 0 ] && [ -f "${INPUT_FILES[0]}" ]; then
+
+# Filter out our own output directory
+FILTERED_FILES=()
+for file in "${INPUT_FILES[@]}"; do
+    if [[ ! "$file" =~ ^"${TASK_NAME}"_ ]]; then
+        FILTERED_FILES+=("$file")
+    fi
+done
+
+if [ ${#FILTERED_FILES[@]} -gt 0 ]; then
     # Sum all input values
-    for input_file in *_output/value.txt; do
+    for input_file in "${FILTERED_FILES[@]}"; do
         if [ -f "$input_file" ]; then
             value=$(cat "$input_file")
             RESULT=$(echo "$RESULT + $value" | bc)

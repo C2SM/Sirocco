@@ -1593,7 +1593,7 @@ def create_shell_code(
         script_name = path_obj.name
         script_dir = path_obj.parent
 
-        # Create unique code label from script name + hash of absolute path
+        # Create unique code label from script name + hash of absolute path + hash of content
         base_label = script_name
         # TODO: More elegant way to strip file extension
         if base_label.endswith(".sh") or base_label.endswith(".py"):
@@ -1601,7 +1601,12 @@ def create_shell_code(
 
         # Add hash of absolute path for uniqueness
         path_hash = hashlib.sha256(str(path_obj).encode()).hexdigest()[:8]
-        code_label = f"{base_label}-{path_hash}"
+
+        # Add hash of file content to detect changes
+        with open(path_obj, 'rb') as f:
+            content_hash = hashlib.sha256(f.read()).hexdigest()[:8]
+
+        code_label = f"{base_label}-{path_hash}-{content_hash}"
 
         try:
             code = aiida.orm.load_code(f"{code_label}@{computer.label}")
