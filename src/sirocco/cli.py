@@ -240,13 +240,13 @@ def run(
         ),
     ],
     front_depth: Annotated[
-        int,
+        int | None,
         typer.Option(
             "--front-depth",
             "-w",
             help="Number of topological fronts to keep active. 0=sequential, 1=one front ahead (default), high value=streaming submission.",
         ),
-    ] = 1,
+    ] = None,
     max_queued_jobs: Annotated[
         int | None,
         typer.Option(
