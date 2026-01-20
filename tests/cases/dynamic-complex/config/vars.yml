@@ -4,8 +4,8 @@
 
 # Compute configuration
 # SIROCCO_COMPUTER: "eiger-firecrest"
-# SIROCCO_COMPUTER: "santis-async-ssh"
-SIROCCO_COMPUTER: "santis-firecrest"
+SIROCCO_COMPUTER: "santis-async-ssh"
+# SIROCCO_COMPUTER: "santis-firecrest"
 SIROCCO_SCRIPTS_DIR: "scripts"
 # SLURM_ACCOUNT: "mr32"
 SLURM_ACCOUNT: "cwd01"

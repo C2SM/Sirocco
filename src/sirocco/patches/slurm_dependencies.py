@@ -13,6 +13,9 @@ This patch adds two workarounds:
 This is Sirocco-specific and not intended for upstream aiida-core.
 """
 
+# TODO: Investigate why this appears again (seems weird that SLURM purges it form its db),
+# and convert into a proper error handler
+
 import logging
 
 logger = logging.getLogger(__name__)

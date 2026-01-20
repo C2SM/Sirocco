@@ -5,5 +5,4 @@
 # Compute configuration
 SIROCCO_COMPUTER: "santis-async-ssh"
 SLURM_ACCOUNT: "cwd01"
-
 # SIROCCO_COMPUTER: "santis-async-ssh"

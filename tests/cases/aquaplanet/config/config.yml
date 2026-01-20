@@ -2,7 +2,7 @@
 name: AQUAPLANET
 start_date: &root_start_date '2000-01-01T00:00:00'
 stop_date: &root_stop_date '2000-01-01T00:02:00'
-front_depth: 2
+front_depth: 1
 cycles:  # <- GRAPH DEFINITION
   - every_30s:
       cycling:
