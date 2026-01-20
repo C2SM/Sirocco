@@ -1,8 +1,9 @@
 ---
-name: dynamic_deps
+name: dynamic_deps_simple
 start_date: &root_start_date '2026-01-01T00:00'
 stop_date: &root_stop_date '2026-01-02T00:00'
-window_size: 1
+window_size: 0
+
 cycles:
   - single_cycle:
       cycling:
@@ -42,64 +43,68 @@ cycles:
               - slow_2_output:
                   port: slow_2_data
             outputs: [slow_3_output]
+
 tasks:
+
   - root:
       plugin: shell
-      computer: ${SIROCCO_COMPUTER:-localhost}
-      account: cwd01
-      # queue_name: debug
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      queue_name: "{{ SLURM_QUEUE }}"
       walltime: "00:30:00"
-      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/fast_task.sh
-      command: "bash fast_task.sh root 120"
+      path: "{{ SIROCCO_SCRIPTS_DIR | default('scripts') }}/fast_task.sh"
+      command: "bash fast_task.sh root {{ FAST_TIME }}"
   - fast_1:
       plugin: shell
-      computer: ${SIROCCO_COMPUTER:-localhost}
-      account: cwd01
-      # queue_name: debug
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      queue_name: "{{ SLURM_QUEUE }}"
       walltime: "00:30:00"
-      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/fast_task.sh
-      command: "bash fast_task.sh fast_1 300"
+      path: "{{ SIROCCO_SCRIPTS_DIR | default('scripts') }}/fast_task.sh"
+      command: "bash fast_task.sh fast_1 {{ FAST_TIME }}"
   - fast_2:
       plugin: shell
-      computer: ${SIROCCO_COMPUTER:-localhost}
-      account: cwd01
-      # queue_name: debug
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      queue_name: "{{ SLURM_QUEUE }}"
       walltime: "00:30:00"
-      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/fast_task.sh
-      command: "bash fast_task.sh fast_2 300"
+      path: "{{ SIROCCO_SCRIPTS_DIR | default('scripts') }}/fast_task.sh"
+      command: "bash fast_task.sh fast_2 {{ FAST_TIME }}"
   - fast_3:
       plugin: shell
-      computer: ${SIROCCO_COMPUTER:-localhost}
-      account: cwd01
-      # queue_name: debug
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      queue_name: "{{ SLURM_QUEUE }}"
       walltime: "00:30:00"
-      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/fast_task.sh
-      command: "bash fast_task.sh fast_3 300"
+      path: "{{ SIROCCO_SCRIPTS_DIR | default('scripts') }}/fast_task.sh"
+      command: "bash fast_task.sh fast_3 {{ FAST_TIME }}"
   - slow_1:
       plugin: shell
-      computer: ${SIROCCO_COMPUTER:-localhost}
-      account: cwd01
-      # queue_name: debug
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      queue_name: "{{ SLURM_QUEUE }}"
       walltime: "00:30:00"
-      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/slow_task.sh
-      command: "bash slow_task.sh slow_1 600"
+      path: "{{ SIROCCO_SCRIPTS_DIR | default('scripts') }}/slow_task.sh"
+      command: "bash slow_task.sh slow_1 {{ SLOW_TIME }}"
   - slow_2:
       plugin: shell
-      computer: ${SIROCCO_COMPUTER:-localhost}
-      account: cwd01
-      # queue_name: debug
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      queue_name: "{{ SLURM_QUEUE }}"
       walltime: "00:30:00"
-      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/slow_task.sh
-      command: "bash slow_task.sh slow_2 600"
+      path: "{{ SIROCCO_SCRIPTS_DIR | default('scripts') }}/slow_task.sh"
+      command: "bash slow_task.sh slow_2 {{ SLOW_TIME }}"
   - slow_3:
       plugin: shell
-      computer: ${SIROCCO_COMPUTER:-localhost}
-      account: cwd01
-      # queue_name: debug
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      queue_name: "{{ SLURM_QUEUE }}"
       walltime: "00:30:00"
-      path: ${SIROCCO_SCRIPTS_DIR:-scripts}/slow_task.sh
-      command: "bash slow_task.sh slow_3 600"
+      path: "{{ SIROCCO_SCRIPTS_DIR | default('scripts') }}/slow_task.sh"
+      command: "bash slow_task.sh slow_3 {{ SLOW_TIME }}"
+
 data:
+
   generated:
     - root_output:
         path: root_output

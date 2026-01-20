@@ -20,11 +20,10 @@ for DIR in ${DATA_POOL} ${SST_ICE_DIR} ${OZONE_DIR} ${AERO_KINE_DIR} ${ICON_INPU
     fi
 done
 
-# TODO: Sirocco should export this information (dates and parameters)
-YYYY_START="${SIROCCO_START_DATE:0:4}"
-MM_START="${SIROCCO_START_DATE:5:2}"
-YYYY_STOP="${SIROCCO_STOP_DATE:0:4}"
-MM_STOP="${SIROCCO_STOP_DATE:5:2}"
+YYYY_START="${START_DATE:0:4}"
+MM_START="${START_DATE:5:2}"
+YYYY_STOP="${STOP_DATE:0:4}"
+MM_STOP="${STOP_DATE:5:2}"
 
 shift_YYYY_MM(){
     if [ "${MM}" == "12" ]; then
@@ -40,8 +39,7 @@ shift_YYYY_MM(){
 import_and_link(){
     # - add file to workflow data pool on scratch if not found
     # - link to icon chunk input
-    DATA_POOL_FILE_PATH="${DATA_POOL}/$2"
-    ICON_INPUT_LINKNAME="${3:-$2}"
+    [ "$3" == "" ] && DATA_POOL_FILE_PATH="${DATA_POOL}/$2" || DATA_POOL_FILE_PATH="${DATA_POOL}/$3"
     if [ ! -e "${DATA_POOL_FILE_PATH}" ]; then
         ORIGIN_FILE_PATH="$1/$2"
         if [ -e "${ORIGIN_FILE_PATH}" ]; then 
@@ -51,7 +49,7 @@ import_and_link(){
             exit 1
         fi
     fi
-    ln -s "${DATA_POOL_FILE_PATH}" "./${ICON_INPUT_LINKNAME}"
+    ln -s "${DATA_POOL_FILE_PATH}" .
 }
 
 # Enter ICON input dir for current chunk

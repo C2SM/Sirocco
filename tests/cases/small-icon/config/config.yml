@@ -1,3 +1,4 @@
+# TODO (long-term): ICON compilation as part of the workflow
 ---
 start_date: &root_start_date '2026-01-01T00:00'
 stop_date: &root_stop_date '2026-06-01T00:00'
@@ -43,7 +44,7 @@ cycles:
 tasks:
   - icon:
       plugin: icon
-      computer: ${SIROCCO_COMPUTER:-remote}
+      computer: "{{ SIROCCO_COMPUTER }}"
       bin: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/bin/icon
       namelists:
         - ./ICON/icon_master.namelist
@@ -53,12 +54,14 @@ tasks:
       nodes: 1
       ntasks_per_node: 1
       cpus_per_task: 1
+      # TODO: Default user very happy not having to provide a wrapper script
+      # Instead, also provide gpu/cpu flag that the user can set
       wrapper_script: scripts/dummy_wrapper.sh
-      uenv: "icon-wcp/v1:rc4" 
+      uenv: "icon-wcp/v1:rc4"
       view: "icon"
   - cleanup:
       plugin: shell
-      computer: ${SIROCCO_COMPUTER:-remote}
+      computer: "{{ SIROCCO_COMPUTER }}"
       path: scripts/cleanup.py
       command: "python cleanup.py"
       mpi_cmd: "mpirun -np {MPI_TOTAL_PROCS}"
@@ -70,19 +73,19 @@ data:
   available:
      - icon_grid_simple:
          path: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/icon_grid_simple.nc
-         computer: ${SIROCCO_COMPUTER:-remote}
+         computer: "{{ SIROCCO_COMPUTER }}"
      - ecrad_data:
          path: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/ecrad_data
-         computer: ${SIROCCO_COMPUTER:-remote}
+         computer: "{{ SIROCCO_COMPUTER }}"
      - ECHAM6_CldOptProps:
          path: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/ECHAM6_CldOptProps.nc
-         computer: ${SIROCCO_COMPUTER:-remote}
+         computer: "{{ SIROCCO_COMPUTER }}"
      - rrtmg_sw:
          path: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/rrtmg_sw.nc
-         computer: ${SIROCCO_COMPUTER:-remote}
+         computer: "{{ SIROCCO_COMPUTER }}"
      - dmin_wetgrowth_lookup:
          path: /TESTS_ROOTDIR/tests/cases/small-icon/config/ICON/dmin_wetgrowth_lookup.nc
-         computer: ${SIROCCO_COMPUTER:-remote}
+         computer: "{{ SIROCCO_COMPUTER }}"
   generated:
      - finish: {}
      - restart: {}

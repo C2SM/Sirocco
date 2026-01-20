@@ -5,10 +5,11 @@ from typing import TYPE_CHECKING, Annotated
 import typer
 
 # Apply patches for third-party libraries before any AiiDA operations
-from sirocco.patches import patch_firecrest_symlink, patch_slurm_dependency_handling
+from sirocco.patches import patch_firecrest_symlink, patch_slurm_dependency_handling, patch_workgraph_window
 
 patch_firecrest_symlink()
 patch_slurm_dependency_handling()
+patch_workgraph_window()
 
 if TYPE_CHECKING:
     from aiida_workgraph import WorkGraph
@@ -258,6 +259,10 @@ def run(
     # Load config to get actual window_size if not provided
     config_workflow = parsing.ConfigWorkflow.from_config_file(str(workflow_file))
     actual_window_size = window_size if window_size is not None else config_workflow.window_size
+
+    # FIXME
+    # # DEBUG
+    # console.print(f"[dim]DEBUG: CLI window_size arg = {window_size}, config window_size = {config_workflow.window_size}, actual = {actual_window_size}[/dim]")
 
     core_wf, wg = create_aiida_workflow(workflow_file, window_size, max_queued_jobs)
     console.print(f"▶️ Running workflow [magenta]'{core_wf.name}'[/magenta] directly (blocking)...")

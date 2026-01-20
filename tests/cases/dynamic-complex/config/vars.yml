@@ -1,0 +1,21 @@
+---
+# Variables for the Jinja2 template
+# These can be overridden by environment variables
+
+# Compute configuration
+# SIROCCO_COMPUTER: "eiger-firecrest"
+# SIROCCO_COMPUTER: "santis-async-ssh"
+SIROCCO_COMPUTER: "santis-firecrest"
+SIROCCO_SCRIPTS_DIR: "scripts"
+# SLURM_ACCOUNT: "mr32"
+SLURM_ACCOUNT: "cwd01"
+SLURM_QUEUE: "normal"
+
+# Timing configuration
+SIROCCO_TIME_FACTOR: 1
+
+# Task durations (calculated from time factor)
+# Base: fast=10s, medium=30s, slow=60s
+FAST_TIME: 10    # 10 * SIROCCO_TIME_FACTOR
+MEDIUM_TIME: 30  # 30 * SIROCCO_TIME_FACTOR
+SLOW_TIME: 60    # 60 * SIROCCO_TIME_FACTOR

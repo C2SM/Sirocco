@@ -34,23 +34,23 @@ cycles:
 tasks:
   - icon:
       plugin: shell
-      computer: ${SIROCCO_COMPUTER:-remote}
+      computer: "{{ SIROCCO_COMPUTER }}"
       path: scripts/icon.py
       command: "python icon.py --restart {PORT::restart} --init {PORT::init}"
       uenv: "icon-wcp/v1:rc4"
   - cleanup:
       plugin: shell
-      computer: ${SIROCCO_COMPUTER:-remote}
+      computer: "{{ SIROCCO_COMPUTER }}"
       path: scripts/cleanup.py
       command: "python cleanup.py"
 data:
   available:
      - icon_namelist:
          # Different computer between task and available data
-         computer: ${SIROCCO_DATA_COMPUTER:-localhost}
+         computer: "{{ SIROCCO_DATA_COMPUTER }}"
          path: /TESTS_ROOTDIR/tests/cases/small-shell/config/data/input
      - initial_conditions:
-         computer: ${SIROCCO_DATA_COMPUTER:-localhost}
+         computer: "{{ SIROCCO_DATA_COMPUTER }}"
          path: /TESTS_ROOTDIR/tests/cases/small-shell/config/data/initial_conditions
   generated:
      - icon_output:

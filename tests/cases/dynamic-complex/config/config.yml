@@ -9,7 +9,7 @@
 name: dynamic_deps_complex
 start_date: &cycle_start '2026-01-01T00:00'
 stop_date: &cycle_stop '2026-03-01T00:00'
-window_size: 2
+window_size: 1
 
 cycles:
   # Initialization cycle (runs once)
@@ -123,104 +123,121 @@ cycles:
                   port: prev_cycle_ref
             outputs: [next_cycle_data]
 
-# ============================================================
-# TASK DEFINITIONS
-# ============================================================
 tasks:
 
   # Init cycle
   - setup:
       plugin: shell
-      path: ${SIROCCO_SCRIPTS_DIR}/fast_task.sh
-      command: "bash fast_task.sh setup ${FAST_TIME}"
-      computer: ${SIROCCO_COMPUTER}
-      account: ${SLURM_ACCOUNT}
+      path: "{{ SIROCCO_SCRIPTS_DIR }}/fast_task.sh"
+      command: "bash fast_task.sh setup {{ FAST_TIME }}"
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      queue_name: "{{ SLURM_QUEUE }}"
+      walltime: 00:30:00
 
   # Fast branch tasks
   - fast_1:
       plugin: shell
-      path: ${SIROCCO_SCRIPTS_DIR}/fast_task.sh
-      command: "bash fast_task.sh fast_1 ${FAST_TIME}"
-      computer: ${SIROCCO_COMPUTER}
-      account: ${SLURM_ACCOUNT}
+      path: "{{ SIROCCO_SCRIPTS_DIR }}/fast_task.sh"
+      command: "bash fast_task.sh fast_1 {{ FAST_TIME }}"
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      queue_name: "{{ SLURM_QUEUE }}"
+      walltime: 00:30:00
 
   - fast_2:
       plugin: shell
-      path: ${SIROCCO_SCRIPTS_DIR}/fast_task.sh
-      command: "bash fast_task.sh fast_2 ${FAST_TIME}"
-      computer: ${SIROCCO_COMPUTER}
-      account: ${SLURM_ACCOUNT}
+      path: "{{ SIROCCO_SCRIPTS_DIR }}/fast_task.sh"
+      command: "bash fast_task.sh fast_2 {{ FAST_TIME }}"
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      queue_name: "{{ SLURM_QUEUE }}"
+      walltime: 00:30:00
 
   - fast_3:
       plugin: shell
-      path: ${SIROCCO_SCRIPTS_DIR}/fast_task.sh
-      command: "bash fast_task.sh fast_3 ${FAST_TIME}"
-      computer: ${SIROCCO_COMPUTER}
-      account: ${SLURM_ACCOUNT}
+      path: "{{ SIROCCO_SCRIPTS_DIR }}/fast_task.sh"
+      command: "bash fast_task.sh fast_3 {{ FAST_TIME }}"
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      queue_name: "{{ SLURM_QUEUE }}"
+      walltime: 00:30:00
 
   # Medium branch tasks
   - medium_1:
       plugin: shell
-      path: ${SIROCCO_SCRIPTS_DIR}/medium_task.sh
-      command: "bash medium_task.sh medium_1 ${MEDIUM_TIME}"
-      computer: ${SIROCCO_COMPUTER}
-      account: ${SLURM_ACCOUNT}
+      path: "{{ SIROCCO_SCRIPTS_DIR }}/medium_task.sh"
+      command: "bash medium_task.sh medium_1 {{ MEDIUM_TIME }}"
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      queue_name: "{{ SLURM_QUEUE }}"
+      walltime: 00:30:00
 
   - medium_2:
       plugin: shell
-      path: ${SIROCCO_SCRIPTS_DIR}/medium_task.sh
-      command: "bash medium_task.sh medium_2 ${MEDIUM_TIME}"
-      computer: ${SIROCCO_COMPUTER}
-      account: ${SLURM_ACCOUNT}
+      path: "{{ SIROCCO_SCRIPTS_DIR }}/medium_task.sh"
+      command: "bash medium_task.sh medium_2 {{ MEDIUM_TIME }}"
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      queue_name: "{{ SLURM_QUEUE }}"
+      walltime: 00:30:00
 
   - medium_3:
       plugin: shell
-      path: ${SIROCCO_SCRIPTS_DIR}/medium_task.sh
-      command: "bash medium_task.sh medium_3 ${MEDIUM_TIME}"
-      computer: ${SIROCCO_COMPUTER}
-      account: ${SLURM_ACCOUNT}
+      path: "{{ SIROCCO_SCRIPTS_DIR }}/medium_task.sh"
+      command: "bash medium_task.sh medium_3 {{ MEDIUM_TIME }}"
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      queue_name: "{{ SLURM_QUEUE }}"
+      walltime: 00:30:00
 
   # Slow branch tasks
   - slow_1:
       plugin: shell
-      path: ${SIROCCO_SCRIPTS_DIR}/slow_task.sh
-      command: "bash slow_task.sh slow_1 $SLOW_TIME"
-      computer: ${SIROCCO_COMPUTER}
-      account: ${SLURM_ACCOUNT}
+      path: "{{ SIROCCO_SCRIPTS_DIR }}/slow_task.sh"
+      command: "bash slow_task.sh slow_1 {{ SLOW_TIME }}"
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      queue_name: "{{ SLURM_QUEUE }}"
+      walltime: 00:30:00
 
   - slow_2:
       plugin: shell
-      path: ${SIROCCO_SCRIPTS_DIR}/slow_task.sh
-      command: "bash slow_task.sh slow_2 $SLOW_TIME"
-      computer: ${SIROCCO_COMPUTER}
-      account: ${SLURM_ACCOUNT}
+      path: "{{ SIROCCO_SCRIPTS_DIR }}/slow_task.sh"
+      command: "bash slow_task.sh slow_2 {{ SLOW_TIME }}"
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      queue_name: "{{ SLURM_QUEUE }}"
+      walltime: 00:30:00
 
   - slow_3:
       plugin: shell
-      path: ${SIROCCO_SCRIPTS_DIR}/slow_task.sh
-      command: "bash slow_task.sh slow_3 $SLOW_TIME"
-      computer: ${SIROCCO_COMPUTER}
-      account: ${SLURM_ACCOUNT}
+      path: "{{ SIROCCO_SCRIPTS_DIR }}/slow_task.sh"
+      command: "bash slow_task.sh slow_3 {{ SLOW_TIME }}"
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      queue_name: "{{ SLURM_QUEUE }}"
+      walltime: 00:30:00
 
   # Convergence and inter-cycle
   - finalize:
       plugin: shell
-      path: ${SIROCCO_SCRIPTS_DIR}/fast_task.sh
-      command: "bash fast_task.sh finalize ${FAST_TIME}"
-      computer: ${SIROCCO_COMPUTER}
-      account: ${SLURM_ACCOUNT}
+      path: "{{ SIROCCO_SCRIPTS_DIR }}/fast_task.sh"
+      command: "bash fast_task.sh finalize {{ FAST_TIME }}"
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      queue_name: "{{ SLURM_QUEUE }}"
+      walltime: 00:30:00
 
   - prepare_next:
       plugin: shell
-      path: ${SIROCCO_SCRIPTS_DIR}/fast_task.sh
-      command: "bash fast_task.sh prepare_next ${FAST_TIME}"
-      computer: ${SIROCCO_COMPUTER}
-      account: ${SLURM_ACCOUNT}
+      path: "{{ SIROCCO_SCRIPTS_DIR }}/fast_task.sh"
+      command: "bash fast_task.sh prepare_next {{ FAST_TIME }}"
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      queue_name: "{{ SLURM_QUEUE }}"
+      walltime: 00:30:00
 
-
-# ============================================================
-# DATA DEFINITIONS
-# ============================================================
 data:
   generated:
     # Init cycle

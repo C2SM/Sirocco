@@ -1,10 +1,10 @@
 ---
 name: AQUAPLANET
-start_date: '2000-01-01T00:00:00'
-stop_date: '2000-01-01T00:02:00'
+start_date: &root_start_date '2000-01-01T00:00:00'
+stop_date: &root_stop_date '2000-01-01T00:02:00'
 front_depth: 2
 cycles:  # <- GRAPH DEFINITION
-  - every_10s:
+  - every_30s:
       cycling:
         start_date: *root_start_date
         stop_date: *root_stop_date
@@ -43,10 +43,10 @@ cycles:  # <- GRAPH DEFINITION
                   target_cycle:
                     date: [2000-01-01T00:00:00, 2000-01-01T00:00:30, 2000-01-01T00:01:00, 2000-01-01T00:01:30]
                   port: positional
-tasks:   # <- PROCESS SPEC
+tasks:   # <- RUNTIME SETTINGS
   - icon:
       plugin: icon
-      computer: ${SIROCCO_COMPUTER:-santis-async-ssh}
+      computer: "{{ SIROCCO_COMPUTER }}"
       account: cwd01
       uenv: icon/25.2:v3
       nodes: 1
@@ -58,7 +58,7 @@ tasks:   # <- PROCESS SPEC
         - ./ICON/NAMELIST_exclaim_ape_R02B04
   - cleanup:
       plugin: shell
-      computer: ${SIROCCO_COMPUTER:-santis-async-ssh}
+      computer: "{{ SIROCCO_COMPUTER }}"
       account: cwd01
       uenv: icon/25.2:v3
       nodes: 1
@@ -70,16 +70,16 @@ data:    # <- INPUT/OUTPUT DATA
   available:
      - icon_grid:
          path: /capstor/store/cscs/userlab/cwd01/leclairm/Sirocco_test_cases/exclaim_ape_R02B04/icon_grid_0013_R02B04_R.nc
-         computer: ${SIROCCO_COMPUTER:-santis-async-ssh}
+         computer: "{{ SIROCCO_COMPUTER }}"
      - rrtmg_lw:
          path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/data/rrtmg_lw.nc
-         computer: ${SIROCCO_COMPUTER:-santis-async-ssh}
+         computer: "{{ SIROCCO_COMPUTER }}"
      - ECHAM6_CldOptProps:
          path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/data/ECHAM6_CldOptProps.nc
-         computer: ${SIROCCO_COMPUTER:-santis-async-ssh}
+         computer: "{{ SIROCCO_COMPUTER }}"
      - ecrad_data:
          path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/externals/ecrad/data
-         computer: ${SIROCCO_COMPUTER:-santis-async-ssh}
+         computer: "{{ SIROCCO_COMPUTER }}"
   generated:
      - atm_2d: {}
      - atm_3d_pl: {}

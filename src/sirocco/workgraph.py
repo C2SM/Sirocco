@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import io
 import logging
 import time
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, TypeAlias, assert_never
 
 import aiida.common
@@ -33,7 +35,7 @@ if TYPE_CHECKING:
 
 
 # =============================================================================
-# Type Definitions - Refactored Data Structures
+# Data Structures
 # =============================================================================
 
 
@@ -78,10 +80,16 @@ class OutputDataInfo:
 
 # Type Aliases for Complex Mappings
 PortToDependencies: TypeAlias = dict[str, list[DependencyInfo]]
-ParentFolders: TypeAlias = dict[str, Any]  # {dep_label: TaggedValue with .value = int PK}
+ParentFolders: TypeAlias = dict[
+    str, Any
+]  # {dep_label: TaggedValue with .value = int PK}
 JobIds: TypeAlias = dict[str, Any]  # {dep_label: TaggedValue with .value = int job_id}
-TaskDepInfo: TypeAlias = dict[str, Any]  # {task_label: namespace with .remote_folder, .job_id}
-LauncherDependencies: TypeAlias = dict[str, list[str]]  # {launcher_name: [parent_launcher_names]}
+TaskDepInfo: TypeAlias = dict[
+    str, Any
+]  # {task_label: namespace with .remote_folder, .job_id}
+LauncherDependencies: TypeAlias = dict[
+    str, list[str]
+]  # {launcher_name: [parent_launcher_names]}
 
 
 # =============================================================================
@@ -121,7 +129,9 @@ def _dependency_info_from_dict(data: dict) -> DependencyInfo:
     )
 
 
-def _port_to_dependencies_to_dict(port_to_dep: PortToDependencies) -> dict[str, list[dict]]:
+def _port_to_dependencies_to_dict(
+    port_to_dep: PortToDependencies,
+) -> dict[str, list[dict]]:
     """Convert PortToDependencies to JSON-serializable dict.
 
     Args:
@@ -253,15 +263,12 @@ async def get_job_data(
     from aiida_workgraph.engine.workgraph import WorkGraphEngine
 
     start = time.time()
-    logger.info("Starting job_data polling for %s in %s", task_name, workgraph_name)
 
     while True:
         # Timeout check early
         if time.time() - start > timeout:
             msg = f"Timeout waiting for job_id for task {task_name} after {timeout}s"
-            raise TimeoutError(
-                msg
-            )
+            raise TimeoutError(msg)
 
         # Query for WorkGraphs created after polling start
         builder = orm.QueryBuilder()
@@ -296,13 +303,6 @@ async def get_job_data(
 
         # SUCCESS — return early
         remote_pk = node.outputs.remote_folder.pk
-        logger.info(
-            "Retrieved job_id=%s (from node PK=%s), remote_folder_pk=%s for %s",
-            job_id,
-            node.pk,
-            remote_pk,
-            task_name,
-        )
         return {"job_id": int(job_id), "remote_folder": remote_pk}
 
 
@@ -314,7 +314,7 @@ def launch_shell_task_with_dependency(
     job_ids: Annotated[dict, dynamic(int)] | None = None,
 ) -> Annotated[dict, dynamic()]:
     """Launch a shell task with optional SLURM job dependencies."""
-    from aiida_workgraph.tasks.shelljob_task import _build_shelljob_nodespec
+    from aiida_workgraph.tasks.shelljob_task import _build_shelljob_TaskSpec
 
     # Get pre-computed data
     label = task_spec["label"]
@@ -330,6 +330,7 @@ def launch_shell_task_with_dependency(
 
     # Add AvailableData nodes passed as parameter, remapping from port names to data labels
     # so they match the placeholders in arguments (which use data labels)
+    placeholder_to_node_key: dict[str, str] = {}
     if input_data_nodes:
         # Build mapping from port names to data labels for AvailableData
         port_to_label = {}
@@ -338,15 +339,14 @@ def launch_shell_task_with_dependency(
                 port_to_label[input_info["port"]] = input_info["label"]
 
         # Add nodes with data labels as keys (not port names)
+        # Also build placeholder mapping for AvailableData
         for port_name, node in input_data_nodes.items():
             data_label = port_to_label.get(port_name, port_name)
             all_nodes[data_label] = node
-            logger.info(
-                "Mapped AvailableData port '%s' -> key '%s'", port_name, data_label
-            )
+            # Map data label to node key for placeholder replacement
+            placeholder_to_node_key[data_label] = data_label
 
     # Process dependencies if present
-    placeholder_to_node_key: dict[str, str] = {}
     filenames: dict[str, str] = {}
     if parent_folders:
         # Convert port_to_dep_mapping from dict back to PortToDependencies
@@ -379,22 +379,12 @@ def launch_shell_task_with_dependency(
     # Use pre-computed outputs
     outputs = task_spec["outputs"]
 
-    logger.info("Shell '%s' final configuration:", label)
-    logger.info("code type = %s", type(code).__name__)
-    logger.info("code pk = %s", code.pk)
-    logger.info("metadata keys = %s", list(metadata.keys()))
-    logger.info("metadata.computer = %s", metadata.get("computer"))
-    logger.info("arguments = %s", arguments)
-    logger.info("all_nodes keys = %s", list(all_nodes.keys()))
-    logger.info("outputs = %s", outputs)
-    logger.info("filenames = %s", filenames)
-
-    # Build the shelljob NodeSpec
+    # Build the shelljob TaskSpec
     parser_outputs = [
         output_info["name"] for output_info in output_data_info if output_info["path"]
     ]
 
-    spec = _build_shelljob_nodespec(
+    spec = _build_shelljob_TaskSpec(
         identifier=f"shelljob_{label}",
         outputs=outputs,
         parser_outputs=parser_outputs,
@@ -451,8 +441,6 @@ def launch_icon_task_with_dependency(
     if input_data_nodes is None:
         input_data_nodes = {}
 
-    logger.info("Launcher for '%s' starting...", label)
-
     # Load RemoteData dependencies (restart files, etc.)
     # Convert port_to_dep_mapping from dict back to PortToDependencies
     port_to_dep_dict = task_spec.get("port_to_dep_mapping", {})
@@ -501,15 +489,15 @@ def get_task_dependencies_from_workgraph(wg: WorkGraph) -> dict[str, list[str]]:
 
     # Iterate only over launcher tasks
     # Launcher names start with "launch_"
-    for task in wg.tasks:
-        name = task.name
+    for task_ in wg.tasks:
+        name = task_.name
         if not name.startswith("launch_"):
             continue
 
         launcher_deps: list[str] = []
         deps[name] = launcher_deps
 
-        sockets = getattr(task.inputs, "_sockets", None)
+        sockets = getattr(task_.inputs, "_sockets", None)
         if not sockets:
             continue
 
@@ -610,8 +598,6 @@ def build_dynamic_sirocco_workgraph(
         for core_task in cycle.tasks:
             task_label = get_label(core_task)
 
-            logger.info("Building dependencies for task '%s'", task_label)
-
             # Collect AvailableData inputs
             input_data_for_task = collect_available_data_inputs(
                 core_task, aiida_data_nodes, get_label
@@ -666,20 +652,6 @@ def build_dynamic_sirocco_workgraph(
                 msg = f"Unknown task type: {type(core_task)}"
                 raise TypeError(msg)
 
-    logger.info("WorkGraph build complete:")
-    logger.info(
-        "Total tasks in workflow: %s",
-        sum(len(cycle.tasks) for cycle in core_workflow.cycles),
-    )
-    logger.info(
-        "Total launcher tasks created: %s",
-        len([t for t in wg.tasks if "launch_" in t.name]),
-    )
-    logger.info(
-        "Total get_job_data tasks created: %s",
-        len([t for t in wg.tasks if "get_job_data_" in t.name]),
-    )
-
     return wg, launcher_dependencies
 
 
@@ -706,9 +678,7 @@ def collect_available_data_inputs(
         input_label = get_label_func(input_data)
         if isinstance(input_data, core.AvailableData):
             input_data_for_task[port] = aiida_data_nodes[input_label]
-            logger.info(
-                "AvailableData port '%s' -> data label '%s'", port, input_label
-            )
+
     return input_data_for_task
 
 
@@ -744,10 +714,6 @@ def build_dependency_mapping(
             continue
 
         input_label = get_label_func(input_data)
-        logger.info(
-            "Processing GeneratedData '%s' (input has no path, will get from output)",
-            input_data.name,
-        )
 
         # Find the producer (if exists)
         producer_info = producers.get(input_label)
@@ -759,13 +725,6 @@ def build_dependency_mapping(
         # Extract filename/path if GeneratedData
         filename = out_data.path.name if getattr(out_data, "path", None) else None
 
-        logger.info(
-            "  Found producer '%s', output path: %s, filename: %s",
-            prev_label,
-            getattr(out_data, "path", None),
-            filename,
-        )
-
         # Only record dependencies if this producer has completed metadata
         if prev_label not in task_dep_info:
             continue
@@ -776,7 +735,9 @@ def build_dependency_mapping(
         _map_list_append(
             port_to_dep,
             port,
-            DependencyInfo(dep_label=prev_label, filename=filename, data_label=input_label),
+            DependencyInfo(
+                dep_label=prev_label, filename=filename, data_label=input_label
+            ),
         )
 
         # -----------------------------------------------------------------
@@ -786,14 +747,6 @@ def build_dependency_mapping(
             job_data = task_dep_info[prev_label]
             parent_folders[prev_label] = job_data.remote_folder
             job_ids[prev_label] = job_data.job_id
-
-        logger.info(
-            "  GeneratedData port '%s' <- dep '%s' (data: %s, filename: %s)",
-            port,
-            prev_label,
-            input_data.name,
-            filename,
-        )
 
     return port_to_dep, parent_folders, job_ids
 
@@ -830,7 +783,9 @@ def create_icon_launcher_task(
     launcher_name = f"launch_{wg_name}_{task_label}"
 
     # Add port_to_dep_mapping to task_spec (convert to dict for JSON serialization)
-    task_spec["port_to_dep_mapping"] = _port_to_dependencies_to_dict(port_to_dep_mapping)
+    task_spec["port_to_dep_mapping"] = _port_to_dependencies_to_dict(
+        port_to_dep_mapping
+    )
 
     # Create launcher task
     wg.add_task(
@@ -859,17 +814,9 @@ def create_icon_launcher_task(
     for dep_label in parent_folders_for_task:
         if dep_label in prev_dep_tasks:
             prev_dep_tasks[dep_label] >> dep_task
-            logger.info("Chaining %s >> %s", dep_label, task_label)
 
     # Store for next iteration
     prev_dep_tasks[task_label] = dep_task
-
-    logger.info(
-        "Created ICON launcher '%s' with %s parent_folders, %s job_ids",
-        launcher_name,
-        len(parent_folders_for_task),
-        len(job_ids_for_task),
-    )
 
     return task_dep_info, prev_dep_tasks
 
@@ -906,7 +853,9 @@ def create_shell_launcher_task(
     launcher_name = f"launch_{wg_name}_{task_label}"
 
     # Add port_to_dep_mapping to task_spec (convert to dict for JSON serialization)
-    task_spec["port_to_dep_mapping"] = _port_to_dependencies_to_dict(port_to_dep_mapping)
+    task_spec["port_to_dep_mapping"] = _port_to_dependencies_to_dict(
+        port_to_dep_mapping
+    )
 
     # Create launcher task
     wg.add_task(
@@ -918,14 +867,7 @@ def create_shell_launcher_task(
         job_ids=job_ids_for_task if job_ids_for_task else None,
     )
 
-    logger.info(
-        "Created shell launcher '%s' with %s parent_folders",
-        launcher_name,
-        len(parent_folders_for_task),
-    )
-
     # Create get_job_data task
-    # breakpoint()
     dep_task = wg.add_task(
         get_job_data,
         name=f"get_job_data_{task_label}",
@@ -944,13 +886,6 @@ def create_shell_launcher_task(
 
     # Store for next iteration
     prev_dep_tasks[task_label] = dep_task
-
-    logger.info(
-        "Created Shell launcher '%s' with %s parent_folders, %s job_ids",
-        launcher_name,
-        len(parent_folders_for_task),
-        len(job_ids_for_task),
-    )
 
     return task_dep_info, prev_dep_tasks
 
@@ -971,8 +906,37 @@ def replace_invalid_chars_in_label(label: str) -> str:
     return label
 
 
-def split_cmd_arg(command_line: str) -> tuple[str, str]:
-    """Split command line into command and arguments."""
+def split_cmd_arg(command_line: str, script_name: str | None = None) -> tuple[str, str]:
+    """Split command line into command and arguments.
+
+    If script_name is provided, finds the script in the command line and
+    returns everything after it as arguments. This handles various patterns:
+    - "script.sh arg1 arg2" → args: "arg1 arg2"
+    - "bash script.sh arg1 arg2" → args: "arg1 arg2"
+    - "uenv run /path/to/env -- script.sh arg1" → args: "arg1"
+
+    Args:
+        command_line: Full command line string
+        script_name: Script name to find and split on
+
+    Returns:
+        Tuple of (command_prefix, arguments)
+    """
+    if script_name:
+        # Get just the basename for matching
+        script_basename = Path(script_name).name
+
+        parts = command_line.split()
+        for i, part in enumerate(parts):
+            # Check if this part ends with or equals the script basename
+            part_basename = Path(part).name
+            if part_basename == script_basename:
+                # Everything after the script name is arguments
+                args = " ".join(parts[i + 1 :])
+                cmd = " ".join(parts[: i + 1])
+                return cmd, args
+
+    # Fallback: simple split on first space
     split = command_line.split(sep=" ", maxsplit=1)
     if len(split) == 1:
         return command_line, ""
@@ -1010,6 +974,8 @@ def get_default_wrapper_script() -> aiida.orm.SinglefileData | None:
     # Import the script directory from aiida-icon
     from aiida_icon.site_support.cscs.alps import SCRIPT_DIR
 
+    # TODO: There's also `santis_cpu.sh`. Also gpu available.
+    # This should be configurable by the users
     default_script_path = SCRIPT_DIR / "todi_cpu.sh"
     return aiida.orm.SinglefileData(file=default_script_path)
 
@@ -1069,11 +1035,7 @@ def resolve_icon_restart_file(
             computer=workdir_remote_data.computer,
             remote_path=specific_file_path,
         )
-        logger.info("Using aiida-icon determined restart file: %s", specific_file_path)
     except Exception as e:  # noqa: BLE001
-        logger.info("Failed to determine restart filename using aiida-icon: %s", e)
-        # Fallback: use the workdir itself
-        logger.info("Falling back to workdir RemoteData (no specific filename)")
         return workdir_remote_data
     else:
         return file_remote_data
@@ -1103,10 +1065,10 @@ def _resolve_icon_dependency(
             computer=workdir_remote.computer,
             remote_path=specific_path,
         )
-        logger.info("Created RemoteData for specific file: %s", specific_path)
         return remote_data
 
     # Case 2: No filename → try resolve via model namelist
+    # TODO: Should this point directly to `atm` / `atmo`?
     model_pk = model_namelist_pks.get("atm")
     if model_pk:
         model_node: aiida.orm.SinglefileData = aiida.orm.load_node(model_pk)  # type: ignore
@@ -1116,8 +1078,6 @@ def _resolve_icon_dependency(
             workdir_remote,  # type: ignore
         )
 
-    # Case 3: Fallback to workdir
-    logger.info("No model namelist; using workdir for restart resolution.")
     return workdir_remote
 
 
@@ -1141,10 +1101,6 @@ def load_icon_dependencies(
         for dep_label, tagged_val in parent_folders.items()
     }
 
-    logger.info("'%s' loading RemoteData from PKs...", label)
-    logger.info("port_to_dep_mapping = %s", port_to_dep_mapping)
-    logger.info("parent_folders_loaded keys = %s", list(parent_folders_loaded.keys()))
-
     # ------------------------------------------------------------------
     # Process each port → list of dependencies
     # For ICON, each port has at most 1 dependency
@@ -1158,10 +1114,6 @@ def load_icon_dependencies(
         workdir_remote = parent_folders_loaded.get(dep_info.dep_label)
         if not workdir_remote:
             continue
-
-        logger.info("Processing port '%s' from dep '%s'", port_name, dep_info.dep_label)
-        logger.info("Workdir RemoteData path: %s", workdir_remote.get_remote_path())
-        logger.info("Filename from config: %s", dep_info.filename)
 
         # Use helper to resolve dependency
         input_nodes[port_name] = _resolve_icon_dependency(
@@ -1201,7 +1153,10 @@ def _add_custom_scheduler_command(metadata: dict, command: str) -> None:
 
 
 def build_icon_metadata_with_slurm_dependencies(
-    base_metadata: dict, job_ids: JobIds | None, computer: aiida.orm.Computer, label: str
+    base_metadata: dict,
+    job_ids: JobIds | None,
+    computer: aiida.orm.Computer,
+    label: str,
 ) -> dict:
     """Build ICON metadata dict with SLURM job dependencies.
 
@@ -1220,12 +1175,6 @@ def build_icon_metadata_with_slurm_dependencies(
     if job_ids:
         custom_cmd = _build_slurm_dependency_directive(job_ids)
         _add_custom_scheduler_command(metadata, custom_cmd)
-        logger.info("Task %s - Setting SLURM dependency: %s", label, custom_cmd)
-        logger.info(
-            "Task %s - custom_scheduler_commands = %s",
-            label,
-            metadata["options"]["custom_scheduler_commands"],
-        )
 
     return {
         "computer": computer,
@@ -1248,6 +1197,12 @@ def prepare_icon_task_inputs(
     Returns:
         Complete inputs dict for IconTask
     """
+    from aiida.engine.processes.ports import PortNamespace
+    from aiida_icon.calculations import IconCalculation
+
+    # Get IconCalculation spec to determine which ports are namespaces
+    icon_spec = IconCalculation.spec()
+
     # Start with code and namelists
     inputs = {
         "code": aiida.orm.load_node(task_spec["code_pk"]),
@@ -1266,21 +1221,21 @@ def prepare_icon_task_inputs(
         inputs["wrapper_script"] = aiida.orm.load_node(task_spec["wrapper_script_pk"])  # type: ignore[assignment]
 
     # Add ALL input data nodes (both AvailableData and RemoteData for GeneratedData)
-    logger.info("Setting ICON inputs for '%s':", label)
     for port_name, data_node in input_data_nodes.items():
         node_type = type(data_node).__name__
-        if hasattr(data_node, "get_remote_path"):
-            remote_path = data_node.get_remote_path()
-            logger.info(
-                "  %s = %s (path: %s, pk: %s)",
-                port_name,
-                node_type,
-                remote_path,
-                data_node.pk,
-            )
+        # Check if this port is a namespace by inspecting the spec
+        is_namespace = False
+        if port_name in icon_spec.inputs:
+            port = icon_spec.inputs[port_name]
+            is_namespace = isinstance(port, PortNamespace)
+
+        # Wrap namespace ports in a dict with node label as key
+        if is_namespace:
+            # Use the node's label or a generic key for the namespace
+            node_label = data_node.label if data_node.label else "item"
+            inputs[port_name] = {node_label: data_node}
         else:
-            logger.info("%s = %s (pk: %s)", port_name, node_type, data_node.pk)
-        inputs[port_name] = data_node
+            inputs[port_name] = data_node
 
     # Add metadata
     inputs["metadata"] = metadata_dict  # type: ignore[assignment]
@@ -1306,29 +1261,22 @@ def _create_shell_remote_data(
     Returns:
         Tuple of (unique_key, remote_data_node)
     """
+    import os
+
     workdir_path = workdir_remote.get_remote_path()
     unique_key = f"{dep_info.dep_label}_remote"
 
     if dep_info.filename:
-        # Create RemoteData pointing to the specific file
-        specific_file_path = f"{workdir_path}/{dep_info.filename}"
+        # Create RemoteData pointing to the specific file/directory
+        # Normalize path to remove trailing slashes
+        specific_file_path = os.path.normpath(f"{workdir_path}/{dep_info.filename}")
         remote_data = aiida.orm.RemoteData(
             computer=workdir_remote.computer,
             remote_path=specific_file_path,
         )
-        logger.info(
-            "  Added RemoteData '%s' for specific file: %s",
-            unique_key,
-            specific_file_path,
-        )
     else:
         # No specific filename, use the workdir itself
         remote_data = workdir_remote  # type: ignore[assignment]
-        logger.info(
-            "  Added RemoteData '%s' for workdir: %s",
-            unique_key,
-            workdir_path,
-        )
 
     return unique_key, remote_data
 
@@ -1359,10 +1307,6 @@ def load_and_process_shell_dependencies(
         key: aiida.orm.load_node(val.value) for key, val in parent_folders.items()
     }
 
-    logger.info("Shell '%s' loading RemoteData from PKs...", label)
-    logger.info("port_to_dep_mapping = %s", port_to_dep_mapping)
-    logger.info("parent_folders_loaded keys = %s", list(parent_folders_loaded.keys()))
-
     # Process ALL dependencies: create nodes, map placeholders, and map filenames
     for port_name, dep_info_list in port_to_dep_mapping.items():
         # dep_info_list is a list of DependencyInfo objects
@@ -1372,29 +1316,18 @@ def load_and_process_shell_dependencies(
 
             workdir_remote_data = parent_folders_loaded[dep_info.dep_label]
 
-            logger.info("Processing dep '%s' for port '%s'", dep_info.dep_label, port_name)
-            logger.info("Workdir path: %s", workdir_remote_data.get_remote_path())
-            logger.info("Filename from config: %s", dep_info.filename)
-
             # Use helper to create RemoteData
-            unique_key, remote_data = _create_shell_remote_data(dep_info, workdir_remote_data)
+            unique_key, remote_data = _create_shell_remote_data(
+                dep_info, workdir_remote_data
+            )
             all_nodes[unique_key] = remote_data
 
             # Build placeholder mapping for arguments
             placeholder_to_node_key[dep_info.data_label] = unique_key
-            logger.info(
-                "Mapped placeholder '%s' -> node key '%s'", dep_info.data_label, unique_key
-            )
 
             # Build filename mapping (from original_filenames via data_label)
             if dep_info.data_label in original_filenames:
                 filenames[unique_key] = original_filenames[dep_info.data_label]
-                logger.info(
-                    "  Mapped filename '%s' -> '%s': '%s'",
-                    dep_info.data_label,
-                    unique_key,
-                    original_filenames[dep_info.data_label],
-                )
 
     return all_nodes, placeholder_to_node_key, filenames
 
@@ -1423,12 +1356,6 @@ def build_shell_metadata_with_slurm_dependencies(
         custom_cmd = _build_slurm_dependency_directive(job_ids)
         _add_custom_scheduler_command(metadata, custom_cmd)
         label = base_metadata.get("label", "unknown")
-        logger.info("Task %s - Setting SLURM dependency: %s", label, custom_cmd)
-        logger.info(
-            "Task %s - custom_scheduler_commands = %s",
-            label,
-            metadata["options"]["custom_scheduler_commands"],
-        )
 
     return metadata
 
@@ -1438,8 +1365,11 @@ def process_shell_argument_placeholders(
 ) -> list[str]:
     """Process argument template and replace placeholders with actual node keys.
 
+    Handles both standalone placeholders like {data_label} and embedded placeholders
+    like --pool=data_label where data_label should be replaced with a node key.
+
     Args:
-        arguments_template: Template string with {placeholder} syntax
+        arguments_template: Template string with {placeholder} or bare placeholder syntax
         placeholder_to_node_key: Dict mapping placeholder names to node keys
 
     Returns:
@@ -1452,30 +1382,31 @@ def process_shell_argument_placeholders(
     processed_arguments = []
 
     for arg in arguments_list:
-        # Check if this argument is a placeholder
+        # Check if this argument is a standalone placeholder like {data_label}
         if arg.startswith("{") and arg.endswith("}"):
             placeholder_name = arg[1:-1]  # Remove the braces
             # Map to the actual node key if we have a mapping
             if placeholder_name in placeholder_to_node_key:
                 actual_node_key = placeholder_to_node_key[placeholder_name]
                 processed_arguments.append(f"{{{actual_node_key}}}")
-                logger.info(
-                    "Mapped argument placeholder '%s' -> '{%s}'", arg, actual_node_key
-                )
             else:
                 # Keep original if no mapping found
                 processed_arguments.append(arg)
-                logger.info(
-                    "No mapping found for placeholder '%s', keeping original", arg
-                )
         else:
-            processed_arguments.append(arg)
+            # Check if any data label from placeholder_to_node_key appears in this arg
+            # This handles cases like --pool=tmp_data_pool where tmp_data_pool needs replacement
+            processed_arg = arg
+            for data_label, node_key in placeholder_to_node_key.items():
+                if data_label in arg:
+                    processed_arg = arg.replace(data_label, f"{{{node_key}}}")
+                    break
+            processed_arguments.append(processed_arg)
 
     return processed_arguments
 
 
 # =============================================================================
-# Instance Method Conversions - Task Spec Building
+# Task Spec Building
 # =============================================================================
 
 
@@ -1603,97 +1534,135 @@ def get_scheduler_options_from_task(task: core.Task) -> dict[str, Any]:
 
 def create_shell_code(
     task: core.ShellTask, computer: aiida.orm.Computer
-) -> tuple[aiida.orm.Code, str | None]:
+) -> tuple[aiida.orm.Code, None]:
     """Create or load an AiiDA Code for a shell task.
 
-    If task.path is specified (relative path to script), creates an InstalledCode
-    for the script and returns the script path for separate node creation.
-    Otherwise, creates an InstalledCode (ShellCode) from the command.
+    Determines whether to create PortableCode or InstalledCode based on where the
+    executable/script actually exists:
+    - If file exists locally (absolute or relative path) -> PortableCode (upload)
+    - If file exists remotely (absolute path only) -> InstalledCode (reference)
+    - If just executable name (no path separators) -> InstalledCode (assume in PATH)
 
     Args:
         task: The ShellTask to create code for
         computer: The AiiDA computer
 
     Returns:
-        Tuple of (code, script_path) where script_path is the absolute path
-        to the script file if path was specified, None otherwise
+        Tuple of (code, None) - second element is always None for compatibility
     """
-    from pathlib import Path
 
     from aiida_shell import ShellCode
 
+    # Determine the executable path to use
     if task.path is not None:
-        # Path was specified in config -> create InstalledCode for the script
-        script_path = Path(task.path)
-
-        if not script_path.is_absolute():
-            msg = f"Expected absolute path by this point, got {script_path}"
-            raise ValueError(msg)
-        if not script_path.exists():
-            msg = f"Script path does not exist: {script_path}"
-            raise FileNotFoundError(msg)
-        if not script_path.is_file():
-            msg = f"Script path is not a file: {script_path}"
-            raise ValueError(msg)
-
-        script_name = script_path.name
-
-        # Create code label from script name
-        code_label = script_name
-        if code_label.endswith(".sh"):
-            code_label = code_label[:-3]
-
-        # Create InstalledCode for the script on this specific computer
-        try:
-            code = aiida.orm.load_code(f"{code_label}@{computer.label}")
-            logger.info("Loaded existing code '%s@%s'", code_label, computer.label)
-        except NotExistent:
-            logger.info(
-                "Code '%s@%s' not found, creating InstalledCode for script %s",
-                code_label,
-                computer.label,
-                script_path,
-            )
-            code = ShellCode(  # type: ignore[assignment]
-                label=code_label,
-                computer=computer,
-                filepath_executable=str(script_path),
-                default_calc_job_plugin="core.shell",
-                use_double_quotes=True,
-            ).store()
-            logger.info(
-                "Created InstalledCode '%s@%s' (PK=%s) for script",
-                code_label,
-                computer.label,
-                code.pk,
-            )
-
-        return code, str(script_path)
+        executable_path = str(task.path)  # Convert Path to string
     else:
-        # No path specified -> create InstalledCode from command
-        cmd, _ = split_cmd_arg(task.command)
-        code_label = f"{cmd}"
+        executable_path, _ = split_cmd_arg(task.command)
 
-        if code_label.startswith("./"):
-            code_label = code_label[2:]
+    path_obj = Path(executable_path)
+
+    # Check if this is a path (contains separators) or just an executable name
+    is_path = "/" in executable_path or executable_path.startswith("./")
+
+    if not is_path:
+        # Just an executable name (e.g., "python", "bash") -> InstalledCode
+        code_label = executable_path
 
         try:
             code = aiida.orm.load_code(f"{code_label}@{computer.label}")
         except NotExistent:
-            logger.info(
-                "Code '%s@%s' not found, creating new InstalledCode",
-                code_label,
-                computer.label,
-            )
             code = ShellCode(  # type: ignore[assignment]
                 label=code_label,
                 computer=computer,
-                filepath_executable=cmd,
+                filepath_executable=executable_path,
                 default_calc_job_plugin="core.shell",
                 use_double_quotes=True,
             ).store()
 
         return code, None
+
+    # It's a path - check if it exists locally
+    if not path_obj.is_absolute():
+        # Relative path - resolve to absolute for local check
+        path_obj = path_obj.resolve()
+
+    exists_locally = path_obj.exists() and path_obj.is_file()
+
+    if exists_locally:
+        # File exists locally -> PortableCode
+        script_name = path_obj.name
+        script_dir = path_obj.parent
+
+        # Create unique code label from script name + hash of absolute path
+        base_label = script_name
+        # TODO: More elegant way to strip file extension
+        if base_label.endswith(".sh") or base_label.endswith(".py"):
+            base_label = base_label[:-3]
+
+        # Add hash of absolute path for uniqueness
+        path_hash = hashlib.sha256(str(path_obj).encode()).hexdigest()[:8]
+        code_label = f"{base_label}-{path_hash}"
+
+        try:
+            code = aiida.orm.load_code(f"{code_label}@{computer.label}")
+        except NotExistent:
+            code = aiida.orm.PortableCode(
+                label=code_label,
+                description=f"Shell script: {path_obj}",
+                computer=computer,
+                filepath_executable=script_name,  # Filename within the directory
+                filepath_files=str(script_dir),  # Directory containing the script
+                default_calc_job_plugin="core.shell",
+            )
+            code.store()
+
+        return code, None
+
+    # File doesn't exist locally - check if it exists remotely (only for absolute paths)
+    if not Path(executable_path).is_absolute():
+        msg = (
+            f"File not found locally at {path_obj}, and relative paths are not "
+            f"supported for remote files. Use an absolute path for remote files."
+        )
+        raise FileNotFoundError(msg)
+
+    # Check remote file existence using transport
+    authinfo = computer.get_authinfo(aiida.orm.User.collection.get_default())
+    with authinfo.get_transport() as transport:
+        if not transport.isfile(executable_path):
+            msg = (
+                f"File not found locally or remotely: {executable_path}\n"
+                f"Local path checked: {path_obj}\n"
+                f"Remote path checked: {executable_path} on {computer.label}"
+            )
+            raise FileNotFoundError(msg)
+
+    # File exists remotely -> InstalledCode
+    script_name = Path(executable_path).name
+
+    # Create unique code label from script name + hash of remote path
+    base_label = script_name
+    # TODO: More elegant way to strip file extension
+    if base_label.endswith(".sh") or base_label.endswith(".py"):
+        base_label = base_label[:-3]
+
+    # Add hash of absolute remote path for uniqueness
+    path_hash = hashlib.sha256(executable_path.encode()).hexdigest()[:8]
+    code_label = f"{base_label}-{path_hash}"
+
+    try:
+        code = aiida.orm.load_code(f"{code_label}@{computer.label}")
+    except NotExistent:
+        code = ShellCode(  # type: ignore[assignment]
+            label=code_label,
+            description=f"Shell script: {executable_path}",
+            computer=computer,
+            filepath_executable=executable_path,
+            default_calc_job_plugin="core.shell",
+            use_double_quotes=True,
+        ).store()
+
+    return code, None
 
 
 def build_base_metadata(task: core.Task) -> dict:
@@ -1734,7 +1703,14 @@ def _add_chunk_time_prepend_text(metadata: dict, task: core.Task) -> None:
 
     start_date = task.cycle_point.chunk_start_date.isoformat()
     stop_date = task.cycle_point.chunk_stop_date.isoformat()
-    exports = f"export CHUNK_START_DATE={start_date}\nexport CHUNK_STOP_DATE={stop_date}"
+
+    # Export both CHUNK_* and SIROCCO_* variable names for compatibility
+    exports = (
+        f"export CHUNK_START_DATE={start_date}\n"
+        f"export CHUNK_STOP_DATE={stop_date}\n"
+        f"export SIROCCO_START_DATE={start_date}\n"
+        f"export SIROCCO_STOP_DATE={stop_date}"
+    )
 
     current_prepend = metadata["options"].get("prepend_text", "")
     if current_prepend:
@@ -1773,16 +1749,11 @@ def build_shell_task_spec(task: core.ShellTask) -> dict:
     metadata["options"]["use_symlinks"] = True
 
     # Create or load code
-    code, script_path = create_shell_code(task, computer)
+    # PortableCode handles script upload automatically, no need for separate SinglefileData
+    code, _ = create_shell_code(task, computer)
 
-    # Build nodes (input files like scripts) - store as PKs
+    # Build nodes (input files) - store as PKs
     node_pks = {}
-    if script_path is not None:
-        # Script path was specified, create SinglefileData node
-        script_node = aiida.orm.SinglefileData(script_path)
-        script_node.store()
-        node_pks[f"SCRIPT__{label}"] = script_node.pk
-        logger.info("Created SinglefileData node (PK=%s) for script %s", script_node.pk, script_path)
 
     # Pre-compute input data information using dataclasses
     input_data_info: list[InputDataInfo] = []
@@ -1817,7 +1788,12 @@ def build_shell_task_spec(task: core.ShellTask) -> dict:
         input_label = input_info.label
         if port_name not in input_labels:
             input_labels[port_name] = []
-        input_labels[port_name].append(f"{{{input_label}}}")
+        # For AvailableData with a path, use the actual path directly in command arguments
+        # instead of creating a placeholder, since these are pre-existing files/directories
+        if input_info.is_available and input_info.path:
+            input_labels[port_name].append(input_info.path)
+        else:
+            input_labels[port_name].append(f"{{{input_label}}}")
 
     # Pre-scan command template to find all referenced ports
     # This ensures optional/missing ports are included with empty lists
@@ -1827,16 +1803,18 @@ def build_shell_task_spec(task: core.ShellTask) -> dict:
             input_labels[port_name] = []
 
     # Pre-resolve arguments template
+    # Get script name from task.path for proper command splitting
+    script_name = Path(task.path).name if task.path else None
     arguments_with_placeholders = task.resolve_ports(input_labels)
-    _, resolved_arguments_template = split_cmd_arg(arguments_with_placeholders)
+    _, resolved_arguments_template = split_cmd_arg(
+        arguments_with_placeholders, script_name
+    )
 
     # Build filenames mapping
     filenames = {}
     for input_info in input_data_info:
         input_label = input_info.label
         if input_info.is_available:
-            from pathlib import Path
-
             filenames[input_info.name] = (
                 Path(input_info.path).name if input_info.path else input_info.name
             )  # type: ignore[arg-type]
@@ -1848,18 +1826,14 @@ def build_shell_task_spec(task: core.ShellTask) -> dict:
             if same_name_count > 1:
                 filenames[input_label] = input_label
             else:
-                from pathlib import Path
-
                 filenames[input_label] = (
                     Path(input_info.path).name if input_info.path else input_info.name
                 )  # type: ignore[arg-type]
 
-    # Build outputs list
-    outputs = [
-        output_info.path
-        for output_info in output_data_info
-        if output_info.is_generated and output_info.path
-    ]
+    # Build outputs list - but DON'T retrieve, just verify existence
+    # Set retrieve_temporary_list instead of outputs so files stay on remote
+    # NOTE: For now, keep outputs empty to avoid retrieval
+    outputs = []
 
     # Build output port mapping: data_name -> shell output link_label
 
@@ -1878,7 +1852,9 @@ def build_shell_task_spec(task: core.ShellTask) -> dict:
         "filenames": filenames,
         "outputs": outputs,
         "input_data_info": [_input_data_info_to_dict(info) for info in input_data_info],
-        "output_data_info": [_output_data_info_to_dict(info) for info in output_data_info],
+        "output_data_info": [
+            _output_data_info_to_dict(info) for info in output_data_info
+        ],
         "output_port_mapping": output_port_mapping,
     }
 
@@ -1905,29 +1881,23 @@ def build_icon_task_spec(task: core.IconTask) -> dict:
         msg = f"Could not find computer {task.computer!r} in AiiDA database."
         raise ValueError(msg) from err
 
-    # Create or load ICON code
-    icon_code_label = "icon"
+    # Create or load ICON code with unique label based on executable path
+    # Different ICON executables (CPU/GPU, versions) should have different code objects
+    bin_hash = hashlib.sha256(str(task.bin).encode()).hexdigest()[:8]
+    icon_code_label = f"icon-{bin_hash}"
     try:
         icon_code = aiida.orm.load_code(f"{icon_code_label}@{computer.label}")
-        logger.info("Loaded existing ICON code '%s@%s'", icon_code_label, computer.label)
     except NotExistent:
-        logger.info(
-            "ICON code '%s@%s' not found, creating new InstalledCode with executable %s",
-            icon_code_label,
-            computer.label,
-            task.bin,
-        )
         icon_code = aiida.orm.InstalledCode(
             label=icon_code_label,
-            description="aiida_icon",
+            description=f"ICON executable: {task.bin}",
             default_calc_job_plugin="icon.icon",
             computer=computer,
             filepath_executable=str(task.bin),
-            with_mpi=bool(task.mpi_cmd),
+            with_mpi=True,  # ICON is always an MPI application
             use_double_quotes=True,
         )
         icon_code.store()
-        logger.info("Created ICON InstalledCode (PK=%s)", icon_code.pk)
 
     # Build base metadata (no job dependencies yet)
     metadata = build_base_metadata(task)
@@ -2052,24 +2022,14 @@ def build_sirocco_workgraph(
     # (requires the extras serialization changes in workgraph.py)
     # Levels will be computed dynamically at runtime by TaskManager
     window_config = {
-        "enabled": window_size >= 0,  # Enable window for any non-negative window_size
+        "enabled": window_size
+        > 0,  # Enable window only for positive window_size (0 = sequential)
         "window_size": window_size,
         "max_queued_jobs": max_queued_jobs,  # Optional hard limit on concurrent jobs
         "task_dependencies": launcher_dependencies,  # Dependency graph for dynamic level computation
     }
 
     wg.extras = {"window_config": window_config}
-
-    # Print dependency information
-    if launcher_dependencies:
-        logger.info("Task dependencies tracked:")
-        for task_name, parents in sorted(launcher_dependencies.items()):
-            if parents:
-                logger.info("%s depends on: %s", task_name, ", ".join(parents))
-            else:
-                logger.info("%s (no dependencies)", task_name)
-        logger.info("Window size: %s levels", window_size)
-        logger.info("Note: Topological levels will be computed dynamically at runtime")
 
     return wg
 

@@ -150,6 +150,7 @@ def collect_job_data(node, custom_order=False):
 
         # Use the first record (main job, not .batch or .extern)
         main_record = sacct_records[0]
+        breakpoint()
 
         # Extract timestamps
         submit = parse_sacct_time(main_record.get('Submit'))

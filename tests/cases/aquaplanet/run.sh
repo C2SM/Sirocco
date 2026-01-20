@@ -1,11 +1,11 @@
 #!/bin/bash
-# Wrapper script to run the dynamic-deps-simple workflow
+# Wrapper script to run the aquaplanet workflow
 # Variables are loaded from config/vars.yml and can be overridden by environment variables
 
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "Running dynamic-deps-simple workflow with Jinja2 templating"
+echo "Running aquaplanet workflow with Jinja2 templating"
 echo "Variables loaded from:"
 echo "  1. config/vars.yml (base configuration)"
 echo "  2. Environment variables (runtime overrides, if set)"
