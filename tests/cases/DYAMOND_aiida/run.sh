@@ -5,8 +5,8 @@
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Window size passed as CLI argument
-export WINDOW_SIZE="${WINDOW_SIZE:-0}"
+# Front depth passed as CLI argument
+export FRONT_DEPTH="${FRONT_DEPTH:-0}"
 
 echo "Running DYAMOND workflow with Jinja2 templating"
 echo "Variables loaded from:"
@@ -18,8 +18,8 @@ echo "*********************************"
 cat "${SCRIPT_DIR}/config/vars.yml"
 echo "*********************************"
 echo ""
-echo "Window size: ${WINDOW_SIZE}"
+echo "Front depth: ${FRONT_DEPTH}"
 
 # Run sirocco with the config
 # The config uses Jinja2 syntax ({{ VAR }}) and gets values from vars.yml
-sirocco run "${SCRIPT_DIR}/config/config.yml" "--window-size" "${WINDOW_SIZE}" "$@"
+sirocco run "${SCRIPT_DIR}/config/config.yml" "--front-depth" "${FRONT_DEPTH}" "$@"

@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-This document describes the implementation of dynamic task level computation for the Sirocco window-size feature. The changes convert the system from static level computation (done once at build time) to dynamic level computation (done at runtime after each task completion), enabling faster branches to progress independently without waiting for slower branches.
+This document describes the implementation of dynamic task level computation for the Sirocco front-depth feature. The changes convert the system from static level computation (done once at build time) to dynamic level computation (done at runtime after each task completion), enabling faster branches to progress independently without waiting for slower branches.
 
 ## Problem Statement
 
@@ -97,7 +97,7 @@ The core algorithm (`_compute_dynamic_levels()`) works as follows:
 # BEFORE:
 self.window_config = {
     'enabled': False,
-    'window_size': float('inf'),
+    'front_depth': float('inf'),
     'task_levels': {},  # Static
 }
 self.window_state = {
@@ -108,7 +108,7 @@ self.window_state = {
 # AFTER:
 self.window_config = {
     'enabled': False,
-    'window_size': float('inf'),
+    'front_depth': float('inf'),
     'task_dependencies': {},  # Dependency graph
 }
 self.window_state = {
@@ -125,7 +125,7 @@ self.window_state = {
 # BEFORE:
 self.window_config = {
     'enabled': window_config.get('enabled', False),
-    'window_size': window_config.get('window_size', float('inf')),
+    'front_depth': window_config.get('front_depth', float('inf')),
     'max_queued_jobs': window_config.get('max_queued_jobs', None),
     'task_levels': window_config.get('task_levels', {}),
 }
@@ -133,14 +133,14 @@ self.window_config = {
 # AFTER:
 self.window_config = {
     'enabled': window_config.get('enabled', False),
-    'window_size': window_config.get('window_size', float('inf')),
+    'front_depth': window_config.get('front_depth', float('inf')),
     'max_queued_jobs': window_config.get('max_queued_jobs', None),
     'task_dependencies': window_config.get('task_dependencies', {}),
 }
 # Compute initial dynamic levels
 self.window_state = {
     'min_active_level': 0,
-    'max_allowed_level': self.window_config['window_size'],
+    'max_allowed_level': self.window_config['front_depth'],
     'dynamic_task_levels': self._compute_dynamic_levels(),
 }
 ```
@@ -285,17 +285,17 @@ Updated `test_build_workgraph` to verify:
 ### Functional Tests (Recommended)
 To fully validate the dynamic behavior:
 1. **Branch independence**: Verify fast branch doesn't wait for slow branch
-2. **Sequential execution**: Verify window_size=0 still works
-3. **Multi-level windows**: Verify window_size > 1 works correctly
+2. **Sequential execution**: Verify front_depth=0 still works
+3. **Multi-level windows**: Verify front_depth > 1 works correctly
 4. **Large workflows**: Verify performance is acceptable for 100+ tasks
 
 ## Migration Guide
 
 ### For Users
-No changes required! The window-size parameter works the same way:
-- `--window-size=0`: Sequential execution
-- `--window-size=1`: One level ahead (default)
-- `--window-size=N`: N levels ahead
+No changes required! The front-depth parameter works the same way:
+- `--front-depth=0`: Sequential execution
+- `--front-depth=1`: One level ahead (default)
+- `--front-depth=N`: N levels ahead
 
 The only difference is that levels are now computed dynamically for better performance.
 
@@ -311,9 +311,9 @@ Before deploying, verify:
 - [ ] Unit tests pass
 - [ ] Integration tests pass
 - [ ] Example workflows execute correctly
-- [ ] Window size 0 (sequential) works
-- [ ] Window size 1 (default) works
-- [ ] Window size > 1 works
+- [ ] Front depth 0 (sequential) works
+- [ ] Front depth 1 (default) works
+- [ ] Front depth > 1 works
 - [ ] Branch independence is demonstrated
 - [ ] Logging shows dynamic level updates
 
@@ -322,7 +322,7 @@ Before deploying, verify:
 This implementation successfully converts the static task level system to a dynamic runtime system:
 
 ✅ **Solves the branch independence problem**
-✅ **Maintains window-size semantics** (levels ahead)
+✅ **Maintains front-depth semantics** (levels ahead)
 ✅ **Provides maximum responsiveness** (recompute every completion)
 ✅ **Minimal build-time overhead** (just store dependencies)
 ✅ **Acceptable runtime overhead** (~1ms per completion)

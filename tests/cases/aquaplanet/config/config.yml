@@ -43,11 +43,12 @@ cycles:  # <- GRAPH DEFINITION
                   target_cycle:
                     date: [2000-01-01T00:00:00, 2000-01-01T00:00:30, 2000-01-01T00:01:00, 2000-01-01T00:01:30]
                   port: positional
+
 tasks:   # <- RUNTIME SETTINGS
   - icon:
       plugin: icon
       computer: "{{ SIROCCO_COMPUTER }}"
-      account: cwd01
+      account: "{{ SLURM_ACCOUNT }}"
       uenv: icon/25.2:v3
       nodes: 1
       ntasks_per_node: 4
@@ -59,13 +60,14 @@ tasks:   # <- RUNTIME SETTINGS
   - cleanup:
       plugin: shell
       computer: "{{ SIROCCO_COMPUTER }}"
-      account: cwd01
+      account: "{{ SLURM_ACCOUNT }}"
       uenv: icon/25.2:v3
       nodes: 1
       ntasks_per_node: 4
       cpus_per_task: 72
       path: scripts/cleanup.py
       command: "python3.11 cleanup.py {PORT::positional}"
+
 data:    # <- INPUT/OUTPUT DATA
   available:
      - icon_grid:

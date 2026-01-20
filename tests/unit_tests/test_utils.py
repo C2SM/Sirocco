@@ -201,7 +201,7 @@ def assert_pre_submission_occurred(
 ) -> None:
     """Assert that a task was submitted before its dependency finished.
 
-    This validates pre-submission behavior (window_size > 0), where tasks can
+    This validates pre-submission behavior (front_depth > 0), where tasks can
     be submitted before their dependencies complete.
 
     Args:
@@ -215,7 +215,7 @@ def assert_pre_submission_occurred(
 
     Example:
         >>> times = extract_launcher_times(wg.process)
-        >>> # With window_size=1, fast_2 should be submitted before fast_1 finishes
+        >>> # With front_depth=1, fast_2 should be submitted before fast_1 finishes
         >>> assert_pre_submission_occurred(times, 'fast_2', 'fast_1')
     """
     assert task in timing_data, f"{message_prefix}Task '{task}' not found in timing data"

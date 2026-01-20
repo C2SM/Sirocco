@@ -844,7 +844,7 @@ class ConfigWorkflow(BaseModel):
     tasks: Annotated[list[ConfigTask], BeforeValidator(list_not_empty)]
     data: ConfigData
     parameters: Annotated[dict[str, list], BeforeValidator(check_parameters_lists)] = {}
-    window_size: int = Field(
+    front_depth: int = Field(
         default=1,
         description="Number of topological fronts to keep active. 0=sequential, 1=one front ahead (default), high value=streaming submission.",
         ge=0,

@@ -80,9 +80,9 @@ Cycle 3 (2026-03-01):
 
 ### 2. Pre-submission with Different Window Sizes
 
-Test with various `window_size` values:
+Test with various `front_depth` values:
 
-#### `window_size=0` (Sequential)
+#### `front_depth=0` (Sequential)
 ```
 Level 0 completes → Submit Level 1
 Level 1 completes → Submit Level 2
@@ -91,14 +91,14 @@ Level 1 completes → Submit Level 2
 - Most conservative
 - No pre-submission
 
-#### `window_size=1` (Default)
+#### `front_depth=1` (Default)
 ```
 Level 0 running → Can submit Level 0 + Level 1
 ```
 - Tasks submitted before dependencies finish
 - Optimal for most workflows
 
-#### `window_size=2` (Aggressive)
+#### `front_depth=2` (Aggressive)
 ```
 Level 0 running → Can submit Level 0 + Level 1 + Level 2
 ```
@@ -127,19 +127,19 @@ The `prepare_next` task:
 
 ## Running the Test
 
-### Option 1: CLI with different window sizes
+### Option 1: CLI with different front depths
 
 ```bash
-# Test with window_size=0 (sequential)
+# Test with front_depth=0 (sequential)
 export SIROCCO_COMPUTER=localhost
 export SIROCCO_SCRIPTS_DIR=tests/cases/branch-independence/config/scripts
-sirocco run tests/cases/branch-independence/config/config_complex.yml --window-size 0
+sirocco run tests/cases/branch-independence/config/config_complex.yml --front-depth 0
 
-# Test with window_size=1 (default, one level ahead)
-sirocco run tests/cases/branch-independence/config/config_complex.yml --window-size 1
+# Test with front_depth=1 (default, one level ahead)
+sirocco run tests/cases/branch-independence/config/config_complex.yml --front-depth 1
 
-# Test with window_size=2 (aggressive, two levels ahead)
-sirocco run tests/cases/branch-independence/config/config_complex.yml --window-size 2
+# Test with front_depth=2 (aggressive, two levels ahead)
+sirocco run tests/cases/branch-independence/config/config_complex.yml --front-depth 2
 ```
 
 ### Option 2: Wrapper Script
@@ -151,7 +151,7 @@ export SIROCCO_SCRIPTS_DIR=tests/cases/branch-independence/config/scripts
 
 WINDOW_SIZE=${1:-1}
 sirocco run tests/cases/branch-independence/config/config_complex.yml \
-    --window-size $WINDOW_SIZE
+    --front-depth $WINDOW_SIZE
 ```
 
 ### Option 3: Python Test
@@ -163,10 +163,10 @@ from sirocco.workgraph import build_sirocco_workgraph
 # Load workflow
 wf = Workflow.from_config_file('config_complex.yml')
 
-# Test with different window sizes
-for window_size in [0, 1, 2]:
-    print(f"Testing with window_size={window_size}")
-    wg = build_sirocco_workgraph(wf, window_size=window_size)
+# Test with different front depths
+for front_depth in [0, 1, 2]:
+    print(f"Testing with front_depth={front_depth}")
+    wg = build_sirocco_workgraph(wf, front_depth=front_depth)
     wg.submit()
 ```
 
@@ -184,7 +184,7 @@ python tests/cases/branch-independence/analyze.py <PK>
 
 ### Expected Behavior
 
-**With window_size=1 and dynamic levels:**
+**With front_depth=1 and dynamic levels:**
 
 1. **Fast branch independence:**
    - fast_1, fast_2, fast_3 complete in ~15s total
@@ -227,7 +227,7 @@ The complex test provides a more realistic scenario while remaining simpler than
 ## Troubleshooting
 
 ### Tasks not advancing independently
-- Check that `window_size > 0`
+- Check that `front_depth > 0`
 - Verify dynamic level computation is enabled
 - Review WorkGraph report: `verdi process report <PK>`
 

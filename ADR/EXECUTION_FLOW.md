@@ -129,7 +129,7 @@ core_wf = core.Workflow.from_config_workflow(config_workflow)
 **What Happens:**
 - 🏗️ **Node creation**: Each Task → launcher WorkGraph → CalcJob node
 - 🔗 **Edge creation**: Dependencies → port connections with job_id passing
-- 🪟 **Window management**: Configure `window_size` to limit active levels
+- 🪟 **Window management**: Configure `front_depth` to limit active levels
 - 📡 **Monitoring setup**: `get_job_data` async tasks poll for job_id and remote_folder
 - 🎯 **Pre-submission**: Jobs submitted before dependencies complete (SLURM handles waiting)
 
@@ -147,7 +147,7 @@ WorkGraph "dynamic_deps"
 
 **Entry Point:**
 ```python
-wg = build_sirocco_workgraph(core_wf, window_size=1, max_queued_jobs=None)
+wg = build_sirocco_workgraph(core_wf, front_depth=1, max_queued_jobs=None)
 ```
 
 **Output:** Hierarchical execution plan with window constraints
@@ -215,7 +215,7 @@ wg.submit()  # Returns immediately, daemon handles execution
 ### Input YAML
 ```yaml
 name: example
-window_size: 1
+front_depth: 1
 cycles:
   - daily:
       cycling: {start_date: '2025-01-01', stop_date: '2025-01-03', period: 'P1D'}
@@ -230,7 +230,7 @@ cycles:
 ```python
 ConfigWorkflow(
     name="example",
-    window_size=1,
+    front_depth=1,
     cycles=[
         ConfigCycle(
             name="daily",
@@ -263,7 +263,7 @@ Workflow(
 ### After WorkGraph Build
 ```python
 WorkGraph "example_2025_01_05_12_00"
-  - window_config: {"window_size": 1, "task_dependencies": {...}}
+  - window_config: {"front_depth": 1, "task_dependencies": {...}}
   - Nodes:
       - launch_example_task_a_date_2025_01_01 (WorkGraph)
       - launch_example_task_a_date_2025_01_02 (WorkGraph)
@@ -289,7 +289,7 @@ WorkGraph "example_2025_01_05_12_00"
 ## Related Documentation
 
 - **Dynamic Levels**: `ADR/workgraph/DYNAMIC_LEVELS_IMPLEMENTATION.md`
-- **Window Size**: Configurable via YAML `window_size` field or CLI `--window-size` flag
+- **Window Size**: Configurable via YAML `front_depth` field or CLI `--front-depth` flag
 - **Environment Variables**: `ADR/ENV_VAR_SUBSTITUTION.md`
 - **AiiDA WorkGraph**: https://aiida-workgraph.readthedocs.io/
 

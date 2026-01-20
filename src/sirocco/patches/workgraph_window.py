@@ -8,7 +8,7 @@ in large workflows.
 Key features:
 - Dynamic level computation: Task levels are recomputed as tasks complete,
   allowing faster branches to advance independently
-- Configurable window size: Control how many levels can be active simultaneously
+- Configurable front depth: Control how many levels can be active simultaneously
 - Optional max_queued_jobs limit: Cap total concurrent submissions
 - Transparent: When disabled, behaves identically to unpatched WorkGraph
 
@@ -72,7 +72,7 @@ def patch_workgraph_window():
         # Initialize window state with defaults (will be loaded from WorkGraph context later)
         self.window_config = {
             'enabled': False,
-            'window_size': float('inf'),
+            'front_depth': float('inf'),
             'task_dependencies': {},
         }
         self.window_state = {
@@ -98,7 +98,7 @@ def patch_workgraph_window():
 
         self.window_config = {
             'enabled': window_config.get('enabled', False),
-            'window_size': window_config.get('window_size', float('inf')),
+            'front_depth': window_config.get('front_depth', float('inf')),
             'max_queued_jobs': window_config.get('max_queued_jobs', None),
             'task_dependencies': window_config.get('task_dependencies', {}),
         }
@@ -107,7 +107,7 @@ def patch_workgraph_window():
         if self.window_config['enabled']:
             self.window_state = {
                 'min_active_level': 0,
-                'max_allowed_level': self.window_config['window_size'],
+                'max_allowed_level': self.window_config['front_depth'],
                 'dynamic_task_levels': self._compute_dynamic_levels(),
             }
         else:
@@ -235,9 +235,9 @@ def patch_workgraph_window():
             self.window_state['min_active_level'] = min(active_levels)
 
         # Update max_allowed_level
-        window_size = self.window_config['window_size']
+        front_depth = self.window_config['front_depth']
         self.window_state['max_allowed_level'] = (
-            self.window_state['min_active_level'] + window_size
+            self.window_state['min_active_level'] + front_depth
         )
 
     def _is_task_in_window(self, task_name):

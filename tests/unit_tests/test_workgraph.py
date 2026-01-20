@@ -223,7 +223,7 @@ def test_build_workgraph(config_paths):
     assert "window_config" in workgraph.extras
     window_config = workgraph.extras["window_config"]
     assert "enabled" in window_config
-    assert "window_size" in window_config
+    assert "front_depth" in window_config
     assert "task_dependencies" in window_config
 
 
@@ -368,14 +368,14 @@ def test_branch_independence_config(config_paths):
     config_workflow = ConfigWorkflow.from_config_file(str(config_paths["yml"]))
     core_workflow = Workflow.from_config_workflow(config_workflow)
 
-    # Build the WorkGraph with window_size=1
-    workgraph = build_sirocco_workgraph(core_workflow, window_size=1)
+    # Build the WorkGraph with front_depth=1
+    workgraph = build_sirocco_workgraph(core_workflow, front_depth=1)
 
     # Verify window config is stored correctly
     assert "window_config" in workgraph.extras
     window_config = workgraph.extras["window_config"]
     assert window_config["enabled"] is True
-    assert window_config["window_size"] == 1
+    assert window_config["front_depth"] == 1
     assert "task_dependencies" in window_config
 
     # Get launcher task names
@@ -424,9 +424,9 @@ def test_branch_independence_config(config_paths):
 def test_branch_independence_execution(config_paths):
     """Integration test that actually runs the branch independence workflow.
 
-    This test verifies that with dynamic levels and window_size=1:
+    This test verifies that with dynamic levels and front_depth=1:
     - The faster branch completes without waiting for the slower branch
-    - Tasks are pre-submitted before their dependencies finish (window_size=1)
+    - Tasks are pre-submitted before their dependencies finish (front_depth=1)
     - Submission order follows dynamic level computation
     """
     import logging
@@ -463,7 +463,7 @@ def test_branch_independence_execution(config_paths):
     # Build and run the workflow
     LOGGER.info("Building workflow from config")
     core_workflow = Workflow.from_config_file(str(config_paths["yml"]))
-    workgraph = build_sirocco_workgraph(core_workflow, window_size=1)
+    workgraph = build_sirocco_workgraph(core_workflow, front_depth=1)
     LOGGER.info(f"WorkGraph built with {len(workgraph.tasks)} tasks")
 
     # Track task completion times
@@ -528,7 +528,7 @@ def test_branch_independence_execution(config_paths):
         raise
 
     # ========================================================================
-    # ASSERTION 2: Pre-submission (window_size=1)
+    # ASSERTION 2: Pre-submission (front_depth=1)
     # Tasks should be submitted BEFORE their dependencies finish
     # ========================================================================
     LOGGER.info("Testing pre-submission behavior...")
@@ -595,7 +595,7 @@ def test_branch_independence_execution(config_paths):
     LOGGER.info("✓ All assertions passed!")
     LOGGER.info("  ✓ Fast branch completed before slow branch (branch independence)")
     LOGGER.info("  ✓ Tasks submitted in correct order (dynamic levels)")
-    LOGGER.info("  ✓ Pre-submission behavior observed (window_size=1)")
+    LOGGER.info("  ✓ Pre-submission behavior observed (front_depth=1)")
     LOGGER.info("  ✓ fast_3 submitted before slow_3 (independent advancement)")
     LOGGER.info(f"  ✓ Total execution time: {total_time:.1f}s")
     LOGGER.info("="*80)
@@ -609,23 +609,23 @@ def test_branch_independence_execution(config_paths):
 @pytest.mark.slow
 @pytest.mark.usefixtures("config_case", "aiida_localhost", "aiida_remote_computer")
 @pytest.mark.parametrize(
-    ("config_case", "window_size"),
+    ("config_case", "front_depth"),
     [
         ("branch-independence", 0),  # Sequential execution
         ("branch-independence", 1),  # One level ahead (default)
         ("branch-independence", 2),  # Two levels ahead (aggressive)
     ],
 )
-def test_branch_independence_with_window_sizes(config_paths, window_size):
-    """Parameterized test for different window_size values.
+def test_branch_independence_with_front_depths(config_paths, front_depth):
+    """Parameterized test for different front_depth values.
 
     Tests that dynamic level computation works correctly with different
     pre-submission strategies:
-    - window_size=0: Sequential execution, no pre-submission
-    - window_size=1: Submit one level ahead (optimal for most cases)
-    - window_size=2: Submit two levels ahead (aggressive pre-submission)
+    - front_depth=0: Sequential execution, no pre-submission
+    - front_depth=1: Submit one level ahead (optimal for most cases)
+    - front_depth=2: Submit two levels ahead (aggressive pre-submission)
 
-    All window sizes should result in branch independence, but with different
+    All front depths should result in branch independence, but with different
     pre-submission behavior.
     """
     import logging
@@ -643,7 +643,7 @@ def test_branch_independence_with_window_sizes(config_paths, window_size):
     LOGGER = logging.getLogger(__name__)
 
     # Set up persistent file logging
-    log_file = Path(f"branch_independence_window{window_size}_test.log")
+    log_file = Path(f"branch_independence_window{front_depth}_test.log")
     file_handler = logging.FileHandler(log_file, mode='w')
     file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(logging.Formatter(
@@ -653,13 +653,13 @@ def test_branch_independence_with_window_sizes(config_paths, window_size):
     LOGGER.setLevel(logging.INFO)
 
     LOGGER.info("="*80)
-    LOGGER.info(f"Testing with window_size={window_size}")
+    LOGGER.info(f"Testing with front_depth={front_depth}")
     LOGGER.info("="*80)
 
-    # Build and run the workflow with specified window_size
+    # Build and run the workflow with specified front_depth
     LOGGER.info("Building workflow from config")
     core_workflow = Workflow.from_config_file(str(config_paths["yml"]))
-    workgraph = build_sirocco_workgraph(core_workflow, window_size=window_size)
+    workgraph = build_sirocco_workgraph(core_workflow, front_depth=front_depth)
     LOGGER.info(f"WorkGraph built with {len(workgraph.tasks)} tasks")
 
     # Track execution time
@@ -694,7 +694,7 @@ def test_branch_independence_with_window_sizes(config_paths, window_size):
     LOGGER.info(f"Extracted timing data for {len(launcher_times)} tasks")
 
     # ========================================================================
-    # Key assertion: Branch independence should work regardless of window_size
+    # Key assertion: Branch independence should work regardless of front_depth
     # ========================================================================
     LOGGER.info("Testing branch independence...")
     try:
@@ -707,28 +707,28 @@ def test_branch_independence_with_window_sizes(config_paths, window_size):
     # ========================================================================
     # Window-size specific validation
     # ========================================================================
-    if window_size == 0:
-        LOGGER.info("Validating window_size=0 behavior (sequential execution)...")
-        # With window_size=0, we expect more sequential behavior
+    if front_depth == 0:
+        LOGGER.info("Validating front_depth=0 behavior (sequential execution)...")
+        # With front_depth=0, we expect more sequential behavior
         # Tasks should generally be submitted after their dependencies finish
         # (though this is hard to test precisely due to timing variations)
         LOGGER.info("✓ Sequential execution mode (no pre-submission expected)")
 
-    elif window_size == 1:
-        LOGGER.info("Validating window_size=1 behavior (one level ahead)...")
-        # With window_size=1, some pre-submission should occur
+    elif front_depth == 1:
+        LOGGER.info("Validating front_depth=1 behavior (one level ahead)...")
+        # With front_depth=1, some pre-submission should occur
         # This is tested more thoroughly in the main test
         LOGGER.info("✓ One level ahead mode (optimal pre-submission)")
 
-    elif window_size == 2:
-        LOGGER.info("Validating window_size=2 behavior (two levels ahead)...")
-        # With window_size=2, more aggressive pre-submission should occur
+    elif front_depth == 2:
+        LOGGER.info("Validating front_depth=2 behavior (two levels ahead)...")
+        # With front_depth=2, more aggressive pre-submission should occur
         # Tasks can be submitted up to 2 levels ahead
         LOGGER.info("✓ Two levels ahead mode (aggressive pre-submission)")
 
     # Log success
     LOGGER.info("="*80)
-    LOGGER.info(f"✓ Test passed with window_size={window_size}")
+    LOGGER.info(f"✓ Test passed with front_depth={front_depth}")
     LOGGER.info("  ✓ Fast branch completed before slow branch")
     LOGGER.info(f"  ✓ Total execution time: {total_time:.1f}s")
     LOGGER.info("="*80)
@@ -799,7 +799,7 @@ def test_complex_workflow_with_cross_dependencies(config_paths):
     # Build and run the workflow
     LOGGER.info(f"Building workflow from {complex_config_path}")
     core_workflow = Workflow.from_config_file(str(complex_config_path))
-    workgraph = build_sirocco_workgraph(core_workflow, window_size=1)
+    workgraph = build_sirocco_workgraph(core_workflow, front_depth=1)
     LOGGER.info(f"WorkGraph built with {len(workgraph.tasks)} tasks")
 
     # Track execution time
@@ -1050,4 +1050,4 @@ def test_dynamic_levels_branch_independence():
     # This test demonstrates that with dynamic levels:
     # 1. Fast branch tasks move to level 0 as their dependencies complete
     # 2. They don't wait for slow branch tasks at the same static level
-    # 3. With window_size=1, fast2 and fast3 can submit while slow1 is still running
+    # 3. With front_depth=1, fast2 and fast3 can submit while slow1 is still running

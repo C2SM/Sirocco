@@ -1958,7 +1958,7 @@ def build_icon_task_spec(task: core.IconTask) -> dict:
 
 def build_sirocco_workgraph(
     core_workflow: core.Workflow,
-    window_size: int = 1,
+    front_depth: int = 1,
     max_queued_jobs: int | None = None,
 ) -> WorkGraph:
     """Build a Sirocco WorkGraph from a core workflow.
@@ -1967,7 +1967,7 @@ def build_sirocco_workgraph(
 
     Args:
         core_workflow: The core workflow to convert
-        window_size: Number of topological fronts to keep active (default: 1)
+        front_depth: Number of topological fronts to keep active (default: 1)
                     0 = sequential (wait for level N to finish before submitting N+1)
                     1 = one front ahead (default)
                     high value = streaming submission
@@ -1984,8 +1984,8 @@ def build_sirocco_workgraph(
         # Build your core workflow
         wf = core.Workflow.from_config_file("workflow.yml")
 
-        # Build the WorkGraph with window_size=2
-        wg = build_sirocco_workgraph(wf, window_size=2)
+        # Build the WorkGraph with front_depth=2
+        wg = build_sirocco_workgraph(wf, front_depth=2)
 
         # Submit to AiiDA daemon
         wg.submit()
@@ -2022,9 +2022,9 @@ def build_sirocco_workgraph(
     # (requires the extras serialization changes in workgraph.py)
     # Levels will be computed dynamically at runtime by TaskManager
     window_config = {
-        "enabled": window_size
-        > 0,  # Enable window only for positive window_size (0 = sequential)
-        "window_size": window_size,
+        "enabled": front_depth
+        > 0,  # Enable window only for positive front_depth (0 = sequential)
+        "front_depth": front_depth,
         "max_queued_jobs": max_queued_jobs,  # Optional hard limit on concurrent jobs
         "task_dependencies": launcher_dependencies,  # Dependency graph for dynamic level computation
     }

@@ -39,14 +39,14 @@ logger = logging.getLogger(__name__)
 
 def _create_aiida_workflow(
     workflow_file: Path,
-    window_size: int | None = None,
+    front_depth: int | None = None,
     max_queued_jobs: int | None = None,
 ) -> tuple[core.Workflow, "WorkGraph"]:
     """Load workflow file and build WorkGraph.
 
     Args:
         workflow_file: Path to workflow configuration file
-        window_size: Number of topological fronts to keep active (None=use config, default: config value or 1)
+        front_depth: Number of topological fronts to keep active (None=use config, default: config value or 1)
         max_queued_jobs: Maximum number of queued jobs (optional)
 
     Returns:
@@ -55,14 +55,14 @@ def _create_aiida_workflow(
     load_profile()
     config_workflow = parsing.ConfigWorkflow.from_config_file(str(workflow_file))
 
-    # Use window_size from config if not provided via CLI
-    if window_size is None:
-        window_size = config_workflow.window_size
+    # Use front_depth from config if not provided via CLI
+    if front_depth is None:
+        front_depth = config_workflow.front_depth
 
     core_wf = core.Workflow.from_config_workflow(config_workflow)
     wg = build_sirocco_workgraph(
         core_wf,
-        window_size=window_size,
+        front_depth=front_depth,
         max_queued_jobs=max_queued_jobs,
     )
     return core_wf, wg
@@ -70,14 +70,14 @@ def _create_aiida_workflow(
 
 def create_aiida_workflow(
     workflow_file: Path,
-    window_size: int | None = None,
+    front_depth: int | None = None,
     max_queued_jobs: int | None = None,
 ) -> tuple[core.Workflow, "WorkGraph"]:
     """Helper to prepare WorkGraph from workflow file.
 
     Args:
         workflow_file: Path to workflow configuration file
-        window_size: Number of topological fronts to keep active (None=use config value)
+        front_depth: Number of topological fronts to keep active (None=use config value)
         max_queued_jobs: Maximum number of queued jobs (optional)
 
     Returns:
@@ -89,7 +89,7 @@ def create_aiida_workflow(
     try:
         core_wf, wg = _create_aiida_workflow(
             workflow_file=workflow_file,
-            window_size=window_size,
+            front_depth=front_depth,
             max_queued_jobs=max_queued_jobs,
         )
         console.print(f"⚙️ Workflow [magenta]'{wg.name}'[/magenta] prepared for AiiDA execution.")
@@ -239,10 +239,10 @@ def run(
             help="Path to the workflow definition YAML file.",
         ),
     ],
-    window_size: Annotated[
+    front_depth: Annotated[
         int,
         typer.Option(
-            "--window-size",
+            "--front-depth",
             "-w",
             help="Number of topological fronts to keep active. 0=sequential, 1=one front ahead (default), high value=streaming submission.",
         ),
@@ -256,18 +256,18 @@ def run(
         ),
     ] = None,
 ):
-    # Load config to get actual window_size if not provided
+    # Load config to get actual front_depth if not provided
     config_workflow = parsing.ConfigWorkflow.from_config_file(str(workflow_file))
-    actual_window_size = window_size if window_size is not None else config_workflow.window_size
+    actual_front_depth = front_depth if front_depth is not None else config_workflow.front_depth
 
     # FIXME
     # # DEBUG
-    # console.print(f"[dim]DEBUG: CLI window_size arg = {window_size}, config window_size = {config_workflow.window_size}, actual = {actual_window_size}[/dim]")
+    # console.print(f"[dim]DEBUG: CLI front_depth arg = {front_depth}, config front_depth = {config_workflow.front_depth}, actual = {actual_front_depth}[/dim]")
 
-    core_wf, wg = create_aiida_workflow(workflow_file, window_size, max_queued_jobs)
+    core_wf, wg = create_aiida_workflow(workflow_file, actual_front_depth, max_queued_jobs)
     console.print(f"▶️ Running workflow [magenta]'{core_wf.name}'[/magenta] directly (blocking)...")
-    if actual_window_size > 0:
-        console.print(f"   Window size: {actual_window_size} fronts")
+    if actual_front_depth > 0:
+        console.print(f"   Front depth: {actual_front_depth} fronts")
     else:
         console.print("   Sequential submission (window disabled)")
     if max_queued_jobs:
@@ -294,14 +294,14 @@ def submit(
             help="Path to the workflow definition YAML file.",
         ),
     ],
-    window_size: Annotated[
-        int,
+    front_depth: Annotated[
+        int | None,
         typer.Option(
-            "--window-size",
+            "--front-depth",
             "-w",
             help="Number of topological fronts to keep active. 0=sequential, 1=one front ahead (default), high value=streaming submission.",
         ),
-    ] = 1,
+    ] = None,
     max_queued_jobs: Annotated[
         int | None,
         typer.Option(
@@ -313,15 +313,15 @@ def submit(
 ):
     """Submit the workflow to the AiiDA daemon."""
 
-    # Load config to get actual window_size if not provided
+    # Load config to get actual front_depth if not provided
     config_workflow = parsing.ConfigWorkflow.from_config_file(str(workflow_file))
-    actual_window_size = window_size if window_size is not None else config_workflow.window_size
+    actual_front_depth = front_depth if front_depth is not None else config_workflow.front_depth
 
-    core_wf, wg = create_aiida_workflow(workflow_file, window_size, max_queued_jobs)
+    core_wf, wg = create_aiida_workflow(workflow_file, actual_front_depth, max_queued_jobs)
     try:
         console.print(f"🚀 Submitting workflow [magenta]'{core_wf.name}'[/magenta] to AiiDA daemon...")
-        if actual_window_size > 0:
-            console.print(f"   Window size: {actual_window_size} fronts")
+        if actual_front_depth > 0:
+            console.print(f"   Front depth: {actual_front_depth} fronts")
         else:
             console.print("   Sequential submission (window disabled)")
         if max_queued_jobs:

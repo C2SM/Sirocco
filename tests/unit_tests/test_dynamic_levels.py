@@ -1,4 +1,4 @@
-"""Unit tests for dynamic level computation and window-size logic.
+"""Unit tests for dynamic level computation and front-depth logic.
 
 These tests verify the algorithms for:
 - Topological level computation
@@ -194,54 +194,54 @@ class TestDynamicLevels:
 
 
 class TestWindowSizeLogic:
-    """Test window-size submission logic."""
+    """Test front-depth submission logic."""
 
-    def test_window_size_zero_sequential(self):
-        """Test that window_size=0 means sequential execution."""
-        # With window_size=0, can only submit tasks at current level
+    def test_front_depth_zero_sequential(self):
+        """Test that front_depth=0 means sequential execution."""
+        # With front_depth=0, can only submit tasks at current level
         current_max_level = 0
-        window_size = 0
+        front_depth = 0
 
         task_levels = {'task_a': 0, 'task_b': 1, 'task_c': 2}
 
         # Can only submit level 0 tasks
         submittable = {
             task for task, level in task_levels.items()
-            if level <= current_max_level + window_size
+            if level <= current_max_level + front_depth
         }
 
         assert 'task_a' in submittable
         assert 'task_b' not in submittable
         assert 'task_c' not in submittable
 
-    def test_window_size_one_ahead(self):
-        """Test that window_size=1 allows submitting 1 level ahead."""
+    def test_front_depth_one_ahead(self):
+        """Test that front_depth=1 allows submitting 1 level ahead."""
         current_max_level = 0
-        window_size = 1
+        front_depth = 1
 
         task_levels = {'task_a': 0, 'task_b': 1, 'task_c': 2}
 
         # Can submit levels 0 and 1
         submittable = {
             task for task, level in task_levels.items()
-            if level <= current_max_level + window_size
+            if level <= current_max_level + front_depth
         }
 
         assert 'task_a' in submittable
         assert 'task_b' in submittable  # Pre-submission!
         assert 'task_c' not in submittable
 
-    def test_window_size_two_aggressive(self):
-        """Test that window_size=2 allows submitting 2 levels ahead."""
+    def test_front_depth_two_aggressive(self):
+        """Test that front_depth=2 allows submitting 2 levels ahead."""
         current_max_level = 0
-        window_size = 2
+        front_depth = 2
 
         task_levels = {'task_a': 0, 'task_b': 1, 'task_c': 2, 'task_d': 3}
 
         # Can submit levels 0, 1, and 2
         submittable = {
             task for task, level in task_levels.items()
-            if level <= current_max_level + window_size
+            if level <= current_max_level + front_depth
         }
 
         assert 'task_a' in submittable
@@ -251,14 +251,14 @@ class TestWindowSizeLogic:
 
     def test_window_advances_with_max_level(self):
         """Test that window advances as max running level increases."""
-        window_size = 1
+        front_depth = 1
         task_levels = {'task_a': 0, 'task_b': 1, 'task_c': 2, 'task_d': 3}
 
         # Initially, max level is 0
         current_max_level = 0
         submittable = {
             task for task, level in task_levels.items()
-            if level <= current_max_level + window_size
+            if level <= current_max_level + front_depth
         }
         assert submittable == {'task_a', 'task_b'}
 
@@ -267,7 +267,7 @@ class TestWindowSizeLogic:
         current_max_level = 1
         submittable = {
             task for task, level in task_levels.items()
-            if level <= current_max_level + window_size
+            if level <= current_max_level + front_depth
         }
         assert submittable == {'task_a', 'task_b', 'task_c'}
 

@@ -1,6 +1,6 @@
 # Branch Independence Test Case
 
-This test case demonstrates the dynamic task level feature in Sirocco's window-size implementation.
+This test case demonstrates the dynamic task level feature in Sirocco's front-depth implementation.
 
 ## Overview
 
@@ -10,7 +10,7 @@ This workflow has two parallel branches with different execution times:
 
 ## What This Demonstrates
 
-With **dynamic levels**, the fast branch can complete independently without waiting for the slow branch. This is particularly important when using `window_size=1`, which limits how many topological levels ahead tasks can be submitted.
+With **dynamic levels**, the fast branch can complete independently without waiting for the slow branch. This is particularly important when using `front_depth=1`, which limits how many topological levels ahead tasks can be submitted.
 
 ### Key Behavior:
 - `fast_2` starts immediately after `fast_1` completes (~2s)
@@ -72,7 +72,7 @@ export SIROCCO_COMPUTER=localhost
 export SIROCCO_SCRIPTS_DIR="$(pwd)/tests/cases/branch-independence/config/scripts"
 
 # Submit
-sirocco submit tests/cases/branch-independence/config/config.yml --window-size 1
+sirocco submit tests/cases/branch-independence/config/config.yml --front-depth 1
 
 # Monitor
 verdi process list
@@ -96,7 +96,7 @@ Time: 25s - slow_3 finishes ✅ Workflow complete!
 
 ### 1. Configuration Test (`test_branch_independence_config`)
 Verifies that:
-- The workflow builds correctly with `window_size=1`
+- The workflow builds correctly with `front_depth=1`
 - Window config contains `task_dependencies` (not static `task_levels`)
 - All expected tasks are present
 - Dependencies are correctly structured
