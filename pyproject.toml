@@ -40,9 +40,10 @@ dependencies = [
   "aiida-firecrest@git+https://github.com/aiidateam/aiida-firecrest.git@c4e287ffe40ae57db7032fe1c80d2c4def0dc7fa",
   # "pyfirecrest",
   # "aiida-icon @ git+https://github.com/aiida-icon/aiida-icon.git@add-arbitrary-inputs",
-  "aiida-icon @ git+https://github.com/aiida-icon/aiida-icon.git@acbf5981f9bea12d4de484437938d39fcaf009a6",
-  "aiida-workgraph==1.0.0b4",  # need latest for presubmission
+  "aiida-icon @ git+https://github.com/aiida-icon/aiida-icon.git@dyamond-changes",
+  # "aiida-workgraph==1.0.0b4",  # need latest for presubmission
   # "aiida-workgraph @ git+https://github.com/GeigerJ2/aiida-workgraph.git@task-window-dynamic",  # <-- now in `patches/` in Sirocco
+  "aiida-workgraph @git+https://github.com/aiidateam/aiida-workgraph.git",
   "aiida-gui",
   "aiida-gui-workgraph",
   "ipdb",

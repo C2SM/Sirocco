@@ -77,6 +77,8 @@ def collect_job_data(node, custom_order=False):
             'submit': datetime,
             'eligible': datetime,
             'start': datetime,
+            'batch_start': datetime,
+            'batch_end': datetime,
             'end': datetime,
         },
         ...
@@ -148,15 +150,43 @@ def collect_job_data(node, custom_order=False):
             print(f"Warning: Could not parse sacct output for {calcjob.label or calcjob.pk}")
             continue
 
-        # Use the first record (main job, not .batch or .extern)
-        main_record = sacct_records[0]
-        breakpoint()
+        # Find the main job record and .batch record
+        main_record = None
+        batch_record = None
 
-        # Extract timestamps
+        for rec in sacct_records:
+            job_id = rec.get('JobID', '')
+            if '.batch' in job_id:
+                batch_record = rec
+            elif '.extern' not in job_id:
+                # Main job record (no suffix)
+                main_record = rec
+
+        if not main_record:
+            print(f"Warning: No main job record found for {calcjob.label or calcjob.pk}")
+            continue
+
+        # DEBUG: Print all sacct records to investigate timing discrepancies
+        print(f"\nDEBUG: All sacct records for {calcjob.label or calcjob.pk}:")
+        for i, rec in enumerate(sacct_records):
+            print(f"  Record {i}: JobID={rec.get('JobID')}, Start={rec.get('Start')}, End={rec.get('End')}, Elapsed={rec.get('Elapsed')}")
+
+        # Extract timestamps from main job record
         submit = parse_sacct_time(main_record.get('Submit'))
         eligible = parse_sacct_time(main_record.get('Eligible'))
         start = parse_sacct_time(main_record.get('Start'))
         end = parse_sacct_time(main_record.get('End'))
+
+        # Extract batch script execution times (actual execution)
+        batch_start = None
+        batch_end = None
+        if batch_record:
+            batch_start = parse_sacct_time(batch_record.get('Start'))
+            batch_end = parse_sacct_time(batch_record.get('End'))
+        else:
+            print(f"Warning: No .batch record found for {calcjob.label or calcjob.pk}, using main job times")
+            batch_start = start
+            batch_end = end
 
         if not submit:
             print(f"Warning: No submit time for {calcjob.label or calcjob.pk}")
@@ -178,16 +208,20 @@ def collect_job_data(node, custom_order=False):
             job_name = calcjob.label or f"job-{calcjob.pk}"
 
         print(f"Job {job_name} (PK={calcjob.pk}):")
-        print(f"  Submit: {submit}, Eligible: {eligible}, Start: {start}, End: {end}")
+        print(f"  Main job: Submit: {submit}, Eligible: {eligible}, Start: {start}, End: {end}")
+        print(f"  Batch script: Start: {batch_start}, End: {batch_end}")
 
-        jobs.append({
+        job_data_dict = {
             'name': job_name,
             'pk': calcjob.pk,
             'submit': submit,
             'eligible': eligible or submit,  # If no eligible time, assume same as submit
             'start': start or eligible or submit,
+            'batch_start': batch_start or start,
+            'batch_end': batch_end or end,
             'end': end,
-        })
+        }
+        jobs.append(job_data_dict)
 
     # Sort jobs based on ordering mode
     if custom_order:
@@ -269,13 +303,14 @@ def plot_timeline(jobs, output_file=None):
     COLORS = {
         'blocked': '#e74c3c',    # Red - blocked by dependencies
         'queued': '#f39c12',     # Orange/Yellow - waiting in queue
+        'slurm_overhead': '#95a5a6',  # Gray - SLURM system overhead (setup/cleanup)
         'running': '#27ae60',    # Green - actively running
     }
 
     # Find time range for x-axis
     all_times = []
     for job in jobs:
-        all_times.extend([t for t in [job['submit'], job['eligible'], job['start'], job['end']] if t])
+        all_times.extend([t for t in [job['submit'], job['eligible'], job['start'], job['batch_start'], job['batch_end'], job['end']] if t])
 
     if not all_times:
         print("No valid timestamps found")
@@ -291,6 +326,8 @@ def plot_timeline(jobs, output_file=None):
         submit = job['submit']
         eligible = job['eligible']
         start = job['start']
+        batch_start = job['batch_start']
+        batch_end = job['batch_end']
         end = job['end']
 
         # Phase 1: Submit → Eligible (blocked by dependencies) - RED
@@ -318,28 +355,52 @@ def plot_timeline(jobs, output_file=None):
             )
             ax.add_patch(rect)
 
-        # Phase 3: Start → End (running) - GREEN
-        if end and end > start:
+        # Phase 3: Start → Batch Start (SLURM setup overhead) - GRAY
+        if batch_start > start:
             rect = Rectangle(
                 (mdates.date2num(start), y_pos - 0.4),
-                mdates.date2num(end) - mdates.date2num(start),
+                mdates.date2num(batch_start) - mdates.date2num(start),
+                0.8,
+                facecolor=COLORS['slurm_overhead'],
+                edgecolor='black',
+                linewidth=0.5,
+            )
+            ax.add_patch(rect)
+
+        # Phase 4: Batch Start → Batch End (actual execution) - GREEN
+        if batch_end and batch_end > batch_start:
+            rect = Rectangle(
+                (mdates.date2num(batch_start), y_pos - 0.4),
+                mdates.date2num(batch_end) - mdates.date2num(batch_start),
                 0.8,
                 facecolor=COLORS['running'],
                 edgecolor='black',
                 linewidth=0.5,
             )
             ax.add_patch(rect)
-        elif not end:
+        elif not batch_end:
             # Job still running - extend to current time
             now = datetime.now()
             rect = Rectangle(
-                (mdates.date2num(start), y_pos - 0.4),
-                mdates.date2num(now) - mdates.date2num(start),
+                (mdates.date2num(batch_start), y_pos - 0.4),
+                mdates.date2num(now) - mdates.date2num(batch_start),
                 0.8,
                 facecolor=COLORS['running'],
                 edgecolor='black',
                 linewidth=0.5,
                 alpha=0.5,  # Semi-transparent for running jobs
+            )
+            ax.add_patch(rect)
+
+        # Phase 5: Batch End → End (SLURM cleanup overhead) - GRAY
+        if end and batch_end and end > batch_end:
+            rect = Rectangle(
+                (mdates.date2num(batch_end), y_pos - 0.4),
+                mdates.date2num(end) - mdates.date2num(batch_end),
+                0.8,
+                facecolor=COLORS['slurm_overhead'],
+                edgecolor='black',
+                linewidth=0.5,
             )
             ax.add_patch(rect)
 
@@ -399,6 +460,7 @@ def plot_timeline(jobs, output_file=None):
     legend_elements = [
         Rectangle((0, 0), 1, 1, fc=COLORS['blocked'], label='Blocked (dependencies)'),
         Rectangle((0, 0), 1, 1, fc=COLORS['queued'], label='Queued'),
+        Rectangle((0, 0), 1, 1, fc=COLORS['slurm_overhead'], label='SLURM overhead'),
         Rectangle((0, 0), 1, 1, fc=COLORS['running'], label='Running'),
     ]
     ax.legend(handles=legend_elements, loc='upper right')
@@ -406,7 +468,7 @@ def plot_timeline(jobs, output_file=None):
     # Labels and title
     ax.set_xlabel('Time')
     ax.set_ylabel('Job')
-    ax.set_title('Job Timeline: Dependency-blocked → Queued → Running')
+    ax.set_title('Job Timeline: Dependency-blocked → Queued → SLURM Setup → Running → SLURM Cleanup')
 
     # Grid
     ax.grid(True, axis='x', alpha=0.3)
