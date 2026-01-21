@@ -4,7 +4,7 @@ start_date: &root_start_date '2020-01-20T00:00:00'
 stop_date: &root_stop_date '2020-01-20T00:01:30'
 # stop_date: &root_stop_date '2021-01-20T00:00:00'
 # scheduler: slurm
-front_depth: 0
+front_depth: 1
 cycles:
   - icon:
       cycling:
