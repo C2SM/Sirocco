@@ -2,7 +2,7 @@
 name: AQUAPLANET
 start_date: &root_start_date '2000-01-01T00:00:00'
 stop_date: &root_stop_date '2000-01-01T00:02:00'
-front_depth: 1
+front_depth: 0
 cycles:  # <- GRAPH DEFINITION
   - every_30s:
       cycling:
@@ -49,6 +49,7 @@ tasks:   # <- RUNTIME SETTINGS
       plugin: icon
       computer: "{{ SIROCCO_COMPUTER }}"
       account: "{{ SLURM_ACCOUNT }}"
+      queue: "{{ SLURM_QUEUE }}"
       uenv: icon/25.2:v3
       nodes: 1
       ntasks_per_node: 4
@@ -61,6 +62,7 @@ tasks:   # <- RUNTIME SETTINGS
       plugin: shell
       computer: "{{ SIROCCO_COMPUTER }}"
       account: "{{ SLURM_ACCOUNT }}"
+      queue: "{{ SLURM_QUEUE }}"
       uenv: icon/25.2:v3
       nodes: 1
       ntasks_per_node: 4

@@ -1,9 +1,41 @@
+"""Sirocco WorkGraph builder - converts Sirocco workflows to AiiDA WorkGraphs.
+
+ARCHITECTURE OVERVIEW
+=====================
+
+This module creates a nested WorkGraph structure to handle dynamic dependencies:
+
+    Main WorkGraph (created by build_sirocco_workgraph)
+    ├── launch_task1 (sub-workgraph created by @task.graph launcher)
+    │   └── Icon/Shell task (actual ICON calculation or shell command)
+    ├── get_job_data_task1 (monitors task1, returns job_id + remote_folder)
+    ├── launch_task2 (sub-workgraph)
+    │   └── Icon/Shell task
+    └── get_job_data_task2
+
+Why nested workgraphs?
+- The @task.graph launchers run at execution time with access to dynamic inputs
+  (parent_folders PKs, job_ids) from upstream get_job_data tasks
+- This allows resolving PKs → AiiDA nodes and building SLURM dependencies on-the-fly
+- Without nesting, we'd need to resolve everything statically at build time
+
+Key components:
+- build_sirocco_workgraph(): Main entry point, creates the WorkGraph structure
+- launch_icon_task_with_dependency(): @task.graph that creates Icon sub-workgraph
+- launch_shell_task_with_dependency(): @task.graph that creates shell sub-workgraph
+- get_job_data(): Async task that monitors jobs and extracts job_id + remote_folder
+
+ICON Task Flow:
+1. load_icon_dependencies() - PKs → RemoteData (restart files)
+2. build_icon_metadata_with_slurm_dependencies() - Add SLURM deps to metadata
+3. prepare_icon_task_inputs() - Assemble inputs, wrap in 'icon' namespace
+4. Create Icon workchain task in sub-workgraph
+"""
 from __future__ import annotations
 
 import asyncio
 import hashlib
 import io
-import logging
 import time
 from dataclasses import dataclass
 from datetime import datetime
@@ -17,16 +49,18 @@ import aiida.transports.plugins.local
 import yaml
 from aiida.common.exceptions import NotExistent
 from aiida.orm.utils.serialize import AiiDALoader
-from aiida_icon.calculations import IconCalculation
+from aiida_icon.workflows import Icon
 from aiida_icon.iconutils.namelists import create_namelist_singlefiledata_from_content
 from aiida_shell.parsers.shell import ShellParser
 from aiida_workgraph import WorkGraph, dynamic, get_current_graph, namespace, task
+from aiida.common.log import AIIDA_LOGGER
+from aiida_workgraph.engine.workgraph import WorkGraphEngine
 
 from sirocco import core
 from sirocco.parsing._utils import TimeUtils
 from sirocco.parsing.cycling import DateCyclePoint
 
-logger = logging.getLogger(__name__)
+LOGGER = AIIDA_LOGGER.getChild("sirocco_" + __name__)
 
 if TYPE_CHECKING:
     WorkgraphDataNode: TypeAlias = (
@@ -253,6 +287,8 @@ def serialize_coordinates(coordinates: dict) -> dict:
     return serialized
 
 
+# FIXME: there should be a way to get the (UU)ID
+# cannot pass full wg, bc whatever is passed here has to be JSON-serializable
 @task(outputs=namespace(job_id=int, remote_folder=int))
 async def get_job_data(
     workgraph_name: str,
@@ -260,9 +296,10 @@ async def get_job_data(
     interval: int = 10,
     timeout: int = 3600,
 ):
-    """Monitor CalcJob and return job_id and remote_folder PK when available."""
-    from aiida import orm
-    from aiida_workgraph.engine.workgraph import WorkGraphEngine
+    """Monitor CalcJob and return job_id and remote_folder PK when available.
+
+    For Icon workchain, extracts data from the underlying IconCalculation.
+    """
 
     start = time.time()
 
@@ -273,7 +310,7 @@ async def get_job_data(
             raise TimeoutError(msg)
 
         # Query for WorkGraphs created after polling start
-        builder = orm.QueryBuilder()
+        builder = aiida.orm.QueryBuilder()
         builder.append(
             WorkGraphEngine,
             filters={
@@ -287,16 +324,31 @@ async def get_job_data(
             await asyncio.sleep(interval)
             continue
 
-        workgraph_node = builder.all()[-1][0]
-        node_data = workgraph_node.task_processes.get(task_name)
+        wg_node = builder.all(flat=True)[-1]
+        # LOGGER.report(f'{wg_node=}')
+        node_data = wg_node.task_processes.get(task_name)
         if not node_data:
             await asyncio.sleep(interval)
             continue
 
-        node = yaml.load(node_data, Loader=AiiDALoader)
-        if not node:
+        wc_node = yaml.load(node_data, Loader=AiiDALoader)
+
+        if not wc_node:
             await asyncio.sleep(interval)
             continue
+
+        # Handle both workchains (Icon) and direct calcjobs (Shell)
+        # Icon tasks are wrapped in workchains, shell tasks are direct CalcJobs
+        if isinstance(wc_node, orm.WorkChainNode):
+            # Icon workchain case - extract the underlying IconCalculation
+            descendants = wc_node.called_descendants
+            if not descendants:
+                await asyncio.sleep(interval)
+                continue
+            node = descendants[-1]
+        else:
+            # Shell calcjob case - use node directly (no workchain wrapper)
+            node = wc_node
 
         job_id = node.get_job_id()
         if job_id is None:
@@ -304,6 +356,7 @@ async def get_job_data(
             continue
 
         # SUCCESS — return early
+        # LOGGER.report(f'{node=}')
         remote_pk = node.outputs.remote_folder.pk
         return {"job_id": int(job_id), "remote_folder": remote_pk}
 
@@ -411,7 +464,7 @@ def launch_shell_task_with_dependency(
     return shell_task.outputs
 
 
-IconTask = task(IconCalculation)
+IconTask = task(Icon)
 
 
 @task.graph(outputs=IconTask.outputs)
@@ -421,30 +474,41 @@ def launch_icon_task_with_dependency(
     parent_folders: Annotated[dict, dynamic(int)] | None = None,
     job_ids: Annotated[dict, dynamic(int)] | None = None,
 ):
-    """Launch an ICON task with SLURM dependencies from upstream tasks.
+    """Build and launch an Icon workchain task within a sub-workgraph.
 
-    Following Xing's approach exactly: accept parent_folders as PKs and job_ids as ints,
-    load RemoteData from PKs inside this function.
-    This avoids socket dependencies while preserving provenance.
+    This is a @task.graph decorator that creates a nested workgraph structure:
+        Main WorkGraph
+        └── launch_X (this sub-workgraph)
+            └── Icon workchain (actual ICON calculation)
+
+    Why nested? The @task.graph runs at execution time with access to dynamic
+    inputs (parent_folders, job_ids) from upstream tasks. This allows us to:
+    1. Resolve PKs → AiiDA nodes
+    2. Build SLURM dependencies from job IDs
+    3. Create the Icon task with all resolved inputs
+
+    The flow within this function:
+    1. Load RemoteData dependencies from parent_folders PKs
+    2. Build metadata with SLURM job dependencies
+    3. Prepare complete inputs for Icon workchain
+    4. Create Icon task in the sub-workgraph
 
     Args:
-        task_spec: Dict from _build_icon_task_spec() containing task specifications
-        input_data_nodes: Dict mapping port names to AvailableData nodes
-        parent_folders: Dict of {dep_label: remote_folder_pk} from get_job_data
-        job_ids: Dict of {dep_label: job_id} from get_job_data
+        task_spec: Task specification dict from build_icon_task_spec()
+        input_data_nodes: Dict of AvailableData nodes (static inputs)
+        parent_folders: Dict of {dep_label: remote_folder_pk} (dynamic, from upstream)
+        job_ids: Dict of {dep_label: job_id} (dynamic, for SLURM deps)
 
     Returns:
-        IconTask outputs
+        Icon task outputs (will be exposed to parent workgraph)
     """
     label = task_spec["label"]
     computer_label = task_spec["metadata"]["computer_label"]
 
-    # Handle None inputs
-    if input_data_nodes is None:
-        input_data_nodes = {}
+    # === STEP 1: Load dependencies ===
+    # Convert parent folder PKs → RemoteData nodes pointing to restart files
+    input_data_nodes = input_data_nodes or {}
 
-    # Load RemoteData dependencies (restart files, etc.)
-    # Convert port_to_dep_mapping from dict back to PortToDependencies
     port_to_dep_dict = task_spec.get("port_to_dep_mapping", {})
     port_to_dep = _port_to_dependencies_from_dict(port_to_dep_dict)
 
@@ -456,18 +520,23 @@ def launch_icon_task_with_dependency(
     )
     input_data_nodes.update(remote_data_nodes)
 
-    # Build metadata with SLURM job dependencies
+    # === STEP 2: Build metadata ===
+    # Add SLURM job dependencies and prepare computer/options
     computer = aiida.orm.Computer.collection.get(label=computer_label)
     metadata_dict = build_icon_metadata_with_slurm_dependencies(
         task_spec["metadata"], job_ids, computer, label
     )
 
-    # Prepare complete inputs dict for IconTask
+    # === STEP 3: Prepare Icon inputs ===
+    # Assemble all inputs (code, namelists, data, metadata) and wrap in 'icon' namespace
     inputs = prepare_icon_task_inputs(task_spec, input_data_nodes, metadata_dict, label)
 
-    # Call IconTask directly (NOT wg.add_task!)
-    # This returns a TaskNode with proper output sockets
-    return IconTask(**inputs)
+    # === STEP 4: Create Icon task ===
+    # Create the Icon workchain in this sub-workgraph with an explicit name
+    # The name must match what get_job_data expects to find
+    wg = get_current_graph()
+    icon_task = wg.add_task(IconTask, name=label, **inputs)
+    return icon_task.outputs
 
 
 def get_task_dependencies_from_workgraph(wg: WorkGraph) -> dict[str, list[str]]:
@@ -800,7 +869,6 @@ def create_icon_launcher_task(
     )
 
     # Create get_job_data task
-    # breakpoint()
     dep_task = wg.add_task(
         get_job_data,
         name=f"get_job_data_{task_label}",
@@ -1002,6 +1070,24 @@ def parse_mpi_cmd_to_aiida(mpi_cmd: str) -> str:
 # =============================================================================
 # ICON Task Helper Functions
 # =============================================================================
+#
+# These functions support the Icon workchain task launcher:
+#
+# 1. load_icon_dependencies()
+#    - Converts parent folder PKs → RemoteData nodes
+#    - Resolves restart files using namelist metadata
+#
+# 2. build_icon_metadata_with_slurm_dependencies()
+#    - Adds SLURM --dependency directives
+#    - Returns metadata in IconCalculation format
+#
+# 3. prepare_icon_task_inputs()
+#    - Assembles all inputs (code, namelists, data, metadata)
+#    - Wraps in 'icon' namespace for Icon workchain
+#
+# These are called by launch_icon_task_with_dependency() which creates
+# a sub-workgraph containing the Icon workchain task.
+# =============================================================================
 
 
 def resolve_icon_restart_file(
@@ -1089,35 +1175,49 @@ def load_icon_dependencies(
     model_namelist_pks: dict,
     label: str,
 ) -> dict[str, aiida.orm.RemoteData]:
-    """Load RemoteData dependencies for an ICON task and map to input ports."""
+    """Load RemoteData dependencies from parent tasks and map to Icon input ports.
 
+    This function converts parent folder PKs into RemoteData nodes pointing to
+    specific files (like restart files) needed by ICON. It handles the mapping
+    from dependency labels to input port names.
+
+    Example flow:
+        parent_folders = {"icon_prev": 12345}  # PK to remote workdir
+        port_to_dep_mapping = {"restart_file": [DependencyInfo(dep_label="icon_prev", ...)]}
+        → Returns: {"restart_file": RemoteData(pointing to restart file)}
+
+    Args:
+        parent_folders: Dict of {dep_label: remote_folder_pk} from upstream tasks
+        port_to_dep_mapping: Maps input port names → list of dependencies
+        model_namelist_pks: Model namelist PKs (used to resolve restart file names)
+        label: Task label for debug output
+
+    Returns:
+        Dict of {port_name: RemoteData} ready to pass to Icon workchain
+    """
     input_nodes: dict[str, aiida.orm.RemoteData] = {}
     if not parent_folders:
         return input_nodes
 
-    # ------------------------------------------------------------------
-    # Load RemoteData for each parent folder (remote_folder pk)
-    # ------------------------------------------------------------------
+    # Load RemoteData nodes from PKs
     parent_folders_loaded = {
         dep_label: aiida.orm.load_node(tagged_val.value)
         for dep_label, tagged_val in parent_folders.items()
     }
 
-    # ------------------------------------------------------------------
-    # Process each port → list of dependencies
-    # For ICON, each port has at most 1 dependency
-    # ------------------------------------------------------------------
+    # Map each input port to its resolved RemoteData
+    # Note: ICON tasks have at most 1 dependency per port (unlike shell tasks)
     for port_name, dep_list in port_to_dep_mapping.items():
         if not dep_list:
             continue
 
-        dep_info = dep_list[0]  # ICON: max 1 dependency per port
+        dep_info = dep_list[0]  # Take first (and only) dependency
 
         workdir_remote = parent_folders_loaded.get(dep_info.dep_label)
         if not workdir_remote:
             continue
 
-        # Use helper to resolve dependency
+        # Resolve to specific file or directory
         input_nodes[port_name] = _resolve_icon_dependency(
             dep_info,
             workdir_remote,
@@ -1160,50 +1260,72 @@ def build_icon_metadata_with_slurm_dependencies(
     computer: aiida.orm.Computer,
     label: str,
 ) -> dict:
-    """Build ICON metadata dict with SLURM job dependencies.
+    """Build metadata for Icon workchain with SLURM job dependencies.
+
+    Takes base metadata (computer label, queue, resources) and adds SLURM
+    --dependency directives to make the job wait for upstream jobs to complete.
+
+    Example:
+        job_ids = {"icon_prev": 12345}
+        → Adds: "#SBATCH --dependency=afterok:12345" to custom_scheduler_commands
+
+    The metadata structure matches what IconCalculation expects (computer + options)
+    since the Icon workchain exposes IconCalculation inputs in the 'icon' namespace.
 
     Args:
-        base_metadata: Base metadata from task spec
-        job_ids: Dict of {dep_label: job_id_tagged_value} or None
-        computer: AiiDA computer object
-        label: Task label for debug output
+        base_metadata: Base metadata dict with 'options' (queue, resources, etc.)
+        job_ids: Dict of {dep_label: job_id} from upstream tasks (for SLURM deps)
+        computer: AiiDA Computer object
+        label: Task label for logging
 
     Returns:
-        Metadata dict for ICON task with computer and SLURM dependencies
+        Metadata dict with structure: {"computer": Computer, "options": {...}}
     """
     metadata = dict(base_metadata)
     metadata["options"] = dict(metadata["options"])
 
+    # Add SLURM --dependency directive if there are upstream jobs
     if job_ids:
         custom_cmd = _build_slurm_dependency_directive(job_ids)
         _add_custom_scheduler_command(metadata, custom_cmd)
 
+    # Return metadata in IconCalculation format
+    # (Icon workchain uses expose_inputs, so it expects IconCalculation metadata)
     return {
         "computer": computer,
         "options": metadata["options"],
-        "call_link_label": label,
     }
 
 
 def prepare_icon_task_inputs(
     task_spec: dict, input_data_nodes: dict, metadata_dict: dict, label: str
 ) -> dict:
-    """Prepare complete inputs dict for ICON task.
+    """Assemble all inputs for Icon workchain and wrap in 'icon' namespace.
+
+    This function:
+    1. Loads code and namelists from PKs
+    2. Adds all input data (restart files, forcing data, etc.)
+    3. Handles namespace ports correctly (some ports like 'link_dir_contents' are namespaces)
+    4. Wraps everything in 'icon' namespace to match Icon workchain structure
+
+    The Icon workchain uses: expose_inputs(IconCalculation, namespace='icon')
+    So we need to provide: {"icon": {...IconCalculation inputs...}}
 
     Args:
-        task_spec: Task specification containing code, namelists, wrapper script PKs
-        input_data_nodes: Dict of input data nodes (both AvailableData and RemoteData)
-        metadata_dict: Metadata dict with computer and options
-        label: Task label for debug output
+        task_spec: Task spec with PKs for code, namelists, wrapper script
+        input_data_nodes: Data nodes (AvailableData, RemoteData) for input ports
+        metadata_dict: Metadata with computer and scheduler options
+        label: Task label for logging
 
     Returns:
-        Complete inputs dict for IconTask
+        Dict with structure: {"icon": {code, namelists, data, metadata, ...}}
     """
     from aiida.engine.processes.ports import PortNamespace
     from aiida_icon.calculations import IconCalculation
 
-    # Get IconCalculation spec to determine which ports are namespaces
-    icon_spec = IconCalculation.spec()
+    # Check IconCalculation spec to identify namespace ports
+    # (We check IconCalculation, not Icon, since we're building IconCalculation inputs)
+    icon_calc_spec = IconCalculation.spec()
 
     # Start with code and namelists
     inputs = {
@@ -1227,8 +1349,8 @@ def prepare_icon_task_inputs(
         node_type = type(data_node).__name__
         # Check if this port is a namespace by inspecting the spec
         is_namespace = False
-        if port_name in icon_spec.inputs:
-            port = icon_spec.inputs[port_name]
+        if port_name in icon_calc_spec.inputs:
+            port = icon_calc_spec.inputs[port_name]
             is_namespace = isinstance(port, PortNamespace)
 
         # Wrap namespace ports in a dict with node label as key
@@ -1242,7 +1364,8 @@ def prepare_icon_task_inputs(
     # Add metadata
     inputs["metadata"] = metadata_dict  # type: ignore[assignment]
 
-    return inputs
+    # Wrap inputs in 'icon' namespace to match Icon workchain's expose_inputs
+    return {"icon": inputs}
 
 
 # =============================================================================
@@ -1607,7 +1730,7 @@ def create_shell_code(
         path_hash = hashlib.sha256(str(path_obj).encode()).hexdigest()[:8]
 
         # Add hash of file content to detect changes
-        with open(path_obj, 'rb') as f:
+        with open(path_obj, "rb") as f:
             content_hash = hashlib.sha256(f.read()).hexdigest()[:8]
 
         code_label = f"{base_label}-{path_hash}-{content_hash}"
