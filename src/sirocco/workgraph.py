@@ -337,7 +337,7 @@ async def get_job_data(
 
         # Handle both workchains (Icon) and direct calcjobs (Shell)
         # Icon tasks are wrapped in workchains, shell tasks are direct CalcJobs
-        if isinstance(wc_node, orm.WorkChainNode):
+        if isinstance(wc_node, aiida.orm.WorkChainNode):
             # Icon workchain case - extract the underlying IconCalculation
             descendants = wc_node.called_descendants
             if not descendants:
@@ -2150,8 +2150,7 @@ def build_sirocco_workgraph(
     # (requires the extras serialization changes in workgraph.py)
     # Levels will be computed dynamically at runtime by TaskManager
     window_config = {
-        "enabled": front_depth
-        > 0,  # Enable window only for positive front_depth (0 = sequential)
+        "enabled": front_depth >= 0,  # Enable window for front_depth >= 0 (0 = sequential, 1+ = lookahead)
         "front_depth": front_depth,
         "max_queued_jobs": max_queued_jobs,  # Optional hard limit on concurrent jobs
         "task_dependencies": launcher_dependencies,  # Dependency graph for dynamic level computation

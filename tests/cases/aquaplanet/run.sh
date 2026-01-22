@@ -17,4 +17,5 @@ echo "*********************************"
 
 # Run sirocco with the config
 # The config uses Jinja2 syntax ({{ VAR }}) and gets values from vars.yml
-sirocco run "${SCRIPT_DIR}/config/config.yml" "$@"
+# sirocco run "${SCRIPT_DIR}/config/config.yml" "$@"
+sirocco submit "${SCRIPT_DIR}/config/config.yml" "$@"
