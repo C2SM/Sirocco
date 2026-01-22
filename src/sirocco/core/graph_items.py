@@ -102,7 +102,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     def input_data_items(self) -> Iterator[tuple[str, Data]]:
         yield from ((key, value) for key, values in self.inputs.items() for value in values)
 
-    def output_data_nodes(self) -> Iterator[Data]:
+    def output_data_nodes(self) -> Iterator[GeneratedData]:
         yield from chain(*self.outputs.values())
 
     def output_data_items(self) -> Iterator[tuple[str | None, Data]]:

@@ -76,6 +76,7 @@ class OutputDataInfo:
     label: str
     is_generated: bool
     path: str
+    port: str | None
 
 
 # Type Aliases for Complex Mappings
@@ -196,6 +197,7 @@ def _output_data_info_to_dict(info: OutputDataInfo) -> dict:
         "label": info.label,
         "is_generated": info.is_generated,
         "path": info.path,
+        "port": info.port
     }
 
 
@@ -1135,7 +1137,7 @@ def _build_slurm_dependency_directive(job_ids: JobIds) -> str:
         SLURM directive string like "#SBATCH --dependency=afterok:123:456"
     """
     dep_str = ":".join(str(jid.value) for jid in job_ids.values())
-    return f"#SBATCH --dependency=afterok:{dep_str}"
+    return f"#SBATCH --dependency=afterok:{dep_str} --kill-on-invalid-dep=yes"
 
 
 def _add_custom_scheduler_command(metadata: dict, command: str) -> None:
@@ -1559,6 +1561,8 @@ def create_shell_code(
     else:
         executable_path, _ = split_cmd_arg(task.command)
 
+    # breakpoint()
+
     path_obj = Path(executable_path)
 
     # Check if this is a path (contains separators) or just an executable name
@@ -1711,10 +1715,8 @@ def _add_chunk_time_prepend_text(metadata: dict, task: core.Task) -> None:
 
     # Export both CHUNK_* and SIROCCO_* variable names for compatibility
     exports = (
-        f"export CHUNK_START_DATE={start_date}\n"
-        f"export CHUNK_STOP_DATE={stop_date}\n"
         f"export SIROCCO_START_DATE={start_date}\n"
-        f"export SIROCCO_STOP_DATE={stop_date}"
+        f"export SIROCCO_STOP_DATE={stop_date}\n"
     )
 
     current_prepend = metadata["options"].get("prepend_text", "")
@@ -1774,17 +1776,6 @@ def build_shell_task_spec(task: core.ShellTask) -> dict:
         )
         input_data_info.append(input_info)
 
-    # Pre-compute output data information using dataclasses
-    output_data_info: list[OutputDataInfo] = []
-    for output in task.output_data_nodes():
-        output_info = OutputDataInfo(
-            name=output.name,
-            coordinates=serialize_coordinates(output.coordinates),
-            label=get_aiida_label_from_graph_item(output),
-            is_generated=isinstance(output, core.GeneratedData),
-            path=str(output.path) if output.path is not None else "",  # type: ignore[attr-defined]
-        )
-        output_data_info.append(output_info)
 
     # Build input labels for argument resolution
     input_labels: dict[str, list[str]] = {}
@@ -1800,6 +1791,46 @@ def build_shell_task_spec(task: core.ShellTask) -> dict:
         else:
             input_labels[port_name].append(f"{{{input_label}}}")
 
+    # Pre-compute output data information using dataclasses
+    # breakpoint()
+    output_data_info: list[OutputDataInfo] = []
+    for port_name, output in task.output_data_items():
+        output_info = OutputDataInfo(
+            name=output.name,
+            coordinates=serialize_coordinates(output.coordinates),
+            label=get_aiida_label_from_graph_item(output),
+            is_generated=isinstance(output, core.GeneratedData),
+            path=str(output.path) if output.path is not None else "",  # type: ignore[attr-defined]
+            port=port_name
+        )
+        output_data_info.append(output_info)
+
+    # TODO:  fix this
+#     ipdb> input_labels
+# {'data_pool': ['/capstor/scratch/cscs/jgeiger/DYAMOND_input'], 'sst_ice_dir': ['/capstor/store/cscs/userlab/cwd01/leclairm/Sirocco_test_data/R02B06/sst_and_seaice/r0001'], 'ozone_dir': ['/capstor/store/cscs/userlab/cwd01/leclairm/Sirocco_test_data/R02B06/ozone/r0001'], 'aero_kine_dir': ['/capstor/store/cscs/userlab/cwd01/leclairm/Sirocco_test_data/R02B06/aerosol_kinne/r0001'], 'icon_input': []}
+# ipdb> pp input_labels
+# {'aero_kine_dir': ['/capstor/store/cscs/userlab/cwd01/leclairm/Sirocco_test_data/R02B06/aerosol_kinne/r0001'],
+#  'data_pool': ['/capstor/scratch/cscs/jgeiger/DYAMOND_input'],
+#  'icon_input': [],
+#  'ozone_dir': ['/capstor/store/cscs/userlab/cwd01/leclairm/Sirocco_test_data/R02B06/ozone/r0001'],
+#  'sst_ice_dir': ['/capstor/store/cscs/userlab/cwd01/leclairm/Sirocco_test_data/R02B06/sst_and_seaice/r0001']}
+# ipdb> pp output_labels
+# {'icon_input': ['icon_input']}
+    output_labels: dict[str, list[str]] = {}
+    for output_info in output_data_info:
+        port_name = output_info.port
+        output_label = output_info.label
+        if port_name not in output_labels:
+            output_labels[port_name] = []
+        # For AvailableData with a path, use the actual path directly in command arguments
+        # instead of creating a placeholder, since these are pre-existing files/directories
+        if output_info.path:
+            output_labels[port_name].append(output_info.path)
+        else:
+            output_labels[port_name].append(f"{{{output_label}}}")
+
+    # breakpoint()
+
     # Pre-scan command template to find all referenced ports
     # This ensures optional/missing ports are included with empty lists
     for port_match in task.port_pattern.finditer(task.command):
@@ -1810,7 +1841,12 @@ def build_shell_task_spec(task: core.ShellTask) -> dict:
     # Pre-resolve arguments template
     # Get script name from task.path for proper command splitting
     script_name = Path(task.path).name if task.path else None
+
+    # breakpoint()
+    # FIXME: This merging works for now, but see how else to properly handle the previously empty `--icon_input`
+    input_labels.update(output_labels)
     arguments_with_placeholders = task.resolve_ports(input_labels)
+
     _, resolved_arguments_template = split_cmd_arg(
         arguments_with_placeholders, script_name
     )
@@ -1847,6 +1883,8 @@ def build_shell_task_spec(task: core.ShellTask) -> dict:
         if output_info.path:
             link_label = ShellParser.format_link_label(output_info.path)  # type: ignore[arg-type]
             output_port_mapping[output_info.name] = link_label
+
+    # breakpoint()
 
     return {
         "label": label,
@@ -2027,8 +2065,7 @@ def build_sirocco_workgraph(
     # (requires the extras serialization changes in workgraph.py)
     # Levels will be computed dynamically at runtime by TaskManager
     window_config = {
-        "enabled": front_depth
-        > 0,  # Enable window only for positive front_depth (0 = sequential)
+        "enabled": front_depth >= 0,  # Window must be enabled to restrict submission (0 = sequential, 1+ = lookahead)
         "front_depth": front_depth,
         "max_queued_jobs": max_queued_jobs,  # Optional hard limit on concurrent jobs
         "task_dependencies": launcher_dependencies,  # Dependency graph for dynamic level computation

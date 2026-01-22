@@ -17,6 +17,12 @@ cycles:
             inputs:
               - tmp_data_pool:
                   port: data_pool
+              - sst_ice_dir:
+                  port: sst_ice_dir
+              - ozone_dir:
+                  port: ozone_dir
+              - aero_kinne_dir:
+                  port: aero_kine_dir
             outputs:
               - icon_link_input:
                   port: icon_input
@@ -77,7 +83,7 @@ tasks:
       ntasks_per_node: 4
       cpus_per_task: 72
       path: ./scripts/prepare_input.sh
-      command: ./prepare_input.sh --pool={PORT::data_pool}
+      command: ./prepare_input.sh --pool={PORT::data_pool}  --sst-ice={PORT::sst_ice_dir} --ozone={PORT::ozone_dir} --aero-kine={PORT::aero_kine_dir} --icon-input={PORT::icon_input}
   - icon:
       plugin: icon
       computer: "{{ SIROCCO_COMPUTER }}"
@@ -108,9 +114,14 @@ tasks:
       # Below not needed
       # uenv: /capstor/store/cscs/userlab/cws01/uenvs/climtools_25.2_v2.sqfs
       # view: default
-      path: ./scripts/post_proc.sh
+      # NOTE: if this is a directory, copy the whole directory over
       # NOTE: This leads to a `uenv` AiiDA Code
-      command: "uenv run /capstor/store/cscs/userlab/cws01/uenvs/climtools_25.2_v2.sqfs --view default -- post_proc.sh {PORT::stream}"
+
+      # TODO: Enforce that path is relative, if given
+      path: ./scripts/post_proc.sh
+      command: "post_proc.sh {PORT::stream}"
+
+
 data:
   available:
      - icon_grid:
@@ -145,7 +156,7 @@ data:
          computer: "{{ SIROCCO_COMPUTER }}"
          # TODO: Put anything here
          # Don't just symlink always from /store, but use this tmp_data_pool instead
-         path: /capstor/scratch/cscs/leclairm/DYAMOND_R02B06_input
+         path: /capstor/scratch/cscs/jgeiger/DYAMOND_input
   generated:
      - icon_link_input:
          path: 'icon_input'

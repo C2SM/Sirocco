@@ -6,7 +6,6 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Front depth passed as CLI argument
-export FRONT_DEPTH="${FRONT_DEPTH:-0}"
 
 echo "Running DYAMOND workflow with Jinja2 templating"
 echo "Variables loaded from:"
@@ -18,8 +17,7 @@ echo "*********************************"
 cat "${SCRIPT_DIR}/config/vars.yml"
 echo "*********************************"
 echo ""
-echo "Front depth: ${FRONT_DEPTH}"
 
 # Run sirocco with the config
 # The config uses Jinja2 syntax ({{ VAR }}) and gets values from vars.yml
-sirocco run "${SCRIPT_DIR}/config/config.yml" "--front-depth" "${FRONT_DEPTH}" "$@"
+sirocco run "${SCRIPT_DIR}/config/config.yml" "$@"

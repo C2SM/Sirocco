@@ -170,3 +170,4 @@ html/
 tests/cases/APE_R02B04/config/AQUAPLANET.svg
 examples/DYAMOND_aiida/CHANGES_90s_TEST.md
 **/*.svg
+tests/cases/DYAMOND_aiida/config/scripts/locally-modified/
