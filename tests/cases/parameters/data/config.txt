@@ -13,7 +13,7 @@ cycles:
             computer: 'remote'
             cycle point: [2026-01-01 00:00:00 -- 2026-07-01 00:00:00]
             plugin: 'shell'
-            command: 'python icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
+            command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
         - icon [foo: 1, bar: 3.0, date: 2026-01-01 00:00:00]:
             input:
               - initial_conditions
@@ -26,7 +26,7 @@ cycles:
             computer: 'remote'
             cycle point: [2026-01-01 00:00:00 -- 2026-07-01 00:00:00]
             plugin: 'shell'
-            command: 'python icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
+            command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
         - statistics_foo [bar: 3.0, date: 2026-01-01 00:00:00]:
             input:
               - icon_output [foo: 0, bar: 3.0, date: 2026-01-01 00:00:00]
@@ -38,7 +38,7 @@ cycles:
             computer: 'remote'
             cycle point: [2026-01-01 00:00:00 -- 2026-07-01 00:00:00]
             plugin: 'shell'
-            command: 'python statistics.py {PORT::None}'
+            command: 'python statistics.py {PORT::dummy}'
         - statistics_foo_bar [date: 2026-01-01 00:00:00]:
             input:
               - analysis_foo [bar: 3.0, date: 2026-01-01 00:00:00]
@@ -49,7 +49,7 @@ cycles:
             computer: 'remote'
             cycle point: [2026-01-01 00:00:00 -- 2026-07-01 00:00:00]
             plugin: 'shell'
-            command: 'python statistics.py {PORT::None}'
+            command: 'python statistics.py {PORT::dummy}'
   - bimonthly_tasks [date: 2026-07-01 00:00:00]:
       tasks:
         - icon [foo: 0, bar: 3.0, date: 2026-07-01 00:00:00]:
@@ -64,7 +64,7 @@ cycles:
             computer: 'remote'
             cycle point: [2026-07-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
-            command: 'python icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
+            command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
         - icon [foo: 1, bar: 3.0, date: 2026-07-01 00:00:00]:
             input:
               - icon_restart [foo: 1, bar: 3.0, date: 2026-01-01 00:00:00]
@@ -77,7 +77,7 @@ cycles:
             computer: 'remote'
             cycle point: [2026-07-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
-            command: 'python icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
+            command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
         - statistics_foo [bar: 3.0, date: 2026-07-01 00:00:00]:
             input:
               - icon_output [foo: 0, bar: 3.0, date: 2026-07-01 00:00:00]
@@ -89,7 +89,7 @@ cycles:
             computer: 'remote'
             cycle point: [2026-07-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
-            command: 'python statistics.py {PORT::None}'
+            command: 'python statistics.py {PORT::dummy}'
         - statistics_foo_bar [date: 2026-07-01 00:00:00]:
             input:
               - analysis_foo [bar: 3.0, date: 2026-07-01 00:00:00]
@@ -100,7 +100,7 @@ cycles:
             computer: 'remote'
             cycle point: [2026-07-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
-            command: 'python statistics.py {PORT::None}'
+            command: 'python statistics.py {PORT::dummy}'
   - bimonthly_tasks [date: 2027-01-01 00:00:00]:
       tasks:
         - icon [foo: 0, bar: 3.0, date: 2027-01-01 00:00:00]:
@@ -115,7 +115,7 @@ cycles:
             computer: 'remote'
             cycle point: [2027-01-01 00:00:00 -- 2027-07-01 00:00:00]
             plugin: 'shell'
-            command: 'python icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
+            command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
         - icon [foo: 1, bar: 3.0, date: 2027-01-01 00:00:00]:
             input:
               - icon_restart [foo: 1, bar: 3.0, date: 2026-07-01 00:00:00]
@@ -128,7 +128,7 @@ cycles:
             computer: 'remote'
             cycle point: [2027-01-01 00:00:00 -- 2027-07-01 00:00:00]
             plugin: 'shell'
-            command: 'python icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
+            command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
         - statistics_foo [bar: 3.0, date: 2027-01-01 00:00:00]:
             input:
               - icon_output [foo: 0, bar: 3.0, date: 2027-01-01 00:00:00]
@@ -140,7 +140,7 @@ cycles:
             computer: 'remote'
             cycle point: [2027-01-01 00:00:00 -- 2027-07-01 00:00:00]
             plugin: 'shell'
-            command: 'python statistics.py {PORT::None}'
+            command: 'python statistics.py {PORT::dummy}'
         - statistics_foo_bar [date: 2027-01-01 00:00:00]:
             input:
               - analysis_foo [bar: 3.0, date: 2027-01-01 00:00:00]
@@ -151,7 +151,7 @@ cycles:
             computer: 'remote'
             cycle point: [2027-01-01 00:00:00 -- 2027-07-01 00:00:00]
             plugin: 'shell'
-            command: 'python statistics.py {PORT::None}'
+            command: 'python statistics.py {PORT::dummy}'
   - bimonthly_tasks [date: 2027-07-01 00:00:00]:
       tasks:
         - icon [foo: 0, bar: 3.0, date: 2027-07-01 00:00:00]:
@@ -166,7 +166,7 @@ cycles:
             computer: 'remote'
             cycle point: [2027-07-01 00:00:00 -- 2028-01-01 00:00:00]
             plugin: 'shell'
-            command: 'python icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
+            command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
         - icon [foo: 1, bar: 3.0, date: 2027-07-01 00:00:00]:
             input:
               - icon_restart [foo: 1, bar: 3.0, date: 2027-01-01 00:00:00]
@@ -179,7 +179,7 @@ cycles:
             computer: 'remote'
             cycle point: [2027-07-01 00:00:00 -- 2028-01-01 00:00:00]
             plugin: 'shell'
-            command: 'python icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}'
+            command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
         - statistics_foo [bar: 3.0, date: 2027-07-01 00:00:00]:
             input:
               - icon_output [foo: 0, bar: 3.0, date: 2027-07-01 00:00:00]
@@ -191,7 +191,7 @@ cycles:
             computer: 'remote'
             cycle point: [2027-07-01 00:00:00 -- 2028-01-01 00:00:00]
             plugin: 'shell'
-            command: 'python statistics.py {PORT::None}'
+            command: 'python statistics.py {PORT::dummy}'
         - statistics_foo_bar [date: 2027-07-01 00:00:00]:
             input:
               - analysis_foo [bar: 3.0, date: 2027-07-01 00:00:00]
@@ -202,7 +202,7 @@ cycles:
             computer: 'remote'
             cycle point: [2027-07-01 00:00:00 -- 2028-01-01 00:00:00]
             plugin: 'shell'
-            command: 'python statistics.py {PORT::None}'
+            command: 'python statistics.py {PORT::dummy}'
   - yearly [date: 2026-01-01 00:00:00]:
       tasks:
         - merge [date: 2026-01-01 00:00:00]:
@@ -216,7 +216,7 @@ cycles:
             computer: 'remote'
             cycle point: [2026-01-01 00:00:00 -- 2027-01-01 00:00:00]
             plugin: 'shell'
-            command: 'python merge.py {PORT::None}'
+            command: 'python merge.py {PORT::dummy}'
   - yearly [date: 2027-01-01 00:00:00]:
       tasks:
         - merge [date: 2027-01-01 00:00:00]:
@@ -230,4 +230,4 @@ cycles:
             computer: 'remote'
             cycle point: [2027-01-01 00:00:00 -- 2028-01-01 00:00:00]
             plugin: 'shell'
-            command: 'python merge.py {PORT::None}'
+            command: 'python merge.py {PORT::dummy}'
