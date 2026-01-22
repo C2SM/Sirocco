@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import io
-import logging
 import time
 from dataclasses import dataclass
 from datetime import datetime
@@ -17,16 +16,18 @@ import aiida.transports.plugins.local
 import yaml
 from aiida.common.exceptions import NotExistent
 from aiida.orm.utils.serialize import AiiDALoader
-from aiida_icon.calculations import IconCalculation
+from aiida_icon.workflows import Icon
 from aiida_icon.iconutils.namelists import create_namelist_singlefiledata_from_content
 from aiida_shell.parsers.shell import ShellParser
 from aiida_workgraph import WorkGraph, dynamic, get_current_graph, namespace, task
+from aiida.common.log import AIIDA_LOGGER
+from aiida_workgraph.engine.workgraph import WorkGraphEngine
 
 from sirocco import core
 from sirocco.parsing._utils import TimeUtils
 from sirocco.parsing.cycling import DateCyclePoint
 
-logger = logging.getLogger(__name__)
+LOGGER = AIIDA_LOGGER.getChild("sirocco_" + __name__)
 
 if TYPE_CHECKING:
     WorkgraphDataNode: TypeAlias = (
@@ -251,6 +252,8 @@ def serialize_coordinates(coordinates: dict) -> dict:
     return serialized
 
 
+# FIXME: there should be a way to get the (UU)ID
+# cannot pass full wg, bc whatever is passed here has to be JSON-serializable
 @task(outputs=namespace(job_id=int, remote_folder=int))
 async def get_job_data(
     workgraph_name: str,
@@ -258,9 +261,10 @@ async def get_job_data(
     interval: int = 10,
     timeout: int = 3600,
 ):
-    """Monitor CalcJob and return job_id and remote_folder PK when available."""
-    from aiida import orm
-    from aiida_workgraph.engine.workgraph import WorkGraphEngine
+    """Monitor CalcJob and return job_id and remote_folder PK when available.
+
+    For Icon workchain, extracts data from the underlying IconCalculation.
+    """
 
     start = time.time()
 
@@ -271,7 +275,7 @@ async def get_job_data(
             raise TimeoutError(msg)
 
         # Query for WorkGraphs created after polling start
-        builder = orm.QueryBuilder()
+        builder = aiida.orm.QueryBuilder()
         builder.append(
             WorkGraphEngine,
             filters={
@@ -285,16 +289,30 @@ async def get_job_data(
             await asyncio.sleep(interval)
             continue
 
-        workgraph_node = builder.all()[-1][0]
-        node_data = workgraph_node.task_processes.get(task_name)
+        wg_node = builder.all(flat=True)[-1]
+        # LOGGER.report(f'{wg_node=}')
+        node_data = wg_node.task_processes.get(task_name)
         if not node_data:
             await asyncio.sleep(interval)
             continue
 
-        node = yaml.load(node_data, Loader=AiiDALoader)
-        if not node:
+        wc_node = yaml.load(node_data, Loader=AiiDALoader)
+        # LOGGER.report(f'{wc_node=}')
+
+        if not wc_node:
             await asyncio.sleep(interval)
             continue
+
+        # For Icon workchain, get the underlying IconCalculation
+        # For direct CalcJobs (shell tasks), use the node directly
+        descendants = wc_node.called_descendants
+        # LOGGER.report(f'{descendants=}')
+        if not descendants:
+            await asyncio.sleep(interval)
+            continue
+
+        node = descendants[-1]
+        # LOGGER.report(f'{node=}')
 
         job_id = node.get_job_id()
         if job_id is None:
@@ -302,6 +320,7 @@ async def get_job_data(
             continue
 
         # SUCCESS — return early
+        # LOGGER.report(f'{node=}')
         remote_pk = node.outputs.remote_folder.pk
         return {"job_id": int(job_id), "remote_folder": remote_pk}
 
@@ -409,7 +428,7 @@ def launch_shell_task_with_dependency(
     return shell_task.outputs
 
 
-IconTask = task(IconCalculation)
+IconTask = task(Icon)
 
 
 @task.graph(outputs=IconTask.outputs)
@@ -463,9 +482,11 @@ def launch_icon_task_with_dependency(
     # Prepare complete inputs dict for IconTask
     inputs = prepare_icon_task_inputs(task_spec, input_data_nodes, metadata_dict, label)
 
-    # Call IconTask directly (NOT wg.add_task!)
-    # This returns a TaskNode with proper output sockets
-    return IconTask(**inputs)
+    # Create IconTask with explicit name so get_job_data can find it
+    # Use the task label as the name so it matches what get_job_data expects
+    wg = get_current_graph()
+    icon_task = wg.add_task(IconTask, name=label, **inputs)
+    return icon_task.outputs
 
 
 def get_task_dependencies_from_workgraph(wg: WorkGraph) -> dict[str, list[str]]:
@@ -798,7 +819,6 @@ def create_icon_launcher_task(
     )
 
     # Create get_job_data task
-    # breakpoint()
     dep_task = wg.add_task(
         get_job_data,
         name=f"get_job_data_{task_label}",
@@ -1176,10 +1196,11 @@ def build_icon_metadata_with_slurm_dependencies(
         custom_cmd = _build_slurm_dependency_directive(job_ids)
         _add_custom_scheduler_command(metadata, custom_cmd)
 
+    # For Icon workchain with expose_inputs(IconCalculation),
+    # we need to provide metadata as if calling IconCalculation directly
     return {
         "computer": computer,
         "options": metadata["options"],
-        "call_link_label": label,
     }
 
 
@@ -1195,13 +1216,14 @@ def prepare_icon_task_inputs(
         label: Task label for debug output
 
     Returns:
-        Complete inputs dict for IconTask
+        Complete inputs dict for IconTask wrapped in 'icon' namespace
     """
     from aiida.engine.processes.ports import PortNamespace
     from aiida_icon.calculations import IconCalculation
 
     # Get IconCalculation spec to determine which ports are namespaces
-    icon_spec = IconCalculation.spec()
+    # We check the IconCalculation spec since we're building IconCalculation inputs
+    icon_calc_spec = IconCalculation.spec()
 
     # Start with code and namelists
     inputs = {
@@ -1225,8 +1247,8 @@ def prepare_icon_task_inputs(
         node_type = type(data_node).__name__
         # Check if this port is a namespace by inspecting the spec
         is_namespace = False
-        if port_name in icon_spec.inputs:
-            port = icon_spec.inputs[port_name]
+        if port_name in icon_calc_spec.inputs:
+            port = icon_calc_spec.inputs[port_name]
             is_namespace = isinstance(port, PortNamespace)
 
         # Wrap namespace ports in a dict with node label as key
@@ -1240,7 +1262,8 @@ def prepare_icon_task_inputs(
     # Add metadata
     inputs["metadata"] = metadata_dict  # type: ignore[assignment]
 
-    return inputs
+    # Wrap inputs in 'icon' namespace to match Icon workchain's expose_inputs
+    return {"icon": inputs}
 
 
 # =============================================================================
@@ -1603,7 +1626,7 @@ def create_shell_code(
         path_hash = hashlib.sha256(str(path_obj).encode()).hexdigest()[:8]
 
         # Add hash of file content to detect changes
-        with open(path_obj, 'rb') as f:
+        with open(path_obj, "rb") as f:
             content_hash = hashlib.sha256(f.read()).hexdigest()[:8]
 
         code_label = f"{base_label}-{path_hash}-{content_hash}"

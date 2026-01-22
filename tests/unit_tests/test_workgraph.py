@@ -235,7 +235,7 @@ def test_build_workgraph(config_paths):
     ],
 )
 def test_aiida_icon_task_metadata(config_paths):
-    """Test if the metadata regarding the job submission of the `IconCalculation` is included in task specs."""
+    """Test if the metadata regarding the job submission of the `Icon` workchain is included in task specs."""
     import aiida.orm
 
     from sirocco import core

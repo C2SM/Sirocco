@@ -3,6 +3,7 @@
 # These can be overridden by environment variables
 
 # Compute configuration
-SIROCCO_COMPUTER: "santis-firecrest"
+SIROCCO_COMPUTER: "santis-async-ssh"
 SLURM_ACCOUNT: "cwd01"
+SLURM_QUEUE: "normal"
 # SIROCCO_COMPUTER: "santis-async-ssh"
