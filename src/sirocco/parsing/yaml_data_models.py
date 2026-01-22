@@ -321,9 +321,10 @@ def make_named_model_dict_converter[NAMED_BASE_T: _NamedBaseModel](cls: type[NAM
     ) -> dict[str, list[NAMED_BASE_T]]:
         if values is None:
             return {}
+        named_model_list_converter = make_named_model_list_converter(cls)
         return {port: named_model_list_converter(data_list) for port, data_list in values.items()}
 
-    return convert_named_model_dict
+    return convert_named_model_list_dict
 
 
 class ConfigCycleTask(_NamedBaseModel):
@@ -333,11 +334,11 @@ class ConfigCycleTask(_NamedBaseModel):
 
     inputs: Annotated[
         dict[str, list[ConfigCycleTaskInput]],
-        BeforeValidator(make_named_model_dict_converter(ConfigCycleTaskInput)),
+        BeforeValidator(make_named_model_list_dict_converter(ConfigCycleTaskInput)),
     ] = {}
     outputs: Annotated[
         dict[str, list[ConfigCycleTaskOutput]],
-        BeforeValidator(make_named_model_dict_converter(ConfigCycleTaskOutput)),
+        BeforeValidator(make_named_model_list_dict_converter(ConfigCycleTaskOutput)),
     ] = {}
     wait_on: Annotated[
         list[ConfigCycleTaskWaitOn],
