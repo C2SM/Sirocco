@@ -8,7 +8,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, TypeAlias, assert_never
+from typing import TYPE_CHECKING, Annotated, Any, assert_never
 from zoneinfo import ZoneInfo
 
 import aiida.common
@@ -30,7 +30,7 @@ from sirocco.parsing.cycling import DateCyclePoint
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    WorkgraphDataNode: TypeAlias = aiida.orm.RemoteData | aiida.orm.SinglefileData | aiida.orm.FolderData
+    type WorkgraphDataNode = aiida.orm.RemoteData | aiida.orm.SinglefileData | aiida.orm.FolderData
 
 
 # =============================================================================
@@ -79,11 +79,11 @@ class OutputDataInfo:
 
 
 # Type Aliases for Complex Mappings
-PortToDependencies: TypeAlias = dict[str, list[DependencyInfo]]
-ParentFolders: TypeAlias = dict[str, Any]  # {dep_label: TaggedValue with .value = int PK}
-JobIds: TypeAlias = dict[str, Any]  # {dep_label: TaggedValue with .value = int job_id}
-TaskDepInfo: TypeAlias = dict[str, Any]  # {task_label: namespace with .remote_folder, .job_id}
-LauncherDependencies: TypeAlias = dict[str, list[str]]  # {launcher_name: [parent_launcher_names]}
+type PortToDependencies = dict[str, list[DependencyInfo]]
+type ParentFolders = dict[str, Any]  # {dep_label: TaggedValue with .value = int PK}
+type JobIds = dict[str, Any]  # {dep_label: TaggedValue with .value = int job_id}
+type TaskDepInfo = dict[str, Any]  # {task_label: namespace with .remote_folder, .job_id}
+type LauncherDependencies = dict[str, list[str]]  # {launcher_name: [parent_launcher_names]}
 
 
 # =============================================================================
@@ -241,11 +241,11 @@ def serialize_coordinates(coordinates: dict) -> dict:
 
 
 @task(outputs=namespace(job_id=int, remote_folder=int))
-async def get_job_data(
+async def get_job_data(  # TODO: Consider using asyncio.timeout instead of timeout parameter
     workgraph_name: str,
     task_name: str,
     interval: int = 10,
-    timeout: int = 3600,
+    timeout: int = 3600,  # noqa: ASYNC109
 ):
     """Monitor CalcJob and return job_id and remote_folder PK when available."""
     from aiida import orm
@@ -280,7 +280,7 @@ async def get_job_data(
             await asyncio.sleep(interval)
             continue
 
-        node = yaml.load(node_data, Loader=AiiDALoader)  # noqa S506: Probable use of unsafe loader
+        node = yaml.load(node_data, Loader=AiiDALoader)  # noqa: S506
         if not node:
             await asyncio.sleep(interval)
             continue
@@ -434,7 +434,7 @@ def launch_icon_task_with_dependency(
     metadata_dict = build_icon_metadata_with_slurm_dependencies(task_spec["metadata"], job_ids, computer, label)
 
     # Prepare complete inputs dict for IconTask
-    inputs = prepare_icon_task_inputs(task_spec, input_data_nodes, metadata_dict, label)
+    inputs = prepare_icon_task_inputs(task_spec, input_data_nodes, metadata_dict)
 
     # Call IconTask directly (NOT wg.add_task!)
     # This returns a TaskNode with proper output sockets
@@ -1151,7 +1151,6 @@ def prepare_icon_task_inputs(
         task_spec: Task specification containing code, namelists, wrapper script PKs
         input_data_nodes: Dict of input data nodes (both AvailableData and RemoteData)
         metadata_dict: Metadata dict with computer and options
-        label: Task label for debug output
 
     Returns:
         Complete inputs dict for IconTask
@@ -1181,7 +1180,6 @@ def prepare_icon_task_inputs(
 
     # Add ALL input data nodes (both AvailableData and RemoteData for GeneratedData)
     for port_name, data_node in input_data_nodes.items():
-        # node_type = type(data_node).__name__
         # Check if this port is a namespace by inspecting the spec
         is_namespace = False
         if port_name in icon_spec.inputs:
@@ -1251,7 +1249,6 @@ def load_and_process_shell_dependencies(
         parent_folders: Dict of {dep_label: remote_folder_pk_tagged_value}
         port_to_dep_mapping: Dict mapping port names to list of DependencyInfo objects
         original_filenames: Dict mapping data labels to filenames
-        label: Task label for debug output
 
     Returns:
         Tuple of (all_nodes, placeholder_to_node_key, filenames) dicts
@@ -1264,8 +1261,6 @@ def load_and_process_shell_dependencies(
     parent_folders_loaded: dict[str, Any] = {key: aiida.orm.load_node(val.value) for key, val in parent_folders.items()}
 
     # Process ALL dependencies: create nodes, map placeholders, and map filenames
-    # NOTE: Previously this was: `for port_name, dep_info_list in port_to_dep_mapping.items():`
-    # might need to introduce `port_name` again eventually
     for dep_info_list in port_to_dep_mapping.values():
         # dep_info_list is a list of DependencyInfo objects
         for dep_info in dep_info_list:
@@ -1311,7 +1306,7 @@ def build_shell_metadata_with_slurm_dependencies(
     if job_ids:
         custom_cmd = _build_slurm_dependency_directive(job_ids)
         _add_custom_scheduler_command(metadata, custom_cmd)
-        _ = base_metadata.get("label", "unknown")
+        base_metadata.get("label", "unknown")
 
     return metadata
 

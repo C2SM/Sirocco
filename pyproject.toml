@@ -94,7 +94,7 @@ source = ["sirocco"]
 
 [tool.ruff]
 include = ["src/*py", "tests/*py"]
-target-version = "py310"
+target-version = "py312"
 
 [tool.ruff.lint]
 ignore = [
@@ -167,6 +167,7 @@ extra-dependencies = [
   "types-Pygments",
   "types-termcolor",
   "types-requests",
+  "ty",
   "types-PyYAML"
 
 ]
@@ -176,6 +177,7 @@ check = "mypy --exclude 'tests/cases/*' --no-incremental {args:.}"
 
 [tool.mypy]
 disable_error_code = ["import-untyped"]
+ty-check = "ty check --exclude 'tests/cases/*' --python-version 3.12"
 
 [[tool.mypy.overrides]]
 module = ["isoduration", "isoduration.*"]
