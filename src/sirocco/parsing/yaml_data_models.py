@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import itertools
 import logging
-import os
 import re
 import time
 import typing
@@ -929,9 +928,8 @@ class ConfigWorkflow(BaseModel):
         - Missing variables raise clear errors (StrictUndefined)
 
         **Variable sources (in priority order):**
-        1. Environment variables (base)
-        2. vars.yml/vars.yaml in config directory (overrides env)
-        3. Explicitly provided variables parameter (overrides all)
+        1. vars.yml/vars.yaml in config directory (overrides env)
+        2. Explicitly provided variables parameter (overrides all)
 
         Args:
             config_path (str): The path of the config file to load from.
@@ -957,11 +955,8 @@ class ConfigWorkflow(BaseModel):
             msg = f"Workflow config file in path {config_resolved_path} is empty."
             raise ValueError(msg)
 
-        # Determine config filename (without .j2 extension if present)
+        # Determine config filename (without extension)
         config_filename = config_resolved_path.stem
-        if config_filename.endswith((".yml", ".yaml")):
-            # For .yml.j2 or .yaml.j2, extract the basename without both extensions
-            config_filename = Path(config_filename).stem
 
         # Always render as Jinja2 template
         content = _render_jinja2_template(content, config_resolved_path, variables)

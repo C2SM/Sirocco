@@ -43,14 +43,12 @@ logger = logging.getLogger(__name__)
 def _create_aiida_workflow(
     workflow_file: Path,
     front_depth: int | None = None,
-    max_queued_jobs: int | None = None,
 ) -> tuple[core.Workflow, "WorkGraph"]:
     """Load workflow file and build WorkGraph.
 
     Args:
         workflow_file: Path to workflow configuration file
         front_depth: Number of topological fronts to keep active (None=use config, default: config value or 1)
-        max_queued_jobs: Maximum number of queued jobs (optional)
 
     Returns:
         Tuple of (core_workflow, aiida_workgraph)
@@ -66,7 +64,6 @@ def _create_aiida_workflow(
     wg = build_sirocco_workgraph(
         core_wf,
         front_depth=front_depth,
-        max_queued_jobs=max_queued_jobs,
     )
     return core_wf, wg
 
@@ -74,14 +71,12 @@ def _create_aiida_workflow(
 def create_aiida_workflow(
     workflow_file: Path,
     front_depth: int | None = None,
-    max_queued_jobs: int | None = None,
 ) -> tuple[core.Workflow, "WorkGraph"]:
     """Helper to prepare WorkGraph from workflow file.
 
     Args:
         workflow_file: Path to workflow configuration file
         front_depth: Number of topological fronts to keep active (None=use config value)
-        max_queued_jobs: Maximum number of queued jobs (optional)
 
     Returns:
         Tuple of (core_workflow, aiida_workgraph)
@@ -93,7 +88,6 @@ def create_aiida_workflow(
         core_wf, wg = _create_aiida_workflow(
             workflow_file=workflow_file,
             front_depth=front_depth,
-            max_queued_jobs=max_queued_jobs,
         )
         console.print(f"⚙️ Workflow [magenta]'{wg.name}'[/magenta] prepared for AiiDA execution.")
         return core_wf, wg  # noqa: TRY300 | try-consider-else -> shouldn't move this to `else` block
@@ -250,27 +244,17 @@ def run(
             help="Number of topological fronts to keep active. 0=sequential, 1=one front ahead (default), high value=streaming submission.",
         ),
     ] = None,
-    max_queued_jobs: Annotated[
-        int | None,
-        typer.Option(
-            "--max-queued-jobs",
-            "-m",
-            help="Maximum number of jobs in CREATED/RUNNING state (optional hard limit).",
-        ),
-    ] = None,
 ):
     # Load config to get actual front_depth if not provided
     config_workflow = parsing.ConfigWorkflow.from_config_file(str(workflow_file))
     actual_front_depth = front_depth if front_depth is not None else config_workflow.front_depth
 
-    core_wf, wg = create_aiida_workflow(workflow_file, actual_front_depth, max_queued_jobs)
+    core_wf, wg = create_aiida_workflow(workflow_file, actual_front_depth)
     console.print(f"▶️ Running workflow [magenta]'{core_wf.name}'[/magenta] directly (blocking)...")
     if actual_front_depth > 0:
         console.print(f"   Front depth: {actual_front_depth} fronts")
     else:
         console.print("   Sequential submission (window disabled)")
-    if max_queued_jobs:
-        console.print(f"   Max queued jobs: {max_queued_jobs}")
     try:
         _ = wg.run(inputs=None)
         console.print("[green]✅ Workflow execution finished.[/green]")
@@ -301,14 +285,6 @@ def submit(
             help="Number of topological fronts to keep active. 0=sequential, 1=one front ahead (default), high value=streaming submission.",
         ),
     ] = None,
-    max_queued_jobs: Annotated[
-        int | None,
-        typer.Option(
-            "--max-queued-jobs",
-            "-m",
-            help="Maximum number of jobs in CREATED/RUNNING state (optional hard limit).",
-        ),
-    ] = None,
 ):
     """Submit the workflow to the AiiDA daemon."""
 
@@ -316,15 +292,13 @@ def submit(
     config_workflow = parsing.ConfigWorkflow.from_config_file(str(workflow_file))
     actual_front_depth = front_depth if front_depth is not None else config_workflow.front_depth
 
-    core_wf, wg = create_aiida_workflow(workflow_file, actual_front_depth, max_queued_jobs)
+    core_wf, wg = create_aiida_workflow(workflow_file, actual_front_depth)
     try:
         console.print(f"🚀 Submitting workflow [magenta]'{core_wf.name}'[/magenta] to AiiDA daemon...")
         if actual_front_depth > 0:
             console.print(f"   Front depth: {actual_front_depth} fronts")
         else:
             console.print("   Sequential submission (window disabled)")
-        if max_queued_jobs:
-            console.print(f"   Max queued jobs: {max_queued_jobs}")
 
         wg.submit(inputs=None)
 

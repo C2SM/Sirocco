@@ -610,6 +610,8 @@ def prepare_icon_task_inputs(
     # Add metadata
     inputs["metadata"] = metadata_dict  # type: ignore[assignment]
 
+    LOGGER.debug(f'ICON {inputs=}')
+
     return inputs
 
 
@@ -650,7 +652,7 @@ def add_aiida_input_data_node(
     )
 
     if used_by_icon_task:
-        # ICON tasks require RemoteData
+        # ICON tasks __always__ require RemoteData
         aiida_data_nodes[label] = aiida.orm.RemoteData(
             remote_path=str(data.path), label=label, computer=computer
         )
@@ -686,13 +688,15 @@ def get_scheduler_options_from_task(task: core.Task) -> dict[str, Any]:
     if task.mem is not None:
         options["max_memory_kb"] = task.mem * 1024
     if task.partition is not None:
-        options["queue_name"] = task.partition  # AiiDA uses 'queue_name', which maps to SLURM '--partition'
+        # AiiDA uses 'queue_name', which maps to SLURM '--partition'
+        options["queue_name"] = task.partition
 
     # custom_scheduler_commands - initialize if not already set
     if "custom_scheduler_commands" not in options:
         options["custom_scheduler_commands"] = ""
 
     # Support uenv and view for both IconTask and ShellTask
+    # TODO: Possibly drop this and instead provide via `command`
     if isinstance(task, (core.IconTask, core.ShellTask)) and task.uenv is not None:
         if options["custom_scheduler_commands"]:
             options["custom_scheduler_commands"] += "\n"
@@ -718,9 +722,10 @@ def get_scheduler_options_from_task(task: core.Task) -> dict[str, Any]:
     return options
 
 
+# TODO(MERGE): Check this logic again if it supports all use cases
 def create_shell_code(
     task: core.ShellTask, computer: aiida.orm.Computer
-) -> tuple[aiida.orm.Code, None]:
+) -> aiida.orm.Code:
     """Create or load an AiiDA Code for a shell task.
 
     Determines whether to create PortableCode or InstalledCode based on where the
@@ -734,7 +739,7 @@ def create_shell_code(
         computer: The AiiDA computer
 
     Returns:
-        Tuple of (code, None) - second element is always None for compatibility
+        The AiiDA Code object
     """
 
     from aiida_shell import ShellCode
@@ -767,7 +772,7 @@ def create_shell_code(
                 use_double_quotes=True,
             ).store()
 
-        return code, None
+        return code
 
     # It's a path - check if it exists locally
     if not path_obj.is_absolute():
@@ -809,7 +814,7 @@ def create_shell_code(
             )
             code.store()
 
-        return code, None
+        return code
 
     # File doesn't exist locally - check if it exists remotely (only for absolute paths)
     if not Path(executable_path).is_absolute():
@@ -860,7 +865,7 @@ def create_shell_code(
             use_double_quotes=True,
         ).store()
 
-    return code, None
+    return code
 
 
 def build_base_metadata(task: core.Task) -> dict:
@@ -902,7 +907,6 @@ def _add_chunk_time_prepend_text(metadata: dict, task: core.Task) -> None:
     start_date = task.cycle_point.chunk_start_date.isoformat()
     stop_date = task.cycle_point.chunk_stop_date.isoformat()
 
-    # Export both CHUNK_* and SIROCCO_* variable names for compatibility
     exports = f"export SIROCCO_START_DATE={start_date}\nexport SIROCCO_STOP_DATE={stop_date}\n"
 
     current_prepend = metadata["options"].get("prepend_text", "")
@@ -942,8 +946,7 @@ def build_shell_task_spec(task: core.ShellTask) -> dict:
     metadata["options"]["use_symlinks"] = True
 
     # Create or load code
-    # PortableCode handles script upload automatically, no need for separate SinglefileData
-    code, _ = create_shell_code(task, computer)
+    code = create_shell_code(task, computer)
 
     # Pre-compute input data information using dataclasses
     input_data_info: list[InputDataInfo] = []
@@ -1983,7 +1986,6 @@ def build_dynamic_sirocco_workgraph(
 def build_sirocco_workgraph(
     core_workflow: core.Workflow,
     front_depth: int = 1,
-    max_queued_jobs: int | None = None,
 ) -> WorkGraph:
     """Build a Sirocco WorkGraph from a core workflow.
 
@@ -1995,7 +1997,6 @@ def build_sirocco_workgraph(
                     0 = sequential (wait for level N to finish before submitting N+1)
                     1 = one front ahead (default)
                     high value = streaming submission
-        max_queued_jobs: Maximum number of jobs in CREATED/RUNNING state (optional)
 
     Returns:
         A WorkGraph ready for submission
@@ -2049,7 +2050,6 @@ def build_sirocco_workgraph(
         "enabled": front_depth
         >= 0,  # Window must be enabled to restrict submission (0 = sequential, 1+ = lookahead)
         "front_depth": front_depth,
-        "max_queued_jobs": max_queued_jobs,  # Optional hard limit on concurrent jobs
         "task_dependencies": launcher_dependencies,  # Dependency graph for dynamic level computation
     }
 

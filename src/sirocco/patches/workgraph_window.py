@@ -9,7 +9,6 @@ Key features:
 - Dynamic level computation: Task levels are recomputed as tasks complete,
   allowing faster branches to advance independently
 - Configurable front depth: Control how many levels can be active simultaneously
-- Optional max_queued_jobs limit: Cap total concurrent submissions
 - Transparent: When disabled, behaves identically to unpatched WorkGraph
 
 This patch is intended for use with Sirocco workflows that may have hundreds
@@ -100,7 +99,6 @@ def patch_workgraph_window():
         self.window_config = {
             "enabled": window_config.get("enabled", False),
             "front_depth": window_config.get("front_depth", float("inf")),
-            "max_queued_jobs": window_config.get("max_queued_jobs", None),
             "task_dependencies": window_config.get("task_dependencies", {}),
         }
 
@@ -250,25 +248,8 @@ def patch_workgraph_window():
             # Task not in level mapping - allow it
             return True
 
-        if task_level > self.window_state["max_allowed_level"]:
-            return False  # Outside window
-
-        # Check max_queued_jobs threshold if configured
-        if self.window_config.get("max_queued_jobs"):
-            active_count = self._count_active_jobs()
-            if active_count >= self.window_config["max_queued_jobs"]:
-                return False  # Too many jobs already
-
-        return True
-
-    def _count_active_jobs(self):
-        """Count tasks in CREATED or RUNNING state."""
-        count = 0
-        for task in self.process.wg.tasks:
-            state = self.state_manager.get_task_runtime_info(task.name, "state")
-            if state in ["CREATED", "RUNNING"]:
-                count += 1
-        return count
+        # Return True if task is within the allowed window
+        return task_level <= self.window_state["max_allowed_level"]
 
     def patched_continue_workgraph(self):
         """Resume the WorkGraph with rolling window management.
@@ -349,6 +330,5 @@ def patch_workgraph_window():
     TaskManager._compute_dynamic_levels = _compute_dynamic_levels
     TaskManager._update_window = _update_window
     TaskManager._is_task_in_window = _is_task_in_window
-    TaskManager._count_active_jobs = _count_active_jobs
 
     logger.info("Applied aiida-workgraph rolling window patches (TaskManager, WorkGraph)")

@@ -78,12 +78,12 @@ def mock_create_aiida_workflow_factory(mock_wg):
     """Factory function to create a mock_create_aiida_workflow function.
 
     The new create_aiida_workflow signature is:
-    create_aiida_workflow(workflow_file, front_depth=1, max_queued_jobs=None)
+    create_aiida_workflow(workflow_file, front_depth=1)
     and returns: tuple[core.Workflow, WorkGraph]
     """
     from unittest.mock import Mock
 
-    def mock_create_aiida_workflow(_workflow_file, _front_depth=1, _max_queued_jobs=None):
+    def mock_create_aiida_workflow(_workflow_file, _front_depth=1):
         # Create a mock core_workflow
         mock_core_wf = Mock()
         mock_core_wf.name = "test_workflow"

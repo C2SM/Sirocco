@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime  # noqa TC003: Required at runtime, not only in TYPE_CHECKING
 from typing import TYPE_CHECKING, Annotated, Self
 
 from isoduration.types import Duration  # noqa: TC002 needed for pydantic
