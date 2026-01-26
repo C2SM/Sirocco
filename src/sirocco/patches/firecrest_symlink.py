@@ -39,11 +39,9 @@ def patch_firecrest_symlink():
         return
 
     # Store reference to original method
-    original_symlink_async = FirecrestTransport.symlink_async
+    original_symlink_async = FirecrestTransport.symlink_async  # noqa F841: Local variable assigned but never used
 
-    async def _create_symlink_archive(
-        self, source_path: str, link_path: FcPath
-    ) -> None:
+    async def _create_symlink_archive(self, source_path: str, link_path: FcPath) -> None:
         """Create a symlink without validating the target by extracting an archive.
 
         Args:
@@ -66,9 +64,7 @@ def patch_firecrest_symlink():
 
         try:
             with convert_header_exceptions():
-                await self.async_client.extract(
-                    self._machine, str(remote_archive), str(link_path.parent)
-                )
+                await self.async_client.extract(self._machine, str(remote_archive), str(link_path.parent))
         finally:
             await self.remove_async(remote_archive)
 
@@ -89,25 +85,23 @@ def patch_firecrest_symlink():
         source_path = str(remotesource)
 
         if not PurePosixPath(source_path).is_absolute():
-            raise ValueError("target(remotesource) must be an absolute path")
+            msg = "target(remotesource) must be an absolute path"
+            raise ValueError(msg)
         if not PurePosixPath(str(link_path)).is_absolute():
-            raise ValueError("link(remotedestination) must be an absolute path")
+            msg = "link(remotedestination) must be an absolute path"
+            raise ValueError(msg)
 
         try:
             # Try standard symlink first
             with convert_header_exceptions():
-                await self.async_client.symlink(
-                    self._machine, source_path, str(link_path)
-                )
-            return
+                await self.async_client.symlink(self._machine, source_path, str(link_path))
         except (FileNotFoundError, UnexpectedStatusException) as exc:
             # FirecREST checks that the symlink target exists; fall back to a creation
             # path that tolerates missing targets (matching SSH behaviour).
             # Handle both FileNotFoundError and 404 responses from symlink validation
-            if isinstance(exc, UnexpectedStatusException):
+            if isinstance(exc, UnexpectedStatusException) and "404" not in str(exc):
                 # Only use fallback for 404 errors (target doesn't exist)
-                if "404" not in str(exc):
-                    raise
+                raise
             if not await self.path_exists_async(link_path.parent):
                 raise
 
@@ -116,28 +110,22 @@ def patch_firecrest_symlink():
                 existing_stat = await self._lstat(link_path)
                 if stat.S_ISLNK(existing_stat.st_mode):
                     # It's a symlink - assume it's correct from a retry, skip creation
-                    logger.debug(
-                        f"Symlink {link_path} already exists, skipping creation"
-                    )
+                    logger.debug("Symlink %s already exists, skipping creation", link_path)
                     return
-                else:
-                    # Not a symlink, it's a file or directory - error
-                    raise FileExistsError(
-                        f"'{link_path}' already exists and is not a symlink"
-                    )
+                # Not a symlink, it's a file or directory - error
+                msg = f"'{link_path}' already exists and is not a symlink"
+                raise FileExistsError(msg)
             except FileNotFoundError:
                 # Doesn't exist yet, proceed with creation
                 pass
 
-        # Fallback: create symlink via tar archive
-        logger.debug(
-            f"Creating symlink {link_path} -> {source_path} via tar archive "
-            f"(target doesn't exist yet)"
-        )
-        await _create_symlink_archive(self, source_path, link_path)
+            # Fallback: create symlink via tar archive
+            logger.debug("Creating symlink %s -> %s via tar archive (target doesn't exist yet)", link_path, source_path)
+            await _create_symlink_archive(self, source_path, link_path)
+        else:
+            # Standard symlink succeeded
+            return
 
     # Apply the patch
     FirecrestTransport.symlink_async = patched_symlink_async
-    logger.info(
-        "Applied FirecREST symlink patch for Sirocco pre-submission workflows"
-    )
+    logger.info("Applied FirecREST symlink patch for Sirocco pre-submission workflows")

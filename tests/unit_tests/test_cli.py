@@ -30,7 +30,7 @@ def runner():
 def mock_aiida_wg():
     """Create a mock AiiDA WorkGraph with common setup."""
     mock_wg = Mock()
-    mock_wg._core_workflow.name = "minimal"  # noqa: SLF001 | private-member-access
+    mock_wg._core_workflow.name = "minimal"
     return mock_wg
 
 

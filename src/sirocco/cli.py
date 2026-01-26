@@ -260,10 +260,6 @@ def run(
     config_workflow = parsing.ConfigWorkflow.from_config_file(str(workflow_file))
     actual_front_depth = front_depth if front_depth is not None else config_workflow.front_depth
 
-    # FIXME
-    # # DEBUG
-    # console.print(f"[dim]DEBUG: CLI front_depth arg = {front_depth}, config front_depth = {config_workflow.front_depth}, actual = {actual_front_depth}[/dim]")
-
     core_wf, wg = create_aiida_workflow(workflow_file, actual_front_depth, max_queued_jobs)
     console.print(f"▶️ Running workflow [magenta]'{core_wf.name}'[/magenta] directly (blocking)...")
     if actual_front_depth > 0:

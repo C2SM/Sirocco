@@ -150,7 +150,7 @@ def generate_config_paths(test_case: str):
 
 
 @pytest.fixture
-def config_paths(config_case, icon_grid_path, tmp_path, test_rootdir, request) -> dict[str, pathlib.Path]:
+def config_paths(config_case, icon_grid_path, tmp_path, test_rootdir) -> dict[str, pathlib.Path]:
     config = generate_config_paths(config_case)
     # Copy test directory to tmp path and adapt config
     shutil.copytree(
@@ -173,19 +173,22 @@ def config_paths(config_case, icon_grid_path, tmp_path, test_rootdir, request) -
 
     # Set environment variables for test cases that use them
     # For branch-independence case, set computer and scripts directory
+    # FIXME: Does this still use env vars to modify the local config.yml files?
     if config_case == "branch-independence":
         import os
+
         # Use relative path (relative to config directory) for validation
-        os.environ['SIROCCO_COMPUTER'] = 'remote'
-        os.environ['SIROCCO_SCRIPTS_DIR'] = 'scripts'
+        os.environ["SIROCCO_COMPUTER"] = "remote"
+        os.environ["SIROCCO_SCRIPTS_DIR"] = "scripts"
 
-        # Clean up after test
-        def cleanup():
-            os.environ.pop('SIROCCO_COMPUTER', None)
-            os.environ.pop('SIROCCO_SCRIPTS_DIR', None)
-        request.addfinalizer(cleanup)
+    yield config
 
-    return config
+    # Clean up after test
+    if config_case == "branch-independence":
+        import os
+
+        os.environ.pop("SIROCCO_COMPUTER", None)
+        os.environ.pop("SIROCCO_SCRIPTS_DIR", None)
 
 
 def pytest_addoption(parser):

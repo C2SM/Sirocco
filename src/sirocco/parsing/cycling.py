@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Iterator
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Annotated, Self
+from typing import TYPE_CHECKING, Annotated, Self
 
 from isoduration.types import Duration  # noqa: TC002 needed for pydantic
 from pydantic import BaseModel, BeforeValidator, ConfigDict, model_validator
 
 from sirocco.parsing._utils import TimeUtils, convert_to_date, convert_to_duration
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from datetime import datetime
 
 
 class CyclePoint:

@@ -35,39 +35,47 @@ def extract_launcher_times(workgraph_process: ProcessNode) -> dict[str, dict[str
 
     Example:
         >>> times = extract_launcher_times(wg.process)
-        >>> fast_3_submit_time = times['fast_3']['ctime']
-        >>> slow_3_submit_time = times['slow_3']['ctime']
+        >>> fast_3_submit_time = times["fast_3"]["ctime"]
+        >>> slow_3_submit_time = times["slow_3"]["ctime"]
         >>> assert fast_3_submit_time < slow_3_submit_time  # fast submitted first
     """
     timing_data = {}
 
     for desc in workgraph_process.called_descendants:
-        if isinstance(desc, WorkGraphNode) and desc.label.startswith('launch_'):
+        if isinstance(desc, WorkGraphNode) and desc.label.startswith("launch_"):
             # Parse task name from label: "launch_fast_1_date_..." → "fast_1"
-            label_parts = desc.label.split('_')
-            if len(label_parts) >= 3:
-                # Handle different task naming patterns
-                if label_parts[1] in ['root', 'fast', 'slow', 'medium', 'setup', 'finalize']:
-                    if label_parts[1] in ['root', 'setup', 'finalize']:
-                        task_name = label_parts[1]
-                        branch = label_parts[1]
-                    else:
-                        # For numbered tasks like fast_1, medium_2, slow_3
-                        task_name = f"{label_parts[1]}_{label_parts[2]}"
-                        branch = label_parts[1]
+            label_parts = desc.label.split("_")
+            # Handle different task naming patterns
+            if len(label_parts) >= 3 and label_parts[1] in [
+                "root",
+                "fast",
+                "slow",
+                "medium",
+                "setup",
+                "finalize",
+            ]:
+                if label_parts[1] in ["root", "setup", "finalize"]:
+                    task_name = label_parts[1]
+                    branch = label_parts[1]
+                else:
+                    # For numbered tasks like fast_1, medium_2, slow_3
+                    task_name = f"{label_parts[1]}_{label_parts[2]}"
+                    branch = label_parts[1]
 
-                    timing_data[task_name] = {
-                        'label': desc.label,
-                        'ctime': desc.ctime,  # Creation time = task submission
-                        'mtime': desc.mtime,  # Modification time = task completion
-                        'branch': branch,
-                        'pk': desc.pk
-                    }
+                timing_data[task_name] = {
+                    "label": desc.label,
+                    "ctime": desc.ctime,  # Creation time = task submission
+                    "mtime": desc.mtime,  # Modification time = task completion
+                    "branch": branch,
+                    "pk": desc.pk,
+                }
 
     return timing_data
 
 
-def extract_task_completion_times(workgraph_process: ProcessNode) -> dict[str, datetime]:
+def extract_task_completion_times(
+    workgraph_process: ProcessNode,
+) -> dict[str, datetime]:
     """Extract actual task execution completion times.
 
     This extracts the completion times of the actual task ProcessNodes (not
@@ -95,19 +103,20 @@ def extract_task_completion_times(workgraph_process: ProcessNode) -> dict[str, d
     for node in workgraph_process.called_descendants:
         if isinstance(node, ProcessNode):
             # Get the label which contains the task name
-            task_label = getattr(node, 'label', '') or getattr(node, 'process_label', '')
+            task_label = getattr(node, "label", "") or getattr(node, "process_label", "")
             if task_label:
                 # Filter for task nodes (not launcher WorkGraphs)
                 prefixes = ["fast_", "slow_", "medium_", "root", "setup", "finalize"]
-                if any(task_label.startswith(prefix) for prefix in prefixes):
+                if any(task_label.startswith(prefix) for prefix in prefixes) and not task_label.startswith("launch_"):
                     # Only include if it's not a launcher (those have 'launch_' prefix)
-                    if not task_label.startswith('launch_'):
-                        task_times[task_label] = node.mtime
+                    task_times[task_label] = node.mtime
 
     return task_times
 
 
-def compute_relative_times(timing_data: dict[str, dict[str, Any]]) -> dict[str, dict[str, float]]:
+def compute_relative_times(
+    timing_data: dict[str, dict[str, Any]],
+) -> dict[str, dict[str, float]]:
     """Convert absolute timestamps to relative times from workflow start.
 
     Args:
@@ -128,18 +137,18 @@ def compute_relative_times(timing_data: dict[str, dict[str, Any]]) -> dict[str, 
         return {}
 
     # Find workflow start time (earliest ctime)
-    workflow_start = min(info['ctime'] for info in timing_data.values())
+    workflow_start = min(info["ctime"] for info in timing_data.values())
 
     relative_times = {}
     for task_name, info in timing_data.items():
-        start_rel = (info['ctime'] - workflow_start).total_seconds()
-        end_rel = (info['mtime'] - workflow_start).total_seconds()
+        start_rel = (info["ctime"] - workflow_start).total_seconds()
+        end_rel = (info["mtime"] - workflow_start).total_seconds()
 
         relative_times[task_name] = {
-            'start': start_rel,
-            'end': end_rel,
-            'duration': end_rel - start_rel,
-            'branch': info['branch']
+            "start": start_rel,
+            "end": end_rel,
+            "duration": end_rel - start_rel,
+            "branch": info["branch"],
         }
 
     return relative_times
@@ -147,9 +156,9 @@ def compute_relative_times(timing_data: dict[str, dict[str, Any]]) -> dict[str, 
 
 def assert_branch_independence(
     timing_data: dict[str, dict[str, Any]],
-    fast_branch: str = 'fast',
-    slow_branch: str = 'slow',
-    message_prefix: str = ""
+    fast_branch: str = "fast",
+    slow_branch: str = "slow",
+    message_prefix: str = "",
 ) -> None:
     """Assert that the fast branch completed before the slow branch.
 
@@ -171,22 +180,20 @@ def assert_branch_independence(
         >>> assert_branch_independence(times)  # Validates fast < slow
     """
     # Find last task from each branch
-    fast_tasks = {name: info for name, info in timing_data.items()
-                  if info['branch'] == fast_branch}
-    slow_tasks = {name: info for name, info in timing_data.items()
-                  if info['branch'] == slow_branch}
+    fast_tasks = {name: info for name, info in timing_data.items() if info["branch"] == fast_branch}
+    slow_tasks = {name: info for name, info in timing_data.items() if info["branch"] == slow_branch}
 
     assert fast_tasks, f"{message_prefix}No tasks found for branch '{fast_branch}'"
     assert slow_tasks, f"{message_prefix}No tasks found for branch '{slow_branch}'"
 
     # Get completion times of last tasks
-    last_fast_task = max(fast_tasks.items(), key=lambda x: x[1]['mtime'])
-    last_slow_task = max(slow_tasks.items(), key=lambda x: x[1]['mtime'])
+    last_fast_task = max(fast_tasks.items(), key=lambda x: x[1]["mtime"])
+    last_slow_task = max(slow_tasks.items(), key=lambda x: x[1]["mtime"])
 
     last_fast_name, last_fast_info = last_fast_task
     last_slow_name, last_slow_info = last_slow_task
 
-    assert last_fast_info['mtime'] < last_slow_info['mtime'], (
+    assert last_fast_info["mtime"] < last_slow_info["mtime"], (
         f"{message_prefix}Fast branch should complete before slow branch. "
         f"Fast: {last_fast_name} at {last_fast_info['mtime']}, "
         f"Slow: {last_slow_name} at {last_slow_info['mtime']}"
@@ -197,7 +204,7 @@ def assert_pre_submission_occurred(
     timing_data: dict[str, dict[str, Any]],
     task: str,
     dependency: str,
-    message_prefix: str = ""
+    message_prefix: str = "",
 ) -> None:
     """Assert that a task was submitted before its dependency finished.
 
@@ -216,13 +223,13 @@ def assert_pre_submission_occurred(
     Example:
         >>> times = extract_launcher_times(wg.process)
         >>> # With front_depth=1, fast_2 should be submitted before fast_1 finishes
-        >>> assert_pre_submission_occurred(times, 'fast_2', 'fast_1')
+        >>> assert_pre_submission_occurred(times, "fast_2", "fast_1")
     """
     assert task in timing_data, f"{message_prefix}Task '{task}' not found in timing data"
     assert dependency in timing_data, f"{message_prefix}Dependency '{dependency}' not found"
 
-    task_submit = timing_data[task]['ctime']
-    dep_finish = timing_data[dependency]['mtime']
+    task_submit = timing_data[task]["ctime"]
+    dep_finish = timing_data[dependency]["mtime"]
 
     assert task_submit < dep_finish, (
         f"{message_prefix}Pre-submission failed: {task} should be submitted before "
@@ -234,7 +241,7 @@ def assert_pre_submission_occurred(
 def assert_submission_order(
     timing_data: dict[str, dict[str, Any]],
     task_order: list[str],
-    message_prefix: str = ""
+    message_prefix: str = "",
 ) -> None:
     """Assert that tasks were submitted in the specified order.
 
@@ -252,7 +259,7 @@ def assert_submission_order(
     Example:
         >>> times = extract_launcher_times(wg.process)
         >>> # Verify submission order
-        >>> assert_submission_order(times, ['root', 'fast_1', 'fast_2', 'fast_3'])
+        >>> assert_submission_order(times, ["root", "fast_1", "fast_2", "fast_3"])
     """
     for i in range(len(task_order) - 1):
         earlier = task_order[i]
@@ -261,8 +268,8 @@ def assert_submission_order(
         assert earlier in timing_data, f"{message_prefix}Task '{earlier}' not found"
         assert later in timing_data, f"{message_prefix}Task '{later}' not found"
 
-        earlier_time = timing_data[earlier]['ctime']
-        later_time = timing_data[later]['ctime']
+        earlier_time = timing_data[earlier]["ctime"]
+        later_time = timing_data[later]["ctime"]
 
         assert earlier_time <= later_time, (
             f"{message_prefix}Submission order violation: {earlier} should be "
@@ -275,7 +282,7 @@ def assert_cross_dependency_respected(
     timing_data: dict[str, dict[str, Any]],
     dependent_task: str,
     dependency_tasks: list[str],
-    message_prefix: str = ""
+    message_prefix: str = "",
 ) -> None:
     """Assert that a task started after ALL its cross-branch dependencies finished.
 
@@ -294,18 +301,16 @@ def assert_cross_dependency_respected(
     Example:
         >>> times = extract_launcher_times(wg.process)
         >>> # medium_2 depends on both medium_1 AND fast_2
-        >>> assert_cross_dependency_respected(times, 'medium_2', ['medium_1', 'fast_2'])
+        >>> assert_cross_dependency_respected(times, "medium_2", ["medium_1", "fast_2"])
     """
-    assert dependent_task in timing_data, (
-        f"{message_prefix}Task '{dependent_task}' not found"
-    )
+    assert dependent_task in timing_data, f"{message_prefix}Task '{dependent_task}' not found"
 
-    dependent_submit = timing_data[dependent_task]['ctime']
+    dependent_submit = timing_data[dependent_task]["ctime"]
 
     for dep in dependency_tasks:
         assert dep in timing_data, f"{message_prefix}Dependency '{dep}' not found"
 
-        dep_finish = timing_data[dep]['mtime']
+        dep_finish = timing_data[dep]["mtime"]
 
         assert dep_finish <= dependent_submit, (
             f"{message_prefix}Cross-dependency violation: {dependent_task} "
@@ -324,10 +329,8 @@ def print_timing_summary(timing_data: dict[str, dict[str, Any]]) -> None:
     """
     relative_times = compute_relative_times(timing_data)
 
-
     # Sort by submission time
-    sorted_tasks = sorted(relative_times.items(), key=lambda x: x[1]['start'])
+    sorted_tasks = sorted(relative_times.items(), key=lambda x: x[1]["start"])
 
     for _task_name, _times in sorted_tasks:
         pass
-

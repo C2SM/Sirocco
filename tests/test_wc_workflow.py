@@ -17,9 +17,9 @@ def test_parse_config_file(config_paths, pprinter):
     if test_str != reference_str:
         new_path = Path(config_paths["txt"]).with_suffix(".new.txt")
         new_path.write_text(test_str)
-        assert (
-            reference_str == test_str
-        ), f"Workflow graph doesn't match serialized data. New graph string dumped to {new_path}."
+        assert reference_str == test_str, (
+            f"Workflow graph doesn't match serialized data. New graph string dumped to {new_path}."
+        )
 
 
 def test_vizgraph(config_paths):
@@ -67,9 +67,9 @@ def test_run_workgraph(config_paths):
             if isinstance(node, CalcJobNode):
                 LOGGER.error("%s workdir: %s", node.process_label, node.get_remote_workdir())
                 LOGGER.error("%s report:\n%s", node.process_label, get_calcjob_report(node))
-    assert (
-        output_node.is_finished_ok
-    ), f"Not successful run. Got exit code {output_node.exit_code} with message {output_node.exit_message}."
+    assert output_node.is_finished_ok, (
+        f"Not successful run. Got exit code {output_node.exit_code} with message {output_node.exit_message}."
+    )
 
 
 @pytest.mark.requires_icon
@@ -115,9 +115,9 @@ def test_run_workgraph_with_icon(icon_filepath_executable, config_paths, tmp_pat
                 LOGGER.error("%s workdir: %s", node.process_label, node.get_remote_workdir())
                 LOGGER.error("%s report:\n%s", node.process_label, get_calcjob_report(node))
 
-    assert (
-        output_node.is_finished_ok
-    ), f"Not successful run. Got exit code {output_node.exit_code} with message {output_node.exit_message}."
+    assert output_node.is_finished_ok, (
+        f"Not successful run. Got exit code {output_node.exit_code} with message {output_node.exit_message}."
+    )
 
 
 # configs containing task using icon plugin

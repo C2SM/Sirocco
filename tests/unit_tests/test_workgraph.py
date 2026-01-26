@@ -385,7 +385,9 @@ def test_branch_independence_config(config_paths):
     expected_task_prefixes = ["root", "fast_1", "fast_2", "fast_3", "slow_1", "slow_2", "slow_3"]
     for prefix in expected_task_prefixes:
         matching_tasks = [t for t in launcher_tasks if t.startswith(f"launch_{prefix}_")]
-        assert len(matching_tasks) == 1, f"Expected exactly 1 task starting with 'launch_{prefix}_', found {len(matching_tasks)}: {matching_tasks}"
+        assert len(matching_tasks) == 1, (
+            f"Expected exactly 1 task starting with 'launch_{prefix}_', found {len(matching_tasks)}: {matching_tasks}"
+        )
 
     # Verify dependency structure
     task_deps = window_config["task_dependencies"]
@@ -432,6 +434,7 @@ def test_branch_independence_execution(config_paths):
     import logging
     from datetime import datetime
     from pathlib import Path
+    from zoneinfo import ZoneInfo
 
     from aiida.cmdline.utils.common import get_calcjob_report, get_workchain_report
     from aiida.orm import CalcJobNode
@@ -448,36 +451,34 @@ def test_branch_independence_execution(config_paths):
 
     # Set up persistent file logging
     log_file = Path("branch_independence_test.log")
-    file_handler = logging.FileHandler(log_file, mode='w')
+    file_handler = logging.FileHandler(log_file, mode="w")
     file_handler.setLevel(logging.INFO)
-    file_handler.setFormatter(logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    ))
+    file_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
     LOGGER.addHandler(file_handler)
     LOGGER.setLevel(logging.INFO)
 
-    LOGGER.info("="*80)
+    LOGGER.info("=" * 80)
     LOGGER.info("Starting branch independence integration test")
-    LOGGER.info("="*80)
+    LOGGER.info("=" * 80)
 
     # Build and run the workflow
     LOGGER.info("Building workflow from config")
     core_workflow = Workflow.from_config_file(str(config_paths["yml"]))
     workgraph = build_sirocco_workgraph(core_workflow, front_depth=1)
-    LOGGER.info(f"WorkGraph built with {len(workgraph.tasks)} tasks")
+    LOGGER.info("WorkGraph built with %s tasks", len(workgraph.tasks))
 
     # Track task completion times
-    start_time = datetime.now()
-    LOGGER.info(f"Starting workflow execution at {start_time}")
+    start_time = datetime.now(ZoneInfo("Europe/Zurich"))
+    LOGGER.info("Starting workflow execution at %s", start_time)
     workgraph.run()
-    end_time = datetime.now()
+    end_time = datetime.now(ZoneInfo("Europe/Zurich"))
     output_node = workgraph.process
 
     total_time = (end_time - start_time).total_seconds()
-    LOGGER.info(f"Workflow execution completed in {total_time:.1f}s")
-    LOGGER.info(f"Workflow PK: {output_node.pk}")
-    LOGGER.info(f"Workflow state: {output_node.process_state}")
-    LOGGER.info(f"Workflow exit_code: {output_node.exit_code}")
+    LOGGER.info("Workflow execution completed in %.1fs", total_time)
+    LOGGER.info("Workflow PK: %s", output_node.pk)
+    LOGGER.info("Workflow state: %s", output_node.process_state)
+    LOGGER.info("Workflow exit_code: %s", output_node.exit_code)
 
     # Check if workflow completed successfully
     if not output_node.is_finished_ok:
@@ -491,9 +492,9 @@ def test_branch_independence_execution(config_paths):
                 LOGGER.error("%s workdir: %s", node.process_label, node.get_remote_workdir())
                 LOGGER.error("%s report:\n%s", node.process_label, get_calcjob_report(node))
 
-    assert (
-        output_node.is_finished_ok
-    ), f"Workflow failed. Exit code: {output_node.exit_code}, message: {output_node.exit_message}"
+    assert output_node.is_finished_ok, (
+        f"Workflow failed. Exit code: {output_node.exit_code}, message: {output_node.exit_message}"
+    )
 
     # ========================================================================
     # NEW: Use test utilities to extract and validate timing data
@@ -501,7 +502,7 @@ def test_branch_independence_execution(config_paths):
 
     # Extract launcher timing data (when tasks were submitted and completed)
     launcher_times = extract_launcher_times(output_node)
-    LOGGER.info(f"Extracted timing data for {len(launcher_times)} tasks")
+    LOGGER.info("Extracted timing data for %s tasks", len(launcher_times))
 
     # Print detailed timing summary for debugging
     print_timing_summary(launcher_times)
@@ -509,10 +510,9 @@ def test_branch_independence_execution(config_paths):
     # Verify we have all expected tasks
     expected_tasks = ["root", "fast_1", "fast_2", "fast_3", "slow_1", "slow_2", "slow_3"]
     found_tasks = list(launcher_times.keys())
-    LOGGER.info(f"Found tasks: {found_tasks}")
+    LOGGER.info("Found tasks: %s", found_tasks)
     assert len(found_tasks) >= 7, (
-        f"Expected at least 7 tasks ({expected_tasks}), "
-        f"found {len(found_tasks)}: {found_tasks}"
+        f"Expected at least 7 tasks ({expected_tasks}), found {len(found_tasks)}: {found_tasks}"
     )
 
     # ========================================================================
@@ -521,10 +521,10 @@ def test_branch_independence_execution(config_paths):
     # ========================================================================
     LOGGER.info("Testing branch independence...")
     try:
-        assert_branch_independence(launcher_times, fast_branch='fast', slow_branch='slow')
+        assert_branch_independence(launcher_times, fast_branch="fast", slow_branch="slow")
         LOGGER.info("✓ PASS: Fast branch completed before slow branch")
-    except AssertionError as e:
-        LOGGER.exception(f"✗ FAIL: Branch independence assertion failed: {e}")
+    except AssertionError:
+        LOGGER.exception("✗ FAIL: Branch independence assertion failed")
         raise
 
     # ========================================================================
@@ -533,22 +533,22 @@ def test_branch_independence_execution(config_paths):
     # ========================================================================
     LOGGER.info("Testing pre-submission behavior...")
     pre_submission_tests = [
-        ('fast_2', 'fast_1', "fast_2 should be submitted before fast_1 finishes"),
-        ('fast_3', 'fast_2', "fast_3 should be submitted before fast_2 finishes"),
-        ('slow_2', 'slow_1', "slow_2 should be submitted before slow_1 finishes"),
+        ("fast_2", "fast_1", "fast_2 should be submitted before fast_1 finishes"),
+        ("fast_3", "fast_2", "fast_3 should be submitted before fast_2 finishes"),
+        ("slow_2", "slow_1", "slow_2 should be submitted before slow_1 finishes"),
     ]
 
     for task, dep, description in pre_submission_tests:
         if task in launcher_times and dep in launcher_times:
             try:
                 assert_pre_submission_occurred(launcher_times, task, dep)
-                LOGGER.info(f"✓ PASS: {description}")
+                LOGGER.info("✓ PASS: %s", description)
             except AssertionError as e:
-                LOGGER.warning(f"⚠ SKIPPED: {description} - {e}")
+                LOGGER.warning("⚠ SKIPPED: %s - %s", description, e)
                 # Don't fail the test if pre-submission doesn't occur
                 # (depends on timing and scheduler overhead)
         else:
-            LOGGER.warning(f"⚠ SKIPPED: {description} - tasks not found")
+            LOGGER.warning("⚠ SKIPPED: %s - tasks not found", description)
 
     # ========================================================================
     # ASSERTION 3: Submission Order
@@ -557,16 +557,16 @@ def test_branch_independence_execution(config_paths):
     LOGGER.info("Testing submission order...")
     try:
         # Root must be submitted first
-        assert_submission_order(launcher_times, ['root', 'fast_1'])
-        assert_submission_order(launcher_times, ['root', 'slow_1'])
+        assert_submission_order(launcher_times, ["root", "fast_1"])
+        assert_submission_order(launcher_times, ["root", "slow_1"])
 
         # Within each branch, tasks should be submitted in sequence
-        assert_submission_order(launcher_times, ['fast_1', 'fast_2', 'fast_3'])
-        assert_submission_order(launcher_times, ['slow_1', 'slow_2', 'slow_3'])
+        assert_submission_order(launcher_times, ["fast_1", "fast_2", "fast_3"])
+        assert_submission_order(launcher_times, ["slow_1", "slow_2", "slow_3"])
 
         LOGGER.info("✓ PASS: Submission order is correct")
-    except AssertionError as e:
-        LOGGER.exception(f"✗ FAIL: Submission order assertion failed: {e}")
+    except AssertionError:
+        LOGGER.exception("✗ FAIL: Submission order assertion failed")
         raise
 
     # ========================================================================
@@ -574,14 +574,14 @@ def test_branch_independence_execution(config_paths):
     # This demonstrates that the fast branch advances independently
     # ========================================================================
     LOGGER.info("Testing independent branch advancement...")
-    if 'fast_3' in launcher_times and 'slow_3' in launcher_times:
-        fast_3_submit = launcher_times['fast_3']['ctime']
-        slow_3_submit = launcher_times['slow_3']['ctime']
+    if "fast_3" in launcher_times and "slow_3" in launcher_times:
+        fast_3_submit = launcher_times["fast_3"]["ctime"]
+        slow_3_submit = launcher_times["slow_3"]["ctime"]
 
         time_diff = (slow_3_submit - fast_3_submit).total_seconds()
-        LOGGER.info(f"fast_3 submitted at {fast_3_submit}")
-        LOGGER.info(f"slow_3 submitted at {slow_3_submit}")
-        LOGGER.info(f"Time difference: {time_diff:.1f}s")
+        LOGGER.info("fast_3 submitted at %s", fast_3_submit)
+        LOGGER.info("slow_3 submitted at %s", slow_3_submit)
+        LOGGER.info("Time difference: %.1fs", time_diff)
 
         assert fast_3_submit < slow_3_submit, (
             "fast_3 should be submitted before slow_3 (demonstrates branch independence)"
@@ -591,15 +591,15 @@ def test_branch_independence_execution(config_paths):
         LOGGER.warning("⚠ SKIPPED: fast_3/slow_3 timing check - tasks not found")
 
     # Assertions passed - log success
-    LOGGER.info("="*80)
+    LOGGER.info("=" * 80)
     LOGGER.info("✓ All assertions passed!")
     LOGGER.info("  ✓ Fast branch completed before slow branch (branch independence)")
     LOGGER.info("  ✓ Tasks submitted in correct order (dynamic levels)")
     LOGGER.info("  ✓ Pre-submission behavior observed (front_depth=1)")
     LOGGER.info("  ✓ fast_3 submitted before slow_3 (independent advancement)")
-    LOGGER.info(f"  ✓ Total execution time: {total_time:.1f}s")
-    LOGGER.info("="*80)
-    LOGGER.info(f"Test completed successfully. Log saved to {log_file.absolute()}")
+    LOGGER.info("  ✓ Total execution time: %.1fs", total_time)
+    LOGGER.info("=" * 80)
+    LOGGER.info("Test completed successfully. Log saved to %s", log_file.absolute())
 
     # Clean up file handler
     LOGGER.removeHandler(file_handler)
@@ -631,6 +631,7 @@ def test_branch_independence_with_front_depths(config_paths, front_depth):
     import logging
     from datetime import datetime
     from pathlib import Path
+    from zoneinfo import ZoneInfo
 
     from aiida.cmdline.utils.common import get_calcjob_report, get_workchain_report
     from aiida.orm import CalcJobNode
@@ -644,34 +645,32 @@ def test_branch_independence_with_front_depths(config_paths, front_depth):
 
     # Set up persistent file logging
     log_file = Path(f"branch_independence_window{front_depth}_test.log")
-    file_handler = logging.FileHandler(log_file, mode='w')
+    file_handler = logging.FileHandler(log_file, mode="w")
     file_handler.setLevel(logging.INFO)
-    file_handler.setFormatter(logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    ))
+    file_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
     LOGGER.addHandler(file_handler)
     LOGGER.setLevel(logging.INFO)
 
-    LOGGER.info("="*80)
-    LOGGER.info(f"Testing with front_depth={front_depth}")
-    LOGGER.info("="*80)
+    LOGGER.info("=" * 80)
+    LOGGER.info("Testing with front_depth=%s", front_depth)
+    LOGGER.info("=" * 80)
 
     # Build and run the workflow with specified front_depth
     LOGGER.info("Building workflow from config")
     core_workflow = Workflow.from_config_file(str(config_paths["yml"]))
     workgraph = build_sirocco_workgraph(core_workflow, front_depth=front_depth)
-    LOGGER.info(f"WorkGraph built with {len(workgraph.tasks)} tasks")
+    LOGGER.info("WorkGraph built with %s tasks", len(workgraph.tasks))
 
     # Track execution time
-    start_time = datetime.now()
-    LOGGER.info(f"Starting workflow execution at {start_time}")
+    start_time = datetime.now(ZoneInfo("Europe/Zurich"))
+    LOGGER.info("Starting workflow execution at %s", start_time)
     workgraph.run()
-    end_time = datetime.now()
+    end_time = datetime.now(ZoneInfo("Europe/Zurich"))
     output_node = workgraph.process
 
     total_time = (end_time - start_time).total_seconds()
-    LOGGER.info(f"Workflow execution completed in {total_time:.1f}s")
-    LOGGER.info(f"Workflow PK: {output_node.pk}")
+    LOGGER.info("Workflow execution completed in %.1fs", total_time)
+    LOGGER.info("Workflow PK: %s", output_node.pk)
 
     # Check if workflow completed successfully
     if not output_node.is_finished_ok:
@@ -685,23 +684,23 @@ def test_branch_independence_with_front_depths(config_paths, front_depth):
                 LOGGER.error("%s workdir: %s", node.process_label, node.get_remote_workdir())
                 LOGGER.error("%s report:\n%s", node.process_label, get_calcjob_report(node))
 
-    assert (
-        output_node.is_finished_ok
-    ), f"Workflow failed. Exit code: {output_node.exit_code}, message: {output_node.exit_message}"
+    assert output_node.is_finished_ok, (
+        f"Workflow failed. Exit code: {output_node.exit_code}, message: {output_node.exit_message}"
+    )
 
     # Extract timing data
     launcher_times = extract_launcher_times(output_node)
-    LOGGER.info(f"Extracted timing data for {len(launcher_times)} tasks")
+    LOGGER.info("Extracted timing data for %s tasks", len(launcher_times))
 
     # ========================================================================
     # Key assertion: Branch independence should work regardless of front_depth
     # ========================================================================
     LOGGER.info("Testing branch independence...")
     try:
-        assert_branch_independence(launcher_times, fast_branch='fast', slow_branch='slow')
+        assert_branch_independence(launcher_times, fast_branch="fast", slow_branch="slow")
         LOGGER.info("✓ PASS: Fast branch completed before slow branch")
-    except AssertionError as e:
-        LOGGER.exception(f"✗ FAIL: Branch independence assertion failed: {e}")
+    except AssertionError:
+        LOGGER.exception("✗ FAIL: Branch independence assertion failed")
         raise
 
     # ========================================================================
@@ -727,12 +726,12 @@ def test_branch_independence_with_front_depths(config_paths, front_depth):
         LOGGER.info("✓ Two levels ahead mode (aggressive pre-submission)")
 
     # Log success
-    LOGGER.info("="*80)
-    LOGGER.info(f"✓ Test passed with front_depth={front_depth}")
+    LOGGER.info("=" * 80)
+    LOGGER.info("✓ Test passed with front_depth=%s", front_depth)
     LOGGER.info("  ✓ Fast branch completed before slow branch")
-    LOGGER.info(f"  ✓ Total execution time: {total_time:.1f}s")
-    LOGGER.info("="*80)
-    LOGGER.info(f"Test completed. Log saved to {log_file.absolute()}")
+    LOGGER.info("  ✓ Total execution time: %.1fs", total_time)
+    LOGGER.info("=" * 80)
+    LOGGER.info("Test completed. Log saved to %s", log_file.absolute())
 
     # Clean up file handler
     LOGGER.removeHandler(file_handler)
@@ -761,6 +760,7 @@ def test_complex_workflow_with_cross_dependencies(config_paths):
     import logging
     from datetime import datetime
     from pathlib import Path
+    from zoneinfo import ZoneInfo
 
     from aiida.cmdline.utils.common import get_calcjob_report, get_workchain_report
     from aiida.orm import CalcJobNode
@@ -776,18 +776,16 @@ def test_complex_workflow_with_cross_dependencies(config_paths):
 
     # Set up persistent file logging
     log_file = Path("complex_workflow_test.log")
-    file_handler = logging.FileHandler(log_file, mode='w')
+    file_handler = logging.FileHandler(log_file, mode="w")
     file_handler.setLevel(logging.INFO)
-    file_handler.setFormatter(logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    ))
+    file_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
     LOGGER.addHandler(file_handler)
     LOGGER.setLevel(logging.INFO)
 
-    LOGGER.info("="*80)
+    LOGGER.info("=" * 80)
     LOGGER.info("Starting complex workflow integration test")
     LOGGER.info("Testing: 3 branches + cross-dependencies + convergence")
-    LOGGER.info("="*80)
+    LOGGER.info("=" * 80)
 
     # Use config_complex.yml instead of config.yml
     config_dir = Path(config_paths["yml"]).parent
@@ -797,21 +795,21 @@ def test_complex_workflow_with_cross_dependencies(config_paths):
         pytest.skip(f"Complex config not found: {complex_config_path}")
 
     # Build and run the workflow
-    LOGGER.info(f"Building workflow from {complex_config_path}")
+    LOGGER.info("Building workflow from %s", complex_config_path)
     core_workflow = Workflow.from_config_file(str(complex_config_path))
     workgraph = build_sirocco_workgraph(core_workflow, front_depth=1)
-    LOGGER.info(f"WorkGraph built with {len(workgraph.tasks)} tasks")
+    LOGGER.info("WorkGraph built with %s tasks", len(workgraph.tasks))
 
     # Track execution time
-    start_time = datetime.now()
-    LOGGER.info(f"Starting workflow execution at {start_time}")
+    start_time = datetime.now(ZoneInfo("Europe/Zurich"))
+    LOGGER.info("Starting workflow execution at %s", start_time)
     workgraph.run()
-    end_time = datetime.now()
+    end_time = datetime.now(ZoneInfo("Europe/Zurich"))
     output_node = workgraph.process
 
     total_time = (end_time - start_time).total_seconds()
-    LOGGER.info(f"Workflow execution completed in {total_time:.1f}s")
-    LOGGER.info(f"Workflow PK: {output_node.pk}")
+    LOGGER.info("Workflow execution completed in %.1fs", total_time)
+    LOGGER.info("Workflow PK: %s", output_node.pk)
 
     # Check if workflow completed successfully
     if not output_node.is_finished_ok:
@@ -825,13 +823,13 @@ def test_complex_workflow_with_cross_dependencies(config_paths):
                 LOGGER.error("%s workdir: %s", node.process_label, node.get_remote_workdir())
                 LOGGER.error("%s report:\n%s", node.process_label, get_calcjob_report(node))
 
-    assert (
-        output_node.is_finished_ok
-    ), f"Workflow failed. Exit code: {output_node.exit_code}, message: {output_node.exit_message}"
+    assert output_node.is_finished_ok, (
+        f"Workflow failed. Exit code: {output_node.exit_code}, message: {output_node.exit_message}"
+    )
 
     # Extract timing data
     launcher_times = extract_launcher_times(output_node)
-    LOGGER.info(f"Extracted timing data for {len(launcher_times)} tasks")
+    LOGGER.info("Extracted timing data for %s tasks", len(launcher_times))
 
     # Print detailed timing summary
     print_timing_summary(launcher_times)
@@ -841,13 +839,13 @@ def test_complex_workflow_with_cross_dependencies(config_paths):
     # ========================================================================
     LOGGER.info("Testing fast branch independence...")
     try:
-        assert_branch_independence(launcher_times, fast_branch='fast', slow_branch='medium')
+        assert_branch_independence(launcher_times, fast_branch="fast", slow_branch="medium")
         LOGGER.info("✓ PASS: Fast branch completed before medium branch")
 
-        assert_branch_independence(launcher_times, fast_branch='fast', slow_branch='slow')
+        assert_branch_independence(launcher_times, fast_branch="fast", slow_branch="slow")
         LOGGER.info("✓ PASS: Fast branch completed before slow branch")
-    except AssertionError as e:
-        LOGGER.exception(f"✗ FAIL: Fast branch independence failed: {e}")
+    except AssertionError:
+        LOGGER.exception("✗ FAIL: Fast branch independence failed")
         raise
 
     # ========================================================================
@@ -855,10 +853,10 @@ def test_complex_workflow_with_cross_dependencies(config_paths):
     # ========================================================================
     LOGGER.info("Testing medium vs slow branch...")
     try:
-        assert_branch_independence(launcher_times, fast_branch='medium', slow_branch='slow')
+        assert_branch_independence(launcher_times, fast_branch="medium", slow_branch="slow")
         LOGGER.info("✓ PASS: Medium branch completed before slow branch")
-    except AssertionError as e:
-        LOGGER.exception(f"✗ FAIL: Medium vs slow assertion failed: {e}")
+    except AssertionError:
+        LOGGER.exception("✗ FAIL: Medium vs slow assertion failed")
         raise
 
     # ========================================================================
@@ -869,69 +867,61 @@ def test_complex_workflow_with_cross_dependencies(config_paths):
     LOGGER.info("Testing cross-dependency constraints...")
     try:
         # medium_2 depends on medium_1 and fast_2
-        if 'medium_2' in launcher_times and 'medium_1' in launcher_times and 'fast_2' in launcher_times:
-            assert_cross_dependency_respected(
-                launcher_times,
-                'medium_2',
-                ['medium_1', 'fast_2']
-            )
+        if "medium_2" in launcher_times and "medium_1" in launcher_times and "fast_2" in launcher_times:
+            assert_cross_dependency_respected(launcher_times, "medium_2", ["medium_1", "fast_2"])
             LOGGER.info("✓ PASS: medium_2 correctly waits for medium_1 and fast_2")
         else:
             LOGGER.warning("⚠ SKIPPED: medium_2 cross-dependency check - tasks not found")
 
         # slow_2 depends on slow_1 and medium_2
-        if 'slow_2' in launcher_times and 'slow_1' in launcher_times and 'medium_2' in launcher_times:
-            assert_cross_dependency_respected(
-                launcher_times,
-                'slow_2',
-                ['slow_1', 'medium_2']
-            )
+        if "slow_2" in launcher_times and "slow_1" in launcher_times and "medium_2" in launcher_times:
+            assert_cross_dependency_respected(launcher_times, "slow_2", ["slow_1", "medium_2"])
             LOGGER.info("✓ PASS: slow_2 correctly waits for slow_1 and medium_2")
         else:
             LOGGER.warning("⚠ SKIPPED: slow_2 cross-dependency check - tasks not found")
 
-    except AssertionError as e:
-        LOGGER.exception(f"✗ FAIL: Cross-dependency assertion failed: {e}")
+    except AssertionError:
+        LOGGER.exception("✗ FAIL: Cross-dependency assertion failed")
         raise
 
     # ========================================================================
     # ASSERTION 4: Convergence point (finalize waits for all branches)
     # ========================================================================
     LOGGER.info("Testing convergence point...")
-    if 'finalize' in launcher_times:
-        finalize_submit = launcher_times['finalize']['ctime']
+    if "finalize" in launcher_times:
+        finalize_submit = launcher_times["finalize"]["ctime"]
 
         # Check that finalize was submitted AFTER all final branch tasks completed
         final_tasks = []
-        if 'fast_3' in launcher_times:
-            final_tasks.append(('fast_3', launcher_times['fast_3']))
-        if 'medium_3' in launcher_times:
-            final_tasks.append(('medium_3', launcher_times['medium_3']))
-        if 'slow_3' in launcher_times:
-            final_tasks.append(('slow_3', launcher_times['slow_3']))
+        if "fast_3" in launcher_times:
+            final_tasks.append(("fast_3", launcher_times["fast_3"]))
+        if "medium_3" in launcher_times:
+            final_tasks.append(("medium_3", launcher_times["medium_3"]))
+        if "slow_3" in launcher_times:
+            final_tasks.append(("slow_3", launcher_times["slow_3"]))
 
         for task_name, task_info in final_tasks:
-            task_finish = task_info['mtime']
+            task_finish = task_info["mtime"]
             assert task_finish <= finalize_submit, (
                 f"finalize should start after {task_name} finishes. "
                 f"{task_name} finished at {task_finish}, finalize submitted at {finalize_submit}"
             )
-            LOGGER.info(f"✓ finalize correctly waits for {task_name}")
+            LOGGER.info("✓ finalize correctly waits for %s", task_name)
 
         LOGGER.info("✓ PASS: Convergence point correctly synchronizes all branches")
     else:
         LOGGER.warning("⚠ SKIPPED: Convergence point check - finalize task not found")
 
     # Log success
-    LOGGER.info("="*80)
+    LOGGER.info("=" * 80)
     LOGGER.info("✓ All assertions passed!")
     LOGGER.info("  ✓ Fast branch completed before medium and slow branches")
     LOGGER.info("  ✓ Medium branch completed before slow branch")
     LOGGER.info("  ✓ Cross-dependencies properly enforced")
     LOGGER.info("  ✓ Convergence point synchronizes all branches")
-    LOGGER.info(f"  ✓ Total execution time: {total_time:.1f}s")
-    LOGGER.info("="*80)
-    LOGGER.info(f"Test completed. Log saved to {log_file.absolute()}")
+    LOGGER.info("  ✓ Total execution time: %.1fs", total_time)
+    LOGGER.info("=" * 80)
+    LOGGER.info("Test completed. Log saved to %s", log_file.absolute())
 
     # Clean up file handler
     LOGGER.removeHandler(file_handler)
@@ -984,7 +974,9 @@ def test_dynamic_levels_branch_independence():
         "launch_slow3",
     }
     filtered_deps = {
-        task: [p for p in parents if p in unfinished_tasks] for task, parents in task_deps.items() if task in unfinished_tasks
+        task: [p for p in parents if p in unfinished_tasks]
+        for task, parents in task_deps.items()
+        if task in unfinished_tasks
     }
     dynamic_levels_1 = compute_topological_levels(filtered_deps)
 
@@ -1002,7 +994,9 @@ def test_dynamic_levels_branch_independence():
         "launch_slow3",
     }
     filtered_deps = {
-        task: [p for p in parents if p in unfinished_tasks] for task, parents in task_deps.items() if task in unfinished_tasks
+        task: [p for p in parents if p in unfinished_tasks]
+        for task, parents in task_deps.items()
+        if task in unfinished_tasks
     }
     dynamic_levels_2 = compute_topological_levels(filtered_deps)
 
@@ -1021,7 +1015,9 @@ def test_dynamic_levels_branch_independence():
         "launch_slow3",
     }
     filtered_deps = {
-        task: [p for p in parents if p in unfinished_tasks] for task, parents in task_deps.items() if task in unfinished_tasks
+        task: [p for p in parents if p in unfinished_tasks]
+        for task, parents in task_deps.items()
+        if task in unfinished_tasks
     }
     dynamic_levels_3 = compute_topological_levels(filtered_deps)
 
@@ -1038,7 +1034,9 @@ def test_dynamic_levels_branch_independence():
         "launch_slow3",
     }
     filtered_deps = {
-        task: [p for p in parents if p in unfinished_tasks] for task, parents in task_deps.items() if task in unfinished_tasks
+        task: [p for p in parents if p in unfinished_tasks]
+        for task, parents in task_deps.items()
+        if task in unfinished_tasks
     }
     dynamic_levels_4 = compute_topological_levels(filtered_deps)
 

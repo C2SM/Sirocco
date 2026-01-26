@@ -32,12 +32,11 @@ def patch_slurm_dependency_handling():
     from aiida.engine.processes.calcjobs import tasks
     from aiida.orm import CalcJobNode
     from aiida.orm.utils.log import get_dblogger_extra
-    from aiida.schedulers.datastructures import JobState
     from aiida.schedulers.scheduler import SchedulerError
     from aiida.transports.transport import Transport
 
     # Store references to original methods
-    original_submit_calculation = execmanager.submit_calculation
+    original_submit_calculation = execmanager.submit_calculation  # noqa F841: Local variable assigned but never used
     original_task_update_job = tasks.task_update_job
 
     def _retry_submit_without_dependencies(
@@ -66,12 +65,13 @@ def patch_slurm_dependency_handling():
         from pathlib import Path, PurePosixPath
 
         from aiida.common.log import AIIDA_LOGGER
+
         logger_extra = get_dblogger_extra(calculation)
 
         script_path = str(PurePosixPath(workdir) / submit_script_filename)
 
         # Read the submit script - handle both sync and async transports
-        with tempfile.NamedTemporaryFile(mode='w+', suffix='.sh', delete=False) as tmpfile:
+        with tempfile.NamedTemporaryFile(mode="w+", suffix=".sh", delete=False) as tmpfile:
             tmp_path = Path(tmpfile.name)
             try:
                 # Download the script
@@ -81,24 +81,23 @@ def patch_slurm_dependency_handling():
                 # Find and parse the dependency directive
                 # Match lines like: #SBATCH --dependency=afterok:123:456
                 dependency_match = re.search(
-                    r'^#SBATCH\s+--dependency=(\w+):([0-9:]+)$',
+                    r"^#SBATCH\s+--dependency=(\w+):([0-9:]+)$",
                     script_content,
-                    flags=re.MULTILINE
+                    flags=re.MULTILINE,
                 )
 
                 if not dependency_match:
                     # No dependency directive found - something else is wrong
-                    raise SchedulerError(
-                        'Job dependency problem reported but no dependency directive found in submit script'
-                    )
+                    msg = "Job dependency problem reported but no dependency directive found in submit script"
+                    raise SchedulerError(msg)
 
                 dependency_type = dependency_match.group(1)  # e.g., 'afterok'
                 job_ids_str = dependency_match.group(2)  # e.g., '123:456:789'
-                job_ids = job_ids_str.split(':')
+                job_ids = job_ids_str.split(":")
 
                 AIIDA_LOGGER.info(
-                    f'Job submission failed due to dependency problem. Original dependencies: {dependency_type}:{job_ids_str}',
-                    extra=logger_extra
+                    f"Job submission failed due to dependency problem. Original dependencies: {dependency_type}:{job_ids_str}",
+                    extra=logger_extra,
                 )
 
                 # Query scheduler to see which jobs still exist
@@ -112,18 +111,18 @@ def patch_slurm_dependency_handling():
                             if job_info:
                                 existing_jobs.append(job_id)
                                 AIIDA_LOGGER.debug(
-                                    f'Dependency job {job_id} still exists in scheduler',
-                                    extra=logger_extra
+                                    f"Dependency job {job_id} still exists in scheduler",
+                                    extra=logger_extra,
                                 )
-                        except Exception:
+                        except Exception:  # noqa BLE001: Do not catch blind exception
                             AIIDA_LOGGER.debug(
-                                f'Dependency job {job_id} no longer in scheduler (finished)',
-                                extra=logger_extra
+                                f"Dependency job {job_id} no longer in scheduler (finished)",
+                                extra=logger_extra,
                             )
-                except Exception as e:
+                except Exception as e:  # noqa BLE001: Do not catch blind exception
                     AIIDA_LOGGER.warning(
-                        f'Failed to query scheduler for job status: {e}. Will remove all dependencies.',
-                        extra=logger_extra
+                        f"Failed to query scheduler for job status: {e}. Will remove all dependencies.",
+                        extra=logger_extra,
                     )
                     existing_jobs = []
 
@@ -133,14 +132,14 @@ def patch_slurm_dependency_handling():
                     new_dependency = f"#SBATCH --dependency={dependency_type}:{':'.join(existing_jobs)}"
                     new_line = f"{new_dependency}  # Filtered from: {job_ids_str}"
                     AIIDA_LOGGER.info(
-                        f'Keeping dependencies on still-running jobs: {":".join(existing_jobs)}',
-                        extra=logger_extra
+                        f"Keeping dependencies on still-running jobs: {':'.join(existing_jobs)}",
+                        extra=logger_extra,
                     )
                 else:
                     new_line = f"# DEPENDENCY REMOVED: all dependencies satisfied ({job_ids_str})"
                     AIIDA_LOGGER.info(
-                        'All dependencies satisfied, removing dependency directive',
-                        extra=logger_extra
+                        "All dependencies satisfied, removing dependency directive",
+                        extra=logger_extra,
                     )
 
                 script_content = script_content.replace(original_line, new_line)
@@ -156,10 +155,7 @@ def patch_slurm_dependency_handling():
                 tmp_path.unlink(missing_ok=True)
 
         # Retry submission
-        AIIDA_LOGGER.info(
-            'Resubmitting job with updated dependencies',
-            extra=logger_extra
-        )
+        AIIDA_LOGGER.info("Resubmitting job with updated dependencies", extra=logger_extra)
 
         return scheduler.submit_job(workdir, submit_script_filename)
 
@@ -180,19 +176,19 @@ def patch_slurm_dependency_handling():
         scheduler = calculation.computer.get_scheduler()
         scheduler.set_transport(transport)
 
-        submit_script_filename = calculation.get_option('submit_script_filename')
+        submit_script_filename = calculation.get_option("submit_script_filename")
         workdir = calculation.get_remote_workdir()
 
         try:
             result = scheduler.submit_job(workdir, submit_script_filename)
         except SchedulerError as exc:
             # Handle SLURM job dependency problems
-            if 'Job dependency problem' in str(exc):
+            if "Job dependency problem" in str(exc):
                 logger_extra = get_dblogger_extra(calculation)
                 AIIDA_LOGGER.warning(
-                    'SLURM job dependency problem detected - dependencies may have already completed. '
-                    'Stripping dependencies and resubmitting.',
-                    extra=logger_extra
+                    "SLURM job dependency problem detected - dependencies may have already completed. "
+                    "Stripping dependencies and resubmitting.",
+                    extra=logger_extra,
                 )
 
                 # Strip dependency directive from submit script and retry
@@ -222,14 +218,13 @@ def patch_slurm_dependency_handling():
         job_id = node.get_job_id()
 
         if job_id is None:
-            logger.warning(f'job for node<{node.pk}> does not have a job id')
+            logger.warning("job for node<%s> does not have a job id", node.pk)
             return True
 
         # Call the original task_update_job to get job info
         # This handles all the async job manager logic correctly
         try:
-            job_done = await original_task_update_job(node, job_manager, cancellable)
-            return job_done
+            return await original_task_update_job(node, job_manager, cancellable)
         except Exception as e:
             # Check if this is because the job isn't visible yet
             # If we've never successfully polled this job before, it might just be API delay
@@ -238,17 +233,13 @@ def patch_slurm_dependency_handling():
             if last_job_info is None and "not found" in str(e).lower():
                 # Never successfully polled this job - might be API propagation delay
                 # Raise TransportTaskException to trigger retry with exponential backoff
-                raise TransportTaskException(
-                    f'Job<{job_id}> not yet visible in scheduler (possible API propagation delay). Will retry.'
-                ) from e
-            else:
-                # Some other error, or job was polled before - re-raise
-                raise
+                msg = f"Job<{job_id}> not yet visible in scheduler (possible API propagation delay). Will retry."
+                raise TransportTaskException(msg) from e
+            # Some other error, or job was polled before - re-raise
+            raise
 
     # Apply the patches
     execmanager.submit_calculation = patched_submit_calculation
     tasks.task_update_job = patched_task_update_job
 
-    logger.info(
-        "Applied SLURM dependency handling patches for Sirocco pre-submission workflows"
-    )
+    logger.info("Applied SLURM dependency handling patches for Sirocco pre-submission workflows")

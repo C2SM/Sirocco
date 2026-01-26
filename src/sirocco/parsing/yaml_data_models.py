@@ -666,29 +666,6 @@ def check_parameters_lists(data: Any) -> dict[str, list]:
     return data
 
 
-def _expand_env_vars(text: str) -> str:
-    """Expand environment variables in text with ${VAR} or ${VAR:-default} syntax.
-
-    This is a simple shell-style variable expansion for backward compatibility.
-
-    Examples:
-        >>> os.environ['FOO'] = 'bar'
-        >>> _expand_env_vars('Value is ${FOO}')
-        'Value is bar'
-        >>> _expand_env_vars('Value is ${MISSING:-default}')
-        'Value is default'
-        >>> _expand_env_vars('Value is ${MISSING}')
-        'Value is ${MISSING}'
-    """
-    def replace_var(match):
-        var_expr = match.group(1)
-        if ":-" in var_expr:
-            var_name, default = var_expr.split(":-", 1)
-            return os.environ.get(var_name, default)
-        return os.environ.get(var_expr, match.group(0))
-    return re.sub(r'\$\{([^}]+)\}', replace_var, text)
-
-
 def _render_jinja2_template(
     content: str,
     config_path: Path,
@@ -712,7 +689,7 @@ def _render_jinja2_template(
     Raises:
         ValueError: If template rendering fails or required variables are missing
     """
-    from jinja2 import Environment, Template, StrictUndefined
+    from jinja2 import Environment, StrictUndefined
 
     # Load variables from multiple sources
     template_vars = dict(os.environ)  # Start with environment variables
@@ -720,7 +697,7 @@ def _render_jinja2_template(
     # Look for variables file in the same directory
     config_dir = config_path.parent
     vars_file = None
-    for vars_name in ['vars.yml', 'vars.yaml', 'variables.yml', 'variables.yaml']:
+    for vars_name in ["vars.yml", "vars.yaml", "variables.yml", "variables.yaml"]:
         candidate = config_dir / vars_name
         if candidate.exists():
             vars_file = candidate
@@ -741,6 +718,7 @@ def _render_jinja2_template(
         undefined=StrictUndefined,
         trim_blocks=True,
         lstrip_blocks=True,
+        autoescape=True,  # ruff S701: avoid cross-site scripting (XSS) attacks
     )
 
     # Render the template
@@ -750,28 +728,6 @@ def _render_jinja2_template(
     except Exception as e:
         msg = f"Failed to render Jinja2 template {config_path}: {e}"
         raise ValueError(msg) from e
-
-
-def _detect_jinja2_syntax(content: str) -> bool:
-    """Detect if content contains Jinja2 syntax.
-
-    Checks for common Jinja2 patterns:
-    - {{ variable }}
-    - {% statement %}
-    - {# comment #}
-
-    Args:
-        content: The text content to check
-
-    Returns:
-        True if Jinja2 syntax is detected, False otherwise
-    """
-    jinja2_patterns = [
-        r'\{\{.*?\}\}',  # {{ variable }}
-        r'\{%.*?%\}',    # {% statement %}
-        r'\{#.*?#\}',    # {# comment #}
-    ]
-    return any(re.search(pattern, content) for pattern in jinja2_patterns)
 
 
 class ConfigWorkflow(BaseModel):
@@ -864,19 +820,12 @@ class ConfigWorkflow(BaseModel):
     def from_config_file(cls, config_path: str) -> Self:
         """Creates a ConfigWorkflow instance from a config file, a yaml with the workflow definition.
 
-        Supports both Jinja2 templates and simple environment variable expansion:
-
-        **Jinja2 Templates** (detected by {{ }} syntax or .j2 extension):
+        All config files are processed as Jinja2 templates with the following features:
         - Use {{ VAR }} syntax for variables
-        - Variables loaded from: environment → vars.yml → explicit overrides
         - Full Jinja2 features: conditionals, loops, filters, etc.
         - Missing variables raise clear errors (StrictUndefined)
 
-        **Shell-style expansion** (${VAR} syntax):
-        - Simple ${VAR} and ${VAR:-default} environment variable expansion
-        - Backward compatible with existing configs
-
-        **Variable sources for Jinja2 (in priority order):**
+        **Variable sources (in priority order):**
         1. Environment variables (base)
         2. vars.yml/vars.yaml in config directory (overrides env)
         3. Explicitly provided variables (future: CLI args)
@@ -906,23 +855,12 @@ class ConfigWorkflow(BaseModel):
 
         # Determine config filename (without .j2 extension if present)
         config_filename = config_resolved_path.stem
-        if config_filename.endswith('.yml') or config_filename.endswith('.yaml'):
+        if config_filename.endswith((".yml", ".yaml")):
             # For .yml.j2 or .yaml.j2, extract the basename without both extensions
             config_filename = Path(config_filename).stem
 
-        # Detect templating approach:
-        # 1. .j2 extension → always use Jinja2
-        # 2. Jinja2 syntax detected ({{ }}, {% %}) → use Jinja2
-        # 3. Otherwise → use shell-style ${VAR} expansion
-        use_jinja2 = (
-            config_resolved_path.suffix == '.j2'
-            or _detect_jinja2_syntax(content)
-        )
-
-        if use_jinja2:
-            content = _render_jinja2_template(content, config_resolved_path)
-        else:
-            content = _expand_env_vars(content)
+        # Always render as Jinja2 template
+        content = _render_jinja2_template(content, config_resolved_path)
 
         # Parse YAML and validate
         reader = YAML(typ="safe", pure=True)

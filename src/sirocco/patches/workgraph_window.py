@@ -32,7 +32,8 @@ def patch_workgraph_window():
 
     # Store original methods
     original_task_manager_init = TaskManager.__init__
-    original_task_manager_continue_workgraph = TaskManager.continue_workgraph
+    original_task_manager_continue_workgraph = TaskManager.continue_workgraph  # noqa F841:
+    # Local variable `original_task_manager_continue_workgraph` is assigned to but never used
     original_workgraph_init = WorkGraph.__init__
     original_workgraph_to_dict = WorkGraph.to_dict
     original_workgraph_from_dict = WorkGraph.from_dict
@@ -46,19 +47,19 @@ def patch_workgraph_window():
         original_workgraph_init(self, name=name, **kwargs)
         self.extras = {}  # Initialize extras dict for custom metadata
 
-    def patched_workgraph_to_dict(self, include_sockets=False, should_serialize=False):
+    def patched_workgraph_to_dict(self, include_sockets=False, should_serialize=False):  # noqa FBT002: Boolean default positional argument in function definition
         """Serialize WorkGraph including extras dict."""
         result = original_workgraph_to_dict(self, include_sockets=include_sockets, should_serialize=should_serialize)
-        result['extras'] = getattr(self, 'extras', {})  # Serialize extras dict
+        result["extras"] = getattr(self, "extras", {})  # Serialize extras dict
         return result
 
     @classmethod
-    def patched_workgraph_from_dict(cls, data, *args, **kwargs):
+    def patched_workgraph_from_dict(cls, data, *args, **kwargs):  # noqa ARG001: Unused function argument: `cls`
         """Deserialize WorkGraph and restore extras dict."""
         wg = original_workgraph_from_dict(data, *args, **kwargs)
         # Restore extras dict (for window_config)
-        if 'extras' in data:
-            wg.extras = data['extras']
+        if "extras" in data:
+            wg.extras = data["extras"]
         return wg
 
     # ========================================================================
@@ -71,21 +72,21 @@ def patch_workgraph_window():
 
         # Initialize window state with defaults (will be loaded from WorkGraph context later)
         self.window_config = {
-            'enabled': False,
-            'front_depth': float('inf'),
-            'task_dependencies': {},
+            "enabled": False,
+            "front_depth": float("inf"),
+            "task_dependencies": {},
         }
         self.window_state = {
-            'min_active_level': 0,
-            'max_allowed_level': float('inf'),
-            'dynamic_task_levels': {},
+            "min_active_level": 0,
+            "max_allowed_level": float("inf"),
+            "dynamic_task_levels": {},
         }
         self._window_initialized = False
 
     def _init_window_state(self):
         """Initialize window state from WorkGraph context."""
         # Check if WorkGraph is available yet
-        if not hasattr(self.process, 'wg') or self.process.wg is None:
+        if not hasattr(self.process, "wg") or self.process.wg is None:
             self.logger.debug("WorkGraph not available yet for window initialization")
             return  # WorkGraph not loaded yet, use defaults
 
@@ -93,28 +94,28 @@ def patch_workgraph_window():
             return  # Already initialized
 
         # Load window config from WorkGraph extras (persisted with the WorkGraph)
-        window_config = getattr(self.process.wg, 'extras', {}).get('window_config', {})
-        self.logger.debug(f"Initializing window state, config: {window_config}")
+        window_config = getattr(self.process.wg, "extras", {}).get("window_config", {})
+        self.logger.debug("Initializing window state, config: %s", window_config)
 
         self.window_config = {
-            'enabled': window_config.get('enabled', False),
-            'front_depth': window_config.get('front_depth', float('inf')),
-            'max_queued_jobs': window_config.get('max_queued_jobs', None),
-            'task_dependencies': window_config.get('task_dependencies', {}),
+            "enabled": window_config.get("enabled", False),
+            "front_depth": window_config.get("front_depth", float("inf")),
+            "max_queued_jobs": window_config.get("max_queued_jobs", None),
+            "task_dependencies": window_config.get("task_dependencies", {}),
         }
 
         # Initialize window state
-        if self.window_config['enabled']:
+        if self.window_config["enabled"]:
             self.window_state = {
-                'min_active_level': 0,
-                'max_allowed_level': self.window_config['front_depth'],
-                'dynamic_task_levels': self._compute_dynamic_levels(),
+                "min_active_level": 0,
+                "max_allowed_level": self.window_config["front_depth"],
+                "dynamic_task_levels": self._compute_dynamic_levels(),
             }
         else:
             self.window_state = {
-                'min_active_level': 0,
-                'max_allowed_level': float('inf'),
-                'dynamic_task_levels': {},
+                "min_active_level": 0,
+                "max_allowed_level": float("inf"),
+                "dynamic_task_levels": {},
             }
 
         self._window_initialized = True
@@ -131,25 +132,22 @@ def patch_workgraph_window():
         """
         from collections import deque
 
-        if not self.window_config['enabled']:
+        if not self.window_config["enabled"]:
             return {}
 
-        task_deps = self.window_config['task_dependencies']
+        task_deps = self.window_config["task_dependencies"]
 
         # Step 1: Filter to only unfinished tasks
         unfinished_tasks = set()
-        for task_name in task_deps.keys():
-            state = self.state_manager.get_task_runtime_info(task_name, 'state')
-            if state not in ['FINISHED', 'FAILED', 'SKIPPED']:
+        for task_name in task_deps:
+            state = self.state_manager.get_task_runtime_info(task_name, "state")
+            if state not in ["FINISHED", "FAILED", "SKIPPED"]:
                 unfinished_tasks.add(task_name)
 
         # Step 2: Build filtered dependency graph (only unfinished tasks)
         filtered_deps = {}
         for task_name in unfinished_tasks:
-            unfinished_parents = [
-                p for p in task_deps[task_name]
-                if p in unfinished_tasks
-            ]
+            unfinished_parents = [p for p in task_deps[task_name] if p in unfinished_tasks]
             filtered_deps[task_name] = unfinished_parents
 
         # Step 3: Compute levels using BFS (same algorithm as compute_topological_levels)
@@ -190,78 +188,75 @@ def patch_workgraph_window():
         Recomputes dynamic levels after each task completion to allow
         faster branches to advance independently.
         """
-        if not self.window_config['enabled']:
+        if not self.window_config["enabled"]:
             return
 
         # RECOMPUTE DYNAMIC LEVELS based on current task states
-        self.window_state['dynamic_task_levels'] = self._compute_dynamic_levels()
+        self.window_state["dynamic_task_levels"] = self._compute_dynamic_levels()
 
         # Find minimum level of active (CREATED/RUNNING) launcher tasks
         active_levels = []
-        for task_name, level in self.window_state['dynamic_task_levels'].items():
-            state = self.state_manager.get_task_runtime_info(task_name, 'state')
-            if state in ['CREATED', 'RUNNING']:
+        for task_name, level in self.window_state["dynamic_task_levels"].items():
+            state = self.state_manager.get_task_runtime_info(task_name, "state")
+            if state in ["CREATED", "RUNNING"]:
                 active_levels.append(level)
 
         if not active_levels:
             # No active tasks - advance window to next pending level
-            old_min = self.window_state['min_active_level']
+            old_min = self.window_state["min_active_level"]
             # Find next level with pending tasks
-            if self.window_state['dynamic_task_levels']:
-                max_level = max(self.window_state['dynamic_task_levels'].values())
+            if self.window_state["dynamic_task_levels"]:
+                max_level = max(self.window_state["dynamic_task_levels"].values())
                 for level in range(old_min, max_level + 1):
                     tasks_at_level = [
-                        name for name, lvl in self.window_state['dynamic_task_levels'].items()
-                        if lvl == level
+                        name for name, lvl in self.window_state["dynamic_task_levels"].items() if lvl == level
                     ]
                     if tasks_at_level:
                         # Check if any task at this level is not finished
                         has_pending = any(
-                            self.state_manager.get_task_runtime_info(name, 'state')
-                            not in ['FINISHED', 'FAILED', 'SKIPPED']
+                            self.state_manager.get_task_runtime_info(name, "state")
+                            not in ["FINISHED", "FAILED", "SKIPPED"]
                             for name in tasks_at_level
                         )
                         if has_pending:
-                            self.window_state['min_active_level'] = level
+                            self.window_state["min_active_level"] = level
                             break
                 else:
                     # All tasks finished, keep current min
-                    self.window_state['min_active_level'] = old_min
+                    self.window_state["min_active_level"] = old_min
             else:
                 # No tasks in dynamic levels (all finished), keep current min
-                self.window_state['min_active_level'] = old_min
+                self.window_state["min_active_level"] = old_min
         else:
             # Set min_active_level to minimum of active tasks
-            self.window_state['min_active_level'] = min(active_levels)
+            self.window_state["min_active_level"] = min(active_levels)
 
         # Update max_allowed_level
-        front_depth = self.window_config['front_depth']
-        self.window_state['max_allowed_level'] = (
-            self.window_state['min_active_level'] + front_depth
-        )
+        front_depth = self.window_config["front_depth"]
+        self.window_state["max_allowed_level"] = self.window_state["min_active_level"] + front_depth
 
     def _is_task_in_window(self, task_name):
         """Check if task is within the active submission window."""
-        if not self.window_config['enabled']:
+        if not self.window_config["enabled"]:
             return True  # No windowing, all tasks allowed
 
         # get_job_data tasks and other non-launcher tasks are always allowed
-        if not task_name.startswith('launch_'):
+        if not task_name.startswith("launch_"):
             return True
 
         # Check dynamic topological level
-        task_level = self.window_state['dynamic_task_levels'].get(task_name)
+        task_level = self.window_state["dynamic_task_levels"].get(task_name)
         if task_level is None:
             # Task not in level mapping - allow it
             return True
 
-        if task_level > self.window_state['max_allowed_level']:
+        if task_level > self.window_state["max_allowed_level"]:
             return False  # Outside window
 
         # Check max_queued_jobs threshold if configured
-        if self.window_config.get('max_queued_jobs'):
+        if self.window_config.get("max_queued_jobs"):
             active_count = self._count_active_jobs()
-            if active_count >= self.window_config['max_queued_jobs']:
+            if active_count >= self.window_config["max_queued_jobs"]:
                 return False  # Too many jobs already
 
         return True
@@ -270,8 +265,8 @@ def patch_workgraph_window():
         """Count tasks in CREATED or RUNNING state."""
         count = 0
         for task in self.process.wg.tasks:
-            state = self.state_manager.get_task_runtime_info(task.name, 'state')
-            if state in ['CREATED', 'RUNNING']:
+            state = self.state_manager.get_task_runtime_info(task.name, "state")
+            if state in ["CREATED", "RUNNING"]:
                 count += 1
         return count
 
@@ -288,12 +283,16 @@ def patch_workgraph_window():
         self._init_window_state()
 
         # Update window state if rolling window is enabled
-        if self.window_config.get('enabled'):
+        if self.window_config.get("enabled"):
             self._update_window()
             # Report window state
-            if self.window_state['dynamic_task_levels']:
+            if self.window_state["dynamic_task_levels"]:
                 active_count = self._count_active_jobs()
-                max_level = max(self.window_state['dynamic_task_levels'].values()) if self.window_state['dynamic_task_levels'] else 0
+                max_level = (
+                    max(self.window_state["dynamic_task_levels"].values())
+                    if self.window_state["dynamic_task_levels"]
+                    else 0
+                )
                 self.process.report(
                     f"Window: levels {self.window_state['min_active_level']}-"
                     f"{self.window_state['max_allowed_level']} (max dynamic level: {max_level}), "
@@ -306,14 +305,14 @@ def patch_workgraph_window():
         for task in self.process.wg.tasks:
             # Skip tasks that are already in progress, finished, or already executed
             if (
-                self.state_manager.get_task_runtime_info(task.name, 'state')
+                self.state_manager.get_task_runtime_info(task.name, "state")
                 in [
-                    'CREATED',
-                    'RUNNING',
-                    'FINISHED',
-                    'FAILED',
-                    'SKIPPED',
-                    'MAPPED',
+                    "CREATED",
+                    "RUNNING",
+                    "FINISHED",
+                    "FAILED",
+                    "SKIPPED",
+                    "MAPPED",
                 ]
                 or task.name in self.ctx._executed_tasks
             ):
@@ -327,9 +326,9 @@ def patch_workgraph_window():
                     skipped_by_window.append(task.name)
 
         # Report tasks
-        self.process.report('tasks ready to run: {}'.format(','.join(task_to_run)))
+        self.process.report("tasks ready to run: {}".format(",".join(task_to_run)))
         if skipped_by_window:
-            self.process.report('tasks skipped (outside window): {}'.format(','.join(skipped_by_window)))
+            self.process.report("tasks skipped (outside window): {}".format(",".join(skipped_by_window)))
 
         # Run the tasks
         self.run_tasks(task_to_run)
