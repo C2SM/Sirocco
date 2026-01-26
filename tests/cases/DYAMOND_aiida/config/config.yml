@@ -5,6 +5,7 @@ stop_date: &root_stop_date '2020-01-20T00:01:30'
 # stop_date: &root_stop_date '2021-01-20T00:00:00'
 # scheduler: slurm
 front_depth: 1
+
 cycles:
   - icon:
       cycling:
@@ -70,6 +71,7 @@ cycles:
                   port: stream
               - stream_2:
                   port: stream
+
 tasks:
   # - ROOT:
   #     computer: "{{ SIROCCO_COMPUTER }}"
@@ -120,7 +122,6 @@ tasks:
       # TODO: Enforce that path is relative, if given
       path: ./scripts/post_proc.sh
       command: "post_proc.sh {PORT::stream}"
-
 
 data:
   available:
