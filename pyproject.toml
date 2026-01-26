@@ -174,10 +174,11 @@ extra-dependencies = [
 
 [tool.hatch.envs.types.scripts]
 check = "mypy --exclude 'tests/cases/*' --no-incremental {args:.}"
+ty-check = "ty check --exclude 'tests/cases/*' --python-version 3.12"
 
 [tool.mypy]
 disable_error_code = ["import-untyped"]
-ty-check = "ty check --exclude 'tests/cases/*' --python-version 3.12"
+exclude = ["^tests/"]
 
 [[tool.mypy.overrides]]
 module = ["isoduration", "isoduration.*"]

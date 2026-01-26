@@ -132,7 +132,7 @@ tasks:
       command: "bash fast_task.sh setup {{ FAST_TIME }}"
       computer: "{{ SIROCCO_COMPUTER }}"
       account: "{{ SLURM_ACCOUNT }}"
-      queue_name: "{{ SLURM_QUEUE }}"
+      partition: "{{ SLURM_QUEUE }}"
       walltime: 00:30:00
 
   # Fast branch tasks
@@ -142,7 +142,7 @@ tasks:
       command: "bash fast_task.sh fast_1 {{ FAST_TIME }}"
       computer: "{{ SIROCCO_COMPUTER }}"
       account: "{{ SLURM_ACCOUNT }}"
-      queue_name: "{{ SLURM_QUEUE }}"
+      partition: "{{ SLURM_QUEUE }}"
       walltime: 00:30:00
 
   - fast_2:
@@ -151,7 +151,7 @@ tasks:
       command: "bash fast_task.sh fast_2 {{ FAST_TIME }}"
       computer: "{{ SIROCCO_COMPUTER }}"
       account: "{{ SLURM_ACCOUNT }}"
-      queue_name: "{{ SLURM_QUEUE }}"
+      partition: "{{ SLURM_QUEUE }}"
       walltime: 00:30:00
 
   - fast_3:
@@ -160,7 +160,7 @@ tasks:
       command: "bash fast_task.sh fast_3 {{ FAST_TIME }}"
       computer: "{{ SIROCCO_COMPUTER }}"
       account: "{{ SLURM_ACCOUNT }}"
-      queue_name: "{{ SLURM_QUEUE }}"
+      partition: "{{ SLURM_QUEUE }}"
       walltime: 00:30:00
 
   # Medium branch tasks
@@ -170,7 +170,7 @@ tasks:
       command: "bash medium_task.sh medium_1 {{ MEDIUM_TIME }}"
       computer: "{{ SIROCCO_COMPUTER }}"
       account: "{{ SLURM_ACCOUNT }}"
-      queue_name: "{{ SLURM_QUEUE }}"
+      partition: "{{ SLURM_QUEUE }}"
       walltime: 00:30:00
 
   - medium_2:
@@ -179,7 +179,7 @@ tasks:
       command: "bash medium_task.sh medium_2 {{ MEDIUM_TIME }}"
       computer: "{{ SIROCCO_COMPUTER }}"
       account: "{{ SLURM_ACCOUNT }}"
-      queue_name: "{{ SLURM_QUEUE }}"
+      partition: "{{ SLURM_QUEUE }}"
       walltime: 00:30:00
 
   - medium_3:
@@ -188,7 +188,7 @@ tasks:
       command: "bash medium_task.sh medium_3 {{ MEDIUM_TIME }}"
       computer: "{{ SIROCCO_COMPUTER }}"
       account: "{{ SLURM_ACCOUNT }}"
-      queue_name: "{{ SLURM_QUEUE }}"
+      partition: "{{ SLURM_QUEUE }}"
       walltime: 00:30:00
 
   # Slow branch tasks
@@ -198,7 +198,7 @@ tasks:
       command: "bash slow_task.sh slow_1 {{ SLOW_TIME }}"
       computer: "{{ SIROCCO_COMPUTER }}"
       account: "{{ SLURM_ACCOUNT }}"
-      queue_name: "{{ SLURM_QUEUE }}"
+      partition: "{{ SLURM_QUEUE }}"
       walltime: 00:30:00
 
   - slow_2:
@@ -207,7 +207,7 @@ tasks:
       command: "bash slow_task.sh slow_2 {{ SLOW_TIME }}"
       computer: "{{ SIROCCO_COMPUTER }}"
       account: "{{ SLURM_ACCOUNT }}"
-      queue_name: "{{ SLURM_QUEUE }}"
+      partition: "{{ SLURM_QUEUE }}"
       walltime: 00:30:00
 
   - slow_3:
@@ -216,7 +216,7 @@ tasks:
       command: "bash slow_task.sh slow_3 {{ SLOW_TIME }}"
       computer: "{{ SIROCCO_COMPUTER }}"
       account: "{{ SLURM_ACCOUNT }}"
-      queue_name: "{{ SLURM_QUEUE }}"
+      partition: "{{ SLURM_QUEUE }}"
       walltime: 00:30:00
 
   # Convergence and inter-cycle
@@ -226,7 +226,7 @@ tasks:
       command: "bash fast_task.sh finalize {{ FAST_TIME }}"
       computer: "{{ SIROCCO_COMPUTER }}"
       account: "{{ SLURM_ACCOUNT }}"
-      queue_name: "{{ SLURM_QUEUE }}"
+      partition: "{{ SLURM_QUEUE }}"
       walltime: 00:30:00
 
   - prepare_next:
@@ -235,7 +235,7 @@ tasks:
       command: "bash fast_task.sh prepare_next {{ FAST_TIME }}"
       computer: "{{ SIROCCO_COMPUTER }}"
       account: "{{ SLURM_ACCOUNT }}"
-      queue_name: "{{ SLURM_QUEUE }}"
+      partition: "{{ SLURM_QUEUE }}"
       walltime: 00:30:00
 
 data:

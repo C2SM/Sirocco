@@ -542,6 +542,7 @@ class ConfigIconTaskSpecs:
         repr=False,
         metadata={"description": "Path to wrapper script file relative to the config directory or absolute."},
     )
+    # NOTE: This is hard-coded still to CSCS...
     target: Literal["santis_cpu", "santis_gpu"] | None = field(
         default=None,
         metadata={
@@ -667,7 +668,7 @@ class ConfigAvailableData(ConfigBaseData, ConfigAvailableDataSpecs):
 
 @dataclass(kw_only=True)
 class ConfigGeneratedDataSpecs:
-    path: Path | None = None
+    path: Path
 
 
 class ConfigGeneratedData(ConfigBaseData, ConfigGeneratedDataSpecs): ...
@@ -882,7 +883,7 @@ class ConfigWorkflow(BaseModel):
 
     rootdir: Path
     config_filename: str
-    scheduler: Literal["slurm"]
+    scheduler: Literal["slurm"] = "slurm"
     name: str
     cycles: Annotated[list[ConfigCycle], BeforeValidator(list_not_empty)]
     tasks: Annotated[list[ConfigTask], BeforeValidator(list_not_empty)]

@@ -1054,9 +1054,13 @@ def load_icon_dependencies(
     # ------------------------------------------------------------------
     # Load RemoteData for each parent folder (remote_folder pk)
     # ------------------------------------------------------------------
-    parent_folders_loaded = {
-        dep_label: aiida.orm.load_node(tagged_val.value) for dep_label, tagged_val in parent_folders.items()
-    }
+    parent_folders_loaded: dict[str, aiida.orm.RemoteData] = {}
+    for dep_label, tagged_val in parent_folders.items():
+        node = aiida.orm.load_node(tagged_val.value)
+        if not isinstance(node, aiida.orm.RemoteData):
+            msg = f"Expected RemoteData for {dep_label} but got {type(node)}"
+            raise TypeError(msg)
+        parent_folders_loaded[dep_label] = node
 
     # ------------------------------------------------------------------
     # Process each port → list of dependencies
@@ -1162,7 +1166,7 @@ def prepare_icon_task_inputs(
     icon_spec = IconCalculation.spec()
 
     # Start with code and namelists
-    inputs = {
+    inputs: dict[str, Any] = {
         "code": aiida.orm.load_node(task_spec["code_pk"]),
         "master_namelist": aiida.orm.load_node(task_spec["master_namelist_pk"]),
     }
@@ -1435,8 +1439,8 @@ def get_scheduler_options_from_task(task: core.Task) -> dict[str, Any]:
         options["max_wallclock_seconds"] = TimeUtils.walltime_to_seconds(task.walltime)
     if task.mem is not None:
         options["max_memory_kb"] = task.mem * 1024
-    if task.queue_name is not None:
-        options["queue_name"] = task.queue_name
+    if task.partition is not None:
+        options["partition"] = task.partition
 
     # custom_scheduler_commands - initialize if not already set
     if "custom_scheduler_commands" not in options:
@@ -1564,7 +1568,12 @@ def create_shell_code(task: core.ShellTask, computer: aiida.orm.Computer) -> tup
         raise FileNotFoundError(msg)
 
     # Check remote file existence using transport
-    authinfo = computer.get_authinfo(aiida.orm.User.collection.get_default())
+    user = aiida.orm.User.collection.get_default()
+    if user is None:
+        msg = "No default AiiDA user available."
+        raise RuntimeError(msg)
+
+    authinfo = computer.get_authinfo(user)
     with authinfo.get_transport() as transport:
         if not transport.isfile(executable_path):
             msg = (
@@ -1684,9 +1693,6 @@ def build_shell_task_spec(task: core.ShellTask) -> dict:
     # PortableCode handles script upload automatically, no need for separate SinglefileData
     code, _ = create_shell_code(task, computer)
 
-    # Build nodes (input files) - store as PKs
-    node_pks = {}
-
     # Pre-compute input data information using dataclasses
     input_data_info: list[InputDataInfo] = []
     for port_name, input_ in task.input_data_items():
@@ -1718,7 +1724,7 @@ def build_shell_task_spec(task: core.ShellTask) -> dict:
     # Pre-compute output data information using dataclasses
     # breakpoint()
     output_data_info: list[OutputDataInfo] = []
-    for port_name, output in task.output_data_items():
+    for port_name, output in task.output_data_items():  # type: ignore[assignment]
         output_info = OutputDataInfo(
             name=output.name,
             coordinates=serialize_coordinates(output.coordinates),
@@ -1742,7 +1748,7 @@ def build_shell_task_spec(task: core.ShellTask) -> dict:
     # {'icon_input': ['icon_input']}
     output_labels: dict[str, list[str]] = {}
     for output_info in output_data_info:
-        port_name = output_info.port
+        port_name = output_info.port  # type: ignore[assignment]
         output_label = output_info.label
         if port_name not in output_labels:
             output_labels[port_name] = []
@@ -1769,7 +1775,7 @@ def build_shell_task_spec(task: core.ShellTask) -> dict:
     # breakpoint()
     # FIXME: This merging works for now, but see how else to properly handle the previously empty `--icon_input`
     input_labels.update(output_labels)
-    arguments_with_placeholders = task.resolve_ports(input_labels)
+    arguments_with_placeholders = task.resolve_ports(input_labels)  # type: ignore[arg-type]
 
     _, resolved_arguments_template = split_cmd_arg(arguments_with_placeholders, script_name)
 
@@ -1790,7 +1796,7 @@ def build_shell_task_spec(task: core.ShellTask) -> dict:
     # Build outputs list - but DON'T retrieve, just verify existence
     # Set retrieve_temporary_list instead of outputs so files stay on remote
     # NOTE: For now, keep outputs empty to avoid retrieval
-    outputs = []
+    outputs = []  # type: ignore[var-annotated]
 
     # Build output port mapping: data_name -> shell output link_label
 
@@ -1805,7 +1811,7 @@ def build_shell_task_spec(task: core.ShellTask) -> dict:
     return {
         "label": label,
         "code_pk": code.pk,
-        "node_pks": node_pks,
+        "node_pks": {},
         "metadata": metadata,
         "arguments_template": resolved_arguments_template,
         "filenames": filenames,

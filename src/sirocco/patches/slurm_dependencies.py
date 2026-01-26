@@ -173,11 +173,23 @@ def patch_slurm_dependency_handling():
         if job_id is not None:
             return job_id
 
-        scheduler = calculation.computer.get_scheduler()
+        computer = calculation.computer
+        if computer is None:
+            msg = "CalcJobNode has no associated computer"
+            raise ValueError(msg)
+
+        scheduler = computer.get_scheduler()
         scheduler.set_transport(transport)
 
         submit_script_filename = calculation.get_option("submit_script_filename")
         workdir = calculation.get_remote_workdir()
+
+        if submit_script_filename is None:
+            msg = "submit_script_filename option is not set"
+            raise ValueError(msg)
+        if workdir is None:
+            msg = "Remote working directory is not set"
+            raise ValueError(msg)
 
         try:
             result = scheduler.submit_job(workdir, submit_script_filename)
