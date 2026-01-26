@@ -757,9 +757,8 @@ def _render_jinja2_template(
     """Render a Jinja2 template with variables from multiple sources.
 
     Variables are loaded in this order (later sources override earlier ones):
-    1. Environment variables
-    2. Variables file (vars.yml/vars.yaml in same directory as config)
-    3. Explicitly provided variables dict
+    1. Variables file (vars.yml/vars.yaml in same directory as config)
+    2. Explicitly provided variables dict
 
     Args:
         content: The template content to render
@@ -774,8 +773,7 @@ def _render_jinja2_template(
     """
     from jinja2 import Environment, StrictUndefined
 
-    # Load variables from multiple sources
-    template_vars = dict(os.environ)  # Start with environment variables
+    template_vars = {}
 
     # Look for variables file in the same directory
     config_dir = config_path.parent
@@ -922,7 +920,7 @@ class ConfigWorkflow(BaseModel):
         return self
 
     @classmethod
-    def from_config_file(cls, config_path: str | Path) -> Self:
+    def from_config_file(cls, config_path: str | Path, variables: dict[str, Any] | None = None) -> Self:
         """Creates a ConfigWorkflow instance from a config file, a yaml with the workflow definition.
 
         All config files are processed as Jinja2 templates with the following features:
@@ -933,10 +931,11 @@ class ConfigWorkflow(BaseModel):
         **Variable sources (in priority order):**
         1. Environment variables (base)
         2. vars.yml/vars.yaml in config directory (overrides env)
-        3. Explicitly provided variables (future: CLI args)
+        3. Explicitly provided variables parameter (overrides all)
 
         Args:
             config_path (str): The path of the config file to load from.
+            variables (dict[str, Any] | None): Optional variables to use in template rendering.
 
         Returns:
             ConfigWorkflow: An instance with data parsed and validated from the YAML content.
@@ -965,7 +964,7 @@ class ConfigWorkflow(BaseModel):
             config_filename = Path(config_filename).stem
 
         # Always render as Jinja2 template
-        content = _render_jinja2_template(content, config_resolved_path)
+        content = _render_jinja2_template(content, config_resolved_path, variables)
 
         # Parse YAML and validate
         reader = YAML(typ="safe", pure=True)

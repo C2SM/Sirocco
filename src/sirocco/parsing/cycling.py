@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Self
 
 from isoduration.types import Duration  # noqa: TC002 needed for pydantic
@@ -11,7 +12,6 @@ from sirocco.parsing._utils import TimeUtils, convert_to_date, convert_to_durati
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from datetime import datetime
 
 
 class CyclePoint:

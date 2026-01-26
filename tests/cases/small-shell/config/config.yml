@@ -49,10 +49,10 @@ data:
      - icon_namelist:
          # Different computer between task and available data
          computer: "{{ SIROCCO_DATA_COMPUTER }}"
-         path: /TESTS_ROOTDIR/tests/cases/small-shell/config/data/input
+         path: {{ TESTS_ROOTDIR }}/tests/cases/small-shell/config/data/input
      - initial_conditions:
          computer: "{{ SIROCCO_DATA_COMPUTER }}"
-         path: /TESTS_ROOTDIR/tests/cases/small-shell/config/data/initial_conditions
+         path: {{ TESTS_ROOTDIR }}/tests/cases/small-shell/config/data/initial_conditions
   generated:
      - icon_output:
          path: icon_output

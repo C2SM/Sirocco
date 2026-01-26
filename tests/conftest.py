@@ -164,9 +164,8 @@ def config_paths(config_case, icon_grid_path, tmp_path, test_rootdir) -> dict[st
     for key, value in config.items():
         config[key] = tmp_path / value
 
-    # Expand /TESTS_ROOTDIR to directory where config is located
-    for key in ["yml", "txt"]:
-        config[key].write_text(config[key].read_text().replace("/TESTS_ROOTDIR", str(tmp_path)))
+    # Add Jinja2 variables for template rendering in config files
+    config["variables"] = {"TESTS_ROOTDIR": str(tmp_path)}
 
     if config_case == "small-icon":
         config_rootdir = config["yml"].parent
@@ -223,7 +222,9 @@ def pytest_configure(config):
             config_paths = generate_config_paths(config_case)
             for key, value in config_paths.items():
                 config_paths[key] = pathlib.Path(config.rootdir) / value
-            wf = workflow.Workflow.from_config_file(str(config_paths["yml"]))
+            # For regenerating tests, TESTS_ROOTDIR points to the repository root
+            variables = {"TESTS_ROOTDIR": str(config.rootdir)}
+            wf = workflow.Workflow.from_config_file(str(config_paths["yml"]), variables=variables)
             serialize_worklfow(config_paths=config_paths, workflow=wf)
             serialize_nml(config_paths=config_paths, workflow=wf)
 
