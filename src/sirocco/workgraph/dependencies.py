@@ -4,15 +4,12 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import aiida.orm
 
 from sirocco import core
 from sirocco.workgraph.task_specs import DependencyInfo, JobIds, ParentFolders, PortToDependencies, TaskDepInfo
-
-if TYPE_CHECKING:
-    pass
 
 LOGGER = logging.getLogger(__name__)
 
@@ -439,7 +436,8 @@ def build_dependency_mapping(
         prev_label, out_data = producer_info
 
         # Extract filename/path if GeneratedData
-        filename = out_data.path.name if getattr(out_data, "path", None) else None
+        path = getattr(out_data, "path", None)
+        filename = path.name if path else None
 
         # Only record dependencies if this producer has completed metadata
         if prev_label not in task_dep_info:

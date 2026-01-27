@@ -180,7 +180,7 @@ def config_paths(config_case, icon_grid_path, tmp_path, test_rootdir) -> dict[st
         if not config_icon_grid_path.exists():
             config_icon_grid_path.symlink_to(icon_grid_path)
 
-    yield config
+    return config
 
 
 def pytest_addoption(parser):

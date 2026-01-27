@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time
-from typing import Annotated, Any
+from typing import Annotated
 
 import aiida.orm
 import yaml
@@ -31,25 +30,21 @@ LOGGER = logging.getLogger(__name__)
 # =============================================================================
 
 
-@task(outputs=namespace(job_id=int, remote_folder=int))
-async def get_job_data(
-    workgraph_name: str,
-    task_name: str,
-    interval: int = 10,
-    timeout: int = 3600,  # noqa: ASYNC109
-):
-    """Monitor CalcJob and return job_id and remote_folder PK when available."""
+async def _poll_for_job_data(workgraph_name: str, task_name: str, interval: int) -> dict:
+    """Poll for job data until available.
+
+    Args:
+        workgraph_name: Name of the WorkGraph to monitor
+        task_name: Name of the task within the WorkGraph
+        interval: Polling interval in seconds
+
+    Returns:
+        Dict with job_id and remote_folder PK
+    """
     from aiida import orm
     from aiida_workgraph.engine.workgraph import WorkGraphEngine
 
-    start = time.time()
-
     while True:
-        # Timeout check early
-        if time.time() - start > timeout:
-            msg = f"Timeout waiting for job_id for task {task_name} after {timeout}s"
-            raise TimeoutError(msg)
-
         # Query for WorkGraphs
         builder = orm.QueryBuilder()
         builder.append(
@@ -82,6 +77,35 @@ async def get_job_data(
         # SUCCESS — return early
         remote_pk = node.outputs.remote_folder.pk
         return {"job_id": int(job_id), "remote_folder": remote_pk}
+
+
+@task(outputs=namespace(job_id=int, remote_folder=int))
+async def get_job_data(
+    workgraph_name: str,
+    task_name: str,
+    interval: int = 10,
+    timeout_seconds: int = 3600,
+):
+    """Monitor CalcJob and return job_id and remote_folder PK when available.
+
+    Args:
+        workgraph_name: Name of the WorkGraph to monitor
+        task_name: Name of the task within the WorkGraph
+        interval: Polling interval in seconds
+        timeout_seconds: Timeout in seconds (based on task walltime + buffer)
+
+    Returns:
+        Dict with job_id and remote_folder PK
+
+    Raises:
+        TimeoutError: If job data is not available within timeout period
+    """
+    try:
+        async with asyncio.timeout(timeout_seconds):
+            return await _poll_for_job_data(workgraph_name, task_name, interval)
+    except TimeoutError as err:
+        msg = f"Timeout waiting for job_id for task {task_name} after {timeout_seconds}s"
+        raise TimeoutError(msg) from err
 
 
 # =============================================================================
@@ -284,13 +308,19 @@ def create_icon_launcher_pair(
         job_ids=job_ids_for_task if job_ids_for_task else None,
     )
 
+    # Calculate timeout based on walltime + buffer for queuing
+    # Default to 1 hour if walltime not specified
+    walltime_seconds = task_spec.get("metadata", {}).get("options", {}).get("max_wallclock_seconds", 3600)
+    # Add 5 minute buffer for job submission and queuing
+    timeout = walltime_seconds + 300
+
     # Create get_job_data task
     dep_task = wg.add_task(
         get_job_data,
         name=f"get_job_data_{task_label}",
         workgraph_name=launcher_name,
         task_name=task_label,
-        timeout=3600,
+        timeout_seconds=timeout,
     )
 
     # Store the outputs namespace for dependent tasks
@@ -351,13 +381,19 @@ def create_shell_launcher_pair(
         job_ids=job_ids_for_task if job_ids_for_task else None,
     )
 
+    # Calculate timeout based on walltime + buffer for queuing
+    # Default to 1 hour if walltime not specified
+    walltime_seconds = task_spec.get("metadata", {}).get("options", {}).get("max_wallclock_seconds", 3600)
+    # Add 5 minute buffer for job submission and queuing
+    timeout = walltime_seconds + 300
+
     # Create get_job_data task
     dep_task = wg.add_task(
         get_job_data,
         name=f"get_job_data_{task_label}",
         workgraph_name=launcher_name,
         task_name=task_label,
-        timeout=3600,
+        timeout_seconds=timeout,
     )
 
     # Store the outputs namespace for dependent tasks

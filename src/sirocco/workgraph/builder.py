@@ -7,7 +7,7 @@ import io
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from zoneinfo import ZoneInfo
 
 import aiida.orm
@@ -62,6 +62,8 @@ def build_shell_task_spec(task: core.ShellTask, adapter: AiiDAAdapter | None = N
         create_code = AiiDAAdapter.create_shell_code
         get_scheduler_opts = AiiDAAdapter.get_scheduler_options
     else:
+        # Type narrowing for mypy - adapter is guaranteed to be non-None here
+        adapter = cast("AiiDAAdapter", adapter)
         get_label = adapter.get_label
         create_code = adapter.create_shell_code
         get_scheduler_opts = adapter.get_scheduler_options
@@ -237,6 +239,8 @@ def build_icon_task_spec(task: core.IconTask, adapter: AiiDAAdapter | None = Non
         get_label = AiiDAAdapter.get_label_static
         get_scheduler_opts = AiiDAAdapter.get_scheduler_options
     else:
+        # Type narrowing for mypy - adapter is guaranteed to be non-None here
+        adapter = cast("AiiDAAdapter", adapter)
         get_label = adapter.get_label
         get_scheduler_opts = adapter.get_scheduler_options
 
@@ -353,6 +357,7 @@ class WorkGraphBuilder:
     Attributes:
         workflow: Core workflow to convert
         adapter: AiiDA adapter for domain translations
+        resolved_config_path: Optional path to resolved config file
         data_nodes: Maps data labels to AiiDA nodes
         shell_specs: Pre-computed shell task specifications
         icon_specs: Pre-computed ICON task specifications
@@ -361,9 +366,10 @@ class WorkGraphBuilder:
         launcher_deps: Maps launcher_name -> [parent_launcher_names]
     """
 
-    def __init__(self, core_workflow: core.Workflow):
+    def __init__(self, core_workflow: core.Workflow, resolved_config_path: str | None = None):
         self.workflow = core_workflow
         self.adapter = AiiDAAdapter(core_workflow)
+        self.resolved_config_path = resolved_config_path
 
         # Pre-computed static configuration
         self.data_nodes: dict[str, WorkgraphDataNode] = {}
@@ -382,10 +388,10 @@ class WorkGraphBuilder:
         """Main entry point - orchestrates the build process.
 
         Args:
-            front_depth: Number of topological fronts to keep active
-                0 = sequential (wait for level N to finish before submitting N+1)
-                1 = one front ahead (default)
-                high value = streaming submission
+            front_depth: Number of topological levels to keep active (must be >= 1)
+                1 = sequential (default, no pre-submission - wait for level N to finish before submitting N+1)
+                2 = one level ahead
+                higher values = more aggressive streaming submission
 
         Returns:
             A WorkGraph ready for submission with window_config in extras
@@ -516,10 +522,35 @@ class WorkGraphBuilder:
         return f"{base_name}_{timestamp}"
 
     def _store_window_config(self, wg: WorkGraph, front_depth: int) -> None:
-        """Store window configuration in WorkGraph extras for runtime control."""
+        """Store window configuration and resolved config in WorkGraph extras.
+
+        Args:
+            front_depth: Must be >= 1. 1=sequential, 2+=lookahead
+        """
+        if front_depth < 1:
+            msg = f"front_depth must be >= 1, got {front_depth}"
+            raise ValueError(msg)
+
         window_config = {
-            "enabled": front_depth >= 0,
+            "enabled": True,  # Always enabled with new semantics (front_depth >= 1)
             "front_depth": front_depth,
             "task_dependencies": self.launcher_deps,
         }
-        wg.extras = {"window_config": window_config}
+
+        extras: dict[str, Any] = {"window_config": window_config}
+
+        # Store resolved config as SinglefileData if available
+        if self.resolved_config_path and Path(self.resolved_config_path).exists():
+            resolved_config_node = aiida.orm.SinglefileData(file=self.resolved_config_path)
+            resolved_config_node.label = f"resolved_config_{self.workflow.name}"
+            resolved_config_node.description = (
+                f"Resolved configuration file (with Jinja2 variables replaced) for workflow {self.workflow.name}"
+            )
+            resolved_config_node.store()
+            # After store(), pk is guaranteed to be an int
+            node_pk = resolved_config_node.pk
+            if node_pk is not None:
+                extras["resolved_config_pk"] = node_pk
+                LOGGER.info("Stored resolved config as SinglefileData (PK: %s)", node_pk)
+
+        wg.extras = extras

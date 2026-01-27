@@ -105,13 +105,11 @@ class AiiDAAdapter:
         if used_by_icon_task:
             # ICON tasks always require RemoteData
             return aiida.orm.RemoteData(remote_path=str(data.path), label=label, computer=computer)
-        elif computer.get_transport_class() is aiida.transports.plugins.local.LocalTransport:
+        if computer.get_transport_class() is aiida.transports.plugins.local.LocalTransport:
             if data.path.is_file():
                 return aiida.orm.SinglefileData(file=str(data.path), label=label)
-            else:
-                return aiida.orm.FolderData(tree=str(data.path), label=label)
-        else:
-            return aiida.orm.RemoteData(remote_path=str(data.path), label=label, computer=computer)
+            return aiida.orm.FolderData(tree=str(data.path), label=label)
+        return aiida.orm.RemoteData(remote_path=str(data.path), label=label, computer=computer)
 
     # =============================================================================
     # Code creation
@@ -275,14 +273,15 @@ class AiiDAAdapter:
             options["custom_scheduler_commands"] = ""
 
         # Support uenv and view for both IconTask and ShellTask
-        if isinstance(task, (core.IconTask, core.ShellTask)) and task.uenv is not None:
-            if options["custom_scheduler_commands"]:
-                options["custom_scheduler_commands"] += "\n"
-            options["custom_scheduler_commands"] += f"#SBATCH --uenv={task.uenv}"
-        if isinstance(task, (core.IconTask, core.ShellTask)) and task.view is not None:
-            if options["custom_scheduler_commands"]:
-                options["custom_scheduler_commands"] += "\n"
-            options["custom_scheduler_commands"] += f"#SBATCH --view={task.view}"
+        if isinstance(task, (core.IconTask, core.ShellTask)):
+            if task.uenv is not None:
+                if options["custom_scheduler_commands"]:
+                    options["custom_scheduler_commands"] += "\n"
+                options["custom_scheduler_commands"] += f"#SBATCH --uenv={task.uenv}"
+            if task.view is not None:
+                if options["custom_scheduler_commands"]:
+                    options["custom_scheduler_commands"] += "\n"
+                options["custom_scheduler_commands"] += f"#SBATCH --view={task.view}"
 
         if task.nodes is not None or task.ntasks_per_node is not None or task.cpus_per_task is not None:
             resources = {}

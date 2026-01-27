@@ -339,10 +339,12 @@ class ConfigSiroccoTask(ConfigBaseTask, ConfigSiroccoTaskSpecs): ...
 class ConfigShellTaskSpecs:
     plugin: ClassVar[Literal["shell"]] = "shell"
     when_port_pattern: ClassVar[re.Pattern] = field(
-        default=re.compile(r"\[(?P<opt>.*?){PORT(?P<sep_spec>\[sep=.+\])?::(?P<port>.+?)}\]"), repr=False
+        default=re.compile(r"\[(?P<opt>.*?){PORT(?P<sep_spec>\[sep=.+\])?::(?P<port>.+?)}\]"),
+        repr=False,
     )
     port_pattern: ClassVar[re.Pattern] = field(
-        default=re.compile(r"{PORT(?P<sep_spec>\[sep=.+\])?::(?P<port>.+?)}"), repr=False
+        default=re.compile(r"{PORT(?P<sep_spec>\[sep=.+\])?::(?P<port>.+?)}"),
+        repr=False,
     )
     sep_pattern: ClassVar[re.Pattern] = field(default=re.compile(r"\[sep=(?P<sep>.+)\]"), repr=False)
 
@@ -755,42 +757,52 @@ def check_parameters_lists(data: Any) -> dict[str, list]:
 def _render_jinja2_template(
     content: str,
     config_path: Path,
+    jinja_vars_file_path: str | Path | None = None,
     variables: dict[str, Any] | None = None,
 ) -> str:
     """Render a Jinja2 template with variables from multiple sources.
 
     Variables are loaded in this order (later sources override earlier ones):
-    1. Variables file (vars.yml/vars.yaml in same directory as config)
+    1. Variables file (explicitly provided via jinja_vars_file_path, or auto-detected vars.yml/vars.yaml)
     2. Explicitly provided variables dict
 
     Args:
         content: The template content to render
-        config_path: Path to the config file (used to locate vars file)
+        config_path: Path to the config file (used to locate vars file if not explicitly provided)
         variables: Optional dict of variables to use (overrides other sources)
+        jinja_vars_file_path: Optional explicit path to variables file (overrides auto-detection)
 
     Returns:
         Rendered template content
 
     Raises:
         ValueError: If template rendering fails or required variables are missing
+        FileNotFoundError: If jinja_vars_file_path is provided but doesn't exist
     """
     from jinja2 import Environment, StrictUndefined
 
     template_vars = {}
 
-    # Look for variables file in the same directory
-    config_dir = config_path.parent
-    vars_file = None
-    # TODO: Expose the file name option to the user
-    for vars_name in ["vars.yml", "vars.yaml", "variables.yml", "variables.yaml"]:
-        candidate = config_dir / vars_name
-        if candidate.exists():
-            vars_file = candidate
-            break
+    # Use explicitly provided vars file path, or auto-detect
+    jinja_vars_file = None
+    if jinja_vars_file_path:
+        # Explicit path provided - use it directly
+        jinja_vars_file = Path(jinja_vars_file_path).resolve()
+        if not jinja_vars_file.exists():
+            msg = f"Variables file not found: {jinja_vars_file}"
+            raise FileNotFoundError(msg)
+    else:
+        # Auto-detect variables file in the config directory
+        config_dir = config_path.parent
+        for vars_name in ["vars.yml", "vars.yaml", "variables.yml", "variables.yaml"]:
+            candidate = config_dir / vars_name
+            if candidate.exists():
+                jinja_vars_file = candidate
+                break
 
-    if vars_file:
-        # Load variables from file (overrides environment)
-        vars_content = YAML(typ="safe", pure=True).load(vars_file.read_text())
+    if jinja_vars_file:
+        # Load variables from file
+        vars_content = YAML(typ="safe", pure=True).load(jinja_vars_file.read_text())
         if vars_content:
             template_vars.update(vars_content)
 
@@ -827,6 +839,7 @@ class ConfigWorkflow(BaseModel):
             >>> content = textwrap.dedent(
             ...     '''
             ...     name: minimal
+            ...     engine: standalone
             ...     scheduler: slurm
             ...     rootdir: /location/of/config
             ...     config_filename: config.yml
@@ -855,6 +868,7 @@ class ConfigWorkflow(BaseModel):
 
             >>> wf = ConfigWorkflow(
             ...     name="minimal",
+            ...     engine="standalone",
             ...     scheduler="slurm",
             ...     rootdir=Path("/location/of/config"),
             ...     config_filename="config.yml",
@@ -885,6 +899,14 @@ class ConfigWorkflow(BaseModel):
 
     rootdir: Path
     config_filename: str
+    resolved_config_path: str | None = Field(
+        default=None,
+        description="Path to the resolved config file (with Jinja2 variables replaced). Set automatically during loading.",
+    )
+    engine: Literal["standalone", "aiida"] = Field(
+        default="standalone",
+        description="Workflow execution engine to use.",
+    )
     scheduler: Literal["slurm"] = "slurm"
     name: str
     cycles: Annotated[list[ConfigCycle], BeforeValidator(list_not_empty)]
@@ -893,8 +915,8 @@ class ConfigWorkflow(BaseModel):
     parameters: Annotated[dict[str, list], BeforeValidator(check_parameters_lists)] = {}
     front_depth: int = Field(
         default=1,
-        description="Number of topological fronts to keep active. 0=sequential, 1=one front ahead (default), high value=streaming submission.",
-        ge=0,
+        description="Number of topological levels to keep active. 1=sequential (default, no pre-submission), 2=one level ahead, higher values=more aggressive streaming.",
+        ge=1,
     )
 
     @model_validator(mode="after")
@@ -924,7 +946,12 @@ class ConfigWorkflow(BaseModel):
         return self
 
     @classmethod
-    def from_config_file(cls, config_path: str | Path, variables: dict[str, Any] | None = None) -> Self:
+    def from_config_file(
+        cls,
+        config_path: str | Path,
+        variables: dict[str, Any] | None = None,
+        jinja_vars_file_path: str | Path | None = None,
+    ) -> Self:
         """Creates a ConfigWorkflow instance from a config file, a yaml with the workflow definition.
 
         All config files are processed as Jinja2 templates with the following features:
@@ -933,18 +960,20 @@ class ConfigWorkflow(BaseModel):
         - Missing variables raise clear errors (StrictUndefined)
 
         **Variable sources (in priority order):**
-        1. vars.yml/vars.yaml in config directory (overrides env)
-        2. Explicitly provided variables parameter (overrides all)
+        1. Explicitly specified jinja_vars_file_path (if provided)
+        2. Auto-detected vars.yml/vars.yaml/variables.yml/variables.yaml in config directory
+        3. Explicitly provided variables parameter (overrides all)
 
         Args:
             config_path (str): The path of the config file to load from.
             variables (dict[str, Any] | None): Optional variables to use in template rendering.
+            jinja_vars_file_path (str | Path | None): Optional explicit path to variables file.
 
         Returns:
             ConfigWorkflow: An instance with data parsed and validated from the YAML content.
 
         Raises:
-            FileNotFoundError: If config file doesn't exist
+            FileNotFoundError: If config file doesn't exist or jinja_vars_file_path is provided but doesn't exist
             ValueError: If template rendering fails or file is empty
         """
         config_resolved_path = Path(config_path).resolve()
@@ -964,7 +993,16 @@ class ConfigWorkflow(BaseModel):
         config_filename = config_resolved_path.stem
 
         # Always render as Jinja2 template
-        content = _render_jinja2_template(content, config_resolved_path, variables)
+        content = _render_jinja2_template(
+            content=content,
+            config_path=config_resolved_path,
+            jinja_vars_file_path=jinja_vars_file_path,
+            variables=variables,
+        )
+
+        # Write resolved config to disk for reproducibility
+        resolved_config_path = config_resolved_path.parent / f"{config_resolved_path.stem}.resolved.yml"
+        resolved_config_path.write_text(content)
 
         # Parse YAML and validate
         reader = YAML(typ="safe", pure=True)
@@ -973,6 +1011,7 @@ class ConfigWorkflow(BaseModel):
             object_["name"] = config_filename
         object_["rootdir"] = config_resolved_path.parent
         object_["config_filename"] = Path(config_path).name
+        object_["resolved_config_path"] = str(resolved_config_path)  # Store path to resolved config
         adapter = TypeAdapter(cls)
         return adapter.validate_python(object_)
 

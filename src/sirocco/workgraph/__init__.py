@@ -3,12 +3,8 @@
 from __future__ import annotations
 
 from collections import deque
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import aiida.orm
-from aiida_workgraph import WorkGraph
-
-from sirocco import core
 from sirocco.workgraph.builder import WorkGraphBuilder, build_icon_task_spec, build_shell_task_spec
 from sirocco.workgraph.launchers import (
     get_job_data,
@@ -16,24 +12,31 @@ from sirocco.workgraph.launchers import (
     launch_shell_task_with_dependency,
 )
 
+if TYPE_CHECKING:
+    import aiida.orm
+    from aiida_workgraph import WorkGraph
+
+    from sirocco import core
+
 __all__ = [
     "WorkGraphBuilder",
-    "build_sirocco_workgraph",
-    "submit_sirocco_workgraph",
-    "run_sirocco_workgraph",
-    "get_job_data",
-    "launch_icon_task_with_dependency",
-    "launch_shell_task_with_dependency",
     "build_icon_task_spec",
     "build_shell_task_spec",
+    "build_sirocco_workgraph",
     "compute_topological_levels",
+    "get_job_data",
     "get_task_dependencies_from_workgraph",
+    "launch_icon_task_with_dependency",
+    "launch_shell_task_with_dependency",
+    "run_sirocco_workgraph",
+    "submit_sirocco_workgraph",
 ]
 
 
 def build_sirocco_workgraph(
     core_workflow: core.Workflow,
     front_depth: int = 1,
+    resolved_config_path: str | None = None,
 ) -> WorkGraph:
     """Build a Sirocco WorkGraph from a core workflow.
 
@@ -41,10 +44,11 @@ def build_sirocco_workgraph(
 
     Args:
         core_workflow: The core workflow to convert
-        front_depth: Number of topological fronts to keep active (default: 1)
-                    0 = sequential (wait for level N to finish before submitting N+1)
-                    1 = one front ahead (default)
-                    high value = streaming submission
+        front_depth: Number of topological levels to keep active (default: 1, must be >= 1)
+                    1 = sequential (no pre-submission - wait for level N to finish before submitting N+1)
+                    2 = one level ahead
+                    higher values = more aggressive streaming submission
+        resolved_config_path: Optional path to the resolved config file (with Jinja2 variables replaced)
 
     Returns:
         A WorkGraph ready for submission
@@ -63,7 +67,7 @@ def build_sirocco_workgraph(
         # Submit to AiiDA daemon
         wg.submit()
     """
-    builder = WorkGraphBuilder(core_workflow)
+    builder = WorkGraphBuilder(core_workflow, resolved_config_path=resolved_config_path)
     return builder.build(front_depth)
 
 

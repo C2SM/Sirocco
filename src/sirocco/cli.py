@@ -9,21 +9,13 @@ import typer
 # Apply patches for third-party libraries before any AiiDA operations
 from sirocco.patches import patch_firecrest_symlink, patch_slurm_dependency_handling, patch_workgraph_window
 
-aiida_available = False
-try:
-    import aiida
-    aiida_available = True
-
-except ImportError:
-    aiida_available = False
-    pass
-
 patch_firecrest_symlink()
 patch_slurm_dependency_handling()
 patch_workgraph_window()
 
 if TYPE_CHECKING:
     from aiida_workgraph import WorkGraph
+
 from aiida.manage.configuration import load_profile
 from rich.console import Console
 from rich.traceback import install as install_rich_traceback
@@ -51,41 +43,48 @@ logger = logging.getLogger(__name__)
 
 def _create_aiida_workflow(
     workflow_file: Path,
-    front_depth: int | None = None,
+    jinja_vars_file: Path | None = None,
 ) -> tuple[core.Workflow, "WorkGraph"]:
     """Load workflow file and build WorkGraph.
 
+    Uses configuration from config.yml (single source of truth).
+
     Args:
         workflow_file: Path to workflow configuration file
-        front_depth: Number of topological fronts to keep active (None=use config, default: config value or 1)
+        jinja_vars_file: Optional path to variables file for Jinja2 templating
 
     Returns:
         Tuple of (core_workflow, aiida_workgraph)
     """
     load_profile()
-    config_workflow = parsing.ConfigWorkflow.from_config_file(str(workflow_file))
+    config_workflow = parsing.ConfigWorkflow.from_config_file(
+        str(workflow_file),
+        jinja_vars_file_path=str(jinja_vars_file) if jinja_vars_file else None,
+    )
 
-    # Use front_depth from config if not provided via CLI
-    if front_depth is None:
-        front_depth = config_workflow.front_depth
+    # Use front_depth from config (single source of truth)
+    front_depth = config_workflow.front_depth
 
     core_wf = core.Workflow.from_config_workflow(config_workflow)
     wg = build_sirocco_workgraph(
         core_wf,
         front_depth=front_depth,
+        resolved_config_path=config_workflow.resolved_config_path,
     )
     return core_wf, wg
 
 
 def create_aiida_workflow(
     workflow_file: Path,
-    front_depth: int | None = None,
+    jinja_vars_file: Path | None = None,
 ) -> tuple[core.Workflow, "WorkGraph"]:
     """Helper to prepare WorkGraph from workflow file.
 
+    Uses configuration from config.yml (single source of truth).
+
     Args:
         workflow_file: Path to workflow configuration file
-        front_depth: Number of topological fronts to keep active (None=use config value)
+        jinja_vars_file: Optional path to variables file for Jinja2 templating
 
     Returns:
         Tuple of (core_workflow, aiida_workgraph)
@@ -94,10 +93,7 @@ def create_aiida_workflow(
     from aiida.common import ProfileConfigurationError
 
     try:
-        core_wf, wg = _create_aiida_workflow(
-            workflow_file=workflow_file,
-            front_depth=front_depth,
-        )
+        core_wf, wg = _create_aiida_workflow(workflow_file=workflow_file, jinja_vars_file=jinja_vars_file)
         console.print(f"⚙️ Workflow [magenta]'{wg.name}'[/magenta] prepared for AiiDA execution.")
         return core_wf, wg  # noqa: TRY300 | try-consider-else -> shouldn't move this to `else` block
     except ProfileConfigurationError as e:
@@ -130,6 +126,9 @@ def verify(
 ):
     """
     Validate the workflow definition file for syntax and basic consistency.
+
+    Note: This validates the template syntax without variable substitution.
+    Use 'sirocco resolve' to render templates with variables.
     """
     console.print(f"🔍 Verifying workflow file: [cyan]{workflow_file!s}[/cyan]")
     try:
@@ -139,6 +138,108 @@ def verify(
     except Exception as e:
         console.print("[bold red]❌ Workflow validation failed:[/bold red]")
         # Rich traceback handles printing the exception nicely
+        console.print_exception()
+        raise typer.Exit(code=1) from e
+
+
+@app.command()
+def resolve(
+    workflow_file: Annotated[
+        Path,
+        typer.Argument(
+            ...,
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            help="Path to the workflow definition YAML file.",
+        ),
+    ],
+    jinja_vars_file: Annotated[
+        Path | None,
+        typer.Option(
+            "--jinja-vars-file",
+            "-v",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            help="Path to variables file for Jinja2 templating. If not specified, auto-detects vars.yml/vars.yaml.",
+        ),
+    ] = None,
+    output_file: Annotated[
+        Path | None,
+        typer.Option(
+            "--output",
+            "-o",
+            writable=True,
+            file_okay=True,
+            dir_okay=False,
+            help="Output file path. If not specified, prints to stdout.",
+        ),
+    ] = None,
+):
+    """
+    Render Jinja2 template variables in workflow config file.
+
+    This command resolves all Jinja2 template variables ({{ var }}) in the workflow
+    configuration file and outputs the fully rendered YAML.
+
+    Variables are loaded from:
+    1. Explicitly specified --jinja-vars-file, or
+    2. Auto-detected vars.yml/vars.yaml in the same directory
+
+    Examples:
+        # Render to stdout
+        sirocco resolve config.yml
+
+        # Use custom variables file
+        sirocco resolve config.yml --jinja-vars-file custom_vars.yml
+
+        # Save to file
+        sirocco resolve config.yml -o config.resolved.yml
+    """
+    from pathlib import Path
+
+    from sirocco.parsing.yaml_data_models import _render_jinja2_template
+
+    console.print(f"🔧 Resolving template in: [cyan]{workflow_file!s}[/cyan]")
+    if jinja_vars_file:
+        console.print(f"   Using variables from: [cyan]{jinja_vars_file!s}[/cyan]")
+
+    # Validate input file
+    config_resolved_path = Path(workflow_file).resolve()
+    if not config_resolved_path.exists():
+        console.print(f"[bold red]❌ File not found: {config_resolved_path}[/bold red]")
+        raise typer.Exit(code=1)
+
+    content = config_resolved_path.read_text()
+    if content == "":
+        console.print(f"[bold red]❌ File is empty: {config_resolved_path}[/bold red]")
+        raise typer.Exit(code=1)
+
+    try:
+        # Render Jinja2 template
+        rendered_content = _render_jinja2_template(
+            content=content,
+            config_path=config_resolved_path,
+            jinja_vars_file_path=str(jinja_vars_file) if jinja_vars_file else None,
+            variables=None,
+        )
+
+        # Output to file or stdout
+        if output_file:
+            output_path = Path(output_file)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(rendered_content)
+            console.print(f"[green]✅ Resolved config written to:[/green] [cyan]{output_path.resolve()}[/cyan]")
+        else:
+            # Print to stdout
+            console.print("\n[bold]Resolved configuration:[/bold]")
+            console.print(rendered_content)
+
+    except Exception as e:
+        console.print("[bold red]❌ Template resolution failed:[/bold red]")
         console.print_exception()
         raise typer.Exit(code=1) from e
 
@@ -170,6 +271,9 @@ def visualize(
 ):
     """
     Generate an interactive SVG visualization of the unrolled workflow.
+
+    Note: Uses auto-detected vars.yml/vars.yaml if present.
+    Use 'sirocco resolve' first if you need custom variable substitution.
     """
     console.print(f"📊 Visualizing workflow from: [cyan]{workflow_file!s}[/cyan]")
     try:
@@ -215,6 +319,9 @@ def represent(
 ):
     """
     Display the text representation of the unrolled workflow graph.
+
+    Note: Uses auto-detected vars.yml/vars.yaml if present.
+    Use 'sirocco resolve' first if you need custom variable substitution.
     """
     console.print(f"📄 Representing workflow from: [cyan]{workflow_file}[/cyan]")
     try:
@@ -245,25 +352,32 @@ def run(
             help="Path to the workflow definition YAML file.",
         ),
     ],
-    front_depth: Annotated[
-        int | None,
+    jinja_vars_file: Annotated[
+        Path | None,
         typer.Option(
-            "--front-depth",
-            "-w",
-            help="Number of topological fronts to keep active. 0=sequential, 1=one front ahead (default), high value=streaming submission.",
+            "--jinja-vars-file",
+            "-v",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            help="Path to variables file for Jinja2 templating. If not specified, auto-detects vars.yml/vars.yaml.",
         ),
     ] = None,
 ):
-    # Load config to get actual front_depth if not provided
-    config_workflow = parsing.ConfigWorkflow.from_config_file(str(workflow_file))
-    actual_front_depth = front_depth if front_depth is not None else config_workflow.front_depth
+    # Load config and use values from config.yml (single source of truth)
+    config_workflow = parsing.ConfigWorkflow.from_config_file(
+        str(workflow_file),
+        jinja_vars_file_path=str(jinja_vars_file) if jinja_vars_file else None,
+    )
+    front_depth = config_workflow.front_depth
 
-    core_wf, wg = create_aiida_workflow(workflow_file, actual_front_depth)
+    core_wf, wg = create_aiida_workflow(workflow_file, jinja_vars_file)
     console.print(f"▶️ Running workflow [magenta]'{core_wf.name}'[/magenta] directly (blocking)...")
-    if actual_front_depth > 0:
-        console.print(f"   Front depth: {actual_front_depth} fronts")
+    if front_depth == 1:
+        console.print("   Sequential submission (front_depth=1)")
     else:
-        console.print("   Sequential submission (window disabled)")
+        console.print(f"   Front depth: {front_depth} levels")
     try:
         _ = wg.run(inputs=None)
         console.print("[green]✅ Workflow execution finished.[/green]")
@@ -286,28 +400,35 @@ def submit(
             help="Path to the workflow definition YAML file.",
         ),
     ],
-    front_depth: Annotated[
-        int | None,
+    jinja_vars_file: Annotated[
+        Path | None,
         typer.Option(
-            "--front-depth",
-            "-f",
-            help="Number of topological fronts to keep active. 0=sequential, 1=one front ahead (default), high value=streaming submission.",
+            "--jinja-vars-file",
+            "-v",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            help="Path to variables file for Jinja2 templating. If not specified, auto-detects vars.yml/vars.yaml.",
         ),
     ] = None,
 ):
     """Submit the workflow to the AiiDA daemon."""
 
-    # Load config to get actual front_depth if not provided
-    config_workflow = parsing.ConfigWorkflow.from_config_file(str(workflow_file))
-    actual_front_depth = front_depth if front_depth is not None else config_workflow.front_depth
+    # Load config and use values from config.yml (single source of truth)
+    config_workflow = parsing.ConfigWorkflow.from_config_file(
+        str(workflow_file),
+        jinja_vars_file_path=str(jinja_vars_file) if jinja_vars_file else None,
+    )
+    front_depth = config_workflow.front_depth
 
-    core_wf, wg = create_aiida_workflow(workflow_file, actual_front_depth)
+    core_wf, wg = create_aiida_workflow(workflow_file, jinja_vars_file)
     try:
         console.print(f"🚀 Submitting workflow [magenta]'{core_wf.name}'[/magenta] to AiiDA daemon...")
-        if actual_front_depth > 0:
-            console.print(f"   Front depth: {actual_front_depth} fronts")
+        if front_depth == 1:
+            console.print("   Sequential submission (front_depth=1)")
         else:
-            console.print("   Sequential submission (window disabled)")
+            console.print(f"   Front depth: {front_depth} levels")
 
         wg.submit(inputs=None)
 
