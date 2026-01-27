@@ -922,7 +922,7 @@ def build_shell_task_spec(task: core.ShellTask) -> dict:
     Returns a dict with keys: label, code, nodes, metadata,
     arguments_template, filenames, outputs, input_data_info, output_data_info
 
-    Note: Job dependencies are NOT included here - they're added at runtime.
+    NOTE: Job dependencies are NOT included here - they're added at runtime.
 
     Args:
         task: The ShellTask to build spec for

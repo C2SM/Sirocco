@@ -118,7 +118,7 @@ tasks:
   - icon:
       plugin: icon
       computer: "{{ SIROCCO_COMPUTER }}"
-      bin: {{ TESTS_ROOTDIR }}/tests/cases/large/config/ICON/bin/icon
+      bin: "{{ TESTS_ROOTDIR }}/tests/cases/large/config/ICON/bin/icon"
       namelists:
         - ./ICON/icon_master.namelist:
             master_time_control_nml:
@@ -173,13 +173,13 @@ data:
   available:
     - grid_file:
         computer: "{{ SIROCCO_COMPUTER }}"
-        path: {{ TESTS_ROOTDIR }}/tests/cases/large/config/data/grid
+        path: "{{ TESTS_ROOTDIR }}/tests/cases/large/config/data/grid"
     - obs_data:
         computer: "{{ SIROCCO_COMPUTER }}"
-        path: {{ TESTS_ROOTDIR }}/tests/cases/large/config/data/obs_data
+        path: "{{ TESTS_ROOTDIR }}/tests/cases/large/config/data/obs_data"
     - ERA5:
         computer: "{{ SIROCCO_COMPUTER }}"
-        path: {{ TESTS_ROOTDIR }}/tests/cases/large/config/data/era5
+        path: "{{ TESTS_ROOTDIR }}/tests/cases/large/config/data/era5"
   generated:
     - extpar_file:
         path: output

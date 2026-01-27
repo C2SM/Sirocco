@@ -82,10 +82,10 @@ data:
   available:
     - initial_conditions:
         computer: "{{ SIROCCO_COMPUTER }}"
-        path: {{ TESTS_ROOTDIR }}/tests/cases/parameters/config/data/initial_conditions
+        path: "{{ TESTS_ROOTDIR }}/tests/cases/parameters/config/data/initial_conditions"
     - forcing:
         computer: "{{ SIROCCO_COMPUTER }}"
-        path: {{ TESTS_ROOTDIR }}/tests/cases/parameters/config/data/forcing
+        path: "{{ TESTS_ROOTDIR }}/tests/cases/parameters/config/data/forcing"
   generated:
     - icon_output:
         path: icon_output

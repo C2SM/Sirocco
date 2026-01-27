@@ -46,7 +46,7 @@ tasks:
   - icon:
       plugin: icon
       computer: "{{ SIROCCO_COMPUTER }}"
-      bin: {{ TESTS_ROOTDIR }}/tests/cases/small-icon/config/ICON/bin/icon
+      bin: "{{ TESTS_ROOTDIR }}/tests/cases/small-icon/config/ICON/bin/icon"
       namelists:
         - ./ICON/icon_master.namelist
         - ./ICON/model.namelist
@@ -73,19 +73,19 @@ tasks:
 data:
   available:
      - icon_grid_simple:
-         path: {{ TESTS_ROOTDIR }}/tests/cases/small-icon/config/ICON/icon_grid_simple.nc
+         path: "{{ TESTS_ROOTDIR }}/tests/cases/small-icon/config/ICON/icon_grid_simple.nc"
          computer: "{{ SIROCCO_COMPUTER }}"
      - ecrad_data:
-         path: {{ TESTS_ROOTDIR }}/tests/cases/small-icon/config/ICON/ecrad_data
+         path: "{{ TESTS_ROOTDIR }}/tests/cases/small-icon/config/ICON/ecrad_data"
          computer: "{{ SIROCCO_COMPUTER }}"
      - ECHAM6_CldOptProps:
-         path: {{ TESTS_ROOTDIR }}/tests/cases/small-icon/config/ICON/ECHAM6_CldOptProps.nc
+         path: "{{ TESTS_ROOTDIR }}/tests/cases/small-icon/config/ICON/ECHAM6_CldOptProps.nc"
          computer: "{{ SIROCCO_COMPUTER }}"
      - rrtmg_sw:
-         path: {{ TESTS_ROOTDIR }}/tests/cases/small-icon/config/ICON/rrtmg_sw.nc
+         path: "{{ TESTS_ROOTDIR }}/tests/cases/small-icon/config/ICON/rrtmg_sw.nc"
          computer: "{{ SIROCCO_COMPUTER }}"
      - dmin_wetgrowth_lookup:
-         path: {{ TESTS_ROOTDIR }}/tests/cases/small-icon/config/ICON/dmin_wetgrowth_lookup.nc
+         path: "{{ TESTS_ROOTDIR }}/tests/cases/small-icon/config/ICON/dmin_wetgrowth_lookup.nc"
          computer: "{{ SIROCCO_COMPUTER }}"
   generated:
      - finish: {}

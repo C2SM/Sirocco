@@ -6,10 +6,6 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "Running large workflow with Jinja2 templating"
-echo "Variables loaded from:"
-echo "  1. config/vars.yml (base configuration)"
-echo "  2. Environment variables (runtime overrides, if set)"
-echo ""
 echo "Content of the \`vars.yml\` file:"
 echo "*********************************"
 cat "${SCRIPT_DIR}/config/vars.yml"
