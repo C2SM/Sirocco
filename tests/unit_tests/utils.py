@@ -32,12 +32,6 @@ def extract_launcher_times(workgraph_process: ProcessNode) -> dict[str, dict[str
                 'pk': int
             }
         }
-
-    Example:
-        >>> times = extract_launcher_times(wg.process)
-        >>> fast_3_submit_time = times["fast_3"]["ctime"]
-        >>> slow_3_submit_time = times["slow_3"]["ctime"]
-        >>> assert fast_3_submit_time < slow_3_submit_time  # fast submitted first
     """
     timing_data = {}
 
@@ -174,10 +168,6 @@ def assert_branch_independence(
 
     Raises:
         AssertionError: If fast branch did not complete before slow branch
-
-    Example:
-        >>> times = extract_launcher_times(wg.process)
-        >>> assert_branch_independence(times)  # Validates fast < slow
     """
     # Find last task from each branch
     fast_tasks = {name: info for name, info in timing_data.items() if info["branch"] == fast_branch}
@@ -219,11 +209,6 @@ def assert_pre_submission_occurred(
 
     Raises:
         AssertionError: If task was not submitted before dependency finished
-
-    Example:
-        >>> times = extract_launcher_times(wg.process)
-        >>> # With front_depth=1, fast_2 should be submitted before fast_1 finishes
-        >>> assert_pre_submission_occurred(times, "fast_2", "fast_1")
     """
     assert task in timing_data, f"{message_prefix}Task '{task}' not found in timing data"
     assert dependency in timing_data, f"{message_prefix}Dependency '{dependency}' not found"
@@ -255,11 +240,6 @@ def assert_submission_order(
 
     Raises:
         AssertionError: If tasks were not submitted in the specified order
-
-    Example:
-        >>> times = extract_launcher_times(wg.process)
-        >>> # Verify submission order
-        >>> assert_submission_order(times, ["root", "fast_1", "fast_2", "fast_3"])
     """
     for i in range(len(task_order) - 1):
         earlier = task_order[i]
@@ -297,11 +277,6 @@ def assert_cross_dependency_respected(
 
     Raises:
         AssertionError: If dependent task started before all dependencies finished
-
-    Example:
-        >>> times = extract_launcher_times(wg.process)
-        >>> # medium_2 depends on both medium_1 AND fast_2
-        >>> assert_cross_dependency_respected(times, "medium_2", ["medium_1", "fast_2"])
     """
     assert dependent_task in timing_data, f"{message_prefix}Task '{dependent_task}' not found"
 

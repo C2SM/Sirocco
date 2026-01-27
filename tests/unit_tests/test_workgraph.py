@@ -84,59 +84,59 @@ def test_shell_filenames_nodes_arguments(config_paths):
         },
     ]
 
+    # Build expected arguments based on actual resolved paths
+    # Note: Script names are removed from arguments_template (stored in code separately)
+    # Note: AvailableData uses actual paths, not placeholders
+    # Note: Whitespace is normalized (empty ports collapse double spaces to single spaces)
+    initial_conditions_path = str(config_paths["yml"].parent / "data/initial_conditions")
+    forcing_path = str(config_paths["yml"].parent / "data/forcing")
+
     expected_arguments_list = [
-        "icon.py --restart  --init {initial_conditions} --forcing {forcing}",
-        "icon.py --restart  --init {initial_conditions} --forcing {forcing}",
-        "icon.py --restart {icon_restart_foo_0___bar_3_0___date_2026_01_01_00_00_00} --init  --forcing {forcing}",
-        "icon.py --restart {icon_restart_foo_1___bar_3_0___date_2026_01_01_00_00_00} --init  --forcing {forcing}",
-        "statistics.py {icon_output_foo_0___bar_3_0___date_2026_01_01_00_00_00} {icon_output_foo_1___bar_3_0___date_2026_01_01_00_00_00}",
-        "statistics.py {icon_output_foo_0___bar_3_0___date_2026_07_01_00_00_00} {icon_output_foo_1___bar_3_0___date_2026_07_01_00_00_00}",
-        "statistics.py {analysis_foo_bar_3_0___date_2026_01_01_00_00_00}",
-        "statistics.py {analysis_foo_bar_3_0___date_2026_07_01_00_00_00}",
-        "merge.py {analysis_foo_bar_date_2026_01_01_00_00_00} {analysis_foo_bar_date_2026_07_01_00_00_00}",
+        f"--restart --init {initial_conditions_path} --forcing {forcing_path}",
+        f"--restart --init {initial_conditions_path} --forcing {forcing_path}",
+        f"--restart {{icon_restart_foo_0___bar_3_0___date_2026_01_01_00_00_00}} --init --forcing {forcing_path}",
+        f"--restart {{icon_restart_foo_1___bar_3_0___date_2026_01_01_00_00_00}} --init --forcing {forcing_path}",
+        "{icon_output_foo_0___bar_3_0___date_2026_01_01_00_00_00} {icon_output_foo_1___bar_3_0___date_2026_01_01_00_00_00}",
+        "{icon_output_foo_0___bar_3_0___date_2026_07_01_00_00_00} {icon_output_foo_1___bar_3_0___date_2026_07_01_00_00_00}",
+        "{analysis_foo_bar_3_0___date_2026_01_01_00_00_00}",
+        "{analysis_foo_bar_3_0___date_2026_07_01_00_00_00}",
+        "{analysis_foo_bar_date_2026_01_01_00_00_00} {analysis_foo_bar_date_2026_07_01_00_00_00}",
     ]
 
+    # Note: Scripts are no longer stored in node_pks in the current architecture
+    # The nodes list only includes input data (AvailableData names and GeneratedData labels)
     expected_nodes_list = [
         [
-            "SCRIPT__icon_foo_0___bar_3_0___date_2026_01_01_00_00_00",
             "initial_conditions",
             "forcing",
         ],
         [
-            "SCRIPT__icon_foo_1___bar_3_0___date_2026_01_01_00_00_00",
             "initial_conditions",
             "forcing",
         ],
         [
-            "SCRIPT__icon_foo_0___bar_3_0___date_2026_07_01_00_00_00",
             "icon_restart_foo_0___bar_3_0___date_2026_01_01_00_00_00",
             "forcing",
         ],
         [
-            "SCRIPT__icon_foo_1___bar_3_0___date_2026_07_01_00_00_00",
             "icon_restart_foo_1___bar_3_0___date_2026_01_01_00_00_00",
             "forcing",
         ],
         [
-            "SCRIPT__statistics_foo_bar_3_0___date_2026_01_01_00_00_00",
             "icon_output_foo_0___bar_3_0___date_2026_01_01_00_00_00",
             "icon_output_foo_1___bar_3_0___date_2026_01_01_00_00_00",
         ],
         [
-            "SCRIPT__statistics_foo_bar_3_0___date_2026_07_01_00_00_00",
             "icon_output_foo_0___bar_3_0___date_2026_07_01_00_00_00",
             "icon_output_foo_1___bar_3_0___date_2026_07_01_00_00_00",
         ],
         [
-            "SCRIPT__statistics_foo_bar_date_2026_01_01_00_00_00",
             "analysis_foo_bar_3_0___date_2026_01_01_00_00_00",
         ],
         [
-            "SCRIPT__statistics_foo_bar_date_2026_07_01_00_00_00",
             "analysis_foo_bar_3_0___date_2026_07_01_00_00_00",
         ],
         [
-            "SCRIPT__merge_date_2026_01_01_00_00_00",
             "analysis_foo_bar_date_2026_01_01_00_00_00",
             "analysis_foo_bar_date_2026_07_01_00_00_00",
         ],
@@ -167,10 +167,10 @@ def test_waiting_on(config_paths):
     workgraph = build_sirocco_workgraph(core_workflow)
 
     # In the new architecture, wait_on is implemented via task dependencies
-    # The cleanup launcher task should exist
+    # The cleanup launcher task should exist (name includes workgraph name prefix)
     cleanup_launcher = None
     for task in workgraph.tasks:
-        if task.name == "launch_cleanup":
+        if task.name.startswith("launch_") and "cleanup" in task.name:
             cleanup_launcher = task
             break
 
@@ -180,7 +180,7 @@ def test_waiting_on(config_paths):
     # In the new architecture, dependencies flow through get_job_data tasks
     cleanup_get_job_data = None
     for task in workgraph.tasks:
-        if task.name == "get_job_data_cleanup":
+        if task.name.startswith("get_job_data_") and "cleanup" in task.name:
             cleanup_get_job_data = task
             break
 
@@ -206,7 +206,7 @@ def test_build_workgraph(config_paths):
 
     # Verify basic properties
     assert workgraph is not None
-    assert workgraph.name == core_workflow.name
+    assert workgraph.name.startswith(core_workflow.name)
     assert len(workgraph.tasks) > 0
 
     # Verify that launcher tasks and get_job_data tasks are created
@@ -360,7 +360,7 @@ def test_topological_levels_complex():
 @pytest.mark.parametrize(
     "config_case",
     [
-        "branch-independence",
+        "dynamic-simple",
     ],
 )
 def test_branch_independence_config(config_paths):
@@ -381,25 +381,28 @@ def test_branch_independence_config(config_paths):
     # Get launcher task names
     launcher_tasks = [t.name for t in workgraph.tasks if t.name.startswith("launch_")]
 
-    # Verify we have the expected tasks (using actual naming convention)
-    expected_task_prefixes = ["root", "fast_1", "fast_2", "fast_3", "slow_1", "slow_2", "slow_3"]
-    for prefix in expected_task_prefixes:
-        matching_tasks = [t for t in launcher_tasks if t.startswith(f"launch_{prefix}_")]
+    # Verify we have the expected tasks
+    # Task names pattern: launch_{wg_name}_{task_name}_date_...
+    # where wg_name includes timestamp, so we check for task names in the middle
+    expected_task_names = ["root", "fast_1", "fast_2", "fast_3", "slow_1", "slow_2", "slow_3"]
+    for task_name in expected_task_names:
+        # Match pattern: launch_*_{task_name}_date_*
+        matching_tasks = [t for t in launcher_tasks if f"_{task_name}_date_" in t]
         assert len(matching_tasks) == 1, (
-            f"Expected exactly 1 task starting with 'launch_{prefix}_', found {len(matching_tasks)}: {matching_tasks}"
+            f"Expected exactly 1 task containing '_{task_name}_date_', found {len(matching_tasks)}: {matching_tasks}"
         )
 
     # Verify dependency structure
     task_deps = window_config["task_dependencies"]
 
-    # Find actual task names (they use date format: launch_root_date_2026_01_01_00_00_00)
-    root_task = next(t for t in launcher_tasks if t.startswith("launch_root_"))
-    fast_1_task = next(t for t in launcher_tasks if t.startswith("launch_fast_1_"))
-    fast_2_task = next(t for t in launcher_tasks if t.startswith("launch_fast_2_"))
-    fast_3_task = next(t for t in launcher_tasks if t.startswith("launch_fast_3_"))
-    slow_1_task = next(t for t in launcher_tasks if t.startswith("launch_slow_1_"))
-    slow_2_task = next(t for t in launcher_tasks if t.startswith("launch_slow_2_"))
-    slow_3_task = next(t for t in launcher_tasks if t.startswith("launch_slow_3_"))
+    # Find actual task names (pattern: launch_{wg_name}_root_date_2026_01_01_00_00_00)
+    root_task = next(t for t in launcher_tasks if "_root_date_" in t)
+    fast_1_task = next(t for t in launcher_tasks if "_fast_1_date_" in t)
+    fast_2_task = next(t for t in launcher_tasks if "_fast_2_date_" in t)
+    fast_3_task = next(t for t in launcher_tasks if "_fast_3_date_" in t)
+    slow_1_task = next(t for t in launcher_tasks if "_slow_1_date_" in t)
+    slow_2_task = next(t for t in launcher_tasks if "_slow_2_date_" in t)
+    slow_3_task = next(t for t in launcher_tasks if "_slow_3_date_" in t)
 
     # Root has no dependencies
     assert task_deps[root_task] == [], f"Root task should have no dependencies, got: {task_deps[root_task]}"
@@ -420,7 +423,7 @@ def test_branch_independence_config(config_paths):
 @pytest.mark.parametrize(
     "config_case",
     [
-        "branch-independence",
+        "dynamic-simple",
     ],
 )
 def test_branch_independence_execution(config_paths):
@@ -439,7 +442,7 @@ def test_branch_independence_execution(config_paths):
     from aiida.cmdline.utils.common import get_calcjob_report, get_workchain_report
     from aiida.orm import CalcJobNode
 
-    from tests.unit_tests.test_utils import (
+    from tests.unit_tests.utils import (
         assert_branch_independence,
         assert_pre_submission_occurred,
         assert_submission_order,
@@ -611,9 +614,9 @@ def test_branch_independence_execution(config_paths):
 @pytest.mark.parametrize(
     ("config_case", "front_depth"),
     [
-        ("branch-independence", 0),  # Sequential execution
-        ("branch-independence", 1),  # One level ahead (default)
-        ("branch-independence", 2),  # Two levels ahead (aggressive)
+        ("dynamic-simple", 0),  # Sequential execution
+        ("dynamic-simple", 1),  # One level ahead (default)
+        ("dynamic-simple", 2),  # Two levels ahead (aggressive)
     ],
 )
 def test_branch_independence_with_front_depths(config_paths, front_depth):
@@ -636,7 +639,7 @@ def test_branch_independence_with_front_depths(config_paths, front_depth):
     from aiida.cmdline.utils.common import get_calcjob_report, get_workchain_report
     from aiida.orm import CalcJobNode
 
-    from tests.unit_tests.test_utils import (
+    from tests.unit_tests.utils import (
         assert_branch_independence,
         extract_launcher_times,
     )
@@ -743,7 +746,7 @@ def test_branch_independence_with_front_depths(config_paths, front_depth):
 @pytest.mark.parametrize(
     "config_case",
     [
-        "branch-independence",  # Use branch-independence path for complex config
+        "dynamic-simple",  # Use dynamic-simple path for complex config
     ],
 )
 def test_complex_workflow_with_cross_dependencies(config_paths):
@@ -765,7 +768,7 @@ def test_complex_workflow_with_cross_dependencies(config_paths):
     from aiida.cmdline.utils.common import get_calcjob_report, get_workchain_report
     from aiida.orm import CalcJobNode
 
-    from tests.unit_tests.test_utils import (
+    from tests.unit_tests.utils import (
         assert_branch_independence,
         assert_cross_dependency_respected,
         extract_launcher_times,

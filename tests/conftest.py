@@ -168,7 +168,7 @@ def config_paths(config_case, icon_grid_path, tmp_path, test_rootdir) -> dict[st
     config["variables"] = {"TESTS_ROOTDIR": str(tmp_path)}
 
     # Add case-specific Jinja2 variables
-    if config_case == "branch-independence":
+    if config_case == "dynamic-simple":
         # Use relative path (relative to config directory) for validation
         config["variables"]["SIROCCO_COMPUTER"] = "remote"
         config["variables"]["SIROCCO_SCRIPTS_DIR"] = "scripts"

@@ -261,7 +261,7 @@ class TestComplexScenarios:
     """Test complex scenarios combining multiple features."""
 
     def test_branch_independence_simulation(self):
-        """Simulate the branch-independence test case."""
+        """Simulate the dynamic-simple test case."""
         # Initial workflow
         all_deps = {
             "root": [],

@@ -281,7 +281,7 @@ def submit(
         int | None,
         typer.Option(
             "--front-depth",
-            "-w",
+            "-f",
             help="Number of topological fronts to keep active. 0=sequential, 1=one front ahead (default), high value=streaming submission.",
         ),
     ] = None,
