@@ -1,13 +1,13 @@
 import pytest
 
 from sirocco.core import Workflow
-from sirocco.parsing.yaml_data_models import ConfigWorkflow
-from sirocco.workgraph import (
+from sirocco.engines.aiida import (
     build_icon_task_spec,
     build_shell_task_spec,
     build_sirocco_workgraph,
     compute_topological_levels,
 )
+from sirocco.parsing.yaml_data_models import ConfigWorkflow
 
 
 # Hardcoded, explicit integration test based on the `parameters` case for now

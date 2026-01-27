@@ -18,16 +18,16 @@ from aiida_workgraph import WorkGraph
 from aiida_workgraph.manager import set_current_graph
 
 from sirocco import core
-from sirocco.parsing.cycling import DateCyclePoint
-from sirocco.workgraph.adapters import AiiDAAdapter
-from sirocco.workgraph.dependencies import build_dependency_mapping, collect_available_data_inputs
-from sirocco.workgraph.launchers import create_icon_launcher_pair, create_shell_launcher_pair
-from sirocco.workgraph.task_specs import InputDataInfo, OutputDataInfo
-from sirocco.workgraph.utils import (
+from sirocco.engines.aiida.adapters import AiiDAAdapter
+from sirocco.engines.aiida.dependencies import build_dependency_mapping, collect_available_data_inputs
+from sirocco.engines.aiida.launchers import create_icon_launcher_pair, create_shell_launcher_pair
+from sirocco.engines.aiida.task_specs import InputDataInfo, OutputDataInfo
+from sirocco.engines.aiida.utils import (
     get_wrapper_script_aiida_data,
     serialize_coordinates,
     split_cmd_arg,
 )
+from sirocco.parsing.cycling import DateCyclePoint
 
 if TYPE_CHECKING:
     type WorkgraphDataNode = aiida.orm.RemoteData | aiida.orm.SinglefileData | aiida.orm.FolderData

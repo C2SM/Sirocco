@@ -12,9 +12,9 @@ import aiida.transports
 from aiida.common.exceptions import NotExistent
 
 from sirocco import core
+from sirocco.engines.aiida.utils import replace_invalid_chars_in_label, serialize_coordinates, split_cmd_arg
 from sirocco.parsing._utils import TimeUtils
 from sirocco.parsing.cycling import DateCyclePoint
-from sirocco.workgraph.utils import replace_invalid_chars_in_label, serialize_coordinates, split_cmd_arg
 
 if TYPE_CHECKING:
     type WorkgraphDataNode = aiida.orm.RemoteData | aiida.orm.SinglefileData | aiida.orm.FolderData

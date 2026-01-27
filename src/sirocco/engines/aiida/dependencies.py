@@ -9,7 +9,7 @@ from typing import Any
 import aiida.orm
 
 from sirocco import core
-from sirocco.workgraph.task_specs import DependencyInfo, JobIds, ParentFolders, PortToDependencies, TaskDepInfo
+from sirocco.engines.aiida.task_specs import DependencyInfo, JobIds, ParentFolders, PortToDependencies, TaskDepInfo
 
 LOGGER = logging.getLogger(__name__)
 

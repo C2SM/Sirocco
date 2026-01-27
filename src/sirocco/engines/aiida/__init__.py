@@ -5,8 +5,8 @@ from __future__ import annotations
 from collections import deque
 from typing import TYPE_CHECKING, Any
 
-from sirocco.workgraph.builder import WorkGraphBuilder, build_icon_task_spec, build_shell_task_spec
-from sirocco.workgraph.launchers import (
+from sirocco.engines.aiida.builder import WorkGraphBuilder, build_icon_task_spec, build_shell_task_spec
+from sirocco.engines.aiida.launchers import (
     get_job_data,
     launch_icon_task_with_dependency,
     launch_shell_task_with_dependency,
@@ -56,7 +56,7 @@ def build_sirocco_workgraph(
     Example::
 
         from sirocco import core
-        from sirocco.workgraph import build_sirocco_workgraph
+        from sirocco.engines.aiida import build_sirocco_workgraph
 
         # Build your core workflow
         wf = core.Workflow.from_config_file("workflow.yml")
@@ -97,7 +97,7 @@ def submit_sirocco_workgraph(
     Example::
 
         from sirocco import core
-        from sirocco.workgraph import submit_sirocco_workgraph
+        from sirocco.engines.aiida import submit_sirocco_workgraph
 
         # Build your core workflow
         wf = core.Workflow.from_config_file("workflow.yml")
@@ -138,7 +138,7 @@ def run_sirocco_workgraph(
     Example::
 
         from sirocco import core
-        from sirocco.workgraph import run_sirocco_workgraph
+        from sirocco.engines.aiida import run_sirocco_workgraph
 
         # Build your core workflow
         wf = core.Workflow.from_config_file("workflow.yml")

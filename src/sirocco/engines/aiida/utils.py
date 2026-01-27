@@ -57,14 +57,14 @@ def split_cmd_arg(command_line: str, script_name: str | None = None) -> tuple[st
 
 def label_placeholder(data: core.Data) -> str:
     """Create a placeholder string for data."""
-    from sirocco.workgraph.adapters import AiiDAAdapter
+    from sirocco.engines.aiida.adapters import AiiDAAdapter
 
     return f"{{{AiiDAAdapter.get_label_static(data)}}}"
 
 
 def parse_mpi_cmd_to_aiida(mpi_cmd: str) -> str:
     """Parse MPI command and translate placeholders to AiiDA format."""
-    from sirocco.workgraph.adapters import AiiDAAdapter
+    from sirocco.engines.aiida.adapters import AiiDAAdapter
 
     for placeholder in core.MpiCmdPlaceholder:
         mpi_cmd = mpi_cmd.replace(
@@ -119,9 +119,8 @@ def process_shell_argument_placeholders(arguments_template: str | None, placehol
 
 def get_default_wrapper_script():
     """Get default wrapper script based on task type"""
-    import aiida.orm
-
     # Import the script directory from aiida-icon
+    import aiida.orm
     from aiida_icon.site_support.cscs.alps import SCRIPT_DIR
 
     # TODO: There's also `santis_cpu.sh`. Also gpu available.

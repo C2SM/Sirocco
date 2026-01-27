@@ -9,7 +9,7 @@ These tests verify the algorithms for:
 
 import pytest
 
-from sirocco.workgraph import compute_topological_levels
+from sirocco.engines.aiida import compute_topological_levels
 
 
 class TestTopologicalLevels:

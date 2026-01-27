@@ -12,15 +12,15 @@ from aiida.orm.utils.serialize import AiiDALoader
 from aiida_icon.calculations import IconCalculation
 from aiida_workgraph import dynamic, get_current_graph, namespace, task
 
-from sirocco.workgraph.dependencies import (
+from sirocco.engines.aiida.dependencies import (
     build_icon_metadata_with_slurm_dependencies,
     build_shell_metadata_with_slurm_dependencies,
     load_and_process_shell_dependencies,
     load_icon_dependencies,
     prepare_icon_task_inputs,
 )
-from sirocco.workgraph.task_specs import port_to_dependencies_from_dict, port_to_dependencies_to_dict
-from sirocco.workgraph.utils import process_shell_argument_placeholders
+from sirocco.engines.aiida.task_specs import port_to_dependencies_from_dict, port_to_dependencies_to_dict
+from sirocco.engines.aiida.utils import process_shell_argument_placeholders
 
 LOGGER = logging.getLogger(__name__)
 

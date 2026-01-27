@@ -22,7 +22,7 @@ from rich.traceback import install as install_rich_traceback
 
 from sirocco import core, parsing, pretty_print, vizgraph
 from sirocco.core._tasks.sirocco_task import SiroccoContinueTask
-from sirocco.workgraph import build_sirocco_workgraph
+from sirocco.engines.aiida import build_sirocco_workgraph
 
 # --- Typer App and Rich Console Setup ---
 # Print tracebacks with syntax highlighting and rich formatting
