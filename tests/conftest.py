@@ -167,6 +167,12 @@ def config_paths(config_case, icon_grid_path, tmp_path, test_rootdir) -> dict[st
     # Add Jinja2 variables for template rendering in config files
     config["variables"] = {"TESTS_ROOTDIR": str(tmp_path)}
 
+    # Add case-specific Jinja2 variables
+    if config_case == "branch-independence":
+        # Use relative path (relative to config directory) for validation
+        config["variables"]["SIROCCO_COMPUTER"] = "remote"
+        config["variables"]["SIROCCO_SCRIPTS_DIR"] = "scripts"
+
     if config_case == "small-icon":
         config_rootdir = config["yml"].parent
         # We link the icon grid as specified in the model.namelist
@@ -174,24 +180,7 @@ def config_paths(config_case, icon_grid_path, tmp_path, test_rootdir) -> dict[st
         if not config_icon_grid_path.exists():
             config_icon_grid_path.symlink_to(icon_grid_path)
 
-    # Set environment variables for test cases that use them
-    # For branch-independence case, set computer and scripts directory
-    # FIXME: Does this still use env vars to modify the local config.yml files?
-    if config_case == "branch-independence":
-        import os
-
-        # Use relative path (relative to config directory) for validation
-        os.environ["SIROCCO_COMPUTER"] = "remote"
-        os.environ["SIROCCO_SCRIPTS_DIR"] = "scripts"
-
     yield config
-
-    # Clean up after test
-    if config_case == "branch-independence":
-        import os
-
-        os.environ.pop("SIROCCO_COMPUTER", None)
-        os.environ.pop("SIROCCO_SCRIPTS_DIR", None)
 
 
 def pytest_addoption(parser):

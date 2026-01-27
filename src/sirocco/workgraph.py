@@ -29,9 +29,7 @@ from sirocco.parsing.cycling import DateCyclePoint
 LOGGER = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    type WorkgraphDataNode = (
-        aiida.orm.RemoteData | aiida.orm.SinglefileData | aiida.orm.FolderData
-    )
+    type WorkgraphDataNode = aiida.orm.RemoteData | aiida.orm.SinglefileData | aiida.orm.FolderData
 
 
 # =============================================================================
@@ -76,7 +74,7 @@ class DependencyInfo:
 @dataclass(frozen=True)
 class BaseDataInfo:
     name: str
-    coordinates: str
+    coordinates: dict
     label: str
     path: str
 
@@ -141,12 +139,8 @@ class OutputDataInfo(BaseDataInfo):
 type PortToDependencies = dict[str, list[DependencyInfo]]
 type ParentFolders = dict[str, Any]  # {dep_label: TaggedValue with .value = int PK}
 type JobIds = dict[str, Any]  # {dep_label: TaggedValue with .value = int job_id}
-type TaskDepInfo = dict[
-    str, Any
-]  # {task_label: namespace with .remote_folder, .job_id}
-type LauncherDependencies = dict[
-    str, list[str]
-]  # {launcher_name: [parent_launcher_names]}
+type TaskDepInfo = dict[str, Any]  # {task_label: namespace with .remote_folder, .job_id}
+type LauncherDependencies = dict[str, list[str]]  # {launcher_name: [parent_launcher_names]}
 
 
 # =============================================================================
@@ -177,10 +171,7 @@ def _port_to_dependencies_from_dict(data: dict[str, list[dict]]) -> PortToDepend
     Returns:
         PortToDependencies mapping
     """
-    return {
-        port: [DependencyInfo.from_dict(dep) for dep in deps]
-        for port, deps in data.items()
-    }
+    return {port: [DependencyInfo.from_dict(dep) for dep in deps] for port, deps in data.items()}
 
 
 # =============================================================================
@@ -308,8 +299,7 @@ def get_aiida_label_from_graph_item(obj: core.GraphItem) -> str:
     through the replacement of invalid chars in the coordinates duplication can happen but it is unlikely.
     """
     return replace_invalid_chars_in_label(
-        f"{obj.name}"
-        + "__".join(f"_{key}_{value}" for key, value in obj.coordinates.items())
+        f"{obj.name}" + "__".join(f"_{key}_{value}" for key, value in obj.coordinates.items())
     )
 
 
@@ -405,6 +395,7 @@ def resolve_icon_restart_file(
         return workdir_remote_data
     else:
         return file_remote_data
+
 
 # TODO: Check if those can be merged: `resolve_icon_restart_file` and `resolve_icon_restart_file`
 def _resolve_icon_dependency(
@@ -610,7 +601,7 @@ def prepare_icon_task_inputs(
     # Add metadata
     inputs["metadata"] = metadata_dict  # type: ignore[assignment]
 
-    LOGGER.debug(f'ICON {inputs=}')
+    LOGGER.debug("ICON inputs=%s", inputs)
 
     return inputs
 
@@ -620,9 +611,7 @@ def prepare_icon_task_inputs(
 # =============================================================================
 
 
-def add_aiida_input_data_node(
-    data: core.AvailableData, core_workflow: core.Workflow, aiida_data_nodes: dict
-) -> None:
+def add_aiida_input_data_node(data: core.AvailableData, core_workflow: core.Workflow, aiida_data_nodes: dict) -> None:
     """Create an `aiida.orm.Data` instance from the provided available data.
 
     Args:
@@ -647,30 +636,19 @@ def add_aiida_input_data_node(
 
     # Check if this data will be used by ICON tasks
     used_by_icon_task = any(
-        isinstance(task, core.IconTask) and data in task.input_data_nodes()
-        for task in core_workflow.tasks
+        isinstance(task, core.IconTask) and data in task.input_data_nodes() for task in core_workflow.tasks
     )
 
     if used_by_icon_task:
         # ICON tasks __always__ require RemoteData
-        aiida_data_nodes[label] = aiida.orm.RemoteData(
-            remote_path=str(data.path), label=label, computer=computer
-        )
-    elif (
-        computer.get_transport_class() is aiida.transports.plugins.local.LocalTransport
-    ):
+        aiida_data_nodes[label] = aiida.orm.RemoteData(remote_path=str(data.path), label=label, computer=computer)
+    elif computer.get_transport_class() is aiida.transports.plugins.local.LocalTransport:
         if data.path.is_file():
-            aiida_data_nodes[label] = aiida.orm.SinglefileData(
-                file=str(data.path), label=label
-            )
+            aiida_data_nodes[label] = aiida.orm.SinglefileData(file=str(data.path), label=label)
         else:
-            aiida_data_nodes[label] = aiida.orm.FolderData(
-                tree=str(data.path), label=label
-            )
+            aiida_data_nodes[label] = aiida.orm.FolderData(tree=str(data.path), label=label)
     else:
-        aiida_data_nodes[label] = aiida.orm.RemoteData(
-            remote_path=str(data.path), label=label, computer=computer
-        )
+        aiida_data_nodes[label] = aiida.orm.RemoteData(remote_path=str(data.path), label=label, computer=computer)
 
 
 def get_scheduler_options_from_task(task: core.Task) -> dict[str, Any]:
@@ -706,11 +684,7 @@ def get_scheduler_options_from_task(task: core.Task) -> dict[str, Any]:
             options["custom_scheduler_commands"] += "\n"
         options["custom_scheduler_commands"] += f"#SBATCH --view={task.view}"
 
-    if (
-        task.nodes is not None
-        or task.ntasks_per_node is not None
-        or task.cpus_per_task is not None
-    ):
+    if task.nodes is not None or task.ntasks_per_node is not None or task.cpus_per_task is not None:
         resources = {}
         if task.nodes is not None:
             resources["num_machines"] = task.nodes
@@ -723,9 +697,7 @@ def get_scheduler_options_from_task(task: core.Task) -> dict[str, Any]:
 
 
 # TODO(MERGE): Check this logic again if it supports all use cases
-def create_shell_code(
-    task: core.ShellTask, computer: aiida.orm.Computer
-) -> aiida.orm.Code:
+def create_shell_code(task: core.ShellTask, computer: aiida.orm.Computer) -> aiida.orm.Code:
     """Create or load an AiiDA Code for a shell task.
 
     Determines whether to create PortableCode or InstalledCode based on where the
@@ -1030,29 +1002,21 @@ def build_shell_task_spec(task: core.ShellTask) -> dict:
     input_labels.update(output_labels)
     arguments_with_placeholders = task.resolve_ports(input_labels)  # type: ignore[arg-type]
 
-    _, resolved_arguments_template = split_cmd_arg(
-        arguments_with_placeholders, script_name
-    )
+    _, resolved_arguments_template = split_cmd_arg(arguments_with_placeholders, script_name)
 
     # Build filenames mapping
     filenames = {}
     for input_info in input_data_info:
         input_label = input_info.label
         if input_info.is_available:
-            filenames[input_info.name] = (
-                Path(input_info.path).name if input_info.path else input_info.name
-            )  # type: ignore[arg-type]
+            filenames[input_info.name] = Path(input_info.path).name if input_info.path else input_info.name  # type: ignore[arg-type]
         else:
             # Count how many inputs have the same name
-            same_name_count = sum(
-                1 for info in input_data_info if info.name == input_info.name
-            )
+            same_name_count = sum(1 for info in input_data_info if info.name == input_info.name)
             if same_name_count > 1:
                 filenames[input_label] = input_label
             else:
-                filenames[input_label] = (
-                    Path(input_info.path).name if input_info.path else input_info.name
-                )  # type: ignore[arg-type]
+                filenames[input_label] = Path(input_info.path).name if input_info.path else input_info.name  # type: ignore[arg-type]
 
     # Build outputs list - but DON'T retrieve, just verify existence
     # Set retrieve_temporary_list instead of outputs so files stay on remote
@@ -1143,9 +1107,7 @@ def build_icon_task_spec(task: core.IconTask) -> dict:
         with io.StringIO() as buffer:
             model_nml.namelist.write(buffer)
             content = buffer.getvalue()
-            model_node = create_namelist_singlefiledata_from_content(
-                content, model_nml.name, store=True
-            )
+            model_node = create_namelist_singlefiledata_from_content(content, model_nml.name, store=True)
             model_namelist_pks[model_name] = model_node.pk
 
     # Wrapper script - store as PK if present
@@ -1233,9 +1195,7 @@ def load_and_process_shell_dependencies(
     filenames: dict[str, str] = {}
 
     # Load RemoteData nodes from their PKs
-    parent_folders_loaded: dict[str, Any] = {
-        key: aiida.orm.load_node(val.value) for key, val in parent_folders.items()
-    }
+    parent_folders_loaded: dict[str, Any] = {key: aiida.orm.load_node(val.value) for key, val in parent_folders.items()}
 
     # Process ALL dependencies: create nodes, map placeholders, and map filenames
     for dep_info_list in port_to_dep_mapping.values():
@@ -1247,9 +1207,7 @@ def load_and_process_shell_dependencies(
             workdir_remote_data = parent_folders_loaded[dep_info.dep_label]
 
             # Use helper to create RemoteData
-            unique_key, remote_data = _create_shell_remote_data(
-                dep_info, workdir_remote_data
-            )
+            unique_key, remote_data = _create_shell_remote_data(dep_info, workdir_remote_data)
             all_nodes[unique_key] = remote_data
 
             # Build placeholder mapping for arguments
@@ -1287,14 +1245,12 @@ def build_shell_metadata_with_slurm_dependencies(
         _add_custom_scheduler_command(metadata, custom_cmd)
         base_metadata.get("label", "unknown")
 
-    LOGGER.debug(f"{metadata=}")
+    LOGGER.debug("metadata=%s", metadata)
 
     return metadata
 
 
-def process_shell_argument_placeholders(
-    arguments_template: str | None, placeholder_to_node_key: dict
-) -> list[str]:
+def process_shell_argument_placeholders(arguments_template: str | None, placeholder_to_node_key: dict) -> list[str]:
     """Process argument template and replace placeholders with actual node keys.
 
     Handles both standalone placeholders like {data_label} and embedded placeholders
@@ -1342,9 +1298,7 @@ def process_shell_argument_placeholders(
 # =============================================================================
 
 
-def collect_available_data_inputs(
-    task: core.Task, aiida_data_nodes: dict, get_label_func
-) -> dict:
+def collect_available_data_inputs(task: core.Task, aiida_data_nodes: dict, get_label_func) -> dict:
     """Collect AvailableData input nodes for a task.
 
     Args:
@@ -1417,9 +1371,7 @@ def build_dependency_mapping(
         _map_list_append(
             port_to_dep,
             port,
-            DependencyInfo(
-                dep_label=prev_label, filename=filename, data_label=input_label
-            ),
+            DependencyInfo(dep_label=prev_label, filename=filename, data_label=input_label),
         )
 
         # -----------------------------------------------------------------
@@ -1465,9 +1417,7 @@ def create_icon_launcher_task(
     launcher_name = f"launch_{wg_name}_{task_label}"
 
     # Add port_to_dep_mapping to task_spec (convert to dict for JSON serialization)
-    task_spec["port_to_dep_mapping"] = _port_to_dependencies_to_dict(
-        port_to_dep_mapping
-    )
+    task_spec["port_to_dep_mapping"] = _port_to_dependencies_to_dict(port_to_dep_mapping)
 
     # Create launcher task
     wg.add_task(
@@ -1535,9 +1485,7 @@ def create_shell_launcher_task(
     launcher_name = f"launch_{wg_name}_{task_label}"
 
     # Add port_to_dep_mapping to task_spec (convert to dict for JSON serialization)
-    task_spec["port_to_dep_mapping"] = _port_to_dependencies_to_dict(
-        port_to_dep_mapping
-    )
+    task_spec["port_to_dep_mapping"] = _port_to_dependencies_to_dict(port_to_dep_mapping)
 
     # Create launcher task
     wg.add_task(
@@ -1649,9 +1597,7 @@ def launch_shell_task_with_dependency(
     code = aiida.orm.load_node(task_spec["code_pk"])
 
     # Load nodes from PKs and initialize structures
-    all_nodes = {
-        key: aiida.orm.load_node(pk) for key, pk in task_spec["node_pks"].items()
-    }
+    all_nodes = {key: aiida.orm.load_node(pk) for key, pk in task_spec["node_pks"].items()}
 
     # Add AvailableData nodes passed as parameter, remapping from port names to data labels
     # so they match the placeholders in arguments (which use data labels)
@@ -1678,35 +1624,25 @@ def launch_shell_task_with_dependency(
         port_to_dep_dict = task_spec.get("port_to_dep_mapping", {})
         port_to_dep = _port_to_dependencies_from_dict(port_to_dep_dict)
 
-        dep_nodes, placeholder_to_node_key, filenames = (
-            load_and_process_shell_dependencies(
-                parent_folders,
-                port_to_dep,
-                task_spec["filenames"],
-            )
+        dep_nodes, placeholder_to_node_key, filenames = load_and_process_shell_dependencies(
+            parent_folders,
+            port_to_dep,
+            task_spec["filenames"],
         )
         all_nodes.update(dep_nodes)
 
     # Build metadata with SLURM job dependencies
-    computer = aiida.orm.Computer.collection.get(
-        label=task_spec["metadata"]["computer_label"]
-    )
-    metadata = build_shell_metadata_with_slurm_dependencies(
-        task_spec["metadata"], job_ids, computer
-    )
+    computer = aiida.orm.Computer.collection.get(label=task_spec["metadata"]["computer_label"])
+    metadata = build_shell_metadata_with_slurm_dependencies(task_spec["metadata"], job_ids, computer)
 
     # Process argument placeholders
-    arguments = process_shell_argument_placeholders(
-        task_spec["arguments_template"], placeholder_to_node_key
-    )
+    arguments = process_shell_argument_placeholders(task_spec["arguments_template"], placeholder_to_node_key)
 
     # Use pre-computed outputs
     outputs = task_spec["outputs"]
 
     # Build the shelljob TaskSpec
-    parser_outputs = [
-        output_info["name"] for output_info in output_data_info if output_info["path"]
-    ]
+    parser_outputs = [output_info["name"] for output_info in output_data_info if output_info["path"]]
 
     spec = _build_shelljob_TaskSpec(
         identifier=f"shelljob_{label}",
@@ -1779,9 +1715,7 @@ def launch_icon_task_with_dependency(
 
     # Build metadata with SLURM job dependencies
     computer = aiida.orm.Computer.collection.get(label=computer_label)
-    metadata_dict = build_icon_metadata_with_slurm_dependencies(
-        task_spec["metadata"], job_ids, computer, label
-    )
+    metadata_dict = build_icon_metadata_with_slurm_dependencies(task_spec["metadata"], job_ids, computer, label)
 
     # Prepare complete inputs dict for IconTask
     inputs = prepare_icon_task_inputs(task_spec, input_data_nodes, metadata_dict)
@@ -1922,15 +1856,11 @@ def build_dynamic_sirocco_workgraph(
             task_label = get_label(core_task)
 
             # Collect AvailableData inputs
-            input_data_for_task = collect_available_data_inputs(
-                core_task, aiida_data_nodes, get_label
-            )
+            input_data_for_task = collect_available_data_inputs(core_task, aiida_data_nodes, get_label)
 
             # Build dependency mapping for GeneratedData inputs
-            port_to_dep_mapping, parent_folders_for_task, job_ids_for_task = (
-                build_dependency_mapping(
-                    core_task, core_workflow, task_dep_info, get_label
-                )
+            port_to_dep_mapping, parent_folders_for_task, job_ids_for_task = build_dependency_mapping(
+                core_task, core_workflow, task_dep_info, get_label
             )
 
             # Track dependencies for rolling window
@@ -2047,8 +1977,7 @@ def build_sirocco_workgraph(
     # (requires the extras serialization changes in workgraph.py)
     # Levels will be computed dynamically at runtime by TaskManager
     window_config = {
-        "enabled": front_depth
-        >= 0,  # Window must be enabled to restrict submission (0 = sequential, 1+ = lookahead)
+        "enabled": front_depth >= 0,  # Window must be enabled to restrict submission (0 = sequential, 1+ = lookahead)
         "front_depth": front_depth,
         "task_dependencies": launcher_dependencies,  # Dependency graph for dynamic level computation
     }
