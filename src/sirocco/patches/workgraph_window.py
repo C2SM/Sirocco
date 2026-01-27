@@ -251,6 +251,19 @@ def patch_workgraph_window():
         # Return True if task is within the allowed window
         return task_level <= self.window_state["max_allowed_level"]
 
+    def _count_active_jobs(self):
+        """Count the number of currently active (CREATED or RUNNING) tasks.
+
+        Returns:
+            int: Number of tasks in CREATED or RUNNING state
+        """
+        active_count = 0
+        for task in self.process.wg.tasks:
+            state = self.state_manager.get_task_runtime_info(task.name, "state")
+            if state in ["CREATED", "RUNNING"]:
+                active_count += 1
+        return active_count
+
     def patched_continue_workgraph(self):
         """Resume the WorkGraph with rolling window management.
 
@@ -330,5 +343,6 @@ def patch_workgraph_window():
     TaskManager._compute_dynamic_levels = _compute_dynamic_levels
     TaskManager._update_window = _update_window
     TaskManager._is_task_in_window = _is_task_in_window
+    TaskManager._count_active_jobs = _count_active_jobs
 
     logger.info("Applied aiida-workgraph rolling window patches (TaskManager, WorkGraph)")
