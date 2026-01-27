@@ -31,6 +31,7 @@ LOGGER = logging.getLogger(__name__)
 if TYPE_CHECKING:
     type WorkgraphDataNode = aiida.orm.RemoteData | aiida.orm.SinglefileData | aiida.orm.FolderData
 
+# TODO: Look int `attrs`, as well
 
 # =============================================================================
 # Data Structures
@@ -172,39 +173,6 @@ def _port_to_dependencies_from_dict(data: dict[str, list[dict]]) -> PortToDepend
         PortToDependencies mapping
     """
     return {port: [DependencyInfo.from_dict(dep) for dep in deps] for port, deps in data.items()}
-
-
-# =============================================================================
-# Helper Functions - Mapping Utilities
-# =============================================================================
-
-
-def _map_list_append(mapping: dict[str, list], key: str, value: Any) -> None:
-    """Append value to list at key, creating list if needed.
-
-    Args:
-        mapping: Dictionary to update
-        key: Key to append to
-        value: Value to append to the list
-    """
-    mapping.setdefault(key, []).append(value)
-
-
-def _map_unique_set(mapping: dict[str, Any], key: str, value: Any) -> bool:
-    """Set value for key only if not already present.
-
-    Args:
-        mapping: Dictionary to update
-        key: Key to set
-        value: Value to set
-
-    Returns:
-        True if value was set, False if key already existed
-    """
-    if key not in mapping:
-        mapping[key] = value
-        return True
-    return False
 
 
 # =============================================================================
@@ -1368,16 +1336,14 @@ def build_dependency_mapping(
         # -----------------------------------------------------------------
         # Add to port dependency mapping
         # -----------------------------------------------------------------
-        _map_list_append(
-            port_to_dep,
-            port,
-            DependencyInfo(dep_label=prev_label, filename=filename, data_label=input_label),
+        port_to_dep.setdefault(port, []).append(
+            DependencyInfo(dep_label=prev_label, filename=filename, data_label=input_label)
         )
 
         # -----------------------------------------------------------------
         # Add parent folder + job_id for producer (only once)
         # -----------------------------------------------------------------
-        if _map_unique_set(parent_folders, prev_label, None):
+        if prev_label not in parent_folders:
             job_data = task_dep_info[prev_label]
             parent_folders[prev_label] = job_data.remote_folder
             job_ids[prev_label] = job_data.job_id

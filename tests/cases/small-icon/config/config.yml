@@ -87,6 +87,7 @@ data:
      - dmin_wetgrowth_lookup:
          path: "{{ TESTS_ROOTDIR }}/tests/cases/small-icon/config/ICON/dmin_wetgrowth_lookup.nc"
          computer: "{{ SIROCCO_COMPUTER }}"
+  # path could be defined via ICON namelist file here. Keep this optional.
   generated:
      - finish: {}
      - restart: {}

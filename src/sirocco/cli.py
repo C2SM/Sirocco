@@ -9,6 +9,15 @@ import typer
 # Apply patches for third-party libraries before any AiiDA operations
 from sirocco.patches import patch_firecrest_symlink, patch_slurm_dependency_handling, patch_workgraph_window
 
+aiida_available = False
+try:
+    import aiida
+    aiida_available = True
+
+except ImportError:
+    aiida_available = False
+    pass
+
 patch_firecrest_symlink()
 patch_slurm_dependency_handling()
 patch_workgraph_window()

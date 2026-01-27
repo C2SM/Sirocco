@@ -781,6 +781,7 @@ def _render_jinja2_template(
     # Look for variables file in the same directory
     config_dir = config_path.parent
     vars_file = None
+    # TODO: Expose the file name option to the user
     for vars_name in ["vars.yml", "vars.yaml", "variables.yml", "variables.yaml"]:
         candidate = config_dir / vars_name
         if candidate.exists():
