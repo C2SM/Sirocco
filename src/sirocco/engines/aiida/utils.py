@@ -57,14 +57,14 @@ def split_cmd_arg(command_line: str, script_name: str | None = None) -> tuple[st
 
 def label_placeholder(data: core.Data) -> str:
     """Create a placeholder string for data."""
-    from sirocco.engines.aiida.adapters import AiiDAAdapter
+    from sirocco.engines.aiida.adapter import AiiDAAdapter
 
-    return f"{{{AiiDAAdapter.get_label_static(data)}}}"
+    return f"{{{AiiDAAdapter.get_label(data)}}}"
 
 
 def parse_mpi_cmd_to_aiida(mpi_cmd: str) -> str:
     """Parse MPI command and translate placeholders to AiiDA format."""
-    from sirocco.engines.aiida.adapters import AiiDAAdapter
+    from sirocco.engines.aiida.adapter import AiiDAAdapter
 
     for placeholder in core.MpiCmdPlaceholder:
         mpi_cmd = mpi_cmd.replace(

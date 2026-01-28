@@ -37,7 +37,7 @@ dependencies = [
   # pinned to my branch with the temporary fix
   "aiida-firecrest @ git+https://github.com/aiidateam/aiida-firecrest.git@c4e287ffe40ae57db7032fe1c80d2c4def0dc7fa",
   # pinned on my branch that contains all the changes for DYAMOND, so far
-  "aiida-icon @ git+https://github.com/aiida-icon/aiida-icon.git@dyamond-changes",  
+  "aiida-icon @ git+https://github.com/aiida-icon/aiida-icon.git@6a15937b3656242cfd9812b1dd5046216547b9ca",  
   # pinned on main
   "aiida-workgraph @ git+https://github.com/aiidateam/aiida-workgraph.git",
   "aiida-gui",

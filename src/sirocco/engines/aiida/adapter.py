@@ -12,12 +12,16 @@ import aiida.transports
 from aiida.common.exceptions import NotExistent
 
 from sirocco import core
-from sirocco.engines.aiida.utils import replace_invalid_chars_in_label, serialize_coordinates, split_cmd_arg
+from sirocco.engines.aiida.utils import (
+    replace_invalid_chars_in_label,
+    serialize_coordinates,
+    split_cmd_arg,
+)
 from sirocco.parsing._utils import TimeUtils
 from sirocco.parsing.cycling import DateCyclePoint
 
 if TYPE_CHECKING:
-    type WorkgraphDataNode = aiida.orm.RemoteData | aiida.orm.SinglefileData | aiida.orm.FolderData
+    type AiiDAFileNode = aiida.orm.RemoteData | aiida.orm.SinglefileData | aiida.orm.FolderData
 
 
 class AiiDAAdapter:
@@ -30,12 +34,8 @@ class AiiDAAdapter:
     def __init__(self, core_workflow: core.Workflow):
         self.core_workflow = core_workflow
 
-    # =============================================================================
-    # Label generation
-    # =============================================================================
-
     @staticmethod
-    def get_label_static(obj: core.GraphItem) -> str:
+    def get_label(obj: core.GraphItem) -> str:
         """Returns a unique AiiDA label for the given graph item.
 
         The graph item object is uniquely determined by its name and its coordinates.
@@ -43,10 +43,6 @@ class AiiDAAdapter:
         return replace_invalid_chars_in_label(
             f"{obj.name}" + "__".join(f"_{key}_{value}" for key, value in obj.coordinates.items())
         )
-
-    def get_label(self, obj: core.GraphItem) -> str:
-        """Returns a unique AiiDA label for the given graph item."""
-        return self.get_label_static(obj)
 
     def validate_labels(self) -> None:
         """Validate all workflow labels are AiiDA-compatible."""
@@ -69,11 +65,7 @@ class AiiDAAdapter:
                     msg = f"Raised error when validating output name '{output.name}': {exception.args[0]}"
                     raise ValueError(msg) from exception
 
-    # =============================================================================
-    # Data node creation
-    # =============================================================================
-
-    def create_data_node(self, data: core.AvailableData) -> WorkgraphDataNode:
+    def create_data_node(self, data: core.AvailableData) -> AiiDAFileNode:
         """Create an AiiDA data node from AvailableData.
 
         Args:
@@ -110,10 +102,6 @@ class AiiDAAdapter:
                 return aiida.orm.SinglefileData(file=str(data.path), label=label)
             return aiida.orm.FolderData(tree=str(data.path), label=label)
         return aiida.orm.RemoteData(remote_path=str(data.path), label=label, computer=computer)
-
-    # =============================================================================
-    # Code creation
-    # =============================================================================
 
     @staticmethod
     def create_shell_code(task: core.ShellTask, computer: aiida.orm.Computer) -> aiida.orm.Code:
@@ -246,10 +234,6 @@ class AiiDAAdapter:
 
         return code
 
-    # =============================================================================
-    # Metadata builders
-    # =============================================================================
-
     @staticmethod
     def get_scheduler_options(task: core.Task) -> dict[str, Any]:
         """Extract HPC scheduler options from task.
@@ -338,10 +322,6 @@ class AiiDAAdapter:
             metadata["options"]["prepend_text"] = f"{current_prepend}\n{exports}"
         else:
             metadata["options"]["prepend_text"] = exports
-
-    # =============================================================================
-    # Utilities
-    # =============================================================================
 
     @staticmethod
     def serialize_coordinates(coordinates: dict) -> dict:

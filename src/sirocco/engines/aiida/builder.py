@@ -18,9 +18,9 @@ from aiida_workgraph import WorkGraph
 from aiida_workgraph.manager import set_current_graph
 
 from sirocco import core
-from sirocco.engines.aiida.adapters import AiiDAAdapter
+from sirocco.engines.aiida.adapter import AiiDAAdapter
 from sirocco.engines.aiida.dependencies import build_dependency_mapping, collect_available_data_inputs
-from sirocco.engines.aiida.launchers import create_icon_launcher_pair, create_shell_launcher_pair
+from sirocco.engines.aiida.launcher import create_icon_launcher_pair, create_shell_launcher_pair
 from sirocco.engines.aiida.task_specs import InputDataInfo, OutputDataInfo
 from sirocco.engines.aiida.utils import (
     get_wrapper_script_aiida_data,
@@ -38,308 +38,6 @@ LOGGER = logging.getLogger(__name__)
 # =============================================================================
 # Task Spec Building Functions
 # =============================================================================
-
-
-def build_shell_task_spec(task: core.ShellTask, adapter: AiiDAAdapter | None = None) -> dict:
-    """Build all parameters needed to create a shell task.
-
-    Returns a dict with keys: label, code, nodes, metadata,
-    arguments_template, filenames, outputs, input_data_info, output_data_info
-
-    NOTE: Job dependencies are NOT included here - they're added at runtime.
-
-    Args:
-        task: The ShellTask to build spec for
-        adapter: AiiDA adapter for translations (optional, created internally if not provided)
-
-    Returns:
-        Dict containing all shell task parameters
-    """
-    # For backward compatibility - use static methods when no adapter provided
-    use_static = adapter is None
-    if use_static:
-        get_label = AiiDAAdapter.get_label_static
-        create_code = AiiDAAdapter.create_shell_code
-        get_scheduler_opts = AiiDAAdapter.get_scheduler_options
-    else:
-        # Type narrowing for mypy - adapter is guaranteed to be non-None here
-        adapter = cast("AiiDAAdapter", adapter)
-        get_label = adapter.get_label
-        create_code = adapter.create_shell_code
-        get_scheduler_opts = adapter.get_scheduler_options
-
-    label = get_label(task)
-
-    # Get computer
-    try:
-        computer = aiida.orm.Computer.collection.get(label=task.computer)
-    except NotExistent as err:
-        msg = f"Could not find computer {task.computer!r} in AiiDA database."
-        raise ValueError(msg) from err
-
-    # Build base metadata (no job dependencies yet)
-    if use_static:
-        metadata: dict[str, Any] = {}
-        metadata["options"] = {}
-        metadata["options"]["account"] = task.account
-        metadata["options"]["additional_retrieve_list"] = [
-            "_scheduler-stdout.txt",
-            "_scheduler-stderr.txt",
-        ]
-        metadata["options"].update(get_scheduler_opts(task))
-        # Add chunk time prepend text
-        if isinstance(task.cycle_point, DateCyclePoint):
-            start_date = task.cycle_point.chunk_start_date.isoformat()
-            stop_date = task.cycle_point.chunk_stop_date.isoformat()
-            exports = f"export SIROCCO_START_DATE={start_date}\nexport SIROCCO_STOP_DATE={stop_date}\n"
-            current_prepend = metadata["options"].get("prepend_text", "")
-            if current_prepend:
-                metadata["options"]["prepend_text"] = f"{current_prepend}\n{exports}"
-            else:
-                metadata["options"]["prepend_text"] = exports
-        try:
-            computer_temp = aiida.orm.Computer.collection.get(label=task.computer)
-            metadata["computer_label"] = computer_temp.label
-        except NotExistent as err:
-            msg = f"Could not find computer {task.computer!r} in AiiDA database."
-            raise ValueError(msg) from err
-    else:
-        metadata = adapter.build_metadata(task)  # type: ignore[union-attr]
-
-    # Add shell-specific metadata options
-    metadata["options"]["use_symlinks"] = True
-
-    # Create or load code
-    code = create_code(task, computer)
-
-    # Pre-compute input data information using dataclasses
-    input_data_info: list[InputDataInfo] = []
-    for port_name, input_ in task.input_data_items():
-        input_info = InputDataInfo(
-            port=port_name,
-            name=input_.name,
-            coordinates=serialize_coordinates(input_.coordinates),
-            label=get_label(input_),
-            is_available=isinstance(input_, core.AvailableData),
-            path=str(input_.path) if input_.path is not None else "",  # type: ignore[attr-defined]
-        )
-        input_data_info.append(input_info)
-
-    # Build input labels for argument resolution
-    input_labels: dict[str, list[str]] = {}
-    for input_info in input_data_info:
-        port_name = input_info.port
-        input_label = input_info.label
-        if port_name not in input_labels:
-            input_labels[port_name] = []
-        # For AvailableData with a path, use the actual path directly in command arguments
-        # instead of creating a placeholder, since these are pre-existing files/directories
-        if input_info.is_available and input_info.path:
-            input_labels[port_name].append(input_info.path)
-        else:
-            input_labels[port_name].append(f"{{{input_label}}}")
-
-    # Pre-compute output data information using dataclasses
-    output_data_info: list[OutputDataInfo] = []
-    for port_name, output in task.output_data_items():  # type: ignore[assignment]
-        output_info = OutputDataInfo(
-            name=output.name,
-            coordinates=serialize_coordinates(output.coordinates),
-            label=get_label(output),
-            path=str(output.path) if output.path is not None else "",  # type: ignore[attr-defined]
-            port=port_name,
-        )
-        output_data_info.append(output_info)
-
-    # Build output labels
-    output_labels: dict[str, list[str]] = {}
-    for output_info in output_data_info:
-        port_name = output_info.port  # type: ignore[assignment]
-        output_label = output_info.label
-        if port_name not in output_labels:
-            output_labels[port_name] = []
-        # For AvailableData with a path, use the actual path directly in command arguments
-        if output_info.path:
-            output_labels[port_name].append(output_info.path)
-        else:
-            output_labels[port_name].append(f"{{{output_label}}}")
-
-    # Pre-scan command template to find all referenced ports
-    # This ensures optional/missing ports are included with empty lists
-    for port_match in task.port_pattern.finditer(task.command):
-        port_name = port_match.group(2)
-        if port_name and port_name not in input_labels:
-            input_labels[port_name] = []
-
-    # Pre-resolve arguments template
-    # Get script name from task.path for proper command splitting
-    script_name = Path(task.path).name if task.path else None
-
-    # Merge output labels into input labels for resolution
-    input_labels.update(output_labels)
-    arguments_with_placeholders = task.resolve_ports(input_labels)  # type: ignore[arg-type]
-
-    _, resolved_arguments_template = split_cmd_arg(arguments_with_placeholders, script_name)
-
-    # Build filenames mapping
-    filenames = {}
-    for input_info in input_data_info:
-        input_label = input_info.label
-        if input_info.is_available:
-            filenames[input_info.name] = Path(input_info.path).name if input_info.path else input_info.name  # type: ignore[arg-type]
-        else:
-            # Count how many inputs have the same name
-            same_name_count = sum(1 for info in input_data_info if info.name == input_info.name)
-            if same_name_count > 1:
-                filenames[input_label] = input_label
-            else:
-                filenames[input_label] = Path(input_info.path).name if input_info.path else input_info.name  # type: ignore[arg-type]
-
-    # Build outputs list - but DON'T retrieve, just verify existence
-    outputs = []  # type: ignore[var-annotated]
-
-    # Build output port mapping: data_name -> shell output link_label
-    output_port_mapping = {}
-    for output_info in output_data_info:
-        if output_info.path:
-            link_label = ShellParser.format_link_label(output_info.path)  # type: ignore[arg-type]
-            output_port_mapping[output_info.name] = link_label
-
-    return {
-        "label": label,
-        "code_pk": code.pk,
-        "node_pks": {},
-        "metadata": metadata,
-        "arguments_template": resolved_arguments_template,
-        "filenames": filenames,
-        "outputs": outputs,
-        "input_data_info": [info.to_dict() for info in input_data_info],
-        "output_data_info": [info.to_dict() for info in output_data_info],
-        "output_port_mapping": output_port_mapping,
-    }
-
-
-def build_icon_task_spec(task: core.IconTask, adapter: AiiDAAdapter | None = None) -> dict:
-    """Build all parameters needed to create an ICON task.
-
-    Returns a dict with keys: label, builder, output_ports
-
-    Note: Job dependencies are NOT included here - they're added at runtime.
-
-    Args:
-        task: The IconTask to build spec for
-        adapter: AiiDA adapter for translations (optional, created internally if not provided)
-
-    Returns:
-        Dict containing all ICON task parameters
-    """
-    # For backward compatibility - use static methods when no adapter provided
-    use_static = adapter is None
-    if use_static:
-        get_label = AiiDAAdapter.get_label_static
-        get_scheduler_opts = AiiDAAdapter.get_scheduler_options
-    else:
-        # Type narrowing for mypy - adapter is guaranteed to be non-None here
-        adapter = cast("AiiDAAdapter", adapter)
-        get_label = adapter.get_label
-        get_scheduler_opts = adapter.get_scheduler_options
-
-    task_label = get_label(task)
-
-    try:
-        computer = aiida.orm.Computer.collection.get(label=task.computer)
-    except NotExistent as err:
-        msg = f"Could not find computer {task.computer!r} in AiiDA database."
-        raise ValueError(msg) from err
-
-    # Create or load ICON code with unique label based on executable path
-    bin_hash = hashlib.sha256(str(task.bin).encode()).hexdigest()[:8]
-    icon_code_label = f"icon-{bin_hash}"
-    try:
-        icon_code = aiida.orm.load_code(f"{icon_code_label}@{computer.label}")
-    except NotExistent:
-        icon_code = aiida.orm.InstalledCode(
-            label=icon_code_label,
-            description=f"ICON executable: {task.bin}",
-            default_calc_job_plugin="icon.icon",
-            computer=computer,
-            filepath_executable=str(task.bin),
-            with_mpi=True,
-            use_double_quotes=True,
-        )
-        icon_code.store()
-
-    # Build base metadata (no job dependencies yet)
-    if use_static:
-        metadata: dict[str, Any] = {}
-        metadata["options"] = {}
-        metadata["options"]["account"] = task.account
-        metadata["options"]["additional_retrieve_list"] = [
-            "_scheduler-stdout.txt",
-            "_scheduler-stderr.txt",
-        ]
-        metadata["options"].update(get_scheduler_opts(task))
-        # Add chunk time prepend text
-        if isinstance(task.cycle_point, DateCyclePoint):
-            start_date = task.cycle_point.chunk_start_date.isoformat()
-            stop_date = task.cycle_point.chunk_stop_date.isoformat()
-            exports = f"export SIROCCO_START_DATE={start_date}\nexport SIROCCO_STOP_DATE={stop_date}\n"
-            current_prepend = metadata["options"].get("prepend_text", "")
-            if current_prepend:
-                metadata["options"]["prepend_text"] = f"{current_prepend}\n{exports}"
-            else:
-                metadata["options"]["prepend_text"] = exports
-        try:
-            computer_temp = aiida.orm.Computer.collection.get(label=task.computer)
-            metadata["computer_label"] = computer_temp.label
-        except NotExistent as err:
-            msg = f"Could not find computer {task.computer!r} in AiiDA database."
-            raise ValueError(msg) from err
-    else:
-        metadata = adapter.build_metadata(task)  # type: ignore[union-attr]
-
-    # Update task namelists
-    task.update_icon_namelists_from_workflow()
-
-    # Master namelist - store as PK with parsed content for queryability
-    with io.StringIO() as buffer:
-        task.master_namelist.namelist.write(buffer)
-        content = buffer.getvalue()
-        master_namelist_node = create_namelist_singlefiledata_from_content(
-            content, task.master_namelist.name, store=True
-        )
-
-    # Model namelists - store as PKs with parsed content for queryability
-    model_namelist_pks = {}
-    for model_name, model_nml in task.model_namelists.items():
-        with io.StringIO() as buffer:
-            model_nml.namelist.write(buffer)
-            content = buffer.getvalue()
-            model_node = create_namelist_singlefiledata_from_content(content, model_nml.name, store=True)
-            model_namelist_pks[model_name] = model_node.pk
-
-    # Wrapper script - store as PK if present
-    wrapper_script_pk = None
-    wrapper_script_data = get_wrapper_script_aiida_data(task)
-    if wrapper_script_data is not None:
-        wrapper_script_data.store()
-        wrapper_script_pk = wrapper_script_data.pk
-
-    # Pre-compute output port mapping: data_name -> icon_port_name
-    output_port_mapping = {}
-    for port_name, output_list in task.outputs.items():
-        for data in output_list:
-            output_port_mapping[data.name] = port_name
-
-    return {
-        "label": task_label,
-        "code_pk": icon_code.pk,
-        "master_namelist_pk": master_namelist_node.pk,
-        "model_namelist_pks": model_namelist_pks,
-        "wrapper_script_pk": wrapper_script_pk,
-        "metadata": metadata,
-        "output_port_mapping": output_port_mapping,
-    }
 
 
 # =============================================================================
@@ -419,9 +117,9 @@ class WorkGraphBuilder:
         for task in self.workflow.tasks:
             label = self.adapter.get_label(task)
             if isinstance(task, core.ShellTask):
-                self.shell_specs[label] = build_shell_task_spec(task, self.adapter)
+                self.shell_specs[label] = self.build_shell_task_spec(task, self.adapter)
             elif isinstance(task, core.IconTask):
-                self.icon_specs[label] = build_icon_task_spec(task, self.adapter)
+                self.icon_specs[label] = self.build_icon_task_spec(task, self.adapter)
 
     def _create_workgraph(self) -> WorkGraph:
         """Create the WorkGraph with launcher tasks."""
@@ -554,3 +252,305 @@ class WorkGraphBuilder:
                 LOGGER.info("Stored resolved config as SinglefileData (PK: %s)", node_pk)
 
         wg.extras = extras
+
+    @staticmethod
+    def build_shell_task_spec(task: core.ShellTask, adapter: AiiDAAdapter | None = None) -> dict:
+        """Build all parameters needed to create a shell task.
+
+        Returns a dict with keys: label, code, nodes, metadata,
+        arguments_template, filenames, outputs, input_data_info, output_data_info
+
+        NOTE: Job dependencies are NOT included here - they're added at runtime.
+
+        Args:
+            task: The ShellTask to build spec for
+            adapter: AiiDA adapter for translations (optional, created internally if not provided)
+
+        Returns:
+            Dict containing all shell task parameters
+        """
+        # For backward compatibility - use static methods when no adapter provided
+        use_static = adapter is None
+        if use_static:
+            get_label = AiiDAAdapter.get_label
+            create_code = AiiDAAdapter.create_shell_code
+            get_scheduler_opts = AiiDAAdapter.get_scheduler_options
+        else:
+            # Type narrowing for mypy - adapter is guaranteed to be non-None here
+            adapter = cast("AiiDAAdapter", adapter)
+            get_label = adapter.get_label
+            create_code = adapter.create_shell_code
+            get_scheduler_opts = adapter.get_scheduler_options
+
+        label = get_label(task)
+
+        # Get computer
+        try:
+            computer = aiida.orm.Computer.collection.get(label=task.computer)
+        except NotExistent as err:
+            msg = f"Could not find computer {task.computer!r} in AiiDA database."
+            raise ValueError(msg) from err
+
+        # Build base metadata (no job dependencies yet)
+        if use_static:
+            metadata: dict[str, Any] = {}
+            metadata["options"] = {}
+            metadata["options"]["account"] = task.account
+            metadata["options"]["additional_retrieve_list"] = [
+                "_scheduler-stdout.txt",
+                "_scheduler-stderr.txt",
+            ]
+            metadata["options"].update(get_scheduler_opts(task))
+            # Add chunk time prepend text
+            if isinstance(task.cycle_point, DateCyclePoint):
+                start_date = task.cycle_point.chunk_start_date.isoformat()
+                stop_date = task.cycle_point.chunk_stop_date.isoformat()
+                exports = f"export SIROCCO_START_DATE={start_date}\nexport SIROCCO_STOP_DATE={stop_date}\n"
+                current_prepend = metadata["options"].get("prepend_text", "")
+                if current_prepend:
+                    metadata["options"]["prepend_text"] = f"{current_prepend}\n{exports}"
+                else:
+                    metadata["options"]["prepend_text"] = exports
+            try:
+                computer_temp = aiida.orm.Computer.collection.get(label=task.computer)
+                metadata["computer_label"] = computer_temp.label
+            except NotExistent as err:
+                msg = f"Could not find computer {task.computer!r} in AiiDA database."
+                raise ValueError(msg) from err
+        else:
+            metadata = adapter.build_metadata(task)  # type: ignore[union-attr]
+
+        # Add shell-specific metadata options
+        metadata["options"]["use_symlinks"] = True
+
+        # Create or load code
+        code = create_code(task, computer)
+
+        # Pre-compute input data information using dataclasses
+        input_data_info: list[InputDataInfo] = []
+        for port_name, input_ in task.input_data_items():
+            input_info = InputDataInfo(
+                port=port_name,
+                name=input_.name,
+                coordinates=serialize_coordinates(input_.coordinates),
+                label=get_label(input_),
+                is_available=isinstance(input_, core.AvailableData),
+                path=str(input_.path) if input_.path is not None else "",  # type: ignore[attr-defined]
+            )
+            input_data_info.append(input_info)
+
+        # Build input labels for argument resolution
+        input_labels: dict[str, list[str]] = {}
+        for input_info in input_data_info:
+            port_name = input_info.port
+            input_label = input_info.label
+            if port_name not in input_labels:
+                input_labels[port_name] = []
+            # For AvailableData with a path, use the actual path directly in command arguments
+            # instead of creating a placeholder, since these are pre-existing files/directories
+            if input_info.is_available and input_info.path:
+                input_labels[port_name].append(input_info.path)
+            else:
+                input_labels[port_name].append(f"{{{input_label}}}")
+
+        # Pre-compute output data information using dataclasses
+        output_data_info: list[OutputDataInfo] = []
+        for port_name, output in task.output_data_items():  # type: ignore[assignment]
+            output_info = OutputDataInfo(
+                name=output.name,
+                coordinates=serialize_coordinates(output.coordinates),
+                label=get_label(output),
+                path=str(output.path) if output.path is not None else "",  # type: ignore[attr-defined]
+                port=port_name,
+            )
+            output_data_info.append(output_info)
+
+        # Build output labels
+        output_labels: dict[str, list[str]] = {}
+        for output_info in output_data_info:
+            port_name = output_info.port  # type: ignore[assignment]
+            output_label = output_info.label
+            if port_name not in output_labels:
+                output_labels[port_name] = []
+            # For AvailableData with a path, use the actual path directly in command arguments
+            if output_info.path:
+                output_labels[port_name].append(output_info.path)
+            else:
+                output_labels[port_name].append(f"{{{output_label}}}")
+
+        # Pre-scan command template to find all referenced ports
+        # This ensures optional/missing ports are included with empty lists
+        for port_match in task.port_pattern.finditer(task.command):
+            port_name = port_match.group(2)
+            if port_name and port_name not in input_labels:
+                input_labels[port_name] = []
+
+        # Pre-resolve arguments template
+        # Get script name from task.path for proper command splitting
+        script_name = Path(task.path).name if task.path else None
+
+        # Merge output labels into input labels for resolution
+        input_labels.update(output_labels)
+        arguments_with_placeholders = task.resolve_ports(input_labels)  # type: ignore[arg-type]
+
+        _, resolved_arguments_template = split_cmd_arg(arguments_with_placeholders, script_name)
+
+        # Build filenames mapping
+        filenames = {}
+        for input_info in input_data_info:
+            input_label = input_info.label
+            if input_info.is_available:
+                filenames[input_info.name] = Path(input_info.path).name if input_info.path else input_info.name  # type: ignore[arg-type]
+            else:
+                # Count how many inputs have the same name
+                same_name_count = sum(1 for info in input_data_info if info.name == input_info.name)
+                if same_name_count > 1:
+                    filenames[input_label] = input_label
+                else:
+                    filenames[input_label] = Path(input_info.path).name if input_info.path else input_info.name  # type: ignore[arg-type]
+
+        # Build outputs list - but DON'T retrieve, just verify existence
+        outputs = []  # type: ignore[var-annotated]
+
+        # Build output port mapping: data_name -> shell output link_label
+        output_port_mapping = {}
+        for output_info in output_data_info:
+            if output_info.path:
+                link_label = ShellParser.format_link_label(output_info.path)  # type: ignore[arg-type]
+                output_port_mapping[output_info.name] = link_label
+
+        return {
+            "label": label,
+            "code_pk": code.pk,
+            "node_pks": {},
+            "metadata": metadata,
+            "arguments_template": resolved_arguments_template,
+            "filenames": filenames,
+            "outputs": outputs,
+            "input_data_info": [info.to_dict() for info in input_data_info],
+            "output_data_info": [info.to_dict() for info in output_data_info],
+            "output_port_mapping": output_port_mapping,
+        }
+
+    @staticmethod
+    def build_icon_task_spec(task: core.IconTask, adapter: AiiDAAdapter | None = None) -> dict:
+        """Build all parameters needed to create an ICON task.
+
+        Returns a dict with keys: label, builder, output_ports
+
+        Note: Job dependencies are NOT included here - they're added at runtime.
+
+        Args:
+            task: The IconTask to build spec for
+            adapter: AiiDA adapter for translations (optional, created internally if not provided)
+
+        Returns:
+            Dict containing all ICON task parameters
+        """
+        # For backward compatibility - use static methods when no adapter provided
+        use_static = adapter is None
+        if use_static:
+            get_label = AiiDAAdapter.get_label
+            get_scheduler_opts = AiiDAAdapter.get_scheduler_options
+        else:
+            # Type narrowing for mypy - adapter is guaranteed to be non-None here
+            adapter = cast("AiiDAAdapter", adapter)
+            get_label = adapter.get_label
+            get_scheduler_opts = adapter.get_scheduler_options
+
+        task_label = get_label(task)
+
+        try:
+            computer = aiida.orm.Computer.collection.get(label=task.computer)
+        except NotExistent as err:
+            msg = f"Could not find computer {task.computer!r} in AiiDA database."
+            raise ValueError(msg) from err
+
+        # Create or load ICON code with unique label based on executable path
+        bin_hash = hashlib.sha256(str(task.bin).encode()).hexdigest()[:8]
+        icon_code_label = f"icon-{bin_hash}"
+        try:
+            icon_code = aiida.orm.load_code(f"{icon_code_label}@{computer.label}")
+        except NotExistent:
+            icon_code = aiida.orm.InstalledCode(
+                label=icon_code_label,
+                description=f"ICON executable: {task.bin}",
+                default_calc_job_plugin="icon.icon",
+                computer=computer,
+                filepath_executable=str(task.bin),
+                with_mpi=True,
+                use_double_quotes=True,
+            )
+            icon_code.store()
+
+        # Build base metadata (no job dependencies yet)
+        if use_static:
+            metadata: dict[str, Any] = {}
+            metadata["options"] = {}
+            metadata["options"]["account"] = task.account
+            metadata["options"]["additional_retrieve_list"] = [
+                "_scheduler-stdout.txt",
+                "_scheduler-stderr.txt",
+            ]
+            metadata["options"].update(get_scheduler_opts(task))
+            # Add chunk time prepend text
+            if isinstance(task.cycle_point, DateCyclePoint):
+                start_date = task.cycle_point.chunk_start_date.isoformat()
+                stop_date = task.cycle_point.chunk_stop_date.isoformat()
+                exports = f"export SIROCCO_START_DATE={start_date}\nexport SIROCCO_STOP_DATE={stop_date}\n"
+                current_prepend = metadata["options"].get("prepend_text", "")
+                if current_prepend:
+                    metadata["options"]["prepend_text"] = f"{current_prepend}\n{exports}"
+                else:
+                    metadata["options"]["prepend_text"] = exports
+            try:
+                computer_temp = aiida.orm.Computer.collection.get(label=task.computer)
+                metadata["computer_label"] = computer_temp.label
+            except NotExistent as err:
+                msg = f"Could not find computer {task.computer!r} in AiiDA database."
+                raise ValueError(msg) from err
+        else:
+            metadata = adapter.build_metadata(task)  # type: ignore[union-attr]
+
+        # Update task namelists
+        task.update_icon_namelists_from_workflow()
+
+        # Master namelist - store as PK with parsed content for queryability
+        with io.StringIO() as buffer:
+            task.master_namelist.namelist.write(buffer)
+            content = buffer.getvalue()
+            master_namelist_node = create_namelist_singlefiledata_from_content(
+                content, task.master_namelist.name, store=True
+            )
+
+        # Model namelists - store as PKs with parsed content for queryability
+        model_namelist_pks = {}
+        for model_name, model_nml in task.model_namelists.items():
+            with io.StringIO() as buffer:
+                model_nml.namelist.write(buffer)
+                content = buffer.getvalue()
+                model_node = create_namelist_singlefiledata_from_content(content, model_nml.name, store=True)
+                model_namelist_pks[model_name] = model_node.pk
+
+        # Wrapper script - store as PK if present
+        wrapper_script_pk = None
+        wrapper_script_data = get_wrapper_script_aiida_data(task)
+        if wrapper_script_data is not None:
+            wrapper_script_data.store()
+            wrapper_script_pk = wrapper_script_data.pk
+
+        # Pre-compute output port mapping: data_name -> icon_port_name
+        output_port_mapping = {}
+        for port_name, output_list in task.outputs.items():
+            for data in output_list:
+                output_port_mapping[data.name] = port_name
+
+        return {
+            "label": task_label,
+            "code_pk": icon_code.pk,
+            "master_namelist_pk": master_namelist_node.pk,
+            "model_namelist_pks": model_namelist_pks,
+            "wrapper_script_pk": wrapper_script_pk,
+            "metadata": metadata,
+            "output_port_mapping": output_port_mapping,
+        }

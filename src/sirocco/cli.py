@@ -375,7 +375,7 @@ def run(
     core_wf, wg = create_aiida_workflow(workflow_file, jinja_vars_file)
     console.print(f"▶️ Running workflow [magenta]'{core_wf.name}'[/magenta] directly (blocking)...")
     if front_depth == 1:
-        console.print("   Sequential submission (front_depth=1)")
+        console.print("   Without pre-submission (front_depth=1)")
     else:
         console.print(f"   Front depth: {front_depth} levels")
     try:
@@ -426,7 +426,7 @@ def submit(
     try:
         console.print(f"🚀 Submitting workflow [magenta]'{core_wf.name}'[/magenta] to AiiDA daemon...")
         if front_depth == 1:
-            console.print("   Sequential submission (front_depth=1)")
+            console.print("   No pre-submission (front_depth=1)")
         else:
             console.print(f"   Front depth: {front_depth} levels")
 

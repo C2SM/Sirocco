@@ -1,12 +1,9 @@
 import pytest
 
 from sirocco.core import Workflow
-from sirocco.engines.aiida import (
-    build_icon_task_spec,
-    build_shell_task_spec,
-    build_sirocco_workgraph,
-    compute_topological_levels,
-)
+from sirocco.engines.aiida import build_sirocco_workgraph
+from sirocco.engines.aiida.builder import WorkGraphBuilder
+from sirocco.engines.aiida.topology import compute_topological_levels
 from sirocco.parsing.yaml_data_models import ConfigWorkflow
 
 
@@ -40,7 +37,7 @@ def test_shell_filenames_nodes_arguments(config_paths):
     nodes_list = []
 
     for task in shell_tasks:
-        task_spec = build_shell_task_spec(task)
+        task_spec = WorkGraphBuilder.build_shell_task_spec(task)
         filenames_list.append(task_spec["filenames"])
         arguments_list.append(task_spec["arguments_template"])
 
@@ -248,7 +245,7 @@ def test_aiida_icon_task_metadata(config_paths):
     icon_tasks = [task for task in core_workflow.tasks if isinstance(task, core.IconTask)]
 
     for task in icon_tasks:
-        task_spec = build_icon_task_spec(task)
+        task_spec = WorkGraphBuilder.build_icon_task_spec(task)
 
         # Test wrapper script
         if task_spec["wrapper_script_pk"] is not None:
@@ -275,7 +272,7 @@ def test_aiida_icon_task_metadata(config_paths):
     icon_tasks = [task for task in core_workflow.tasks if isinstance(task, core.IconTask)]
 
     for task in icon_tasks:
-        task_spec = build_icon_task_spec(task)
+        task_spec = WorkGraphBuilder.build_icon_task_spec(task)
 
         # Test default wrapper script
         if task_spec["wrapper_script_pk"] is not None:
@@ -384,7 +381,15 @@ def test_branch_independence_config(config_paths):
     # Verify we have the expected tasks
     # Task names pattern: launch_{wg_name}_{task_name}_date_...
     # where wg_name includes timestamp, so we check for task names in the middle
-    expected_task_names = ["root", "fast_1", "fast_2", "fast_3", "slow_1", "slow_2", "slow_3"]
+    expected_task_names = [
+        "root",
+        "fast_1",
+        "fast_2",
+        "fast_3",
+        "slow_1",
+        "slow_2",
+        "slow_3",
+    ]
     for task_name in expected_task_names:
         # Match pattern: launch_*_{task_name}_date_*
         matching_tasks = [t for t in launcher_tasks if f"_{task_name}_date_" in t]
@@ -511,7 +516,15 @@ def test_branch_independence_execution(config_paths):
     print_timing_summary(launcher_times)
 
     # Verify we have all expected tasks
-    expected_tasks = ["root", "fast_1", "fast_2", "fast_3", "slow_1", "slow_2", "slow_3"]
+    expected_tasks = [
+        "root",
+        "fast_1",
+        "fast_2",
+        "fast_3",
+        "slow_1",
+        "slow_2",
+        "slow_3",
+    ]
     found_tasks = list(launcher_times.keys())
     LOGGER.info("Found tasks: %s", found_tasks)
     assert len(found_tasks) >= 7, (
