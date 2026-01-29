@@ -20,7 +20,9 @@ def test_shell_filenames_nodes_arguments(config_paths):
 
     from sirocco import core
 
-    config_workflow = ConfigWorkflow.from_config_file(str(config_paths["yml"]), variables=config_paths["variables"])
+    config_workflow = ConfigWorkflow.from_config_file(
+        str(config_paths["yml"]), template_context=config_paths["variables"]
+    )
 
     # Update the stop_date for both cycles to make the result shorter
     # NOTE: We currently don't use timezone-aware times in config YAML, thus ignora DTZ001 for now.
@@ -158,7 +160,9 @@ def test_waiting_on(config_paths):
     task chaining (>>), so we test that the cleanup task's get_job_data has
     the expected number of dependencies.
     """
-    config_workflow = ConfigWorkflow.from_config_file(str(config_paths["yml"]), variables=config_paths["variables"])
+    config_workflow = ConfigWorkflow.from_config_file(
+        str(config_paths["yml"]), template_context=config_paths["variables"]
+    )
 
     core_workflow = Workflow.from_config_workflow(config_workflow)
     workgraph = build_sirocco_workgraph(core_workflow)
@@ -195,7 +199,9 @@ def test_waiting_on(config_paths):
 )
 def test_build_workgraph(config_paths):
     """Test that WorkGraph builds successfully with the new functional API."""
-    config_workflow = ConfigWorkflow.from_config_file(str(config_paths["yml"]), variables=config_paths["variables"])
+    config_workflow = ConfigWorkflow.from_config_file(
+        str(config_paths["yml"]), template_context=config_paths["variables"]
+    )
     core_workflow = Workflow.from_config_workflow(config_workflow)
 
     # Build the WorkGraph
@@ -237,7 +243,9 @@ def test_aiida_icon_task_metadata(config_paths):
 
     from sirocco import core
 
-    config_workflow = ConfigWorkflow.from_config_file(str(config_paths["yml"]), variables=config_paths["variables"])
+    config_workflow = ConfigWorkflow.from_config_file(
+        str(config_paths["yml"]), template_context=config_paths["variables"]
+    )
 
     core_workflow = Workflow.from_config_workflow(config_workflow)
 
@@ -259,7 +267,9 @@ def test_aiida_icon_task_metadata(config_paths):
         assert "#SBATCH --view=icon" in custom_scheduler_commands
 
     # Test default wrapper script behavior
-    config_workflow = ConfigWorkflow.from_config_file(str(config_paths["yml"]), variables=config_paths["variables"])
+    config_workflow = ConfigWorkflow.from_config_file(
+        str(config_paths["yml"]), template_context=config_paths["variables"]
+    )
 
     # Find the icon task and remove wrapper_script
     for task in config_workflow.tasks:
@@ -362,7 +372,9 @@ def test_topological_levels_complex():
 )
 def test_branch_independence_config(config_paths):
     """Test that branch independence workflow is configured correctly."""
-    config_workflow = ConfigWorkflow.from_config_file(str(config_paths["yml"]), variables=config_paths["variables"])
+    config_workflow = ConfigWorkflow.from_config_file(
+        str(config_paths["yml"]), template_context=config_paths["variables"]
+    )
     core_workflow = Workflow.from_config_workflow(config_workflow)
 
     # Build the WorkGraph with front_depth=1
@@ -471,7 +483,7 @@ def test_branch_independence_execution(config_paths):
 
     # Build and run the workflow
     LOGGER.info("Building workflow from config")
-    core_workflow = Workflow.from_config_file(str(config_paths["yml"]), variables=config_paths["variables"])
+    core_workflow = Workflow.from_config_file(str(config_paths["yml"]), template_context=config_paths["variables"])
     workgraph = build_sirocco_workgraph(core_workflow, front_depth=1)
     LOGGER.info("WorkGraph built with %s tasks", len(workgraph.tasks))
 
@@ -673,7 +685,7 @@ def test_branch_independence_with_front_depths(config_paths, front_depth):
 
     # Build and run the workflow with specified front_depth
     LOGGER.info("Building workflow from config")
-    core_workflow = Workflow.from_config_file(str(config_paths["yml"]), variables=config_paths["variables"])
+    core_workflow = Workflow.from_config_file(str(config_paths["yml"]), template_context=config_paths["variables"])
     workgraph = build_sirocco_workgraph(core_workflow, front_depth=front_depth)
     LOGGER.info("WorkGraph built with %s tasks", len(workgraph.tasks))
 

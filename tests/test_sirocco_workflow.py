@@ -13,17 +13,24 @@ LOGGER = logging.getLogger(__name__)
 
 def test_parse_config_file(config_paths, pprinter):
     reference_str = config_paths["txt"].read_text()
-    test_str = pprinter.format(Workflow.from_config_file(config_paths["yml"], variables=config_paths["variables"]))
-    if test_str != reference_str:
+    test_str = pprinter.format(
+        Workflow.from_config_file(config_paths["yml"], template_context=config_paths["variables"])
+    )
+
+    # Normalize paths: replace tmp_path with placeholder to match reference files
+    tests_rootdir = config_paths["variables"]["TESTS_ROOTDIR"]
+    test_str_normalized = test_str.replace(str(tests_rootdir), "/TESTS_ROOTDIR")
+
+    if test_str_normalized != reference_str:
         new_path = Path(config_paths["txt"]).with_suffix(".new.txt")
-        new_path.write_text(test_str)
-        assert reference_str == test_str, (
+        new_path.write_text(test_str_normalized)
+        assert reference_str == test_str_normalized, (
             f"Workflow graph doesn't match serialized data. New graph string dumped to {new_path}."
         )
 
 
 def test_vizgraph(config_paths):
-    VizGraph.from_config_file(config_paths["yml"], variables=config_paths["variables"]).draw(
+    VizGraph.from_config_file(config_paths["yml"], template_context=config_paths["variables"]).draw(
         file_path=config_paths["svg"]
     )
 
@@ -130,7 +137,7 @@ def test_run_workgraph_with_icon(icon_filepath_executable, config_paths, tmp_pat
 )
 def test_nml_mod(config_paths, tmp_path):
     nml_refdir = config_paths["txt"].parent / "ICON_namelists"
-    wf = Workflow.from_config_file(config_paths["yml"], variables=config_paths["variables"])
+    wf = Workflow.from_config_file(config_paths["yml"], template_context=config_paths["variables"])
     # Create core mamelists
     for task in wf.tasks:
         if isinstance(task, IconTask):

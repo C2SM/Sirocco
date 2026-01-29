@@ -1,4 +1,4 @@
-"""Sirocco WorkGraph builder - AiiDA workflow orchestration.
+"""AiiDA workflow orchestration.
 
 Public API
 ----------
@@ -14,12 +14,11 @@ WorkGraphBuilder
 
 from __future__ import annotations
 
-from sirocco.engines.aiida.api import (
-    build_sirocco_workgraph,
+from sirocco.engines.aiida.builder import WorkGraphBuilder, build_sirocco_workgraph
+from sirocco.engines.aiida.execute import (
     run_sirocco_workgraph,
     submit_sirocco_workgraph,
 )
-from sirocco.engines.aiida.builder import WorkGraphBuilder
 
 __all__ = [
     "WorkGraphBuilder",

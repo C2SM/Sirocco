@@ -201,7 +201,7 @@ def resolve(
     """
     from pathlib import Path
 
-    from sirocco.parsing.yaml_data_models import _render_jinja2_template
+    from sirocco.parsing.yaml_data_models import JinjaResolver
 
     console.print(f"🔧 Resolving template in: [cyan]{workflow_file!s}[/cyan]")
     if jinja_vars_file:
@@ -220,12 +220,15 @@ def resolve(
 
     try:
         # Render Jinja2 template
-        rendered_content = _render_jinja2_template(
-            content=content,
-            config_path=config_resolved_path,
-            jinja_vars_file_path=str(jinja_vars_file) if jinja_vars_file else None,
-            variables=None,
+        resolver = JinjaResolver()
+
+        # Load variables from file (if any)
+        context = resolver.load_variables_from_file(
+            config_resolved_path, Path(jinja_vars_file) if jinja_vars_file else None
         )
+
+        # Render the template
+        rendered_content = resolver.render(content, context)
 
         # Output to file or stdout
         if output_file:

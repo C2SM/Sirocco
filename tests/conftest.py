@@ -193,8 +193,17 @@ def pytest_addoption(parser):
     )
 
 
-def serialize_worklfow(config_paths: dict[str, pathlib.Path], workflow: workflow.Workflow) -> None:
-    config_paths["txt"].write_text(pretty_print.PrettyPrinter().format(workflow))
+def serialize_workflow(
+    config_paths: dict[str, pathlib.Path], workflow: workflow.Workflow, rootdir: pathlib.Path | None = None
+) -> None:
+    """Serialize workflow to text file, normalizing paths to be user-independent."""
+    serialized = pretty_print.PrettyPrinter().format(workflow)
+
+    # Normalize paths: replace absolute rootdir with placeholder
+    if rootdir:
+        serialized = serialized.replace(str(rootdir), "/TESTS_ROOTDIR")
+
+    config_paths["txt"].write_text(serialized)
 
 
 def serialize_nml(config_paths: dict[str, pathlib.Path], workflow: workflow.Workflow) -> None:
@@ -211,10 +220,11 @@ def pytest_configure(config):
             config_paths = generate_config_paths(config_case)
             for key, value in config_paths.items():
                 config_paths[key] = pathlib.Path(config.rootdir) / value
-            # For regenerating tests, TESTS_ROOTDIR points to the repository root
+            # Use actual rootdir for workflow parsing (files must exist)
             variables = {"TESTS_ROOTDIR": str(config.rootdir)}
-            wf = workflow.Workflow.from_config_file(str(config_paths["yml"]), variables=variables)
-            serialize_worklfow(config_paths=config_paths, workflow=wf)
+            wf = workflow.Workflow.from_config_file(str(config_paths["yml"]), template_context=variables)
+            # Normalize paths in serialized output
+            serialize_workflow(config_paths=config_paths, workflow=wf, rootdir=config.rootdir)
             serialize_nml(config_paths=config_paths, workflow=wf)
 
 

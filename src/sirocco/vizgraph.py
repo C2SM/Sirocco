@@ -4,7 +4,7 @@ import enum
 from colorsys import hsv_to_rgb
 from itertools import chain
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Self
+from typing import TYPE_CHECKING, Any, ClassVar, Self, overload
 
 from lxml import etree
 from pygraphviz import AGraph
@@ -243,9 +243,69 @@ class VizGraph:
     def from_core_workflow(cls, workflow: core.Workflow) -> Self:
         return cls(name=workflow.name, tasks=workflow.tasks, data=workflow.data, cycles=workflow.cycles)
 
+    @overload
     @classmethod
-    def from_config_file(cls, config_path: str) -> Self:
-        return cls.from_core_workflow(core.Workflow.from_config_file(config_path))
+    def from_config_file(
+        cls,
+        config_path: str | Path,
+        template_context: None = None,
+    ) -> Self: ...
+
+    @overload
+    @classmethod
+    def from_config_file(
+        cls,
+        config_path: str | Path,
+        template_context: dict[str, Any],
+    ) -> Self: ...
+
+    @overload
+    @classmethod
+    def from_config_file(
+        cls,
+        config_path: str | Path,
+        template_context: str | Path,
+    ) -> Self: ...
+
+    @classmethod
+    def from_config_file(
+        cls,
+        config_path: str | Path,
+        template_context: dict[str, Any] | str | Path | None = None,
+    ) -> Self:
+        """Load VizGraph from a config file.
+
+        Args:
+            config_path: Path to the config YAML file
+            template_context: Either a dict of inline context variables, path to a variables file, or None
+
+        Returns:
+            VizGraph instance
+        """
+        return cls.from_core_workflow(core.Workflow.from_config_file(config_path, template_context=template_context))
+
+    @classmethod
+    def from_config_str(
+        cls,
+        content: str,
+        template_context: dict[str, Any] | None = None,
+        name: str | None = None,
+        rootdir: Path | None = None,
+    ) -> Self:
+        """Load VizGraph from a YAML string (for testing/programmatic use).
+
+        Args:
+            content: YAML string containing the workflow definition
+            template_context: Optional dict of context variables for Jinja2 template rendering
+            name: Optional workflow name (defaults to "workflow")
+            rootdir: Optional root directory for relative paths (defaults to cwd)
+
+        Returns:
+            VizGraph instance
+        """
+        return cls.from_core_workflow(
+            core.Workflow.from_config_str(content, template_context=template_context, name=name, rootdir=rootdir)
+        )
 
     @staticmethod
     def add_to_unique_list(item: GRAPH_ITEM_T, item_list: list[GRAPH_ITEM_T], labels: list[str]) -> None:

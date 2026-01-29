@@ -4,7 +4,8 @@ import enum
 import logging
 from datetime import datetime
 from itertools import chain, product
-from typing import TYPE_CHECKING, Any, Literal, Self
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Literal, Self, overload
 
 from ruamel.yaml import YAML
 
@@ -21,7 +22,6 @@ from sirocco.parsing.yaml_data_models import (
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from pathlib import Path
 
     from sirocco.parsing.cycling import CyclePoint
     from sirocco.parsing.yaml_data_models import (
@@ -421,17 +421,80 @@ class Workflow:
             self.sirocco_continue_task.jobid = "_NO_ID_"
             self.status = WorkflowStatus.COMPLETED
 
+    @overload
     @classmethod
     def from_config_file(
         cls: type[Self],
         config_path: str | Path,
-    ) -> Self:
-        """
-        Loads a python representation of a workflow config file.
+        template_context: None = None,
+    ) -> Self: ...
 
-        :param config_path: the string to the config yaml file containing the workflow definition
+    @overload
+    @classmethod
+    def from_config_file(
+        cls: type[Self],
+        config_path: str | Path,
+        template_context: dict[str, Any],
+    ) -> Self: ...
+
+    @overload
+    @classmethod
+    def from_config_file(
+        cls: type[Self],
+        config_path: str | Path,
+        template_context: str | Path,
+    ) -> Self: ...
+
+    @classmethod
+    def from_config_file(
+        cls: type[Self],
+        config_path: str | Path,
+        template_context: dict[str, Any] | str | Path | None = None,
+    ) -> Self:
+        """Load workflow from a config file.
+
+        Args:
+            config_path: Path to the config YAML file
+            template_context: Either a dict of inline context variables, path to a variables file, or None
+
+        Returns:
+            Workflow instance
         """
+        if isinstance(template_context, dict):
+            # Inline context dict (for tests/programmatic use)
+            return cls.from_config_workflow(
+                ConfigWorkflow.from_config_file(config_path, template_context=template_context)
+            )
+        if isinstance(template_context, (str, Path)):
+            # Path to variables file (file-based approach)
+            return cls.from_config_workflow(
+                ConfigWorkflow.from_config_file(config_path, jinja_vars_file_path=template_context)
+            )
+        # No context
         return cls.from_config_workflow(ConfigWorkflow.from_config_file(config_path))
+
+    @classmethod
+    def from_config_str(
+        cls: type[Self],
+        content: str,
+        template_context: dict[str, Any] | None = None,
+        name: str | None = None,
+        rootdir: Path | None = None,
+    ) -> Self:
+        """Load workflow from a YAML string (for testing/programmatic use).
+
+        Args:
+            content: YAML string containing the workflow definition
+            template_context: Optional dict of context variables for Jinja2 template rendering
+            name: Optional workflow name (defaults to "workflow")
+            rootdir: Optional root directory for relative paths (defaults to cwd)
+
+        Returns:
+            Workflow instance
+        """
+        return cls.from_config_workflow(
+            ConfigWorkflow.from_config_str(content, template_context=template_context, name=name, rootdir=rootdir)
+        )
 
     @classmethod
     def from_config_workflow(

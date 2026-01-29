@@ -19,8 +19,14 @@ from aiida_workgraph.manager import set_current_graph
 
 from sirocco import core
 from sirocco.engines.aiida.adapter import AiiDAAdapter
-from sirocco.engines.aiida.dependencies import build_dependency_mapping, collect_available_data_inputs
-from sirocco.engines.aiida.launcher import create_icon_launcher_pair, create_shell_launcher_pair
+from sirocco.engines.aiida.dependencies import (
+    build_dependency_mapping,
+    collect_available_data_inputs,
+)
+from sirocco.engines.aiida.launcher import (
+    create_icon_launcher_pair,
+    create_shell_launcher_pair,
+)
 from sirocco.engines.aiida.task_specs import InputDataInfo, OutputDataInfo
 from sirocco.engines.aiida.utils import (
     get_wrapper_script_aiida_data,
@@ -33,16 +39,6 @@ if TYPE_CHECKING:
     type WorkgraphDataNode = aiida.orm.RemoteData | aiida.orm.SinglefileData | aiida.orm.FolderData
 
 LOGGER = logging.getLogger(__name__)
-
-
-# =============================================================================
-# Task Spec Building Functions
-# =============================================================================
-
-
-# =============================================================================
-# WorkGraphBuilder Class
-# =============================================================================
 
 
 class WorkGraphBuilder:
@@ -87,7 +83,7 @@ class WorkGraphBuilder:
 
         Args:
             front_depth: Number of topological levels to keep active (must be >= 1)
-                1 = sequential (default, no pre-submission - wait for level N to finish before submitting N+1)
+                1 = no pre-submission (default) - wait for level N to finish before submitting N+1)
                 2 = one level ahead
                 higher values = more aggressive streaming submission
 
@@ -164,11 +160,21 @@ class WorkGraphBuilder:
         # Create launcher pair based on task type
         if isinstance(task, core.IconTask):
             self._create_icon_launcher_pair(
-                task_label, self.icon_specs[task_label], input_data, parent_folders, job_ids, port_to_dep
+                task_label,
+                self.icon_specs[task_label],
+                input_data,
+                parent_folders,
+                job_ids,
+                port_to_dep,
             )
         elif isinstance(task, core.ShellTask):
             self._create_shell_launcher_pair(
-                task_label, self.shell_specs[task_label], input_data, parent_folders, job_ids, port_to_dep
+                task_label,
+                self.shell_specs[task_label],
+                input_data,
+                parent_folders,
+                job_ids,
+                port_to_dep,
             )
 
     def _collect_available_inputs(self, task: core.Task) -> dict:
@@ -180,7 +186,13 @@ class WorkGraphBuilder:
         return build_dependency_mapping(task, self.workflow, self.task_outputs, self.adapter.get_label)
 
     def _create_icon_launcher_pair(
-        self, task_label: str, spec: dict, input_data: dict, parent_folders: dict, job_ids: dict, port_to_dep: dict
+        self,
+        task_label: str,
+        spec: dict,
+        input_data: dict,
+        parent_folders: dict,
+        job_ids: dict,
+        port_to_dep: dict,
     ) -> None:
         """Create ICON launcher and get_job_data tasks."""
         self.task_outputs, self.get_job_tasks = create_icon_launcher_pair(
@@ -197,7 +209,13 @@ class WorkGraphBuilder:
         )
 
     def _create_shell_launcher_pair(
-        self, task_label: str, spec: dict, input_data: dict, parent_folders: dict, job_ids: dict, port_to_dep: dict
+        self,
+        task_label: str,
+        spec: dict,
+        input_data: dict,
+        parent_folders: dict,
+        job_ids: dict,
+        port_to_dep: dict,
     ) -> None:
         """Create shell launcher and get_job_data tasks."""
         self.task_outputs, self.get_job_tasks = create_shell_launcher_pair(
@@ -554,3 +572,41 @@ class WorkGraphBuilder:
             "metadata": metadata,
             "output_port_mapping": output_port_mapping,
         }
+
+
+def build_sirocco_workgraph(
+    core_workflow: core.Workflow,
+    front_depth: int = 1,
+    resolved_config_path: str | None = None,
+) -> WorkGraph:
+    """Build a Sirocco WorkGraph from a core workflow.
+
+    This is the main entry point for building Sirocco workflows.
+
+    Args:
+        core_workflow: The core workflow to convert
+        front_depth: Number of topological levels to keep active (default: 1, must be >= 1)
+                    1 = sequential (no pre-submission - wait for level N to finish before submitting N+1)
+                    2 = one level ahead
+                    higher values = more aggressive streaming submission
+        resolved_config_path: Optional path to the resolved config file (with Jinja2 variables replaced)
+
+    Returns:
+        A WorkGraph ready for submission
+
+    Example::
+
+        from sirocco import core
+        from sirocco.engines.aiida import build_sirocco_workgraph
+
+        # Build your core workflow
+        wf = core.Workflow.from_config_file("workflow.yml")
+
+        # Build the WorkGraph with front_depth=2
+        wg = build_sirocco_workgraph(wf, front_depth=2)
+
+        # Submit to AiiDA daemon
+        wg.submit()
+    """
+    builder = WorkGraphBuilder(core_workflow, resolved_config_path=resolved_config_path)
+    return builder.build(front_depth)
