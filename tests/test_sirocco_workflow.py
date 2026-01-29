@@ -96,7 +96,14 @@ def test_run_workgraph_with_icon(icon_filepath_executable, config_paths, tmp_pat
     please run this in a separate file as the profile is deleted after test finishes.
     """
     config_rootdir = config_paths["yml"].parent.absolute()
-    tmp_config_rootdir = tmp_path / config_rootdir.name
+    # Recreate the full directory structure so TESTS_ROOTDIR can be set to tmp_path
+    # Original path: .../tests/cases/small-icon/config/config.yml
+    # We need: tmp_path/cases/small-icon/config/config.yml
+    # Extract the relative path from tests root to config directory
+    tests_root = Path(config_paths["variables"]["TESTS_ROOTDIR"])
+    relative_config_path = config_rootdir.relative_to(tests_root)
+    tmp_config_rootdir = tmp_path / relative_config_path
+    tmp_config_rootdir.parent.mkdir(parents=True, exist_ok=True)
     tmp_config_rootdir.symlink_to(config_rootdir)
 
     # we link the icon executable to the test case path
