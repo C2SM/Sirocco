@@ -164,8 +164,18 @@ def config_paths(config_case, icon_grid_path, tmp_path, test_rootdir) -> dict[st
     for key, value in config.items():
         config[key] = tmp_path / value
 
-    # Add Jinja2 variables for template rendering in config files
-    config["variables"] = {"TESTS_ROOTDIR": str(tmp_path)}
+    # Load Jinja2 variables from vars.yml if it exists, otherwise start with empty dict
+    vars_file = tmp_path / f"tests/cases/{config_case}/config/vars.yml"
+    if vars_file.exists():
+        import yaml
+
+        with open(vars_file) as f:
+            config["variables"] = yaml.safe_load(f) or {}
+    else:
+        config["variables"] = {}
+
+    # Override TESTS_ROOTDIR to point to tmp_path
+    config["variables"]["TESTS_ROOTDIR"] = str(tmp_path)
 
     # Add case-specific Jinja2 variables
     if config_case == "dynamic-simple":
