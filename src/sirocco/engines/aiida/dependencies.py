@@ -4,23 +4,22 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import aiida.orm
 
 from sirocco import core
 from sirocco.engines.aiida.task_specs import DependencyInfo, JobIds, ParentFolders, PortToDependencies, TaskDepInfo
 
+if TYPE_CHECKING:
+    from f90nml import Namelist
+
 LOGGER = logging.getLogger(__name__)
-
-
-# =============================================================================
-# ICON Task Dependency Resolution
-# =============================================================================
 
 
 def resolve_icon_restart_file(
     workdir_path: str,
+    model_name: str,
     model_namelist_node: aiida.orm.SinglefileData,
     workdir_remote_data: aiida.orm.RemoteData,
 ) -> aiida.orm.RemoteData:
@@ -28,6 +27,7 @@ def resolve_icon_restart_file(
 
     Args:
         workdir_path: Path to remote working directory
+        model_name: Name of the model (e.g., "atm", "oce")
         model_namelist_node: AiiDA node containing the model namelist
         workdir_remote_data: RemoteData for the workdir (fallback)
 
@@ -42,10 +42,10 @@ def resolve_icon_restart_file(
         with model_namelist_node.open(mode="r") as f:
             nml_content = f.read()
 
-        nml = f90nml.reads(nml_content)
+        nml: Namelist = f90nml.reads(nml_content)
 
         # Use aiida-icon function to get the restart file link name
-        restart_link_name = read_latest_restart_file_link_name(nml)
+        restart_link_name = read_latest_restart_file_link_name(model_name, model_nml=nml)
         specific_file_path = f"{workdir_path}/{restart_link_name}"
 
         file_remote_data = aiida.orm.RemoteData(
@@ -62,6 +62,7 @@ def resolve_icon_restart_file(
 def _resolve_icon_dependency(
     dep_info: DependencyInfo,
     workdir_remote: aiida.orm.RemoteData,
+    model_name: str,
     model_namelist_pks: dict,
 ) -> aiida.orm.RemoteData:
     """Resolve a single ICON dependency to RemoteData.
@@ -69,6 +70,7 @@ def _resolve_icon_dependency(
     Args:
         dep_info: Dependency information
         workdir_remote: RemoteData for the producer's working directory
+        model_name: Name of the model (e.g., "atm", "ocean")
         model_namelist_pks: Dict of model namelist PKs for restart resolution
 
     Returns:
@@ -84,12 +86,13 @@ def _resolve_icon_dependency(
             remote_path=specific_path,
         )
 
-    # Case 2: No filename → try resolve via model namelist
-    model_pk = model_namelist_pks.get("atm")
+    # Case 2: No filename → resolve via model namelist
+    model_pk = model_namelist_pks.get(model_name)
     if model_pk:
         model_node: aiida.orm.SinglefileData = aiida.orm.load_node(model_pk)  # type: ignore
         return resolve_icon_restart_file(
             workdir_path,
+            model_name,
             model_node,
             workdir_remote,  # type: ignore
         )
@@ -100,9 +103,22 @@ def _resolve_icon_dependency(
 def load_icon_dependencies(
     parent_folders: ParentFolders | None,
     port_to_dep_mapping: PortToDependencies,
+    master_namelist_pk: int,
     model_namelist_pks: dict,
 ) -> dict[str, aiida.orm.RemoteData]:
-    """Load RemoteData dependencies for an ICON task and map to input ports."""
+    """Load RemoteData dependencies for an ICON task and map to input ports.
+
+    Args:
+        parent_folders: Dict of parent folder RemoteData PKs
+        port_to_dep_mapping: Mapping of ports to their dependencies
+        master_namelist_pk: PK of the master namelist
+        model_namelist_pks: Dict of model namelist PKs
+
+    Returns:
+        Dict mapping port names to RemoteData nodes
+    """
+    import f90nml
+    from aiida_icon.iconutils import masternml
 
     input_nodes: dict[str, aiida.orm.RemoteData] = {}
     if not parent_folders:
@@ -117,6 +133,12 @@ def load_icon_dependencies(
             raise TypeError(msg)
         parent_folders_loaded[dep_label] = node
 
+    # Load master namelist to get model names
+    master_namelist_node: aiida.orm.SinglefileData = aiida.orm.load_node(master_namelist_pk)  # type: ignore
+    with master_namelist_node.open(mode="r") as f:
+        master_nml_content = f.read()
+    master_nml = f90nml.reads(master_nml_content)
+
     # Process each port → list of dependencies
     # For ICON, each port has at most 1 dependency
     for port_name, dep_list in port_to_dep_mapping.items():
@@ -129,12 +151,19 @@ def load_icon_dependencies(
         if not workdir_remote:
             continue
 
-        # Use helper to resolve dependency
-        input_nodes[port_name] = _resolve_icon_dependency(
-            dep_info,
-            workdir_remote,
-            model_namelist_pks,
-        )
+        # For restart files, we need to resolve per model
+        # Iterate over all models in master namelist
+        for model_name, _ in masternml.iter_model_name_filepath(master_nml):
+            if model_name in model_namelist_pks:
+                # Use helper to resolve dependency for this model
+                resolved_remote = _resolve_icon_dependency(
+                    dep_info,
+                    workdir_remote,
+                    model_name,
+                    model_namelist_pks,
+                )
+                # Use model-specific port name (e.g., "restart_file.atm")
+                input_nodes[f"{port_name}.{model_name}"] = resolved_remote
 
     return input_nodes
 

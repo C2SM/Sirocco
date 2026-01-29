@@ -243,6 +243,7 @@ def launch_icon_task_with_dependency(
     remote_data_nodes = load_icon_dependencies(
         parent_folders,
         port_to_dep,
+        task_spec["master_namelist_pk"],
         task_spec["model_namelist_pks"],
     )
     input_data_nodes.update(remote_data_nodes)
