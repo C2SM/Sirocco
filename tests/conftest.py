@@ -164,10 +164,9 @@ def config_paths(config_case, icon_grid_path, tmp_path, test_rootdir) -> dict[st
     for key, value in config.items():
         config[key] = tmp_path / value
 
-    # Expand /TESTS_ROOTDIR to directory where config is located
-    for key in ["yml", "txt"]:
-        if config[key].exists():
-            config[key].write_text(config[key].read_text().replace("/TESTS_ROOTDIR", str(tmp_path)))
+    # Note: We don't need to do string replacement on yml files anymore since we use Jinja2 templates
+    # and override TESTS_ROOTDIR in the variables dict. The txt files are reference files and should
+    # not be modified.
 
     # Load Jinja2 variables from vars.yml if it exists, otherwise start with empty dict
     vars_file = tmp_path / f"tests/cases/{config_case}/config/vars.yml"

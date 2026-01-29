@@ -2,6 +2,9 @@
 # Variables for the Jinja2 template
 # These can be overridden by environment variables
 
+# Path configuration (replaced by conftest during tests)
+TESTS_ROOTDIR: /TESTS_ROOTDIR
+
 # Compute configuration
 SIROCCO_COMPUTER: "remote"
 SIROCCO_DATA_COMPUTER: "localhost"
