@@ -58,7 +58,7 @@ def test_run_workgraph(config_paths):
     Automatically uses the aiida_profile fixture to create a new profile. Note to debug the test with your profile
     please run this in a separate file as the profile is deleted after test finishes.
     """
-    core_workflow = Workflow.from_config_file(str(config_paths["yml"]))
+    core_workflow = Workflow.from_config_file(str(config_paths["yml"]), template_context=config_paths["variables"])
     workgraph = build_sirocco_workgraph(core_workflow)
     workgraph.run()
     output_node = workgraph.process
@@ -105,7 +105,11 @@ def test_run_workgraph_with_icon(icon_filepath_executable, config_paths, tmp_pat
         tmp_icon_bin_path.unlink()
     tmp_icon_bin_path.symlink_to(Path(icon_filepath_executable))
 
-    core_workflow = Workflow.from_config_file(tmp_config_rootdir / config_paths["yml"].name)
+    # Create variables dict with the tmp path
+    variables = config_paths["variables"].copy()
+    variables["TESTS_ROOTDIR"] = str(tmp_path)
+
+    core_workflow = Workflow.from_config_file(tmp_config_rootdir / config_paths["yml"].name, template_context=variables)
     workgraph = build_sirocco_workgraph(core_workflow)
     workgraph.run()
     output_node = workgraph.process

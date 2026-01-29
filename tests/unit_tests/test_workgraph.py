@@ -639,9 +639,9 @@ def test_branch_independence_execution(config_paths):
 @pytest.mark.parametrize(
     ("config_case", "front_depth"),
     [
-        ("dynamic-simple", 0),  # Sequential execution
-        ("dynamic-simple", 1),  # One level ahead (default)
-        ("dynamic-simple", 2),  # Two levels ahead (aggressive)
+        ("dynamic-simple", 1),  # No pre-submission (default)
+        ("dynamic-simple", 2),  # One level ahead
+        ("dynamic-simple", 3),  # Two levels ahead
     ],
 )
 def test_branch_independence_with_front_depths(config_paths, front_depth):
@@ -649,9 +649,9 @@ def test_branch_independence_with_front_depths(config_paths, front_depth):
 
     Tests that dynamic level computation works correctly with different
     pre-submission strategies:
-    - front_depth=0: Sequential execution, no pre-submission
-    - front_depth=1: Submit one level ahead (optimal for most cases)
-    - front_depth=2: Submit two levels ahead (aggressive pre-submission)
+    - front_depth=1: no pre-submission
+    - front_depth=2: Submit one level ahead (optimal for most cases)
+    - front_depth=3: Submit two levels ahead (aggressive pre-submission)
 
     All front depths should result in branch independence, but with different
     pre-submission behavior.
@@ -734,24 +734,17 @@ def test_branch_independence_with_front_depths(config_paths, front_depth):
     # ========================================================================
     # Window-size specific validation
     # ========================================================================
-    if front_depth == 0:
-        LOGGER.info("Validating front_depth=0 behavior (sequential execution)...")
-        # With front_depth=0, we expect more sequential behavior
-        # Tasks should generally be submitted after their dependencies finish
-        # (though this is hard to test precisely due to timing variations)
-        LOGGER.info("✓ Sequential execution mode (no pre-submission expected)")
+    if front_depth == 1:
+        LOGGER.info("Validating front_depth=1 behavior (no pre-submission)...")
+        # With front_depth=1, tasks are submitted sequentially
+        # Wait for level N to finish before submitting level N+1
+        LOGGER.info("✓ Sequential execution mode (no pre-submission)")
 
-    elif front_depth == 1:
-        LOGGER.info("Validating front_depth=1 behavior (one level ahead)...")
-        # With front_depth=1, some pre-submission should occur
-        # This is tested more thoroughly in the main test
-        LOGGER.info("✓ One level ahead mode (optimal pre-submission)")
-
-    elif front_depth == 2:
-        LOGGER.info("Validating front_depth=2 behavior (two levels ahead)...")
-        # With front_depth=2, more aggressive pre-submission should occur
-        # Tasks can be submitted up to 2 levels ahead
-        LOGGER.info("✓ Two levels ahead mode (aggressive pre-submission)")
+    elif front_depth >= 2:
+        LOGGER.info("Validating front_depth=%s behavior (aggressive pre-submission)...", front_depth)
+        # With higher front_depth, tasks can be submitted multiple levels ahead
+        # More aggressive streaming submission
+        LOGGER.info("✓ Front depth %s (aggressive pre-submission)", front_depth)
 
     # Log success
     LOGGER.info("=" * 80)

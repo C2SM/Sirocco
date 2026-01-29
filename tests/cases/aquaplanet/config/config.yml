@@ -80,12 +80,6 @@ tasks:   # <- RUNTIME SETTINGS
       view: default
       path: scripts/post_proc.sh
       command: "post_proc.sh {PORT::stream}"
-data:
-      nodes: 1
-      ntasks_per_node: 4
-      cpus_per_task: 72
-      path: scripts/cleanup.py
-      command: "python3.11 cleanup.py {PORT::positional}"
 
 data:    # <- INPUT/OUTPUT DATA
   available:

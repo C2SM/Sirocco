@@ -37,25 +37,30 @@ def extract_launcher_times(workgraph_process: ProcessNode) -> dict[str, dict[str
 
     for desc in workgraph_process.called_descendants:
         if isinstance(desc, WorkGraphNode) and desc.label.startswith("launch_"):
-            # Parse task name from label: "launch_fast_1_date_..." → "fast_1"
+            # Parse task name from label
+            # New format: "launch_workflow_name_timestamp_task_name_date_..."
+            # Old format: "launch_task_name_date_..."
+            # We need to find the task name by looking for known branch prefixes
             label_parts = desc.label.split("_")
-            # Handle different task naming patterns
-            if len(label_parts) >= 3 and label_parts[1] in [
-                "root",
-                "fast",
-                "slow",
-                "medium",
-                "setup",
-                "finalize",
-            ]:
-                if label_parts[1] in ["root", "setup", "finalize"]:
-                    task_name = label_parts[1]
-                    branch = label_parts[1]
-                else:
-                    # For numbered tasks like fast_1, medium_2, slow_3
-                    task_name = f"{label_parts[1]}_{label_parts[2]}"
-                    branch = label_parts[1]
 
+            # Find the task name by searching for known branch prefixes
+            task_name = None
+            branch = None
+            for i, part in enumerate(label_parts):
+                if part in ["root", "fast", "slow", "medium", "setup", "finalize"]:
+                    if part in ["root", "setup", "finalize"]:
+                        task_name = part
+                        branch = part
+                    elif i + 1 < len(label_parts) and label_parts[i + 1].isdigit():
+                        # For numbered tasks like fast_1, medium_2, slow_3
+                        task_name = f"{part}_{label_parts[i + 1]}"
+                        branch = part
+                    else:
+                        task_name = part
+                        branch = part
+                    break
+
+            if task_name and branch:
                 timing_data[task_name] = {
                     "label": desc.label,
                     "ctime": desc.ctime,  # Creation time = task submission
