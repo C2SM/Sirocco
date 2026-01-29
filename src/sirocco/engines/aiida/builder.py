@@ -41,6 +41,44 @@ if TYPE_CHECKING:
 LOGGER = logging.getLogger(__name__)
 
 
+def build_sirocco_workgraph(
+    core_workflow: core.Workflow,
+    front_depth: int = 1,
+    resolved_config_path: str | None = None,
+) -> WorkGraph:
+    """Build a Sirocco WorkGraph from a core workflow.
+
+    This is the main entry point for building Sirocco workflows.
+
+    Args:
+        core_workflow: The core workflow to convert
+        front_depth: Number of topological levels to keep active (default: 1, must be >= 1)
+                    1 = sequential (no pre-submission - wait for level N to finish before submitting N+1)
+                    2 = one level ahead
+                    higher values = more aggressive streaming submission
+        resolved_config_path: Optional path to the resolved config file (with Jinja2 variables replaced)
+
+    Returns:
+        A WorkGraph ready for submission
+
+    Example::
+
+        from sirocco import core
+        from sirocco.engines.aiida import build_sirocco_workgraph
+
+        # Build your core workflow
+        wf = core.Workflow.from_config_file("workflow.yml")
+
+        # Build the WorkGraph with front_depth=2
+        wg = build_sirocco_workgraph(wf, front_depth=2)
+
+        # Submit to AiiDA daemon
+        wg.submit()
+    """
+    builder = WorkGraphBuilder(core_workflow, resolved_config_path=resolved_config_path)
+    return builder.build(front_depth)
+
+
 class WorkGraphBuilder:
     """Builds AiiDA WorkGraphs from Sirocco core workflows.
 
@@ -572,41 +610,3 @@ class WorkGraphBuilder:
             "metadata": metadata,
             "output_port_mapping": output_port_mapping,
         }
-
-
-def build_sirocco_workgraph(
-    core_workflow: core.Workflow,
-    front_depth: int = 1,
-    resolved_config_path: str | None = None,
-) -> WorkGraph:
-    """Build a Sirocco WorkGraph from a core workflow.
-
-    This is the main entry point for building Sirocco workflows.
-
-    Args:
-        core_workflow: The core workflow to convert
-        front_depth: Number of topological levels to keep active (default: 1, must be >= 1)
-                    1 = sequential (no pre-submission - wait for level N to finish before submitting N+1)
-                    2 = one level ahead
-                    higher values = more aggressive streaming submission
-        resolved_config_path: Optional path to the resolved config file (with Jinja2 variables replaced)
-
-    Returns:
-        A WorkGraph ready for submission
-
-    Example::
-
-        from sirocco import core
-        from sirocco.engines.aiida import build_sirocco_workgraph
-
-        # Build your core workflow
-        wf = core.Workflow.from_config_file("workflow.yml")
-
-        # Build the WorkGraph with front_depth=2
-        wg = build_sirocco_workgraph(wf, front_depth=2)
-
-        # Submit to AiiDA daemon
-        wg.submit()
-    """
-    builder = WorkGraphBuilder(core_workflow, resolved_config_path=resolved_config_path)
-    return builder.build(front_depth)
