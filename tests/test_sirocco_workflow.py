@@ -89,34 +89,22 @@ def test_run_workgraph(config_paths):
         "small-icon",
     ],
 )
-def test_run_workgraph_with_icon(icon_filepath_executable, config_paths, tmp_path):
+def test_run_workgraph_with_icon(icon_filepath_executable, config_paths):
     """Tests end-to-end the parsing from file up to running the workgraph.
 
     Automatically uses the aiida_profile fixture to create a new profile. Note to debug the test with your profile
     please run this in a separate file as the profile is deleted after test finishes.
     """
-    config_rootdir = config_paths["yml"].parent.absolute()
-    # Recreate the full directory structure so TESTS_ROOTDIR can be set to tmp_path
-    # Original path: .../tests/cases/small-icon/config/config.yml
-    # We need: tmp_path/cases/small-icon/config/config.yml
-    # Extract the relative path from tests root to config directory
-    tests_root = Path(config_paths["variables"]["TESTS_ROOTDIR"])
-    relative_config_path = config_rootdir.relative_to(tests_root)
-    tmp_config_rootdir = tmp_path / relative_config_path
-    tmp_config_rootdir.parent.mkdir(parents=True, exist_ok=True)
-    tmp_config_rootdir.symlink_to(config_rootdir)
-
-    # we link the icon executable to the test case path
-    tmp_icon_bin_path = tmp_config_rootdir / "./ICON/bin/icon"
+    # The config_paths fixture already copies files to tmp_path and sets TESTS_ROOTDIR correctly
+    # We just need to create the symlink for the ICON executable
+    config_rootdir = config_paths["yml"].parent
+    tmp_icon_bin_path = config_rootdir / "./ICON/bin/icon"
     if tmp_icon_bin_path.exists():
         tmp_icon_bin_path.unlink()
     tmp_icon_bin_path.symlink_to(Path(icon_filepath_executable))
 
-    # Create variables dict with the tmp path
-    variables = config_paths["variables"].copy()
-    variables["TESTS_ROOTDIR"] = str(tmp_path)
-
-    core_workflow = Workflow.from_config_file(tmp_config_rootdir / config_paths["yml"].name, template_context=variables)
+    # Use config_paths directly - fixture has already set up TESTS_ROOTDIR and copied files
+    core_workflow = Workflow.from_config_file(config_paths["yml"], template_context=config_paths["variables"])
     workgraph = build_sirocco_workgraph(core_workflow)
     workgraph.run()
     output_node = workgraph.process
