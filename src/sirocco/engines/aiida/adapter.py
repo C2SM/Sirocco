@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, assert_never
+from typing import assert_never
 
 import aiida.common
 import aiida.orm
@@ -12,19 +12,22 @@ import aiida.transports
 from aiida.common.exceptions import NotExistent
 
 from sirocco import core
+from sirocco.engines.aiida.types import (
+    AiidaFileNode,
+    AiidaFileNodeType,
+    AiidaMetadata,
+    AiidaMetadataOptions,
+    AiidaResources,
+)
 from sirocco.engines.aiida.utils import (
     replace_invalid_chars_in_label,
-    serialize_coordinates,
     split_cmd_arg,
 )
 from sirocco.parsing._utils import TimeUtils
 from sirocco.parsing.cycling import DateCyclePoint
 
-if TYPE_CHECKING:
-    type AiiDAFileNode = aiida.orm.RemoteData | aiida.orm.SinglefileData | aiida.orm.FolderData
 
-
-class AiiDAAdapter:
+class AiidaAdapter:
     """Adapts Sirocco core domain objects to AiiDA representations.
 
     This class isolates all AiiDA-specific transformations, keeping the
@@ -44,7 +47,7 @@ class AiiDAAdapter:
             f"{graph_item.name}" + "__".join(f"_{key}_{value}" for key, value in graph_item.coordinates.items())
         )
 
-    def create_input_data_node(self, core_data: core.AvailableData) -> AiiDAFileNode:
+    def create_input_data_node(self, core_data: core.AvailableData) -> AiidaFileNode:
         """Create an AiiDA data node from AvailableData.
 
         Args:
@@ -68,19 +71,27 @@ class AiiDAAdapter:
                 msg = f"Could not find available data {core_data.name} in path {core_data.path} on computer {core_data.computer}."
                 raise FileNotFoundError(msg)
 
-        # Check if this data will be used by ICON tasks
+        # Determine which type of data node to create
         used_by_icon_task = any(
-            isinstance(task, core.IconTask) and core_data in task.input_data_nodes() for task in self.core_workflow.tasks
+            isinstance(task, core.IconTask) and core_data in task.input_data_nodes()
+            for task in self.core_workflow.tasks
         )
 
         if used_by_icon_task:
-            # ICON tasks always require RemoteData, at least that's our assumption
-            return aiida.orm.RemoteData(remote_path=str(core_data.path), label=label, computer=computer)
-        if computer.get_transport_class() is aiida.transports.plugins.local.LocalTransport:
-            if core_data.path.is_file():
+            node_type = AiidaFileNodeType.REMOTE
+        elif computer.get_transport_class() is aiida.transports.plugins.local.LocalTransport:
+            node_type = AiidaFileNodeType.SINGLE_FILE if core_data.path.is_file() else AiidaFileNodeType.FOLDER
+        else:
+            node_type = AiidaFileNodeType.REMOTE
+
+        # Create the appropriate data node
+        match node_type:
+            case AiidaFileNodeType.REMOTE:
+                return aiida.orm.RemoteData(remote_path=str(core_data.path), label=label, computer=computer)
+            case AiidaFileNodeType.SINGLE_FILE:
                 return aiida.orm.SinglefileData(file=str(core_data.path), label=label)
-            return aiida.orm.FolderData(tree=str(core_data.path), label=label)
-        return aiida.orm.RemoteData(remote_path=str(core_data.path), label=label, computer=computer)
+            case AiidaFileNodeType.FOLDER:
+                return aiida.orm.FolderData(tree=str(core_data.path), label=label)
 
     # TODO: This needs to be generalized to cover all use cases
     @staticmethod
@@ -219,95 +230,89 @@ class AiiDAAdapter:
         return code
 
     @staticmethod
-    def get_scheduler_options(task: core.Task) -> dict[str, Any]:
+    def get_scheduler_options(task: core.Task) -> AiidaMetadataOptions:
         """Extract HPC scheduler options from task.
 
         Args:
             task: The task to extract options from
 
         Returns:
-            Dict of scheduler options
+            AiidaMetadataOptions model
         """
-        options: dict[str, Any] = {}
-        if task.walltime is not None:
-            options["max_wallclock_seconds"] = TimeUtils.walltime_to_seconds(task.walltime)
-        if task.mem is not None:
-            options["max_memory_kb"] = task.mem * 1024
-        if task.partition is not None:
-            options["queue_name"] = task.partition
-
-        # custom_scheduler_commands - initialize if not already set
-        if "custom_scheduler_commands" not in options:
-            options["custom_scheduler_commands"] = ""
-
-        # Support uenv and view for both IconTask and ShellTask
+        # Build custom scheduler commands
+        custom_cmds = ""
         if isinstance(task, (core.IconTask, core.ShellTask)):
             if task.uenv is not None:
-                if options["custom_scheduler_commands"]:
-                    options["custom_scheduler_commands"] += "\n"
-                options["custom_scheduler_commands"] += f"#SBATCH --uenv={task.uenv}"
+                custom_cmds += f"#SBATCH --uenv={task.uenv}"
             if task.view is not None:
-                if options["custom_scheduler_commands"]:
-                    options["custom_scheduler_commands"] += "\n"
-                options["custom_scheduler_commands"] += f"#SBATCH --view={task.view}"
+                if custom_cmds:
+                    custom_cmds += "\n"
+                custom_cmds += f"#SBATCH --view={task.view}"
 
+        # Build resources
+        resources = None
         if task.nodes is not None or task.ntasks_per_node is not None or task.cpus_per_task is not None:
-            resources = {}
-            if task.nodes is not None:
-                resources["num_machines"] = task.nodes
-            if task.ntasks_per_node is not None:
-                resources["num_mpiprocs_per_machine"] = task.ntasks_per_node
-            if task.cpus_per_task is not None:
-                resources["num_cores_per_mpiproc"] = task.cpus_per_task
-            options["resources"] = resources
-        return options
+            resources = AiidaResources(
+                num_machines=task.nodes,
+                num_mpiprocs_per_machine=task.ntasks_per_node,
+                num_cores_per_mpiproc=task.cpus_per_task,
+            )
 
-    def build_metadata(self, task: core.Task) -> dict:
-        """Build base metadata dict with scheduler options.
+        return AiidaMetadataOptions(
+            max_wallclock_seconds=TimeUtils.walltime_to_seconds(task.walltime) if task.walltime else None,
+            max_memory_kb=task.mem * 1024 if task.mem else None,
+            queue_name=task.partition,
+            custom_scheduler_commands=custom_cmds if custom_cmds else None,
+            resources=resources,
+        )
+
+    def build_metadata(self, task: core.Task) -> AiidaMetadata:
+        """Build base metadata with scheduler options.
 
         Args:
             task: The task to build metadata for
 
         Returns:
-            Metadata dict with computer_label and options
+            AiidaMetadata model with computer_label and options
         """
-        metadata: dict[str, Any] = {}
-        metadata["options"] = {}
-        metadata["options"]["account"] = task.account
-        # FIXME: Should this also be added for IconCalculation? Only for ShellJob, no?
-        # TODO: This can most likely be fully removed
-        metadata["options"]["additional_retrieve_list"] = [
-            "_scheduler-stdout.txt",
-            "_scheduler-stderr.txt",
-        ]
-        metadata["options"].update(self.get_scheduler_options(task))
-        self._add_sirocco_time_prepend_text(metadata, task)
+        # Get scheduler options
+        scheduler_opts = self.get_scheduler_options(task)
+
+        # Merge with account and retrieve list
+        options = scheduler_opts.model_copy(
+            update={
+                "account": task.account,
+                "additional_retrieve_list": ["_scheduler-stdout.txt", "_scheduler-stderr.txt"],
+            }
+        )
+
+        # Add date cycling prepend text if needed
+        if isinstance(task.cycle_point, DateCyclePoint):
+            options = self._add_sirocco_time_prepend_text(options, task)
 
         try:
             computer = aiida.orm.Computer.collection.get(label=task.computer)
-            metadata["computer_label"] = computer.label
         except NotExistent as err:
             msg = f"Could not find computer {task.computer!r} in AiiDA database."
             raise ValueError(msg) from err
 
-        return metadata
+        return AiidaMetadata(
+            options=options,
+            computer_label=computer.label,
+        )
 
     @staticmethod
-    def _add_sirocco_time_prepend_text(metadata: dict, task: core.Task) -> None:
+    def _add_sirocco_time_prepend_text(options: AiidaMetadataOptions, task: core.Task) -> AiidaMetadataOptions:
         """Append chunk start/stop exports to prepend_text when date cycling is available."""
-        if not isinstance(task.cycle_point, DateCyclePoint):
-            return
-
-        start_date = task.cycle_point.chunk_start_date.isoformat()
-        stop_date = task.cycle_point.chunk_stop_date.isoformat()
+        start_date = task.cycle_point.chunk_start_date.isoformat()  # type: ignore[attr-defined]
+        stop_date = task.cycle_point.chunk_stop_date.isoformat()  # type: ignore[attr-defined]
 
         exports = f"export SIROCCO_START_DATE={start_date}\nexport SIROCCO_STOP_DATE={stop_date}\n"
 
-        current_prepend = metadata["options"].get("prepend_text", "")
-        if current_prepend:
-            metadata["options"]["prepend_text"] = f"{current_prepend}\n{exports}"
-        else:
-            metadata["options"]["prepend_text"] = exports
+        current_prepend = options.prepend_text or ""
+        new_prepend = f"{current_prepend}\n{exports}" if current_prepend else exports
+
+        return options.model_copy(update={"prepend_text": new_prepend})
 
     @staticmethod
     def translate_mpi_placeholder_static(placeholder: core.MpiCmdPlaceholder) -> str:

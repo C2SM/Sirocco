@@ -9,10 +9,23 @@ from typing import TYPE_CHECKING, Any
 import aiida.orm
 
 from sirocco import core
-from sirocco.engines.aiida.task_specs import DependencyInfo, JobIds, ParentFolders, PortToDependencies, TaskDepInfo
+from sirocco.engines.aiida.adapter import AiidaAdapter
+from sirocco.engines.aiida.types import (
+    AiidaIconTaskSpec,
+    AiidaMetadata,
+    AiidaMetadataOptions,
+    DependencyInfo,
+    DependencyMapping,
+    JobIds,
+    ParentFolders,
+    PortToDependencies,
+    TaskDepInfo,
+)
 
 if TYPE_CHECKING:
     from f90nml import Namelist
+
+    from sirocco.engines.aiida.types import AiidaDataNodeMapping
 
 LOGGER = logging.getLogger(__name__)
 
@@ -37,6 +50,7 @@ def resolve_icon_restart_file(
     import f90nml
     from aiida_icon.iconutils.modelnml import read_latest_restart_file_link_name
 
+    # NOTE: Don't wrap _everything_ in try-except
     try:
         # Read and parse the namelist content
         with model_namelist_node.open(mode="r") as f:
@@ -169,16 +183,16 @@ def load_icon_dependencies(
 
 
 def prepare_icon_task_inputs(
-    task_spec: dict,
+    task_spec: AiidaIconTaskSpec,
     input_data_nodes: dict,
-    metadata_dict: dict,
+    aiida_metadata: AiidaMetadata,
 ) -> dict:
     """Prepare complete inputs dict for ICON task.
 
     Args:
-        task_spec: Task specification containing code, namelists, wrapper script PKs
+        task_spec: AiidaIconTaskSpec model with task specifications
         input_data_nodes: Dict of input data nodes (both AvailableData and RemoteData)
-        metadata_dict: Metadata dict with computer and options
+        aiida_metadata: AiidaMetadata model with computer and options
 
     Returns:
         Complete inputs dict for IconTask
@@ -191,20 +205,20 @@ def prepare_icon_task_inputs(
 
     # Start with code and namelists
     inputs: dict[str, Any] = {
-        "code": aiida.orm.load_node(task_spec["code_pk"]),
-        "master_namelist": aiida.orm.load_node(task_spec["master_namelist_pk"]),
+        "code": aiida.orm.load_node(task_spec.code_pk),
+        "master_namelist": aiida.orm.load_node(task_spec.master_namelist_pk),
     }
 
     # Add model namelists as a dict (namespace input)
     models = {}
-    for model_name, model_pk in task_spec["model_namelist_pks"].items():
+    for model_name, model_pk in task_spec.model_namelist_pks.items():
         models[model_name] = aiida.orm.load_node(model_pk)
     if models:
         inputs["models"] = models  # type: ignore[assignment]
 
     # Add wrapper script if present
-    if task_spec["wrapper_script_pk"] is not None:
-        inputs["wrapper_script"] = aiida.orm.load_node(task_spec["wrapper_script_pk"])  # type: ignore[assignment]
+    if task_spec.wrapper_script_pk is not None:
+        inputs["wrapper_script"] = aiida.orm.load_node(task_spec.wrapper_script_pk)  # type: ignore[assignment]
 
     # Add ALL input data nodes (both AvailableData and RemoteData for GeneratedData)
     for port_name, data_node in input_data_nodes.items():
@@ -222,17 +236,12 @@ def prepare_icon_task_inputs(
         else:
             inputs[port_name] = data_node
 
-    # Add metadata
-    inputs["metadata"] = metadata_dict  # type: ignore[assignment]
+    # Add metadata (convert Pydantic model to dict for AiiDA)
+    inputs["metadata"] = aiida_metadata.model_dump(mode="python", exclude_none=True)  # type: ignore[assignment]
 
     LOGGER.debug("ICON inputs=%s", inputs)
 
     return inputs
-
-
-# =============================================================================
-# Shell Task Dependency Resolution
-# =============================================================================
 
 
 def _create_shell_remote_data(
@@ -286,7 +295,13 @@ def load_and_process_shell_dependencies(
     filenames: dict[str, str] = {}
 
     # Load RemoteData nodes from their PKs
-    parent_folders_loaded: dict[str, Any] = {key: aiida.orm.load_node(val.value) for key, val in parent_folders.items()}
+    parent_folders_loaded: dict[str, aiida.orm.RemoteData] = {}
+    for key, val in parent_folders.items():
+        node = aiida.orm.load_node(val.value)
+        if not isinstance(node, aiida.orm.RemoteData):
+            msg = f"Expected RemoteData for {key} but got {type(node)}"
+            raise TypeError(msg)
+        parent_folders_loaded[key] = node
 
     # Process ALL dependencies: create nodes, map placeholders, and map filenames
     for dep_info_list in port_to_dep_mapping.values():
@@ -311,11 +326,6 @@ def load_and_process_shell_dependencies(
     return all_nodes, placeholder_to_node_key, filenames
 
 
-# =============================================================================
-# SLURM Dependency Directives
-# =============================================================================
-
-
 def build_slurm_dependency_directive(job_ids: JobIds) -> str:
     """Build SLURM --dependency directive from job IDs.
 
@@ -329,27 +339,13 @@ def build_slurm_dependency_directive(job_ids: JobIds) -> str:
     return f"#SBATCH --dependency=afterok:{dep_str} --kill-on-invalid-dep=yes"
 
 
-def add_custom_scheduler_command(metadata: dict, command: str) -> None:
-    """Add a custom scheduler command to metadata options (modifies in place).
-
-    Args:
-        metadata: Metadata dict with "options" key
-        command: Command string to add
-    """
-    current_cmds = metadata["options"].get("custom_scheduler_commands", "")
-    if current_cmds:
-        metadata["options"]["custom_scheduler_commands"] = f"{current_cmds}\n{command}"
-    else:
-        metadata["options"]["custom_scheduler_commands"] = command
-
-
 def build_icon_metadata_with_slurm_dependencies(
-    base_metadata: dict,
+    base_metadata: AiidaMetadata,
     job_ids: JobIds | None,
     computer: aiida.orm.Computer,
     label: str,
-) -> dict:
-    """Build ICON metadata dict with SLURM job dependencies.
+) -> AiidaMetadata:
+    """Build ICON metadata with SLURM job dependencies.
 
     Args:
         base_metadata: Base metadata from task spec
@@ -358,26 +354,29 @@ def build_icon_metadata_with_slurm_dependencies(
         label: Task label for debug output
 
     Returns:
-        Metadata dict for ICON task with computer and SLURM dependencies
+        AiidaMetadata model for ICON task with computer and SLURM dependencies
     """
-    metadata = dict(base_metadata)
-    metadata["options"] = dict(metadata["options"])
+    # Get options or create empty if None
+    options = base_metadata.options or AiidaMetadataOptions()
 
+    # Add SLURM dependency directive if needed
     if job_ids:
         custom_cmd = build_slurm_dependency_directive(job_ids)
-        add_custom_scheduler_command(metadata, custom_cmd)
+        current_cmds = options.custom_scheduler_commands or ""
+        new_cmds = f"{current_cmds}\n{custom_cmd}" if current_cmds else custom_cmd
+        options = options.model_copy(update={"custom_scheduler_commands": new_cmds})
 
-    return {
-        "computer": computer,
-        "options": metadata["options"],
-        "call_link_label": label,
-    }
+    return AiidaMetadata(
+        computer=computer,
+        options=options,
+        call_link_label=label,
+    )
 
 
 def build_shell_metadata_with_slurm_dependencies(
-    base_metadata: dict, job_ids: JobIds | None, computer: aiida.orm.Computer
-) -> dict:
-    """Build metadata dict with SLURM job dependencies added.
+    base_metadata: AiidaMetadata, job_ids: JobIds | None, computer: aiida.orm.Computer
+) -> AiidaMetadata:
+    """Build metadata with SLURM job dependencies added.
 
     Args:
         base_metadata: Base metadata from task spec (should contain 'computer_label')
@@ -385,43 +384,41 @@ def build_shell_metadata_with_slurm_dependencies(
         computer: AiiDA computer object
 
     Returns:
-        Metadata dict with computer and optional SLURM dependencies (computer_label removed)
+        AiidaMetadata model with computer and optional SLURM dependencies (computer_label removed)
     """
-    metadata = dict(base_metadata)
-    metadata["options"] = dict(metadata["options"])
+    # Get options or create empty if None
+    options = base_metadata.options or AiidaMetadataOptions()
 
-    # Remove computer_label and set computer object
-    metadata.pop("computer_label", None)
-    metadata["computer"] = computer
-
+    # Add SLURM dependency directive if needed
     if job_ids:
         custom_cmd = build_slurm_dependency_directive(job_ids)
-        add_custom_scheduler_command(metadata, custom_cmd)
+        current_cmds = options.custom_scheduler_commands or ""
+        new_cmds = f"{current_cmds}\n{custom_cmd}" if current_cmds else custom_cmd
+        options = options.model_copy(update={"custom_scheduler_commands": new_cmds})
+
+    metadata = AiidaMetadata(
+        computer=computer,
+        options=options,
+    )
 
     LOGGER.debug("metadata=%s", metadata)
 
     return metadata
 
 
-# =============================================================================
-# Dependency Mapping
-# =============================================================================
-
-
-def collect_available_data_inputs(task: core.Task, aiida_data_nodes: dict, get_label_func) -> dict:
+def collect_available_data_inputs(task: core.Task, aiida_data_nodes: AiidaDataNodeMapping) -> AiidaDataNodeMapping:
     """Collect AvailableData input nodes for a task.
 
     Args:
         task: The task to collect inputs for
         aiida_data_nodes: Dict mapping data labels to AiiDA data nodes
-        get_label_func: Function to get label from graph item
 
     Returns:
         Dict mapping port names to AiiDA data nodes
     """
     input_data_for_task = {}
     for port, input_data in task.input_data_items():
-        input_label = get_label_func(input_data)
+        input_label = AiidaAdapter.get_graph_item_label(input_data)
         if isinstance(input_data, core.AvailableData):
             input_data_for_task[port] = aiida_data_nodes[input_label]
 
@@ -432,9 +429,13 @@ def build_dependency_mapping(
     task: core.Task,
     core_workflow: core.Workflow,
     task_dep_info: TaskDepInfo,
-    get_label_func,
-) -> tuple[PortToDependencies, ParentFolders, JobIds]:
-    """Build dependency mapping for GeneratedData inputs."""
+) -> DependencyMapping:
+    """Build dependency mapping for GeneratedData inputs.
+
+    Returns:
+        DependencyMapping with port_to_dep, parent_folders, and job_ids for connecting
+        this task to its upstream dependencies.
+    """
 
     port_to_dep: PortToDependencies = {}
     parent_folders: ParentFolders = {}
@@ -444,10 +445,10 @@ def build_dependency_mapping(
     producers: dict[str, tuple[str, core.GeneratedData]] = {}
 
     for prev_task in core_workflow.tasks:
-        prev_label = get_label_func(prev_task)
+        prev_label = AiidaAdapter.get_graph_item_label(prev_task)
 
         for _, out_data in prev_task.output_data_items():
-            out_label = get_label_func(out_data)
+            out_label = AiidaAdapter.get_graph_item_label(out_data)
             producers[out_label] = (prev_label, out_data)
 
     # Process inputs for the current task
@@ -455,7 +456,7 @@ def build_dependency_mapping(
         if not isinstance(input_data, core.GeneratedData):
             continue
 
-        input_label = get_label_func(input_data)
+        input_label = AiidaAdapter.get_graph_item_label(input_data)
 
         # Find the producer (if exists)
         producer_info = producers.get(input_label)
@@ -483,4 +484,8 @@ def build_dependency_mapping(
             parent_folders[prev_label] = job_data.remote_folder
             job_ids[prev_label] = job_data.job_id
 
-    return port_to_dep, parent_folders, job_ids
+    return DependencyMapping(
+        port_to_dep=port_to_dep,
+        parent_folders=parent_folders,
+        job_ids=job_ids,
+    )

@@ -7,7 +7,7 @@ import io
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
 
 import aiida.orm
@@ -19,7 +19,7 @@ from aiida_workgraph import WorkGraph
 from aiida_workgraph.manager import set_current_graph
 
 from sirocco import core
-from sirocco.engines.aiida.adapter import AiiDAAdapter
+from sirocco.engines.aiida.adapter import AiidaAdapter
 from sirocco.engines.aiida.dependencies import (
     build_dependency_mapping,
     collect_available_data_inputs,
@@ -28,16 +28,24 @@ from sirocco.engines.aiida.launcher import (
     create_icon_launcher_pair,
     create_shell_launcher_pair,
 )
-from sirocco.engines.aiida.task_specs import InputDataInfo, OutputDataInfo
+from sirocco.engines.aiida.types import (
+    AiidaIconTaskSpec,
+    AiidaShellTaskSpec,
+    InputDataInfo,
+    OutputDataInfo,
+)
 from sirocco.engines.aiida.utils import (
     get_wrapper_script_aiida_data,
     serialize_coordinates,
     split_cmd_arg,
 )
-from sirocco.parsing.cycling import DateCyclePoint
 
 if TYPE_CHECKING:
-    type AiiDAFileNode = aiida.orm.RemoteData | aiida.orm.SinglefileData | aiida.orm.FolderData
+    from sirocco.engines.aiida.types import (
+        AiidaFileNode,
+        DependencyOutputs,
+        DependencyTasks,
+    )
 
 LOGGER = logging.getLogger(__name__)
 
@@ -103,17 +111,17 @@ class WorkGraphBuilder:
 
     def __init__(self, core_workflow: core.Workflow, resolved_config_path: str | None = None):
         self.workflow = core_workflow
-        self.adapter = AiiDAAdapter(core_workflow)
+        self.adapter = AiidaAdapter(core_workflow)
         self.resolved_config_path = resolved_config_path
 
         # Pre-computed static configuration
-        self.data_nodes: dict[str, AiiDAFileNode] = {}
-        self.shell_specs: dict[str, dict] = {}
-        self.icon_specs: dict[str, dict] = {}
+        self.data_nodes: dict[str, AiidaFileNode] = {}
+        self.shell_specs: dict[str, AiidaShellTaskSpec] = {}
+        self.icon_specs: dict[str, AiidaIconTaskSpec] = {}
 
         # Dynamic orchestration state
-        self.dependency_outputs: dict[str, Any] = {}  # task_label -> outputs for connecting dependencies
-        self.dependency_tasks: dict[str, Any] = {}  # task_label -> tasks for chaining execution order
+        self.dependency_outputs: DependencyOutputs = {}
+        self.dependency_tasks: DependencyTasks = {}
         self.launcher_deps: dict[str, list[str]] = {}  # launcher_name -> [parents]
 
         self._wg: WorkGraph | None = None
@@ -201,12 +209,10 @@ class WorkGraphBuilder:
         task_label = self.adapter.get_graph_item_label(task)
 
         # Collect inputs
-        input_data = collect_available_data_inputs(task, self.data_nodes, self.adapter.get_graph_item_label)
+        input_data = collect_available_data_inputs(task, self.data_nodes)
 
         # Build dependency mapping
-        port_to_dep, parent_folders, job_ids = build_dependency_mapping(
-            task, self.workflow, self.dependency_outputs, self.adapter.get_graph_item_label
-        )
+        port_to_dep, parent_folders, job_ids = build_dependency_mapping(task, self.workflow, self.dependency_outputs)
 
         # Track launcher dependencies for windowing
         # FIXME: No hard-coding, use actual distinction between Monitor and normal tasks
@@ -266,7 +272,7 @@ class WorkGraphBuilder:
             raise ValueError(msg)
 
         window_config = {
-            "enabled": True,  # Always enabled with new semantics (front_depth >= 1)
+            "enabled": True,  # NOTE: Always enabled now, thus, even needed?
             "front_depth": front_depth,
             "task_dependencies": self.launcher_deps,
         }
@@ -281,7 +287,6 @@ class WorkGraphBuilder:
                 f"Resolved configuration file (with Jinja2 variables replaced) for workflow {self.workflow.name}"
             )
             resolved_config_node.store()
-            # After store(), pk is guaranteed to be an int
             node_pk = resolved_config_node.pk
             if node_pk is not None:
                 extras["resolved_config_pk"] = node_pk
@@ -290,7 +295,7 @@ class WorkGraphBuilder:
         wg.extras = extras
 
     @staticmethod
-    def build_shell_task_spec(task: core.ShellTask, adapter: AiiDAAdapter | None = None) -> dict:
+    def build_shell_task_spec(task: core.ShellTask, adapter: AiidaAdapter) -> AiidaShellTaskSpec:
         """Build all parameters needed to create a shell task.
 
         Returns a dict with keys: label, code, nodes, metadata,
@@ -300,25 +305,12 @@ class WorkGraphBuilder:
 
         Args:
             task: The ShellTask to build spec for
-            adapter: AiiDA adapter for translations (optional, created internally if not provided)
+            adapter: AiiDA adapter for translations
 
         Returns:
             Dict containing all shell task parameters
         """
-        # For backward compatibility - use static methods when no adapter provided
-        use_static = adapter is None
-        if use_static:
-            get_label = AiiDAAdapter.get_graph_item_label
-            create_code = AiiDAAdapter.create_shell_code
-            get_scheduler_opts = AiiDAAdapter.get_scheduler_options
-        else:
-            # Type narrowing for mypy - adapter is guaranteed to be non-None here
-            adapter = cast("AiiDAAdapter", adapter)
-            get_label = adapter.get_graph_item_label
-            create_code = adapter.create_shell_code
-            get_scheduler_opts = adapter.get_scheduler_options
-
-        label = get_label(task)
+        label = AiidaAdapter.get_graph_item_label(task)
 
         # Get computer
         try:
@@ -328,39 +320,16 @@ class WorkGraphBuilder:
             raise ValueError(msg) from err
 
         # Build base metadata (no job dependencies yet)
-        if use_static:
-            metadata: dict[str, Any] = {}
-            metadata["options"] = {}
-            metadata["options"]["account"] = task.account
-            metadata["options"]["additional_retrieve_list"] = [
-                "_scheduler-stdout.txt",
-                "_scheduler-stderr.txt",
-            ]
-            metadata["options"].update(get_scheduler_opts(task))
-            # Add chunk time prepend text
-            if isinstance(task.cycle_point, DateCyclePoint):
-                start_date = task.cycle_point.chunk_start_date.isoformat()
-                stop_date = task.cycle_point.chunk_stop_date.isoformat()
-                exports = f"export SIROCCO_START_DATE={start_date}\nexport SIROCCO_STOP_DATE={stop_date}\n"
-                current_prepend = metadata["options"].get("prepend_text", "")
-                if current_prepend:
-                    metadata["options"]["prepend_text"] = f"{current_prepend}\n{exports}"
-                else:
-                    metadata["options"]["prepend_text"] = exports
-            try:
-                computer_temp = aiida.orm.Computer.collection.get(label=task.computer)
-                metadata["computer_label"] = computer_temp.label
-            except NotExistent as err:
-                msg = f"Could not find computer {task.computer!r} in AiiDA database."
-                raise ValueError(msg) from err
-        else:
-            metadata = adapter.build_metadata(task)  # type: ignore[union-attr]
+        metadata = adapter.build_metadata(task)
 
         # Add shell-specific metadata options
-        metadata["options"]["use_symlinks"] = True
+        if metadata.options:
+            metadata = metadata.model_copy(
+                update={"options": metadata.options.model_copy(update={"use_symlinks": True})}
+            )
 
         # Create or load code
-        code = create_code(task, computer)
+        code = adapter.create_shell_code(task, computer)
 
         # Pre-compute input data information using dataclasses
         input_data_info: list[InputDataInfo] = []
@@ -369,7 +338,7 @@ class WorkGraphBuilder:
                 port=port_name,
                 name=input_.name,
                 coordinates=serialize_coordinates(input_.coordinates),
-                label=get_label(input_),
+                label=AiidaAdapter.get_graph_item_label(input_),
                 is_available=isinstance(input_, core.AvailableData),
                 path=str(input_.path) if input_.path is not None else "",  # type: ignore[attr-defined]
             )
@@ -395,7 +364,7 @@ class WorkGraphBuilder:
             output_info = OutputDataInfo(
                 name=output.name,
                 coordinates=serialize_coordinates(output.coordinates),
-                label=get_label(output),
+                label=AiidaAdapter.get_graph_item_label(output),
                 path=str(output.path) if output.path is not None else "",  # type: ignore[attr-defined]
                 port=port_name,
             )
@@ -455,21 +424,25 @@ class WorkGraphBuilder:
                 link_label = ShellParser.format_link_label(output_info.path)  # type: ignore[arg-type]
                 output_port_mapping[output_info.name] = link_label
 
-        return {
-            "label": label,
-            "code_pk": code.pk,
-            "node_pks": {},
-            "metadata": metadata,
-            "arguments_template": resolved_arguments_template,
-            "filenames": filenames,
-            "outputs": outputs,
-            "input_data_info": [info.to_dict() for info in input_data_info],
-            "output_data_info": [info.to_dict() for info in output_data_info],
-            "output_port_mapping": output_port_mapping,
-        }
+        if code.pk is None:
+            msg = f"Code for task {label} must be stored before creating task spec"
+            raise RuntimeError(msg)
+
+        return AiidaShellTaskSpec(
+            label=label,
+            code_pk=code.pk,
+            node_pks={},
+            metadata=metadata,
+            arguments_template=resolved_arguments_template,
+            filenames=filenames,
+            outputs=outputs,
+            input_data_info=[info.model_dump() for info in input_data_info],
+            output_data_info=[info.model_dump() for info in output_data_info],
+            output_port_mapping=output_port_mapping,
+        )
 
     @staticmethod
-    def build_icon_task_spec(task: core.IconTask, adapter: AiiDAAdapter | None = None) -> dict:
+    def build_icon_task_spec(task: core.IconTask, adapter: AiidaAdapter) -> AiidaIconTaskSpec:
         """Build all parameters needed to create an ICON task.
 
         Returns a dict with keys: label, builder, output_ports
@@ -478,23 +451,12 @@ class WorkGraphBuilder:
 
         Args:
             task: The IconTask to build spec for
-            adapter: AiiDA adapter for translations (optional, created internally if not provided)
+            adapter: AiiDA adapter for translations
 
         Returns:
             Dict containing all ICON task parameters
         """
-        # For backward compatibility - use static methods when no adapter provided
-        use_static = adapter is None
-        if use_static:
-            get_label = AiiDAAdapter.get_graph_item_label
-            get_scheduler_opts = AiiDAAdapter.get_scheduler_options
-        else:
-            # Type narrowing for mypy - adapter is guaranteed to be non-None here
-            adapter = cast("AiiDAAdapter", adapter)
-            get_label = adapter.get_graph_item_label
-            get_scheduler_opts = adapter.get_scheduler_options
-
-        task_label = get_label(task)
+        task_label = AiidaAdapter.get_graph_item_label(task)
 
         try:
             computer = aiida.orm.Computer.collection.get(label=task.computer)
@@ -520,33 +482,7 @@ class WorkGraphBuilder:
             icon_code.store()
 
         # Build base metadata (no job dependencies yet)
-        if use_static:
-            metadata: dict[str, Any] = {}
-            metadata["options"] = {}
-            metadata["options"]["account"] = task.account
-            metadata["options"]["additional_retrieve_list"] = [
-                "_scheduler-stdout.txt",
-                "_scheduler-stderr.txt",
-            ]
-            metadata["options"].update(get_scheduler_opts(task))
-            # Add chunk time prepend text
-            if isinstance(task.cycle_point, DateCyclePoint):
-                start_date = task.cycle_point.chunk_start_date.isoformat()
-                stop_date = task.cycle_point.chunk_stop_date.isoformat()
-                exports = f"export SIROCCO_START_DATE={start_date}\nexport SIROCCO_STOP_DATE={stop_date}\n"
-                current_prepend = metadata["options"].get("prepend_text", "")
-                if current_prepend:
-                    metadata["options"]["prepend_text"] = f"{current_prepend}\n{exports}"
-                else:
-                    metadata["options"]["prepend_text"] = exports
-            try:
-                computer_temp = aiida.orm.Computer.collection.get(label=task.computer)
-                metadata["computer_label"] = computer_temp.label
-            except NotExistent as err:
-                msg = f"Could not find computer {task.computer!r} in AiiDA database."
-                raise ValueError(msg) from err
-        else:
-            metadata = adapter.build_metadata(task)  # type: ignore[union-attr]
+        metadata = adapter.build_metadata(task)
 
         # Update task namelists
         task.update_icon_namelists_from_workflow()
@@ -576,17 +512,19 @@ class WorkGraphBuilder:
             wrapper_script_pk = wrapper_script_data.pk
 
         # Pre-compute output port mapping: data_name -> icon_port_name
-        output_port_mapping = {}
+        output_port_mapping: dict[str, str] = {}
         for port_name, output_list in task.outputs.items():
-            for data in output_list:
-                output_port_mapping[data.name] = port_name
+            if port_name is not None:
+                for data in output_list:
+                    output_port_mapping[data.name] = port_name
 
-        return {
-            "label": task_label,
-            "code_pk": icon_code.pk,
-            "master_namelist_pk": master_namelist_node.pk,
-            "model_namelist_pks": model_namelist_pks,
-            "wrapper_script_pk": wrapper_script_pk,
-            "metadata": metadata,
-            "output_port_mapping": output_port_mapping,
-        }
+        # Pydantic validation will check that PKs are not None
+        return AiidaIconTaskSpec(
+            label=task_label,
+            code_pk=icon_code.pk,  # type: ignore[arg-type]
+            master_namelist_pk=master_namelist_node.pk,  # type: ignore[arg-type]
+            model_namelist_pks=model_namelist_pks,  # type: ignore[arg-type]
+            wrapper_script_pk=wrapper_script_pk,
+            metadata=metadata,
+            output_port_mapping=output_port_mapping,
+        )

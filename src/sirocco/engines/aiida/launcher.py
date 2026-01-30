@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated, Any
 
 import aiida.orm
 import yaml
@@ -19,15 +19,24 @@ from sirocco.engines.aiida.dependencies import (
     load_icon_dependencies,
     prepare_icon_task_inputs,
 )
-from sirocco.engines.aiida.task_specs import port_to_dependencies_from_dict, port_to_dependencies_to_dict
+from sirocco.engines.aiida.types import (
+    AiidaIconTaskSpec,
+    AiidaShellTaskSpec,
+    DependencyInfo,
+    JobIds,
+    ParentFolders,
+    PortToDependencies,
+)
 from sirocco.engines.aiida.utils import process_shell_argument_placeholders
 
+if TYPE_CHECKING:
+    from sirocco.engines.aiida.types import (
+        AiidaDataNodeMapping,
+        DependencyOutputs,
+        DependencyTasks,
+    )
+
 LOGGER = logging.getLogger(__name__)
-
-
-# =============================================================================
-# Async Job Data Monitor
-# =============================================================================
 
 
 async def _poll_for_job_data(workgraph_name: str, task_name: str, interval: int) -> dict:
@@ -108,11 +117,6 @@ async def get_job_data(
         raise TimeoutError(msg) from err
 
 
-# =============================================================================
-# Launcher Task Creation
-# =============================================================================
-
-
 @task.graph
 def launch_shell_task_with_dependency(
     task_spec: dict,
@@ -123,15 +127,18 @@ def launch_shell_task_with_dependency(
     """Launch a shell task with optional SLURM job dependencies."""
     from aiida_workgraph.tasks.shelljob_task import _build_shelljob_TaskSpec
 
+    # Reconstruct Pydantic model from dict
+    task_spec_model = AiidaShellTaskSpec(**task_spec)
+
     # Get pre-computed data
-    label = task_spec["label"]
-    output_data_info = task_spec["output_data_info"]
+    label = task_spec_model.label
+    output_data_info = task_spec_model.output_data_info
 
     # Load the code from PK
-    code = aiida.orm.load_node(task_spec["code_pk"])
+    code = aiida.orm.load_node(task_spec_model.code_pk)
 
     # Load nodes from PKs and initialize structures
-    all_nodes = {key: aiida.orm.load_node(pk) for key, pk in task_spec["node_pks"].items()}
+    all_nodes = {key: aiida.orm.load_node(pk) for key, pk in task_spec_model.node_pks.items()}
 
     # Add AvailableData nodes passed as parameter, remapping from port names to data labels
     # so they match the placeholders in arguments (which use data labels)
@@ -139,7 +146,7 @@ def launch_shell_task_with_dependency(
     if input_data_nodes:
         # Build mapping from port names to data labels for AvailableData
         port_to_label = {}
-        for input_info in task_spec["input_data_info"]:
+        for input_info in task_spec_model.input_data_info:
             if input_info["is_available"]:
                 port_to_label[input_info["port"]] = input_info["label"]
 
@@ -155,25 +162,28 @@ def launch_shell_task_with_dependency(
     filenames: dict[str, str] = {}
     if parent_folders:
         # Convert port_to_dep_mapping from dict back to PortToDependencies
-        port_to_dep_dict = task_spec.get("port_to_dep_mapping", {})
-        port_to_dep = port_to_dependencies_from_dict(port_to_dep_dict)
+        port_to_dep_dict = task_spec_model.port_to_dep_mapping or {}
+        port_to_dep = {port: [DependencyInfo(**dep) for dep in deps] for port, deps in port_to_dep_dict.items()}
 
         dep_nodes, placeholder_to_node_key, filenames = load_and_process_shell_dependencies(
             parent_folders,
             port_to_dep,
-            task_spec["filenames"],
+            task_spec_model.filenames,
         )
         all_nodes.update(dep_nodes)
 
     # Build metadata with SLURM job dependencies
-    computer = aiida.orm.Computer.collection.get(label=task_spec["metadata"]["computer_label"])
-    metadata = build_shell_metadata_with_slurm_dependencies(task_spec["metadata"], job_ids, computer)
+    base_metadata = task_spec_model.metadata
+    computer = (
+        aiida.orm.Computer.collection.get(label=base_metadata.computer_label) if base_metadata.computer_label else None
+    )
+    metadata = build_shell_metadata_with_slurm_dependencies(base_metadata, job_ids, computer)  # type: ignore[arg-type]
 
     # Process argument placeholders
-    arguments = process_shell_argument_placeholders(task_spec["arguments_template"], placeholder_to_node_key)
+    arguments = process_shell_argument_placeholders(task_spec_model.arguments_template, placeholder_to_node_key)
 
     # Use pre-computed outputs
-    outputs = task_spec["outputs"]
+    outputs = task_spec_model.outputs
 
     # Build the shelljob TaskSpec
     parser_outputs = [output_info["name"] for output_info in output_data_info if output_info["path"]]
@@ -195,7 +205,7 @@ def launch_shell_task_with_dependency(
         nodes=all_nodes,
         outputs=outputs,
         filenames=filenames,
-        metadata=metadata,
+        metadata=metadata.model_dump(mode="python", exclude_none=True),
         resolve_command=False,
     )
 
@@ -220,7 +230,7 @@ def launch_icon_task_with_dependency(
     This avoids socket dependencies while preserving provenance.
 
     Args:
-        task_spec: Dict from build_icon_task_spec() containing task specifications
+        task_spec: Dict from WorkGraph (serialized IconTaskSpec)
         input_data_nodes: Dict mapping port names to AvailableData nodes
         parent_folders: Dict of {dep_label: remote_folder_pk} from get_job_data
         job_ids: Dict of {dep_label: job_id} from get_job_data
@@ -228,8 +238,11 @@ def launch_icon_task_with_dependency(
     Returns:
         IconTask outputs
     """
-    label = task_spec["label"]
-    computer_label = task_spec["metadata"]["computer_label"]
+    # Reconstruct Pydantic model from dict
+    task_spec_model = AiidaIconTaskSpec(**task_spec)
+
+    label = task_spec_model.label
+    computer_label = task_spec_model.metadata.computer_label if task_spec_model.metadata else None
 
     # Handle None inputs
     if input_data_nodes is None:
@@ -237,46 +250,42 @@ def launch_icon_task_with_dependency(
 
     # Load RemoteData dependencies (restart files, etc.)
     # Convert port_to_dep_mapping from dict back to PortToDependencies
-    port_to_dep_dict = task_spec.get("port_to_dep_mapping", {})
-    port_to_dep = port_to_dependencies_from_dict(port_to_dep_dict)
+    port_to_dep_dict = task_spec_model.port_to_dep_mapping or {}
+    port_to_dep = {port: [DependencyInfo(**dep) for dep in deps] for port, deps in port_to_dep_dict.items()}
 
     remote_data_nodes = load_icon_dependencies(
         parent_folders,
         port_to_dep,
-        task_spec["master_namelist_pk"],
-        task_spec["model_namelist_pks"],
+        task_spec_model.master_namelist_pk,
+        task_spec_model.model_namelist_pks,
     )
     input_data_nodes.update(remote_data_nodes)
 
     # Build metadata with SLURM job dependencies
-    computer = aiida.orm.Computer.collection.get(label=computer_label)
-    metadata_dict = build_icon_metadata_with_slurm_dependencies(task_spec["metadata"], job_ids, computer, label)
+    base_metadata = task_spec_model.metadata
+    computer = aiida.orm.Computer.collection.get(label=computer_label) if computer_label else None
+    metadata_dict = build_icon_metadata_with_slurm_dependencies(base_metadata, job_ids, computer, label)  # type: ignore[arg-type]
 
     # Prepare complete inputs dict for IconTask
-    inputs = prepare_icon_task_inputs(task_spec, input_data_nodes, metadata_dict)
+    inputs = prepare_icon_task_inputs(task_spec_model, input_data_nodes, metadata_dict)
 
     # Call IconTask directly (NOT wg.add_task!)
     # This returns a TaskNode with proper output sockets
     return IconTask(**inputs)
 
 
-# =============================================================================
-# Helper Functions - Create Launcher Pairs
-# =============================================================================
-
-
 def create_icon_launcher_pair(
-    wg,
+    wg: Any,  # WorkGraph type not exposed
     wg_name: str,
     task_label: str,
-    task_spec: dict,
-    input_data_for_task: dict,
-    parent_folders_for_task: dict,
-    job_ids_for_task: dict,
-    port_to_dep_mapping: dict,
-    task_dep_info: dict,
-    prev_dep_tasks: dict,
-) -> tuple[dict, dict]:
+    task_spec: AiidaIconTaskSpec,
+    input_data_for_task: AiidaDataNodeMapping,
+    parent_folders_for_task: ParentFolders,
+    job_ids_for_task: JobIds,
+    port_to_dep_mapping: PortToDependencies,
+    task_dep_info: DependencyOutputs,
+    prev_dep_tasks: DependencyTasks,
+) -> tuple[DependencyOutputs, DependencyTasks]:
     """Create ICON launcher and get_job_data tasks.
 
     Args:
@@ -296,14 +305,15 @@ def create_icon_launcher_pair(
     """
     launcher_name = f"launch_{wg_name}_{task_label}"
 
-    # Add port_to_dep_mapping to task_spec (convert to dict for JSON serialization)
-    task_spec["port_to_dep_mapping"] = port_to_dependencies_to_dict(port_to_dep_mapping)
+    # Add port_to_dep_mapping to task_spec
+    port_to_dep_dict = {port: [dep.model_dump() for dep in deps] for port, deps in port_to_dep_mapping.items()}
+    task_spec_with_deps = task_spec.model_copy(update={"port_to_dep_mapping": port_to_dep_dict})
 
-    # Create launcher task
+    # Create launcher task - serialize model to dict for WorkGraph
     wg.add_task(
         launch_icon_task_with_dependency,
         name=launcher_name,
-        task_spec=task_spec,
+        task_spec=task_spec_with_deps.model_dump(mode="python"),
         input_data_nodes=input_data_for_task if input_data_for_task else None,
         parent_folders=parent_folders_for_task if parent_folders_for_task else None,
         job_ids=job_ids_for_task if job_ids_for_task else None,
@@ -311,7 +321,9 @@ def create_icon_launcher_pair(
 
     # Calculate timeout based on walltime + buffer for queuing
     # Default to 1 hour if walltime not specified
-    walltime_seconds = task_spec.get("metadata", {}).get("options", {}).get("max_wallclock_seconds", 3600)
+    walltime_seconds = 3600
+    if task_spec.metadata and task_spec.metadata.options and task_spec.metadata.options.max_wallclock_seconds:
+        walltime_seconds = task_spec.metadata.options.max_wallclock_seconds
     # Add 5 minute buffer for job submission and queuing
     timeout = walltime_seconds + 300
 
@@ -339,17 +351,17 @@ def create_icon_launcher_pair(
 
 
 def create_shell_launcher_pair(
-    wg,
+    wg: Any,  # WorkGraph type not exposed
     wg_name: str,
     task_label: str,
-    task_spec: dict,
-    input_data_for_task: dict,
-    parent_folders_for_task: dict,
-    job_ids_for_task: dict,
-    port_to_dep_mapping: dict,
-    task_dep_info: dict,
-    prev_dep_tasks: dict,
-) -> tuple[dict, dict]:
+    task_spec: AiidaShellTaskSpec,
+    input_data_for_task: AiidaDataNodeMapping,
+    parent_folders_for_task: ParentFolders,
+    job_ids_for_task: JobIds,
+    port_to_dep_mapping: PortToDependencies,
+    task_dep_info: DependencyOutputs,
+    prev_dep_tasks: DependencyTasks,
+) -> tuple[DependencyOutputs, DependencyTasks]:
     """Create Shell launcher and get_job_data tasks.
 
     Args:
@@ -369,14 +381,15 @@ def create_shell_launcher_pair(
     """
     launcher_name = f"launch_{wg_name}_{task_label}"
 
-    # Add port_to_dep_mapping to task_spec (convert to dict for JSON serialization)
-    task_spec["port_to_dep_mapping"] = port_to_dependencies_to_dict(port_to_dep_mapping)
+    # Add port_to_dep_mapping to task_spec
+    port_to_dep_dict = {port: [dep.model_dump() for dep in deps] for port, deps in port_to_dep_mapping.items()}
+    task_spec_with_deps = task_spec.model_copy(update={"port_to_dep_mapping": port_to_dep_dict})
 
-    # Create launcher task
+    # Create launcher task - serialize model to dict for WorkGraph
     wg.add_task(
         launch_shell_task_with_dependency,
         name=launcher_name,
-        task_spec=task_spec,
+        task_spec=task_spec_with_deps.model_dump(mode="python"),
         input_data_nodes=input_data_for_task if input_data_for_task else None,
         parent_folders=parent_folders_for_task if parent_folders_for_task else None,
         job_ids=job_ids_for_task if job_ids_for_task else None,
@@ -384,7 +397,9 @@ def create_shell_launcher_pair(
 
     # Calculate timeout based on walltime + buffer for queuing
     # Default to 1 hour if walltime not specified
-    walltime_seconds = task_spec.get("metadata", {}).get("options", {}).get("max_wallclock_seconds", 3600)
+    walltime_seconds = 3600
+    if task_spec.metadata and task_spec.metadata.options and task_spec.metadata.options.max_wallclock_seconds:
+        walltime_seconds = task_spec.metadata.options.max_wallclock_seconds
     # Add 5 minute buffer for job submission and queuing
     timeout = walltime_seconds + 300
 
