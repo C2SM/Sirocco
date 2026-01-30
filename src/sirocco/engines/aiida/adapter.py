@@ -28,44 +28,23 @@ class AiiDAAdapter:
     """Adapts Sirocco core domain objects to AiiDA representations.
 
     This class isolates all AiiDA-specific transformations, keeping the
-    core domain completely AiiDA-agnostic.
+    core domain AiiDA-agnostic.
     """
 
     def __init__(self, core_workflow: core.Workflow):
         self.core_workflow = core_workflow
 
     @staticmethod
-    def get_label(obj: core.GraphItem) -> str:
+    def get_graph_item_label(graph_item: core.GraphItem) -> str:
         """Returns a unique AiiDA label for the given graph item.
 
         The graph item object is uniquely determined by its name and its coordinates.
         """
         return replace_invalid_chars_in_label(
-            f"{obj.name}" + "__".join(f"_{key}_{value}" for key, value in obj.coordinates.items())
+            f"{graph_item.name}" + "__".join(f"_{key}_{value}" for key, value in graph_item.coordinates.items())
         )
 
-    def validate_labels(self) -> None:
-        """Validate all workflow labels are AiiDA-compatible."""
-        for core_task in self.core_workflow.tasks:
-            try:
-                aiida.common.validate_link_label(core_task.name)
-            except ValueError as exception:
-                msg = f"Raised error when validating task name '{core_task.name}': {exception.args[0]}"
-                raise ValueError(msg) from exception
-            for input_ in core_task.input_data_nodes():
-                try:
-                    aiida.common.validate_link_label(input_.name)
-                except ValueError as exception:
-                    msg = f"Raised error when validating input name '{input_.name}': {exception.args[0]}"
-                    raise ValueError(msg) from exception
-            for output in core_task.output_data_nodes():
-                try:
-                    aiida.common.validate_link_label(output.name)
-                except ValueError as exception:
-                    msg = f"Raised error when validating output name '{output.name}': {exception.args[0]}"
-                    raise ValueError(msg) from exception
-
-    def create_data_node(self, data: core.AvailableData) -> AiiDAFileNode:
+    def create_input_data_node(self, core_data: core.AvailableData) -> AiiDAFileNode:
         """Create an AiiDA data node from AvailableData.
 
         Args:
@@ -74,35 +53,36 @@ class AiiDAAdapter:
         Returns:
             AiiDA data node (RemoteData, SinglefileData, or FolderData)
         """
-        label = self.get_label(data)
+        label = self.get_graph_item_label(core_data)
 
         try:
-            computer = aiida.orm.load_computer(data.computer)
+            computer = aiida.orm.load_computer(core_data.computer)
         except NotExistent as err:
-            msg = f"Could not find computer {data.computer!r} for input {data}."
+            msg = f"Could not find computer {core_data.computer!r} for input {core_data}."
             raise ValueError(msg) from err
 
         # Check remote path exists
         transport = computer.get_transport()
         with transport:
-            if not transport.path_exists(str(data.path)):
-                msg = f"Could not find available data {data.name} in path {data.path} on computer {data.computer}."
+            if not transport.path_exists(str(core_data.path)):
+                msg = f"Could not find available data {core_data.name} in path {core_data.path} on computer {core_data.computer}."
                 raise FileNotFoundError(msg)
 
         # Check if this data will be used by ICON tasks
         used_by_icon_task = any(
-            isinstance(task, core.IconTask) and data in task.input_data_nodes() for task in self.core_workflow.tasks
+            isinstance(task, core.IconTask) and core_data in task.input_data_nodes() for task in self.core_workflow.tasks
         )
 
         if used_by_icon_task:
-            # ICON tasks always require RemoteData
-            return aiida.orm.RemoteData(remote_path=str(data.path), label=label, computer=computer)
+            # ICON tasks always require RemoteData, at least that's our assumption
+            return aiida.orm.RemoteData(remote_path=str(core_data.path), label=label, computer=computer)
         if computer.get_transport_class() is aiida.transports.plugins.local.LocalTransport:
-            if data.path.is_file():
-                return aiida.orm.SinglefileData(file=str(data.path), label=label)
-            return aiida.orm.FolderData(tree=str(data.path), label=label)
-        return aiida.orm.RemoteData(remote_path=str(data.path), label=label, computer=computer)
+            if core_data.path.is_file():
+                return aiida.orm.SinglefileData(file=str(core_data.path), label=label)
+            return aiida.orm.FolderData(tree=str(core_data.path), label=label)
+        return aiida.orm.RemoteData(remote_path=str(core_data.path), label=label, computer=computer)
 
+    # TODO: This needs to be generalized to cover all use cases
     @staticmethod
     def create_shell_code(task: core.ShellTask, computer: aiida.orm.Computer) -> aiida.orm.Code:
         """Create or load an AiiDA Code for a shell task.
@@ -146,7 +126,8 @@ class AiiDAAdapter:
                     filepath_executable=executable_path,
                     default_calc_job_plugin="core.shell",
                     use_double_quotes=True,
-                ).store()
+                )
+                _ = code.store()
 
             return code
 
@@ -162,6 +143,7 @@ class AiiDAAdapter:
             script_dir = path_obj.parent
 
             base_label = script_name
+            # FIXME: hardcoded for bash and python currently
             if base_label.endswith((".sh", ".py")):
                 base_label = base_label[:-3]
 
@@ -183,7 +165,7 @@ class AiiDAAdapter:
                     filepath_files=str(script_dir),
                     default_calc_job_plugin="core.shell",
                 )
-                code.store()
+                _ = code.store()
 
             return code
 
@@ -214,6 +196,7 @@ class AiiDAAdapter:
         # File exists remotely -> InstalledCode
         script_name = Path(executable_path).name
         base_label = script_name
+        # FIXME: hardcoded for bash and python currently
         if base_label.endswith((".sh", ".py")):
             base_label = base_label[:-3]
 
@@ -230,7 +213,8 @@ class AiiDAAdapter:
                 filepath_executable=executable_path,
                 default_calc_job_plugin="core.shell",
                 use_double_quotes=True,
-            ).store()
+            )
+            _ = code.store()
 
         return code
 
@@ -290,6 +274,8 @@ class AiiDAAdapter:
         metadata: dict[str, Any] = {}
         metadata["options"] = {}
         metadata["options"]["account"] = task.account
+        # FIXME: Should this also be added for IconCalculation? Only for ShellJob, no?
+        # TODO: This can most likely be fully removed
         metadata["options"]["additional_retrieve_list"] = [
             "_scheduler-stdout.txt",
             "_scheduler-stderr.txt",
@@ -322,11 +308,6 @@ class AiiDAAdapter:
             metadata["options"]["prepend_text"] = f"{current_prepend}\n{exports}"
         else:
             metadata["options"]["prepend_text"] = exports
-
-    @staticmethod
-    def serialize_coordinates(coordinates: dict) -> dict:
-        """Serialize coordinates for JSON storage."""
-        return serialize_coordinates(coordinates)
 
     @staticmethod
     def translate_mpi_placeholder_static(placeholder: core.MpiCmdPlaceholder) -> str:

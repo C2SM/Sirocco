@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, cast
 from zoneinfo import ZoneInfo
 
 import aiida.orm
+from aiida.common import validate_link_label
 from aiida.common.exceptions import NotExistent
 from aiida_icon.iconutils.namelists import create_namelist_singlefiledata_from_content
 from aiida_shell.parsers.shell import ShellParser
@@ -36,7 +37,7 @@ from sirocco.engines.aiida.utils import (
 from sirocco.parsing.cycling import DateCyclePoint
 
 if TYPE_CHECKING:
-    type WorkgraphDataNode = aiida.orm.RemoteData | aiida.orm.SinglefileData | aiida.orm.FolderData
+    type AiiDAFileNode = aiida.orm.RemoteData | aiida.orm.SinglefileData | aiida.orm.FolderData
 
 LOGGER = logging.getLogger(__name__)
 
@@ -53,10 +54,11 @@ def build_sirocco_workgraph(
     Args:
         core_workflow: The core workflow to convert
         front_depth: Number of topological levels to keep active (default: 1, must be >= 1)
-                    1 = sequential (no pre-submission - wait for level N to finish before submitting N+1)
+                    1 = no pre-submission - wait for level N to finish before submitting N+1
                     2 = one level ahead
                     higher values = more aggressive streaming submission
-        resolved_config_path: Optional path to the resolved config file (with Jinja2 variables replaced)
+        resolved_config_path: Optional path to the resolved config file (with Jinja2 variables replaced).
+            Purely for provenance - stores the config with the workflow.
 
     Returns:
         A WorkGraph ready for submission
@@ -90,6 +92,7 @@ class WorkGraphBuilder:
         workflow: Core workflow to convert
         adapter: AiiDA adapter for domain translations
         resolved_config_path: Optional path to resolved config file
+            (this is purely for provenance, to store the config with the workflow)
         data_nodes: Maps data labels to AiiDA nodes
         shell_specs: Pre-computed shell task specifications
         icon_specs: Pre-computed ICON task specifications
@@ -104,13 +107,13 @@ class WorkGraphBuilder:
         self.resolved_config_path = resolved_config_path
 
         # Pre-computed static configuration
-        self.data_nodes: dict[str, WorkgraphDataNode] = {}
+        self.data_nodes: dict[str, AiiDAFileNode] = {}
         self.shell_specs: dict[str, dict] = {}
         self.icon_specs: dict[str, dict] = {}
 
         # Dynamic orchestration state
-        self.task_outputs: dict[str, Any] = {}  # task_label -> dep_task.outputs
-        self.get_job_tasks: dict[str, Any] = {}  # task_label -> dep_task
+        self.dependency_outputs: dict[str, Any] = {}  # task_label -> outputs for connecting dependencies
+        self.dependency_tasks: dict[str, Any] = {}  # task_label -> tasks for chaining execution order
         self.launcher_deps: dict[str, list[str]] = {}  # launcher_name -> [parents]
 
         self._wg: WorkGraph | None = None
@@ -128,32 +131,50 @@ class WorkGraphBuilder:
         Returns:
             A WorkGraph ready for submission with window_config in extras
         """
-        self._validate()
+        self._validate_labels()
         self._prepare_data_nodes()
         self._build_task_specs()
         wg = self._create_workgraph()
         self._store_window_config(wg, front_depth)
         return wg
 
-    def _validate(self) -> None:
-        """Validate workflow labels."""
-        self.adapter.validate_labels()
+    def _validate_labels(self) -> None:
+        """Validate all workflow labels are AiiDA-compatible."""
+        for core_task in self.workflow.tasks:
+            try:
+                validate_link_label(core_task.name)
+            except ValueError as exception:
+                msg = f"Raised error when validating task name '{core_task.name}': {exception.args[0]}"
+                raise ValueError(msg) from exception
+            for input_ in core_task.input_data_nodes():
+                try:
+                    validate_link_label(input_.name)
+                except ValueError as exception:
+                    msg = f"Raised error when validating input name '{input_.name}': {exception.args[0]}"
+                    raise ValueError(msg) from exception
+            for output in core_task.output_data_nodes():
+                try:
+                    validate_link_label(output.name)
+                except ValueError as exception:
+                    msg = f"Raised error when validating output name '{output.name}': {exception.args[0]}"
+                    raise ValueError(msg) from exception
 
     def _prepare_data_nodes(self) -> None:
         """Create AiiDA data nodes for available data."""
         for data in self.workflow.data:
             if isinstance(data, core.AvailableData):
-                label = self.adapter.get_label(data)
-                self.data_nodes[label] = self.adapter.create_data_node(data)
+                label = self.adapter.get_graph_item_label(data)
+                self.data_nodes[label] = self.adapter.create_input_data_node(data)
 
     def _build_task_specs(self) -> None:
         """Build specifications for all tasks."""
         for task in self.workflow.tasks:
-            label = self.adapter.get_label(task)
-            if isinstance(task, core.ShellTask):
-                self.shell_specs[label] = self.build_shell_task_spec(task, self.adapter)
-            elif isinstance(task, core.IconTask):
-                self.icon_specs[label] = self.build_icon_task_spec(task, self.adapter)
+            label = self.adapter.get_graph_item_label(task)
+            match task:
+                case core.ShellTask():
+                    self.shell_specs[label] = self.build_shell_task_spec(task, self.adapter)
+                case core.IconTask():
+                    self.icon_specs[label] = self.build_icon_task_spec(task, self.adapter)
 
     def _create_workgraph(self) -> WorkGraph:
         """Create the WorkGraph with launcher tasks."""
@@ -169,7 +190,7 @@ class WorkGraphBuilder:
         return self._wg
 
     def _add_launcher_pair(self, task: core.Task) -> None:
-        """Add launcher + get_job_data pair for a task.
+        """Add launcher + monitor pair for a task.
 
         This creates two WorkGraph tasks:
         1. launch_{wg_name}_{task_label} - The actual computation launcher
@@ -177,98 +198,57 @@ class WorkGraphBuilder:
 
         Also tracks launcher dependencies for window control.
         """
-        task_label = self.adapter.get_label(task)
+        task_label = self.adapter.get_graph_item_label(task)
 
         # Collect inputs
-        input_data = self._collect_available_inputs(task)
+        input_data = collect_available_data_inputs(task, self.data_nodes, self.adapter.get_graph_item_label)
 
         # Build dependency mapping
-        port_to_dep, parent_folders, job_ids = self._build_dependency_mapping(task)
+        port_to_dep, parent_folders, job_ids = build_dependency_mapping(
+            task, self.workflow, self.dependency_outputs, self.adapter.get_graph_item_label
+        )
 
         # Track launcher dependencies for windowing
+        # FIXME: No hard-coding, use actual distinction between Monitor and normal tasks
         launcher_name = f"launch_{self._wg_name}_{task_label}"
         self.launcher_deps[launcher_name] = [
-            f"launch_{self._wg_name}_{self.adapter.get_label(dep_task)}"
+            f"launch_{self._wg_name}_{self.adapter.get_graph_item_label(dep_task)}"
             for dep_label in parent_folders
             # Find the task object from the label
             for dep_task in self.workflow.tasks
-            if self.adapter.get_label(dep_task) == dep_label
+            if self.adapter.get_graph_item_label(dep_task) == dep_label
         ]
 
         # Create launcher pair based on task type
-        if isinstance(task, core.IconTask):
-            self._create_icon_launcher_pair(
-                task_label,
-                self.icon_specs[task_label],
-                input_data,
-                parent_folders,
-                job_ids,
-                port_to_dep,
-            )
-        elif isinstance(task, core.ShellTask):
-            self._create_shell_launcher_pair(
-                task_label,
-                self.shell_specs[task_label],
-                input_data,
-                parent_folders,
-                job_ids,
-                port_to_dep,
-            )
+        match task:
+            case core.IconTask():
+                self.dependency_outputs, self.dependency_tasks = create_icon_launcher_pair(
+                    self._wg,
+                    self._wg_name,  # type: ignore[arg-type]
+                    task_label,
+                    self.icon_specs[task_label],
+                    input_data,
+                    parent_folders,
+                    job_ids,
+                    port_to_dep,
+                    self.dependency_outputs,
+                    self.dependency_tasks,
+                )
+            case core.ShellTask():
+                self.dependency_outputs, self.dependency_tasks = create_shell_launcher_pair(
+                    self._wg,
+                    self._wg_name,  # type: ignore[arg-type]
+                    task_label,
+                    self.shell_specs[task_label],
+                    input_data,
+                    parent_folders,
+                    job_ids,
+                    port_to_dep,
+                    self.dependency_outputs,
+                    self.dependency_tasks,
+                )
 
-    def _collect_available_inputs(self, task: core.Task) -> dict:
-        """Gather AvailableData inputs for a task."""
-        return collect_available_data_inputs(task, self.data_nodes, self.adapter.get_label)
-
-    def _build_dependency_mapping(self, task: core.Task):
-        """Map GeneratedData inputs to upstream tasks."""
-        return build_dependency_mapping(task, self.workflow, self.task_outputs, self.adapter.get_label)
-
-    def _create_icon_launcher_pair(
-        self,
-        task_label: str,
-        spec: dict,
-        input_data: dict,
-        parent_folders: dict,
-        job_ids: dict,
-        port_to_dep: dict,
-    ) -> None:
-        """Create ICON launcher and get_job_data tasks."""
-        self.task_outputs, self.get_job_tasks = create_icon_launcher_pair(
-            self._wg,
-            self._wg_name,  # type: ignore[arg-type]
-            task_label,
-            spec,
-            input_data,
-            parent_folders,
-            job_ids,
-            port_to_dep,
-            self.task_outputs,
-            self.get_job_tasks,
-        )
-
-    def _create_shell_launcher_pair(
-        self,
-        task_label: str,
-        spec: dict,
-        input_data: dict,
-        parent_folders: dict,
-        job_ids: dict,
-        port_to_dep: dict,
-    ) -> None:
-        """Create shell launcher and get_job_data tasks."""
-        self.task_outputs, self.get_job_tasks = create_shell_launcher_pair(
-            self._wg,
-            self._wg_name,  # type: ignore[arg-type]
-            task_label,
-            spec,
-            input_data,
-            parent_folders,
-            job_ids,
-            port_to_dep,
-            self.task_outputs,
-            self.get_job_tasks,
-        )
-
+    # TODO: Check if WG has a specific `Monitor` task, then we don't have to hard-code `launch_` anymore
     def _generate_workgraph_name(self) -> str:
         """Generate unique WorkGraph name with timestamp."""
         base_name = self.workflow.name or "SIROCCO_WF"
@@ -328,13 +308,13 @@ class WorkGraphBuilder:
         # For backward compatibility - use static methods when no adapter provided
         use_static = adapter is None
         if use_static:
-            get_label = AiiDAAdapter.get_label
+            get_label = AiiDAAdapter.get_graph_item_label
             create_code = AiiDAAdapter.create_shell_code
             get_scheduler_opts = AiiDAAdapter.get_scheduler_options
         else:
             # Type narrowing for mypy - adapter is guaranteed to be non-None here
             adapter = cast("AiiDAAdapter", adapter)
-            get_label = adapter.get_label
+            get_label = adapter.get_graph_item_label
             create_code = adapter.create_shell_code
             get_scheduler_opts = adapter.get_scheduler_options
 
@@ -506,12 +486,12 @@ class WorkGraphBuilder:
         # For backward compatibility - use static methods when no adapter provided
         use_static = adapter is None
         if use_static:
-            get_label = AiiDAAdapter.get_label
+            get_label = AiiDAAdapter.get_graph_item_label
             get_scheduler_opts = AiiDAAdapter.get_scheduler_options
         else:
             # Type narrowing for mypy - adapter is guaranteed to be non-None here
             adapter = cast("AiiDAAdapter", adapter)
-            get_label = adapter.get_label
+            get_label = adapter.get_graph_item_label
             get_scheduler_opts = adapter.get_scheduler_options
 
         task_label = get_label(task)
