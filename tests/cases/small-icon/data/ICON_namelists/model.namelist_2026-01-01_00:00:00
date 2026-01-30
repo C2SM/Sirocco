@@ -1,5 +1,5 @@
 &run_nml
-    dtime = 360
+    dtime = 1209600
 /
 
 &grid_nml

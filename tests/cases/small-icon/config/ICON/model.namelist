@@ -1,5 +1,5 @@
 &run_nml
- dtime                       = 360               ! time step of 6 minutes
+ dtime                       = 1209600           ! time step of 2 weeks
 /
 
 ! grid_nml: horizontal grid --------------------------------------------------
