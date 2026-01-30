@@ -80,8 +80,9 @@ def patch_slurm_dependency_handling():
 
                 # Find and parse the dependency directive
                 # Match lines like: #SBATCH --dependency=afterok:123:456
+                # or: #SBATCH --dependency=afterok:123:456 --kill-on-invalid-dep=yes
                 dependency_match = re.search(
-                    r"^#SBATCH\s+--dependency=(\w+):([0-9:]+)$",
+                    r"^#SBATCH\s+--dependency=(\w+):([0-9:]+)(?:\s+.*)?$",
                     script_content,
                     flags=re.MULTILINE,
                 )
@@ -94,6 +95,15 @@ def patch_slurm_dependency_handling():
                 dependency_type = dependency_match.group(1)  # e.g., 'afterok'
                 job_ids_str = dependency_match.group(2)  # e.g., '123:456:789'
                 job_ids = job_ids_str.split(":")
+
+                # Extract any additional flags after the dependency (e.g., --kill-on-invalid-dep=yes)
+                original_line = dependency_match.group(0)
+                additional_flags = ""
+                if " " in original_line and "--dependency" in original_line:
+                    # Extract everything after the job IDs
+                    parts = original_line.split(f":{job_ids_str}", 1)
+                    if len(parts) > 1:
+                        additional_flags = parts[1]
 
                 AIIDA_LOGGER.info(
                     f"Job submission failed due to dependency problem. Original dependencies: {dependency_type}:{job_ids_str}",
@@ -127,9 +137,10 @@ def patch_slurm_dependency_handling():
                     existing_jobs = []
 
                 # Rebuild the dependency directive with only existing jobs
-                original_line = dependency_match.group(0)
                 if existing_jobs:
-                    new_dependency = f"#SBATCH --dependency={dependency_type}:{':'.join(existing_jobs)}"
+                    new_dependency = (
+                        f"#SBATCH --dependency={dependency_type}:{':'.join(existing_jobs)}{additional_flags}"
+                    )
                     new_line = f"{new_dependency}  # Filtered from: {job_ids_str}"
                     AIIDA_LOGGER.info(
                         f"Keeping dependencies on still-running jobs: {':'.join(existing_jobs)}",
