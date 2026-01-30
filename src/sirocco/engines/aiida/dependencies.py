@@ -33,15 +33,15 @@ LOGGER = logging.getLogger(__name__)
 def resolve_icon_restart_file(
     workdir_path: str,
     model_name: str,
-    model_namelist_node: aiida.orm.SinglefileData,
+    model_namelist_pks: dict[str, int],
     workdir_remote_data: aiida.orm.RemoteData,
 ) -> aiida.orm.RemoteData:
     """Resolve ICON restart file path using aiida-icon utilities.
 
     Args:
         workdir_path: Path to remote working directory
-        model_name: Name of the model (e.g., "atm", "oce")
-        model_namelist_node: AiiDA node containing the model namelist
+        model_name: Name of the model for which to resolve the restart file (e.g., "atm", "oce")
+        model_namelist_pks: Dict of all model namelist PKs (needed for coupled simulations)
         workdir_remote_data: RemoteData for the workdir (fallback)
 
     Returns:
@@ -50,27 +50,25 @@ def resolve_icon_restart_file(
     import f90nml
     from aiida_icon.iconutils.modelnml import read_latest_restart_file_link_name
 
-    # NOTE: Don't wrap _everything_ in try-except
-    try:
-        # Read and parse the namelist content
-        with model_namelist_node.open(mode="r") as f:
-            nml_content = f.read()
+    # Load and combine all model namelists (needed for coupled simulations)
+    nml_contents = []
+    for model_pk in model_namelist_pks.values():
+        model_node: aiida.orm.SinglefileData = aiida.orm.load_node(model_pk)  # type: ignore[assignment]
+        with model_node.open(mode="r") as f:
+            nml_contents.append(f.read())
 
-        nml: Namelist = f90nml.reads(nml_content)
+    # Combine all model namelists into one (following aiida-icon's collect_model_nml pattern)
+    combined_nml: Namelist = f90nml.reads("\n".join(nml_contents))
 
-        # Use aiida-icon function to get the restart file link name
-        restart_link_name = read_latest_restart_file_link_name(model_name, model_nml=nml)
-        specific_file_path = f"{workdir_path}/{restart_link_name}"
+    # Use aiida-icon function to get the restart file link name
+    # Pass combined namelist to support coupled model restart resolution
+    restart_link_name = read_latest_restart_file_link_name(model_name, model_nml=combined_nml)
+    specific_file_path = f"{workdir_path}/{restart_link_name}"
 
-        file_remote_data = aiida.orm.RemoteData(
-            computer=workdir_remote_data.computer,
-            remote_path=specific_file_path,
-        )
-    except Exception as e:  # noqa: BLE001
-        LOGGER.warning(e)
-        return workdir_remote_data
-    else:
-        return file_remote_data
+    return aiida.orm.RemoteData(
+        computer=workdir_remote_data.computer,
+        remote_path=specific_file_path,
+    )
 
 
 def _resolve_icon_dependency(
@@ -101,13 +99,11 @@ def _resolve_icon_dependency(
         )
 
     # Case 2: No filename → resolve via model namelist
-    model_pk = model_namelist_pks.get(model_name)
-    if model_pk:
-        model_node: aiida.orm.SinglefileData = aiida.orm.load_node(model_pk)  # type: ignore
+    if model_namelist_pks:
         return resolve_icon_restart_file(
             workdir_path,
             model_name,
-            model_node,
+            model_namelist_pks,
             workdir_remote,  # type: ignore
         )
 
