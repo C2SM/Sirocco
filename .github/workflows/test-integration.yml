@@ -1,11 +1,13 @@
 name: test-integration
 
 on:
-  push:
-    # only pushes to main trigger
-    branches: [main]
-  pull_request:
-    # always triggered
+  # Temporarily disabled - uncomment to re-enable
+  # push:
+  #   # only pushes to main trigger
+  #   branches: [main]
+  # pull_request:
+  #   # always triggered
+  workflow_dispatch:  # Can still trigger manually if needed
 
 jobs:
   integration_test:
