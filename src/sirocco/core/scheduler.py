@@ -47,7 +47,7 @@ class Scheduler:
         script_lines: list[str] = ["#!/bin/bash -l", ""]
 
         # Scheduler header
-        script_lines.extend(self.header_lines(task, output_mode=output_mode, dependency_type=dependency_type))
+        script_lines.extend(self.header_lines(task, output_mode=output_mode))
 
         # Some MPI environment variables for potential usage by the user defined runscript content
         script_lines.append("")
@@ -72,7 +72,7 @@ class Scheduler:
         # Submit runscript
         # ================
         (task.run_dir / task.SUBMIT_FILENAME).write_text("\n".join(script_lines))
-        task.jobid = self.submit_to_scheduler(task)
+        task.jobid = self.submit_to_scheduler(task, dependency_type=dependency_type)
 
     def add_links(self, task: Task) -> list[str]:
         link_list: list[str] = []
@@ -91,11 +91,14 @@ class Scheduler:
         self,
         task: Task,
         output_mode: Literal["overwrite", "append"] = "overwrite",
-        dependency_type: Literal["ALL_COMPLETED", "ANY", "NONE"] = "ALL_COMPLETED",
     ) -> list[str]:
         raise NotImplementedError
 
-    def submit_to_scheduler(self, task: Task) -> str:
+    def submit_to_scheduler(
+        self,
+        task: Task,
+        dependency_type: Literal["ALL_COMPLETED", "ANY", "NONE"] = "ALL_COMPLETED",
+    ) -> str:
         raise NotImplementedError
 
     def get_status(self, task: Task) -> TaskStatus:
@@ -126,7 +129,6 @@ class Slurm(Scheduler):
         self,
         task: Task,
         output_mode: Literal["overwrite", "append"] = "overwrite",
-        dependency_type: Literal["ALL_COMPLETED", "ANY", "NONE"] = "ALL_COMPLETED",
     ) -> list[str]:
         header: list[str] = [
             f"#SBATCH --output={task.STDOUTERR_FILENAME}",
@@ -145,24 +147,26 @@ class Slurm(Scheduler):
             header.append(f"#SBATCH --ntasks-per-node={ntasks_per_node}")
         if output_mode == "append":
             header.append("#SBATCH --open-mode=append")
+        return header
+
+    def submit_to_scheduler(
+        self,
+        task: Task,
+        dependency_type: Literal["ALL_COMPLETED", "ANY", "NONE"] = "ALL_COMPLETED",
+    ) -> str:
+        submit_cmd: list[str] = ["sbatch", "--parsable"]
         if parent_ids := [parent.jobid for parent in task.parents if parent.rank >= 0]:
-            # NOTE: We can safely remove tasks with rank -1 from the parents list
-            #       in order to avoid depending on old tasks for which the scheduler
-            #       has no info anymore when restarting after a long time.
             match dependency_type:
                 case "ALL_COMPLETED":
-                    header.append("#SBATCH --dependency=afterok:" + ":".join(parent_ids))
+                    submit_cmd.append("--dependency=afterok:" + ":".join(parent_ids))
                 case "ANY":
-                    header.append("#SBATCH --dependency=afterany:" + "?afterany:".join(parent_ids))
+                    submit_cmd.append("--dependency=afterany:" + "?afterany:".join(parent_ids))
                 case "NONE":
                     pass
                 case _:
                     assert_never(dependency_type)
-        return header
-
-    def submit_to_scheduler(self, task: Task) -> str:
+        submit_cmd.append(task.SUBMIT_FILENAME)
         with ignore_env("UENV_MOUNT_LIST", "SIROCCO_UENV", "SIROCCO_VIEW"):
-            submit_cmd: list[str] = ["sbatch", "--parsable", task.SUBMIT_FILENAME]
             result = self.run_command(submit_cmd, cwd=task.run_dir)
         return result.stdout.decode().strip()
 

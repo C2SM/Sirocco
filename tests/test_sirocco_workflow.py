@@ -12,7 +12,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 def test_parse_config_file(config_paths, pprinter):
-    reference_str = config_paths["txt"].read_text()
+    reference_str = config_paths["txt"].read_text().rstrip()
     test_str = pprinter.format(Workflow.from_config_file(config_paths["yml"]))
     if test_str != reference_str:
         new_path = Path(config_paths["txt"]).with_suffix(".new.txt")

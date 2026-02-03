@@ -68,10 +68,10 @@ def test_shell_filenames_nodes_arguments(config_paths):
     ]
 
     expected_arguments_list = [
-        "icon.py --restart  --init {initial_conditions} --forcing {forcing}",
-        "icon.py --restart  --init {initial_conditions} --forcing {forcing}",
-        "icon.py --restart {icon_restart_foo_0___bar_3_0___date_2026_01_01_00_00_00} --init  --forcing {forcing}",
-        "icon.py --restart {icon_restart_foo_1___bar_3_0___date_2026_01_01_00_00_00} --init  --forcing {forcing}",
+        "icon.py  --init {initial_conditions} --forcing {forcing}",
+        "icon.py  --init {initial_conditions} --forcing {forcing}",
+        "icon.py --restart {icon_restart_foo_0___bar_3_0___date_2026_01_01_00_00_00}  --forcing {forcing}",
+        "icon.py --restart {icon_restart_foo_1___bar_3_0___date_2026_01_01_00_00_00}  --forcing {forcing}",
         "statistics.py {icon_output_foo_0___bar_3_0___date_2026_01_01_00_00_00} {icon_output_foo_1___bar_3_0___date_2026_01_01_00_00_00}",
         "statistics.py {icon_output_foo_0___bar_3_0___date_2026_07_01_00_00_00} {icon_output_foo_1___bar_3_0___date_2026_07_01_00_00_00}",
         "statistics.py {analysis_foo_bar_3_0___date_2026_01_01_00_00_00}",

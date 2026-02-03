@@ -12,34 +12,36 @@ cycles:
       tasks:
         - icon:
             inputs:
-              - initial_conditions:
-                  when:
-                    at: *root_start_date
-                  port: init
-              - icon_restart:
-                  when:
-                    after: *root_start_date
-                  target_cycle:
-                    lag: -P6M
-                  parameters:
-                    foo: single
-                    bar: single
-                  port: restart
-              - forcing:
-                  port: forcing
-            outputs: [icon_output, icon_restart]
+              init:
+                - initial_conditions:
+                    when:
+                      at: *root_start_date
+              restart:
+                - icon_restart:
+                    when:
+                      after: *root_start_date
+                    target_cycle:
+                      lag: -P6M
+                    parameters:
+                      foo: single
+                      bar: single
+              forcing: [forcing]
+            outputs:
+              out: [icon_output]
+              restart_out: [icon_restart]
         - statistics_foo:
             inputs:
-              - icon_output:
-                  parameters:
-                    bar: single
-                  port: None
-            outputs: [analysis_foo]
+              dummy:
+                - icon_output:
+                    parameters:
+                      bar: single
+            outputs:
+              out: [analysis_foo]
         - statistics_foo_bar:
             inputs:
-              - analysis_foo:
-                  port: None
-            outputs: [analysis_foo_bar]
+              dummy: [analysis_foo]
+            outputs:
+              out: [analysis_foo_bar]
   - yearly:
       cycling:
         start_date: *root_start_date
@@ -48,35 +50,36 @@ cycles:
       tasks:
         - merge:
             inputs:
-              - analysis_foo_bar:
-                  target_cycle:
-                    lag: ['P0M', 'P6M']
-                  port: None
-            outputs: [yearly_analysis]
+              dummy:
+                - analysis_foo_bar:
+                    target_cycle:
+                      lag: ['P0M', 'P6M']
+            outputs:
+              out: [yearly_analysis]
 
 tasks:
   - icon:
       plugin: shell
       computer: remote
       path: scripts/icon.py
-      command: "python icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}"
+      command: "python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}"
       parameters: [foo, bar]
   - statistics_foo:
       plugin: shell
       computer: remote
       path: scripts/statistics.py
-      command: "python statistics.py {PORT::None}"
+      command: "python statistics.py {PORT::dummy}"
       parameters: [bar]
   - statistics_foo_bar:
       plugin: shell
       computer: remote
       path: scripts/statistics.py
-      command: "python statistics.py {PORT::None}"
+      command: "python statistics.py {PORT::dummy}"
   - merge:
       plugin: shell
       computer: remote
       path: scripts/merge.py
-      command: "python merge.py {PORT::None}"
+      command: "python merge.py {PORT::dummy}"
 
 data:
   available:
