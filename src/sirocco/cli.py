@@ -7,7 +7,11 @@ from typing import TYPE_CHECKING, Annotated
 import typer
 
 # Apply patches for third-party libraries before any AiiDA operations
-from sirocco.patches import patch_firecrest_symlink, patch_slurm_dependency_handling, patch_workgraph_window
+from sirocco.engines.aiida.patches import (
+    patch_firecrest_symlink,
+    patch_slurm_dependency_handling,
+    patch_workgraph_window,
+)
 
 patch_firecrest_symlink()
 patch_slurm_dependency_handling()

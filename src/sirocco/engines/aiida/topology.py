@@ -3,67 +3,10 @@
 from __future__ import annotations
 
 from collections import deque
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from aiida_workgraph import WorkGraph
 
 __all__ = [
     "compute_topological_levels",
-    "get_task_dependencies_from_workgraph",
 ]
-
-
-def get_task_dependencies_from_workgraph(wg: WorkGraph) -> dict[str, list[str]]:
-    """Extract dependency graph from WorkGraph.
-
-    Args:
-        wg: The WorkGraph to analyze
-
-    Returns:
-        Dict mapping launcher task names to their parent launcher dependencies
-    """
-    deps: dict[str, list[str]] = {}
-
-    # Precompute: get_job_data_X → corresponding launcher task
-    launcher_tasks = {t.name: t for t in wg.tasks if t.name.startswith("launch_")}
-    get_job_data_to_launcher = {}
-    for t in wg.tasks:
-        if t.name.startswith("get_job_data_"):
-            task_label = t.name.replace("get_job_data_", "")
-            # Find the launcher that ends with this task_label
-            for launcher_name in launcher_tasks:
-                if launcher_name.endswith(f"_{task_label}"):
-                    get_job_data_to_launcher[t.name] = launcher_name
-                    break
-
-    # Iterate only over launcher tasks
-    for task_ in wg.tasks:
-        name = task_.name
-        if not name.startswith("launch_"):
-            continue
-
-        launcher_deps: list[str] = []
-        deps[name] = launcher_deps
-
-        sockets = getattr(task_.inputs, "_sockets", None)
-        if not sockets:
-            continue
-
-        # Iterate over input links → parent tasks
-        for socket in sockets.values():
-            for link in getattr(socket, "links", []):
-                parent_name = link.from_socket.node.name
-
-                # Only care about get_job_data_* parents
-                if not parent_name.startswith("get_job_data_"):
-                    continue
-
-                parent_launcher = get_job_data_to_launcher.get(parent_name)
-                if parent_launcher and parent_launcher not in launcher_deps:
-                    launcher_deps.append(parent_launcher)
-
-    return deps
 
 
 def compute_topological_levels(task_deps: dict[str, list[str]]) -> dict[str, int]:

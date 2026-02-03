@@ -62,12 +62,12 @@ def parse_mpi_cmd_to_aiida(mpi_cmd: str) -> str:
     for placeholder in core.MpiCmdPlaceholder:
         mpi_cmd = mpi_cmd.replace(
             f"{{{placeholder.value}}}",
-            f"{{{AiidaAdapter.translate_mpi_placeholder_static(placeholder)}}}",
+            f"{{{AiidaAdapter.translate_mpi_placeholder(placeholder)}}}",
         )
     return mpi_cmd
 
 
-def process_shell_argument_placeholders(arguments_template: str | None, placeholder_to_node_key: dict) -> list[str]:
+def substitute_argument_placeholders(arguments_template: str | None, placeholder_to_node_key: dict) -> list[str]:
     """Process argument template and replace placeholders with actual node keys.
 
     Handles both standalone placeholders like {data_label} and embedded placeholders
@@ -110,15 +110,20 @@ def process_shell_argument_placeholders(arguments_template: str | None, placehol
     return processed_arguments
 
 
+# Default wrapper script name
+# TODO: Using string constants is poor design - should use specific wrapper script classes
+#       with isinstance checks for type-safe selection (e.g., TodiCPU, SantisCPU, GPUWrapper)
+#       Options: santis_cpu.sh, GPU variants
+DEFAULT_WRAPPER_SCRIPT = "todi_cpu.sh"
+
+
 def get_default_wrapper_script():
-    """Get default wrapper script based on task type"""
+    """Get default wrapper script based on task type."""
     # Import the script directory from aiida-icon
     import aiida.orm
     from aiida_icon.site_support.cscs.alps import SCRIPT_DIR
 
-    # TODO: There's also `santis_cpu.sh`. Also gpu available.
-    # This should be configurable by the users
-    default_script_path = SCRIPT_DIR / "todi_cpu.sh"
+    default_script_path = SCRIPT_DIR / DEFAULT_WRAPPER_SCRIPT
     return aiida.orm.SinglefileData(file=default_script_path)
 
 

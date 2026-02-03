@@ -1,4 +1,4 @@
-"""Centralized type definitions for the AiiDA engine."""
+"""Type definitions for Sirocco's AiiDA engine module."""
 
 from __future__ import annotations
 
@@ -12,17 +12,13 @@ from pydantic import BaseModel, ConfigDict, field_validator
 class AiidaFileNodeType(Enum):
     """Type of AiiDA file/data node to create."""
 
-    REMOTE = auto()  # RemoteData - for remote execution
+    REMOTE = auto()  # RemoteData - for remote execution (files/folders)
     SINGLE_FILE = auto()  # SinglefileData - for local files
     FOLDER = auto()  # FolderData - for local directories
 
 
-class TaggedValue(Protocol):
-    """Protocol for WorkGraph TaggedValue wrapper.
-
-    TaggedValue objects wrap output values from completed tasks,
-    containing both the value and metadata about the output socket.
-    """
+class WgSocketValue(Protocol):
+    """Protocol for WorkGraph sockets."""
 
     @property
     def value(self) -> Any:
@@ -30,28 +26,27 @@ class TaggedValue(Protocol):
         ...
 
 
-class WorkGraphTask(Protocol):
+class WgTaskProtocol(Protocol):
     """Protocol for WorkGraph task node.
 
     WorkGraph tasks are runtime objects that support chaining via >> operator.
     """
 
-    outputs: WorkGraphOutputs
+    outputs: WgMonitorOutputsProtocol
 
-    def __rshift__(self, other: WorkGraphTask) -> None:
-        """Chain this task to run before another task."""
+    def __rshift__(self, other: WgTaskProtocol) -> WgTaskProtocol:
+        """Chain this task to run before another task.
+
+        Returns the other task to allow chaining: task1 >> task2 >> task3
+        """
         ...
 
 
-class WorkGraphOutputs(Protocol):
-    """Protocol for WorkGraph task output namespace.
+class WgMonitorOutputsProtocol(Protocol):
+    """Protocol for our WorkGraph task monitor outputs."""
 
-    Output namespaces contain TaggedValue objects that reference
-    remote folders and job IDs from completed tasks.
-    """
-
-    remote_folder: TaggedValue  # TaggedValue wrapping RemoteData PK
-    job_id: TaggedValue  # TaggedValue wrapping int job_id
+    remote_folder: WgSocketValue  # WgSocketValue wrapping RemoteData PK
+    job_id: WgSocketValue  # WgSocketValue wrapping int job_id
 
 
 type AiidaFileNode = aiida.orm.RemoteData | aiida.orm.SinglefileData | aiida.orm.FolderData
@@ -60,23 +55,21 @@ type AiidaFileNode = aiida.orm.RemoteData | aiida.orm.SinglefileData | aiida.orm
 type AiidaDataNodeMapping = dict[str, AiidaFileNode]
 """Maps port/label names to AiiDA data nodes."""
 
-type DependencyOutputs = dict[str, WorkGraphOutputs]
-"""Maps task_label -> outputs namespace for connecting dependencies."""
+type TaskOutputMapping = dict[str, WgMonitorOutputsProtocol]
+"""Maps task_label -> WorkGraph outputs namespace with remote_folder and job_id."""
 
-type DependencyTasks = dict[str, WorkGraphTask]
+type DependencyTasks = dict[str, WgTaskProtocol]
 """Maps task_label -> task object for chaining execution order."""
 
-type PortToDependencies = dict[str, list["DependencyInfo"]]
+type PortDependencyMapping = dict[str, list["DependencyInfo"]]
 """Maps port name -> list of dependencies for that port."""
 
-type ParentFolders = dict[str, TaggedValue]
-"""Maps dep_label -> TaggedValue containing RemoteData PK."""
+type ParentFolders = dict[str, WgSocketValue]
+"""Maps dep_label -> WgSocketValue containing RemoteData PK."""
 
-type JobIds = dict[str, TaggedValue]
-"""Maps dep_label -> TaggedValue containing SLURM job_id (int)."""
+type JobIds = dict[str, WgSocketValue]
+"""Maps dep_label -> WgSocketValue containing SLURM job_id (int)."""
 
-type TaskDepInfo = dict[str, WorkGraphOutputs]
-"""Maps task_label -> WorkGraph outputs namespace with remote_folder and job_id."""
 
 type LauncherDependencies = dict[str, list[str]]
 """Maps launcher_name -> list of parent launcher names."""
@@ -88,7 +81,7 @@ class DependencyMapping(NamedTuple):
     Contains all dependency information needed to connect a task to its upstream dependencies.
     """
 
-    port_to_dep: PortToDependencies
+    port_mapping: PortDependencyMapping
     """Maps input port names to list of dependency info for that port."""
 
     parent_folders: ParentFolders
@@ -135,6 +128,8 @@ class InputDataInfo(BaseDataInfo):
 class OutputDataInfo(BaseDataInfo):
     """Output data information with optional port."""
 
+    # NOTE: This will become non-optional
+
     port: str | None
 
 
@@ -177,6 +172,7 @@ class AiidaMetadata(BaseModel):
     model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
 
     options: AiidaMetadataOptions | None = None
+    # NOTE: Do we need both computer and computer_label?
     computer: aiida.orm.Computer | None = None
     computer_label: str | None = None
     call_link_label: str | None = None
@@ -200,7 +196,7 @@ class AiidaShellTaskSpec(BaseModel):
     input_data_info: list[dict[str, Any]]
     output_data_info: list[dict[str, Any]]
     output_port_mapping: dict[str, str]
-    port_to_dep_mapping: dict[str, list[dict[str, Any]]] | None = None  # Added by launcher
+    port_dependency_mapping: dict[str, list[dict[str, Any]]] | None = None  # Added by launcher
 
     @field_validator("code_pk")
     @classmethod
@@ -226,7 +222,7 @@ class AiidaIconTaskSpec(BaseModel):
     wrapper_script_pk: int | None = None
     metadata: AiidaMetadata
     output_port_mapping: dict[str, str]
-    port_to_dep_mapping: dict[str, list[dict[str, Any]]] | None = None  # Added by launcher
+    port_dependency_mapping: dict[str, list[dict[str, Any]]] | None = None  # Added by launcher
 
     @field_validator("code_pk", "master_namelist_pk")
     @classmethod

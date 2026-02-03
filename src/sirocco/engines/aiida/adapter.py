@@ -26,6 +26,22 @@ from sirocco.engines.aiida.utils import (
 from sirocco.parsing._utils import TimeUtils
 from sirocco.parsing.cycling import DateCyclePoint
 
+# Script file extensions to remove when generating code labels
+# FIXME: Hardcoded for bash and python - should be configurable or determined dynamically
+SCRIPT_EXTENSIONS = (".sh", ".py")
+
+
+def remove_script_extension(name: str) -> str:
+    """Remove common script extensions from a filename.
+
+    Args:
+        name: Filename potentially ending with a script extension
+
+    Returns:
+        Filename with extension removed, or original name if no match
+    """
+    return name[:-3] if name.endswith(SCRIPT_EXTENSIONS) else name
+
 
 class AiidaAdapter:
     """Adapts Sirocco core domain objects to AiiDA representations.
@@ -38,7 +54,7 @@ class AiidaAdapter:
         self.core_workflow = core_workflow
 
     @staticmethod
-    def get_graph_item_label(graph_item: core.GraphItem) -> str:
+    def build_graph_item_label(graph_item: core.GraphItem) -> str:
         """Returns a unique AiiDA label for the given graph item.
 
         The graph item object is uniquely determined by its name and its coordinates.
@@ -56,7 +72,7 @@ class AiidaAdapter:
         Returns:
             AiiDA data node (RemoteData, SinglefileData, or FolderData)
         """
-        label = self.get_graph_item_label(core_data)
+        label = self.build_graph_item_label(core_data)
 
         try:
             computer = aiida.orm.load_computer(core_data.computer)
@@ -153,10 +169,7 @@ class AiidaAdapter:
             script_name = path_obj.name
             script_dir = path_obj.parent
 
-            base_label = script_name
-            # FIXME: hardcoded for bash and python currently
-            if base_label.endswith((".sh", ".py")):
-                base_label = base_label[:-3]
+            base_label = remove_script_extension(script_name)
 
             path_hash = hashlib.sha256(str(path_obj).encode()).hexdigest()[:8]
 
@@ -206,10 +219,7 @@ class AiidaAdapter:
 
         # File exists remotely -> InstalledCode
         script_name = Path(executable_path).name
-        base_label = script_name
-        # FIXME: hardcoded for bash and python currently
-        if base_label.endswith((".sh", ".py")):
-            base_label = base_label[:-3]
+        base_label = remove_script_extension(script_name)
 
         path_hash = hashlib.sha256(executable_path.encode()).hexdigest()[:8]
         code_label = f"{base_label}-{path_hash}"
@@ -230,7 +240,7 @@ class AiidaAdapter:
         return code
 
     @staticmethod
-    def get_scheduler_options(task: core.Task) -> AiidaMetadataOptions:
+    def build_scheduler_options(task: core.Task) -> AiidaMetadataOptions:
         """Extract HPC scheduler options from task.
 
         Args:
@@ -276,7 +286,7 @@ class AiidaAdapter:
             AiidaMetadata model with computer_label and options
         """
         # Get scheduler options
-        scheduler_opts = self.get_scheduler_options(task)
+        scheduler_opts = self.build_scheduler_options(task)
 
         # Merge with account and retrieve list
         options = scheduler_opts.model_copy(
@@ -315,7 +325,7 @@ class AiidaAdapter:
         return options.model_copy(update={"prepend_text": new_prepend})
 
     @staticmethod
-    def translate_mpi_placeholder_static(placeholder: core.MpiCmdPlaceholder) -> str:
+    def translate_mpi_placeholder(placeholder: core.MpiCmdPlaceholder) -> str:
         """Translate core MPI command to AiiDA format."""
         match placeholder:
             case core.MpiCmdPlaceholder.MPI_TOTAL_PROCS:

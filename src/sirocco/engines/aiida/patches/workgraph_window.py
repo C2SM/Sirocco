@@ -128,7 +128,7 @@ def patch_workgraph_window():
         Returns:
             Dict mapping task_name -> current dynamic level
         """
-        from collections import deque
+        from sirocco.engines.aiida.topology import compute_topological_levels
 
         if not self.window_config["enabled"]:
             return {}
@@ -148,37 +148,8 @@ def patch_workgraph_window():
             unfinished_parents = [p for p in task_deps[task_name] if p in unfinished_tasks]
             filtered_deps[task_name] = unfinished_parents
 
-        # Step 3: Compute levels using BFS (same algorithm as compute_topological_levels)
-        levels = {}
-        in_degree = {task: len(parents) for task, parents in filtered_deps.items()}
-
-        # Find all tasks with no unfinished dependencies (level 0)
-        queue = deque([task for task, degree in in_degree.items() if degree == 0])
-        for task_name in queue:
-            levels[task_name] = 0
-
-        # Build reverse dependency graph
-        children = {task: [] for task in filtered_deps}
-        for task_name, parents in filtered_deps.items():
-            for parent in parents:
-                if parent not in children:
-                    children[parent] = []
-                children[parent].append(task_name)
-
-        # Process tasks in topological order
-        processed = set()
-        while queue:
-            current = queue.popleft()
-            processed.add(current)
-
-            for child in children.get(current, []):
-                parents = filtered_deps[child]
-                if all(p in processed for p in parents):
-                    parent_levels = [levels[p] for p in parents]
-                    levels[child] = max(parent_levels) + 1 if parent_levels else 0
-                    queue.append(child)
-
-        return levels
+        # Step 3: Compute levels using existing topology function
+        return compute_topological_levels(filtered_deps)
 
     def _update_window(self):
         """Update the active window based on task completion.

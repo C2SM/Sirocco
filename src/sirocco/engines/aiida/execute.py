@@ -17,6 +17,7 @@ __all__ = [
 ]
 
 
+# TODO: verify `wait` and `timeout` WG arguments
 def submit_sirocco_workgraph(
     core_workflow: core.Workflow,
     *,
