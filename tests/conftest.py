@@ -470,3 +470,51 @@ def workflow_with_dependencies(tmp_path):
         """
     )
     return workflow.Workflow.from_config_str(config_yaml, rootdir=tmp_path)
+
+
+from tests import utils as test_utils
+
+
+@pytest.fixture
+def create_shell_task(aiida_localhost, tmp_path):
+    """Factory to create real ShellTask instances via workflow parsing."""
+
+    def _factory(computer=None, **kwargs):
+        """Create a ShellTask with realistic defaults."""
+        return test_utils.create_shell_task_from_workflow(
+            tmp_path=tmp_path,
+            computer=computer or aiida_localhost.label,
+            **kwargs,
+        )
+
+    return _factory
+
+
+@pytest.fixture
+def create_icon_task(aiida_localhost, tmp_path):
+    """Factory to create real IconTask instances via workflow parsing."""
+
+    def _factory(computer=None, **kwargs):
+        """Create an IconTask with realistic defaults."""
+        return test_utils.create_icon_task_from_workflow(
+            tmp_path=tmp_path,
+            computer=computer or aiida_localhost.label,
+            **kwargs,
+        )
+
+    return _factory
+
+
+@pytest.fixture
+def create_icon_task_with_models(aiida_localhost, tmp_path):
+    """Factory to create ICON tasks with model namelists."""
+
+    def _factory(computer=None, **kwargs):
+        """Create an IconTask with model namelists."""
+        return test_utils.create_icon_task_with_model_namelists(
+            tmp_path=tmp_path,
+            computer=computer or aiida_localhost.label,
+            **kwargs,
+        )
+
+    return _factory

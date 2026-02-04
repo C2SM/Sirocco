@@ -9,6 +9,7 @@ from typing import assert_never
 import aiida.orm
 import aiida.transports
 from aiida.common.exceptions import NotExistent
+from aiida.transports.plugins.local import LocalTransport
 
 from sirocco import core
 from sirocco.engines.aiida.types import (
@@ -68,7 +69,7 @@ class AiidaAdapter:
         # Create the appropriate data node based on usage and transport
         if used_by_icon:
             return aiida.orm.RemoteData(remote_path=str(core_data.path), label=label, computer=computer)
-        if computer.get_transport_class() is aiida.transports.plugins.local.LocalTransport:
+        if computer.get_transport_class() is LocalTransport:
             if core_data.path.is_file():
                 return aiida.orm.SinglefileData(file=str(core_data.path), label=label)
             return aiida.orm.FolderData(tree=str(core_data.path), label=label)

@@ -2,7 +2,7 @@ import pytest
 
 from sirocco.core import Workflow
 from sirocco.engines.aiida import build_sirocco_workgraph
-from sirocco.engines.aiida.builder import WorkGraphBuilder
+from sirocco.engines.aiida.tasks import build_icon_task_spec, build_shell_task_spec
 from sirocco.parsing.yaml_data_models import ConfigWorkflow
 
 
@@ -38,16 +38,16 @@ def test_shell_filenames_nodes_arguments(config_paths):
     nodes_list = []
 
     for task in shell_tasks:
-        task_spec = WorkGraphBuilder.build_shell_task_spec(task)
-        filenames_list.append(task_spec["filenames"])
-        arguments_list.append(task_spec["arguments_template"])
+        task_spec = build_shell_task_spec(task)
+        filenames_list.append(task_spec.filenames)
+        arguments_list.append(task_spec.arguments_template)
 
         # In the new architecture, nodes come from two sources:
         # 1. Scripts (in node_pks)
         # 2. Input data (in input_data_info)
         # Note: Use 'name' for AvailableData, 'label' for GeneratedData
-        nodes = list(task_spec["node_pks"].keys())
-        for input_info in task_spec["input_data_info"]:
+        nodes = list(task_spec.node_pks.keys())
+        for input_info in task_spec.input_data_info:
             # AvailableData uses simple names, GeneratedData uses full labels
             if input_info["is_available"]:
                 nodes.append(input_info["name"])
@@ -252,16 +252,16 @@ def test_aiida_icon_task_metadata(config_paths):
     icon_tasks = [task for task in core_workflow.tasks if isinstance(task, core.IconTask)]
 
     for task in icon_tasks:
-        task_spec = WorkGraphBuilder.build_icon_task_spec(task)
+        task_spec = build_icon_task_spec(task)
 
         # Test wrapper script
-        if task_spec["wrapper_script_pk"] is not None:
-            wrapper_node = aiida.orm.load_node(task_spec["wrapper_script_pk"])
+        if task_spec.wrapper_script_pk is not None:
+            wrapper_node = aiida.orm.load_node(task_spec.wrapper_script_pk)
             assert wrapper_node.filename == "dummy_wrapper.sh"
 
         # Test uenv and view in metadata
-        metadata = task_spec["metadata"]
-        custom_scheduler_commands = metadata["options"].get("custom_scheduler_commands", "")
+        metadata = task_spec.metadata
+        custom_scheduler_commands = getattr(metadata.options, "custom_scheduler_commands", "") or ""
         assert "#SBATCH --uenv=icon-wcp/v1:rc4" in custom_scheduler_commands
         assert "#SBATCH --view=icon" in custom_scheduler_commands
 
@@ -281,16 +281,12 @@ def test_aiida_icon_task_metadata(config_paths):
     icon_tasks = [task for task in core_workflow.tasks if isinstance(task, core.IconTask)]
 
     for task in icon_tasks:
-        task_spec = WorkGraphBuilder.build_icon_task_spec(task)
+        task_spec = build_icon_task_spec(task)
 
         # Test default wrapper script
-        if task_spec["wrapper_script_pk"] is not None:
-            wrapper_node = aiida.orm.load_node(task_spec["wrapper_script_pk"])
+        if task_spec.wrapper_script_pk is not None:
+            wrapper_node = aiida.orm.load_node(task_spec.wrapper_script_pk)
             assert wrapper_node.filename == "todi_cpu.sh"
-
-
-# NOTE: Basic topology tests have been moved to tests/unit_tests/engines/aiida/test_topology.py
-# Integration tests for dynamic levels remain below
 
 
 @pytest.mark.usefixtures("config_case", "aiida_localhost", "aiida_remote_computer")
@@ -446,10 +442,6 @@ def test_branch_independence_execution(config_paths):
         f"Workflow failed. Exit code: {output_node.exit_code}, message: {output_node.exit_message}"
     )
 
-    # ========================================================================
-    # NEW: Use test utilities to extract and validate timing data
-    # ========================================================================
-
     # Extract launcher timing data (when tasks were submitted and completed)
     launcher_times = extract_launcher_times(output_node)
     LOGGER.info("Extracted timing data for %s tasks", len(launcher_times))
@@ -473,10 +465,6 @@ def test_branch_independence_execution(config_paths):
         f"Expected at least 7 tasks ({expected_tasks}), found {len(found_tasks)}: {found_tasks}"
     )
 
-    # ========================================================================
-    # ASSERTION 1: Branch Independence
-    # Fast branch should complete before slow branch (key test!)
-    # ========================================================================
     LOGGER.info("Testing branch independence...")
     try:
         assert_branch_independence(launcher_times, fast_branch="fast", slow_branch="slow")
@@ -485,10 +473,6 @@ def test_branch_independence_execution(config_paths):
         LOGGER.exception("✗ FAIL: Branch independence assertion failed")
         raise
 
-    # ========================================================================
-    # ASSERTION 2: Pre-submission (front_depth=1)
-    # Tasks should be submitted BEFORE their dependencies finish
-    # ========================================================================
     LOGGER.info("Testing pre-submission behavior...")
     pre_submission_tests = [
         ("fast_2", "fast_1", "fast_2 should be submitted before fast_1 finishes"),
@@ -508,10 +492,6 @@ def test_branch_independence_execution(config_paths):
         else:
             LOGGER.warning("⚠ SKIPPED: %s - tasks not found", description)
 
-    # ========================================================================
-    # ASSERTION 3: Submission Order
-    # Verify that dynamic levels produce correct submission sequence
-    # ========================================================================
     LOGGER.info("Testing submission order...")
     try:
         # Root must be submitted first
@@ -527,10 +507,6 @@ def test_branch_independence_execution(config_paths):
         LOGGER.exception("✗ FAIL: Submission order assertion failed")
         raise
 
-    # ========================================================================
-    # ASSERTION 4: fast_3 should be submitted before slow_3
-    # This demonstrates that the fast branch advances independently
-    # ========================================================================
     LOGGER.info("Testing independent branch advancement...")
     if "fast_3" in launcher_times and "slow_3" in launcher_times:
         fast_3_submit = launcher_times["fast_3"]["ctime"]
@@ -650,9 +626,6 @@ def test_branch_independence_with_front_depths(config_paths, front_depth):
     launcher_times = extract_launcher_times(output_node)
     LOGGER.info("Extracted timing data for %s tasks", len(launcher_times))
 
-    # ========================================================================
-    # Key assertion: Branch independence should work regardless of front_depth
-    # ========================================================================
     LOGGER.info("Testing branch independence...")
     try:
         assert_branch_independence(launcher_times, fast_branch="fast", slow_branch="slow")
@@ -661,9 +634,6 @@ def test_branch_independence_with_front_depths(config_paths, front_depth):
         LOGGER.exception("✗ FAIL: Branch independence assertion failed")
         raise
 
-    # ========================================================================
-    # Window-size specific validation
-    # ========================================================================
     if front_depth == 1:
         LOGGER.info("Validating front_depth=1 behavior (no pre-submission)...")
         # With front_depth=1, tasks are submitted sequentially
@@ -785,9 +755,6 @@ def test_complex_workflow_with_cross_dependencies(config_paths):
     # Print detailed timing summary
     print_timing_summary(launcher_times)
 
-    # ========================================================================
-    # ASSERTION 1: Fast branch completes before medium and slow branches
-    # ========================================================================
     LOGGER.info("Testing fast branch independence...")
     try:
         assert_branch_independence(launcher_times, fast_branch="fast", slow_branch="medium")
@@ -799,9 +766,6 @@ def test_complex_workflow_with_cross_dependencies(config_paths):
         LOGGER.exception("✗ FAIL: Fast branch independence failed")
         raise
 
-    # ========================================================================
-    # ASSERTION 2: Medium branch completes before slow branch
-    # ========================================================================
     LOGGER.info("Testing medium vs slow branch...")
     try:
         assert_branch_independence(launcher_times, fast_branch="medium", slow_branch="slow")
@@ -810,11 +774,6 @@ def test_complex_workflow_with_cross_dependencies(config_paths):
         LOGGER.exception("✗ FAIL: Medium vs slow assertion failed")
         raise
 
-    # ========================================================================
-    # ASSERTION 3: Cross-dependencies are respected
-    # medium_2 should wait for BOTH medium_1 AND fast_2
-    # slow_2 should wait for BOTH slow_1 AND medium_2
-    # ========================================================================
     LOGGER.info("Testing cross-dependency constraints...")
     try:
         # medium_2 depends on medium_1 and fast_2
@@ -835,9 +794,6 @@ def test_complex_workflow_with_cross_dependencies(config_paths):
         LOGGER.exception("✗ FAIL: Cross-dependency assertion failed")
         raise
 
-    # ========================================================================
-    # ASSERTION 4: Convergence point (finalize waits for all branches)
-    # ========================================================================
     LOGGER.info("Testing convergence point...")
     if "finalize" in launcher_times:
         finalize_submit = launcher_times["finalize"]["ctime"]

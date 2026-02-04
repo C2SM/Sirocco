@@ -54,6 +54,7 @@ dependencies = [
   "aiida-gui-workgraph>=0.1.3",
   "jinja2>=3.0",
   "types-PyYAML",
+  "coverage",
 ]
 license = {file = "LICENSE"}
 
@@ -107,9 +108,9 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = [
-  "T201",  # 
-  "S101",  #
-  "PLR2004",  # 
+  "T201",  # No use of `print`
+  "S101",  # No use of `assert`
+  "PLR2004",  # No use of magic values
   "S607",  # Starting a process with a partial executable path
   "RUF015",  # Prefer `next` over single element slice
 ]
@@ -125,7 +126,7 @@ include = [
 path = "src/sirocco/__init__.py"
 
 [tool.hatch.metadata]
-allow-direct-references = true
+allow-direct-references = true  # editable installs
 
 [tool.hatch.envs.default]
 installer = "uv"
@@ -136,8 +137,8 @@ installer = "uv"
 extra-dependencies = [
     "ipdb",
     "pytest-cov",
-    "pytest-sugar",
-    "coverage",
+    "pytest-sugar",  # Nicer pytest output
+    "coverage",  # For showing coverage gutter in IDEs
 ]
 default-args = []
 extra-args = ["--doctest-modules", "-m", "not slow and not requires_icon"]
@@ -177,9 +178,8 @@ extra-dependencies = [
   "types-Pygments",
   "types-termcolor",
   "types-requests",
+  "types-PyYAML",
   "ty",
-  "types-PyYAML"
-
 ]
 
 [tool.hatch.envs.types.scripts]

@@ -37,10 +37,6 @@ def patch_workgraph_window():
     original_workgraph_to_dict = WorkGraph.to_dict
     original_workgraph_from_dict = WorkGraph.from_dict
 
-    # ========================================================================
-    # Patched WorkGraph methods
-    # ========================================================================
-
     def patched_workgraph_init(self, name=None, **kwargs):
         """Initialize WorkGraph with extras dict for window config storage."""
         original_workgraph_init(self, name=name, **kwargs)
@@ -60,10 +56,6 @@ def patch_workgraph_window():
         if "extras" in data:
             wg.extras = data["extras"]
         return wg
-
-    # ========================================================================
-    # Patched TaskManager methods
-    # ========================================================================
 
     def patched_task_manager_init(self, ctx_manager, logger, runner, process, awaitable_manager):
         """Initialize TaskManager with window state management."""
@@ -297,10 +289,6 @@ def patch_workgraph_window():
 
         # Run the tasks
         self.run_tasks(task_to_run)
-
-    # ========================================================================
-    # Apply all patches
-    # ========================================================================
 
     # Patch WorkGraph
     WorkGraph.__init__ = patched_workgraph_init

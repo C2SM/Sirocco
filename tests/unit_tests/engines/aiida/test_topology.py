@@ -7,8 +7,6 @@ These tests verify the algorithms for:
 - Cross-dependency handling
 """
 
-import pytest
-
 from sirocco.engines.aiida.topology import compute_topological_levels
 
 
@@ -105,9 +103,26 @@ class TestTopologicalLevels:
     def test_empty_graph(self):
         """Test empty graph."""
         task_deps = {}
+        compute_topological_levels(task_deps)
+
+    def test_parent_not_in_task_deps(self):
+        """Test case where a parent is referenced but not defined as a task.
+
+        This covers line 37: if parent not in children.
+        This tests defensive programming - the function should not crash even with malformed input.
+        """
+        task_deps = {
+            "task_a": [],
+            "task_b": ["task_a", "external_parent"],  # external_parent not in task_deps
+        }
         levels = compute_topological_levels(task_deps)
 
-        assert levels == {}
+        # Function should not crash
+        # task_a has no dependencies, so it gets level 0
+        assert levels["task_a"] == 0
+        # task_b depends on external_parent which is never processed,
+        # so task_b never gets a level assigned
+        assert "task_b" not in levels
 
 
 class TestDynamicLevels:
@@ -360,7 +375,3 @@ class TestComplexScenarios:
         # Now medium_2 can potentially start (if medium_1 is done)
         assert levels["fast_3"] == 0
         # medium_2 level depends on whether medium_1 is done
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])

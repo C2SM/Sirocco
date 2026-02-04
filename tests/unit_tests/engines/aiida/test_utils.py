@@ -74,7 +74,3 @@ def test_serialize_coordinates(coords, expected_checks):
     pprint({"input": coords, "output": serialized})
 
     assert expected_checks(serialized)
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
