@@ -36,7 +36,7 @@ def test_branch_independence_execution(config_paths):
     from aiida.cmdline.utils.common import get_calcjob_report, get_workchain_report
     from aiida.orm import CalcJobNode
 
-    from tests.unit_tests.utils import (
+    from tests.utils import (
         assert_branch_independence,
         assert_pre_submission_occurred,
         assert_submission_order,

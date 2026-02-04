@@ -5,4 +5,4 @@
 # Compute configuration
 # SIROCCO_COMPUTER: "santis-firecrest"
 SLURM_ACCOUNT: "cwd01"
-SIROCCO_COMPUTER: "santis-async-ssh"
+SIROCCO_COMPUTER: "santis-ssh"
