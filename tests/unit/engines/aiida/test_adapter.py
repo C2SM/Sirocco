@@ -1,68 +1,99 @@
 """Unit tests for sirocco.engines.aiida.adapter module."""
 
+import os
+import uuid
 from datetime import UTC
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+import aiida.orm
 import pytest
+from aiida.common.exceptions import NotExistent
 from rich.pretty import pprint
 
 from sirocco import core
 from sirocco.engines.aiida.adapter import AiidaAdapter
+from sirocco.engines.aiida.types import AiidaMetadataOptions
 from tests.utils import (
     create_authinfo,
     create_available_data,
     create_mock_icon_task,
     create_mock_shell_task,
-    create_transport,
+    create_mock_transport,
 )
+
+
+def create_date_cycle_point():
+    """Helper to create DateCyclePoint mock."""
+    from datetime import datetime
+
+    from sirocco.parsing.cycling import DateCyclePoint
+
+    # Create a proper DateCyclePoint instance
+    # DateCyclePoint typically needs initialization but we can mock its attributes
+    cycle_point = Mock(spec=DateCyclePoint)
+    cycle_point.__class__ = DateCyclePoint
+    cycle_point.chunk_start_date = datetime(2026, 1, 1, 0, 0, 0, tzinfo=UTC)
+    cycle_point.chunk_stop_date = datetime(2026, 1, 2, 0, 0, 0, tzinfo=UTC)
+    return cycle_point
 
 
 @pytest.mark.parametrize(
     ("input_name", "expected"),
     [
         # Scripting languages - extensions should be removed
-        ("script.sh", "script"),  # Shell/Bash
-        ("script.py", "script"),  # Python
-        ("script.pl", "script"),  # Perl
-        ("script.rb", "script"),  # Ruby
-        ("script.R", "script"),  # R
-        ("script.lua", "script"),  # Lua
-        ("script.js", "script"),  # JavaScript/Node
-        ("script.tcl", "script"),  # TCL
+        pytest.param("script.sh", "script", id="shell_script"),
+        pytest.param("script.py", "script", id="python_script"),
+        pytest.param("script.pl", "script", id="perl_script"),
+        pytest.param("script.rb", "script", id="ruby_script"),
+        pytest.param("script.R", "script", id="r_script"),
+        pytest.param("script.lua", "script", id="lua_script"),
+        pytest.param("script.js", "script", id="javascript_script"),
+        pytest.param("script.tcl", "script", id="tcl_script"),
         # Non-scripting extensions - should be preserved
-        ("script.txt", "script.txt"),
-        ("script.yaml", "script.yaml"),
-        ("script.json", "script.json"),
+        pytest.param("script.txt", "script.txt", id="txt_file"),
+        pytest.param("script.yaml", "script.yaml", id="yaml_file"),
+        pytest.param("script.json", "script.json", id="json_file"),
         # No extension - should be unchanged
-        ("script", "script"),
+        pytest.param("script", "script", id="no_extension"),
         # Edge cases
-        ("run_model.sh", "run_model"),
-        ("process.py", "process"),
+        pytest.param("run_model.sh", "run_model", id="shell_with_underscore"),
+        pytest.param("process.py", "process", id="python_with_underscore"),
     ],
 )
 def test_remove_script_extension(input_name, expected):
     """Test script extension removal for common scripting languages."""
-    assert AiidaAdapter.remove_script_extension(input_name) == expected
+    result = AiidaAdapter.remove_script_extension(input_name)
+
+    print(f"\n=== Input: {input_name!r} ===")
+    print(f"Result: {result!r}")
+    print(f"Expected: {expected!r}")
+
+    assert result == expected
 
 
 @pytest.mark.parametrize(
-    ("name", "coordinates", "expected_in_label", "not_in_label"),
+    ("name", "coordinates", "expected_label"),
     [
         # Simple case - no coordinates
-        ("test_task", {}, ["test_task"], []),
-        # With coordinates
-        (
+        pytest.param("test_task", {}, "test_task", id="no_coordinates"),
+        # With coordinates - note double underscore separator between coordinate pairs
+        pytest.param(
             "test_task",
             {"member": 0, "date": "2026-01-01"},
-            ["test_task", "member_0"],
-            [],
+            "test_task_member_0___date_2026_01_01",
+            id="with_coordinates",
         ),
-        # Invalid characters should be replaced
-        ("test-task.v1", {"date": "2026-01-01"}, ["test_task_v1"], ["-", "."]),
+        # Invalid characters should be replaced with underscores
+        pytest.param(
+            "test-task.v1",
+            {"date": "2026-01-01"},
+            "test_task_v1_date_2026_01_01",
+            id="sanitize_name",
+        ),
     ],
 )
-def test_build_graph_item_label(name, coordinates, expected_in_label, not_in_label):
+def test_build_graph_item_label(name, coordinates, expected_label):
     """Test label generation for various graph items."""
     item = Mock()
     item.name = name
@@ -70,15 +101,24 @@ def test_build_graph_item_label(name, coordinates, expected_in_label, not_in_lab
 
     label = AiidaAdapter.build_graph_item_label(item)
 
-    for expected in expected_in_label:
-        assert expected in label
-    for not_expected in not_in_label:
-        assert not_expected not in label
+    print("\n=== Graph item ===")
+    print(f"Name: {name!r}")
+    print(f"Coordinates: {coordinates}")
+    print(f"Generated label: {label!r}")
+    print(f"Expected label: {expected_label!r}")
+
+    assert label == expected_label
 
 
 def test_translate_mpi_placeholder():
     """Test MPI placeholder translation."""
-    result = AiidaAdapter.translate_mpi_placeholder(core.MpiCmdPlaceholder.MPI_TOTAL_PROCS)
+    placeholder = core.MpiCmdPlaceholder.MPI_TOTAL_PROCS
+    result = AiidaAdapter.translate_mpi_placeholder(placeholder)
+
+    print("\n=== MPI placeholder translation ===")
+    print(f"Input placeholder: {placeholder}")
+    print(f"Translated result: {result!r}")
+
     assert result == "tot_num_mpiprocs"
 
 
@@ -153,7 +193,6 @@ def test_build_metadata(aiida_localhost):
 @patch("aiida_shell.ShellCode")
 def test_create_shell_code_executable_name(mock_shell_code_class, mock_load_code, aiida_localhost):
     """Test creating code for executable name (no path)."""
-    from aiida.common.exceptions import NotExistent
 
     mock_load_code.side_effect = NotExistent("Code not found")  # Force code creation
 
@@ -164,6 +203,11 @@ def test_create_shell_code_executable_name(mock_shell_code_class, mock_load_code
     mock_shell_code_class.return_value = mock_code_instance
 
     code = AiidaAdapter.create_shell_code(task, aiida_localhost)
+
+    print("\n=== Shell code creation (executable name) ===")
+    print(f"Task command: {task.command!r}")
+    pprint(mock_shell_code_class.call_args)
+    print(f"Code instance: {code}")
 
     # Should create InstalledCode for "bash"
     assert mock_shell_code_class.called
@@ -179,7 +223,6 @@ def test_create_shell_code_executable_name(mock_shell_code_class, mock_load_code
 @patch("aiida.orm.PortableCode")
 def test_create_shell_code_local_script(mock_portable_code_class, mock_load_code, tmp_path, aiida_localhost):
     """Test creating code for local script file."""
-    from aiida.common.exceptions import NotExistent
 
     mock_load_code.side_effect = NotExistent("Code not found")
 
@@ -195,6 +238,12 @@ def test_create_shell_code_local_script(mock_portable_code_class, mock_load_code
 
     code = AiidaAdapter.create_shell_code(task, aiida_localhost)
 
+    print("\n=== Shell code creation (local script) ===")
+    print(f"Script file: {script_file}")
+    print(f"Task command: {task.command!r}")
+    pprint(mock_portable_code_class.call_args)
+    print(f"Code instance: {code}")
+
     # Should create PortableCode for local script
     assert mock_portable_code_class.called
     call_args = mock_portable_code_class.call_args
@@ -207,57 +256,73 @@ def test_create_shell_code_local_script(mock_portable_code_class, mock_load_code
     ("input_label", "expected"),
     [
         # Individual invalid characters
-        ("task-name", "task_name"),  # Dash
-        ("task name", "task_name"),  # Space
-        ("task:name", "task_name"),  # Colon
-        ("task.name", "task_name"),  # Dot
+        pytest.param("task-name", "task_name", id="replace_dash"),
+        pytest.param("task name", "task_name", id="replace_space"),
+        pytest.param("task:name", "task_name", id="replace_colon"),
+        pytest.param("task.name", "task_name", id="replace_dot"),
         # Multiple invalid characters
-        ("task-name.v1:final", "task_name_v1_final"),
+        pytest.param("task-name.v1:final", "task_name_v1_final", id="replace_multiple"),
         # Valid label unchanged
-        ("task_name_123", "task_name_123"),
+        pytest.param("task_name_123", "task_name_123", id="valid_label"),
     ],
 )
 def test_sanitize_label(input_label, expected):
     """Test label sanitization for various invalid characters."""
-    assert AiidaAdapter.sanitize_label(input_label) == expected
+    result = AiidaAdapter.sanitize_label(input_label)
+
+    print("\n=== Label sanitization ===")
+    print(f"Input: {input_label!r}")
+    print(f"Result: {result!r}")
+    print(f"Expected: {expected!r}")
+
+    assert result == expected
 
 
 @pytest.mark.parametrize(
     ("template", "mapping", "expected"),
     [
         # Standalone placeholders
-        (
+        pytest.param(
             "command {input_file} {output_file}",
             {"input_file": "input_123", "output_file": "output_456"},
             ["command", "{input_123}", "{output_456}"],
+            id="standalone_placeholders",
         ),
         # Embedded placeholders
-        (
+        pytest.param(
             "--input=input_file --output=output_file",
             {"input_file": "input_123", "output_file": "output_456"},
             ["--input={input_123}", "--output={output_456}"],
+            id="embedded_placeholders",
         ),
         # No mapping - keep original
-        (
+        pytest.param(
             "command {unknown_placeholder}",
             {},
             ["command", "{unknown_placeholder}"],
+            id="unknown_placeholder",
         ),
         # Empty template
-        ("", {}, []),
+        pytest.param("", {}, [], id="empty_template"),
         # None template
-        (None, {}, []),
+        pytest.param(None, {}, [], id="none_template"),
     ],
 )
 def test_substitute_argument_placeholders(template, mapping, expected):
     """Test argument placeholder substitution for various scenarios."""
     result = AiidaAdapter.substitute_argument_placeholders(template, mapping)
+
+    print("\n=== Argument placeholder substitution ===")
+    print(f"Template: {template!r}")
+    print(f"Mapping: {mapping}")
+    print(f"Result: {result}")
+    print(f"Expected: {expected}")
+
     assert result == expected
 
 
 def test_create_input_data_node_remote_data_for_icon(tmp_path, aiida_localhost):
     """Test creating RemoteData node when used_by_icon=True."""
-    import aiida.orm
 
     test_file = tmp_path / "data.txt"
     test_file.write_text("test")
@@ -265,6 +330,13 @@ def test_create_input_data_node_remote_data_for_icon(tmp_path, aiida_localhost):
     core_data = create_available_data("test_data", aiida_localhost.label, test_file)
 
     result = AiidaAdapter.create_input_data_node(core_data, used_by_icon=True)
+
+    print("\n=== Create input data node (RemoteData for ICON) ===")
+    print(f"Test file: {test_file}")
+    print(f"Core data: {core_data}")
+    print(f"Result type: {type(result)}")
+    print(f"Remote path: {result.get_remote_path()}")
+    print(f"Computer: {result.computer.label}")
 
     # Verify it created a real RemoteData node with correct attributes
     assert isinstance(result, aiida.orm.RemoteData)
@@ -274,7 +346,6 @@ def test_create_input_data_node_remote_data_for_icon(tmp_path, aiida_localhost):
 
 def test_create_input_data_node_local_file(tmp_path, aiida_localhost):
     """Test creating SinglefileData for local file."""
-    import aiida.orm
 
     test_file = tmp_path / "input.txt"
     test_file.write_text("test content")
@@ -283,6 +354,12 @@ def test_create_input_data_node_local_file(tmp_path, aiida_localhost):
 
     result = AiidaAdapter.create_input_data_node(core_data, used_by_icon=False)
 
+    print("\n=== Create input data node (SinglefileData) ===")
+    print(f"Test file: {test_file}")
+    print(f"Core data: {core_data}")
+    print(f"Result type: {type(result)}")
+    print(f"File content: {result.get_content()!r}")
+
     # Verify it created a real SinglefileData node with correct content
     assert isinstance(result, aiida.orm.SinglefileData)
     assert result.get_content() == "test content"
@@ -290,7 +367,6 @@ def test_create_input_data_node_local_file(tmp_path, aiida_localhost):
 
 def test_create_input_data_node_local_folder(tmp_path, aiida_localhost):
     """Test creating FolderData for local directory."""
-    import aiida.orm
 
     test_dir = tmp_path / "input_folder"
     test_dir.mkdir()
@@ -299,6 +375,12 @@ def test_create_input_data_node_local_folder(tmp_path, aiida_localhost):
     core_data = create_available_data("input_folder", aiida_localhost.label, test_dir)
 
     result = AiidaAdapter.create_input_data_node(core_data, used_by_icon=False)
+
+    print("\n=== Create input data node (FolderData) ===")
+    print(f"Test directory: {test_dir}")
+    print(f"Core data: {core_data}")
+    print(f"Result type: {type(result)}")
+    print(f"Folder contents: {result.list_object_names()}")
 
     # Verify it created a real FolderData node with correct content
     assert isinstance(result, aiida.orm.FolderData)
@@ -328,6 +410,12 @@ def test_create_input_data_node_remote_transport(mock_remote_data, tmp_path, aii
     ):
         result = AiidaAdapter.create_input_data_node(core_data, used_by_icon=False)
 
+        print("\n=== Create input data node (remote transport) ===")
+        print(f"Remote path: {remote_path}")
+        print(f"Core data: {core_data}")
+        pprint(mock_remote_data.call_args)
+        print(f"Result: {result}")
+
         assert mock_remote_data.called
         assert mock_remote_data.call_args[1]["remote_path"] == str(remote_path)
         assert mock_remote_data.call_args[1]["computer"] == aiida_localhost
@@ -338,7 +426,6 @@ def test_create_input_data_node_remote_transport(mock_remote_data, tmp_path, aii
 @patch("sirocco.engines.aiida.adapter.aiida.orm.load_computer")
 def test_create_input_data_node_computer_not_found(mock_load_computer):
     """Test error when computer is not found."""
-    from aiida.common.exceptions import NotExistent
 
     mock_load_computer.side_effect = NotExistent("Computer not found")
     core_data = create_available_data("test_data", "nonexistent_computer", "/some/path")
@@ -361,19 +448,23 @@ def test_create_input_data_node_path_not_exists(aiida_localhost):
 
 def test_create_shell_code_remote_file_exists(aiida_localhost):
     """Test creating InstalledCode for remote file that exists."""
-    import uuid
-
-    import aiida.orm
 
     unique_name = f"script_{uuid.uuid4().hex[:8]}.sh"
     remote_path = f"/remote/path/{unique_name}"
     task = create_mock_shell_task(command=remote_path)
 
-    mock_transport = create_transport(path_exists=True, isfile=True)
+    mock_transport = create_mock_transport(path_exists=True, isfile=True)
     mock_authinfo = create_authinfo(mock_transport)
 
     with patch.object(aiida_localhost, "get_authinfo", return_value=mock_authinfo):
         code = AiidaAdapter.create_shell_code(task, aiida_localhost)
+
+        print("\n=== Shell code creation (remote file) ===")
+        print(f"Remote path: {remote_path}")
+        print(f"Task command: {task.command!r}")
+        print(f"Code type: {type(code)}")
+        print(f"Code label: {code.label}")
+        print(f"Computer: {code.computer.label}")
 
         assert isinstance(code, aiida.orm.Code)
         assert unique_name.replace(".sh", "") in code.label or unique_name in code.label
@@ -384,12 +475,11 @@ def test_create_shell_code_remote_file_exists(aiida_localhost):
 @patch("sirocco.engines.aiida.adapter.aiida.orm.load_code")
 def test_create_shell_code_remote_file_not_found(mock_load_code, aiida_localhost):
     """Test error when remote file doesn't exist."""
-    from aiida.common.exceptions import NotExistent
 
     mock_load_code.side_effect = NotExistent("Code not found")
     task = create_mock_shell_task(command="/remote/path/missing.sh")
 
-    mock_transport = create_transport(path_exists=False, isfile=False)
+    mock_transport = create_mock_transport(path_exists=False, isfile=False)
     mock_authinfo = create_authinfo(mock_transport)
 
     with (
@@ -405,7 +495,6 @@ def test_create_shell_code_remote_file_not_found(mock_load_code, aiida_localhost
 @patch("sirocco.engines.aiida.adapter.aiida.orm.load_code")
 def test_create_shell_code_no_default_user(mock_load_code, mock_user_class, aiida_localhost):
     """Test error when no default AiiDA user is available."""
-    from aiida.common.exceptions import NotExistent
 
     mock_load_code.side_effect = NotExistent("Code not found")
     mock_user_class.collection.get_default.return_value = None
@@ -420,7 +509,6 @@ def test_create_shell_code_no_default_user(mock_load_code, mock_user_class, aiid
 @patch("sirocco.engines.aiida.adapter.aiida.orm.load_code")
 def test_create_shell_code_relative_path_rejected(mock_load_code, aiida_localhost):
     """Test that relative paths are rejected for non-local files."""
-    from aiida.common.exceptions import NotExistent
 
     mock_load_code.side_effect = NotExistent("Code not found")
 
@@ -442,6 +530,11 @@ def test_create_shell_code_loads_existing_code(mock_load_code, aiida_localhost):
 
     code = AiidaAdapter.create_shell_code(task, aiida_localhost)
 
+    print("\n=== Shell code creation (load existing) ===")
+    print(f"Task command: {task.command!r}")
+    print(f"Loaded code: {code}")
+    print(f"load_code called: {mock_load_code.called}")
+
     # Should load existing code without creating new one
     assert code == mock_existing_code
     assert mock_load_code.called
@@ -449,9 +542,6 @@ def test_create_shell_code_loads_existing_code(mock_load_code, aiida_localhost):
 
 def test_create_shell_code_resolves_relative_path(tmp_path, aiida_localhost):
     """Test that relative paths are resolved to absolute paths."""
-    import uuid
-
-    import aiida.orm
 
     # Create a script with unique name
     unique_name = f"test_script_{uuid.uuid4().hex[:8]}.sh"
@@ -459,7 +549,6 @@ def test_create_shell_code_resolves_relative_path(tmp_path, aiida_localhost):
     script_file.write_text("#!/bin/bash\necho hello")
 
     # Change to tmp directory
-    import os
 
     original_cwd = os.getcwd()
     try:
@@ -469,6 +558,15 @@ def test_create_shell_code_resolves_relative_path(tmp_path, aiida_localhost):
         task = create_mock_shell_task(path=Path(f"./{unique_name}"), command=f"bash {unique_name}")
 
         code = AiidaAdapter.create_shell_code(task, aiida_localhost)
+
+        print("\n=== Shell code creation (resolve relative path) ===")
+        print(f"Script file: {script_file}")
+        print(f"Task command: {task.command!r}")
+        print(f"Code type: {type(code)}")
+        print(f"Code label: {code.label}")
+        if isinstance(code, aiida.orm.PortableCode):
+            print(f"Filepath files: {code.filepath_files}")
+            print(f"Is absolute: {Path(code.filepath_files).is_absolute()}")
 
         # Should create a code (PortableCode or loaded from cache)
         assert isinstance(code, aiida.orm.Code)
@@ -484,7 +582,6 @@ def test_create_shell_code_resolves_relative_path(tmp_path, aiida_localhost):
 @patch("aiida.orm.Computer")
 def test_build_metadata_computer_not_found(mock_computer_class):
     """Test error when computer is not found in database."""
-    from aiida.common.exceptions import NotExistent
 
     mock_computer_class.collection.get.side_effect = NotExistent("Computer not found")
 
@@ -492,21 +589,6 @@ def test_build_metadata_computer_not_found(mock_computer_class):
 
     with pytest.raises(ValueError, match="Could not find computer 'nonexistent'"):
         AiidaAdapter.build_metadata(task)
-
-
-def create_date_cycle_point():
-    """Helper to create DateCyclePoint mock."""
-    from datetime import datetime
-
-    from sirocco.parsing.cycling import DateCyclePoint
-
-    # Create a proper DateCyclePoint instance
-    # DateCyclePoint typically needs initialization but we can mock its attributes
-    cycle_point = Mock(spec=DateCyclePoint)
-    cycle_point.__class__ = DateCyclePoint
-    cycle_point.chunk_start_date = datetime(2026, 1, 1, 0, 0, 0, tzinfo=UTC)
-    cycle_point.chunk_stop_date = datetime(2026, 1, 2, 0, 0, 0, tzinfo=UTC)
-    return cycle_point
 
 
 @pytest.mark.parametrize(
@@ -551,7 +633,6 @@ def test_add_sirocco_time_prepend_text(existing_prepend, expected_in_result, aii
 
     if existing_prepend:
         # Test concatenation by calling internal method directly
-        from sirocco.engines.aiida.types import AiidaMetadataOptions
 
         base_options = AiidaMetadataOptions(
             prepend_text=existing_prepend,
@@ -563,6 +644,11 @@ def test_add_sirocco_time_prepend_text(existing_prepend, expected_in_result, aii
         # Test via build_metadata (normal path)
         metadata = AiidaAdapter.build_metadata(task)
         result_text = metadata.options.prepend_text
+
+    print("\n=== Sirocco time prepend text ===")
+    print(f"Existing prepend: {existing_prepend!r}")
+    print("Result prepend text:")
+    print(result_text)
 
     # Verify result
     assert result_text is not None, "prepend_text should not be None with DateCyclePoint"
@@ -583,6 +669,15 @@ def test_build_scheduler_options_with_date_cycle_point(aiida_localhost):
 
     metadata = AiidaAdapter.build_metadata(task)
 
+    print("\n=== Metadata with DateCyclePoint ===")
+    pprint(metadata)
+    print("\n=== Metadata options ===")
+    pprint(metadata.options)
+    print("\n=== Resources ===")
+    pprint(metadata.options.resources)
+    print("\n=== Prepend text ===")
+    print(metadata.options.prepend_text)
+
     # Verify all components are present
     assert metadata.computer_label == aiida_localhost.label
     assert metadata.options.account == "test_account"
@@ -597,26 +692,34 @@ def test_build_scheduler_options_with_date_cycle_point(aiida_localhost):
     ("input_cmd", "expected_contains", "expected_not_contains", "expected_count"),
     [
         # Single placeholder
-        (
+        pytest.param(
             "srun -n {MPI_TOTAL_PROCS} ./executable",
             ["{tot_num_mpiprocs}"],
             ["{MPI_TOTAL_PROCS}"],
             None,
+            id="single_placeholder",
         ),
         # Multiple identical placeholders
-        (
+        pytest.param(
             "mpirun -np {MPI_TOTAL_PROCS} --bind-to core:{MPI_TOTAL_PROCS}",
             [],
             ["{MPI_TOTAL_PROCS}"],
             2,  # Should contain 2 occurrences of {tot_num_mpiprocs}
+            id="multiple_placeholders",
         ),
         # No placeholders
-        ("srun -n 24 ./executable", [], [], None),
+        pytest.param("srun -n 24 ./executable", [], [], None, id="no_placeholders"),
     ],
 )
 def test_parse_mpi_cmd(input_cmd, expected_contains, expected_not_contains, expected_count):
     """Test parsing MPI commands with various placeholder scenarios."""
     result = AiidaAdapter.parse_mpi_cmd(input_cmd)
+
+    print("\n=== MPI command parsing ===")
+    print(f"Input command: {input_cmd!r}")
+    print(f"Result: {result!r}")
+    if expected_count is not None:
+        print(f"Count of {{tot_num_mpiprocs}}: {result.count('{tot_num_mpiprocs}')}")
 
     for expected in expected_contains:
         assert expected in result
@@ -653,6 +756,11 @@ def test_get_wrapper_script_data(use_custom_script, tmp_path):
 
             result = AiidaAdapter.get_wrapper_script_data(task)
 
+            print("\n=== Wrapper script data (custom) ===")
+            print(f"Custom script path: {custom_script}")
+            pprint(mock_singlefile.call_args)
+            print(f"Result: {result}")
+
             # Should create SinglefileData with custom script
             assert mock_singlefile.called
             call_args = mock_singlefile.call_args
@@ -668,6 +776,11 @@ def test_get_wrapper_script_data(use_custom_script, tmp_path):
             mock_get_default.return_value = mock_default_node
 
             result = AiidaAdapter.get_wrapper_script_data(task)
+
+            print("\n=== Wrapper script data (default) ===")
+            print(f"Task wrapper_script: {task.wrapper_script}")
+            print(f"get_default_wrapper_script called: {mock_get_default.called}")
+            print(f"Result: {result}")
 
             # Should use default wrapper script
             assert mock_get_default.called

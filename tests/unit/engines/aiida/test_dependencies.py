@@ -1,15 +1,31 @@
 """Unit tests for sirocco.engines.aiida.dependencies module."""
 
+import textwrap
 from unittest.mock import Mock, patch
 
+import aiida.orm
 import pytest
 from rich.pretty import pprint
 
 from sirocco import core
+from sirocco.engines.aiida.adapter import AiidaAdapter
 from sirocco.engines.aiida.dependencies import (
+    _resolve_icon_dependency,
+    _resolve_remote_data_for_dependency,
+    add_slurm_dependencies_to_metadata,
     build_dependency_mapping,
+    build_icon_calcjob_inputs,
     build_slurm_dependency_directive,
     collect_available_data_inputs,
+    resolve_icon_dependency_mapping,
+    resolve_icon_restart_file,
+    resolve_shell_dependency_mappings,
+)
+from sirocco.engines.aiida.types import (
+    AiidaIconTaskSpec,
+    AiidaMetadata,
+    AiidaMetadataOptions,
+    DependencyInfo,
 )
 from tests.utils import create_available_data, create_generated_data
 
@@ -65,7 +81,6 @@ class TestCollectAvailableDataInputs:
         task.input_data_items.return_value = [("port1", input_data)]
 
         # Create mock data nodes mapping
-        from sirocco.engines.aiida.adapter import AiidaAdapter
 
         with patch.object(AiidaAdapter, "build_graph_item_label", return_value="input1"):
             aiida_nodes = {"input1": Mock()}
@@ -98,12 +113,16 @@ class TestCollectAvailableDataInputs:
             ("port2", input2),
         ]
 
-        from sirocco.engines.aiida.adapter import AiidaAdapter
+        print("\n=== Test collect_multiple_inputs ===")
+        print("Input data items: [('port1', input1), ('port2', input2)]")
 
         with patch.object(AiidaAdapter, "build_graph_item_label", side_effect=["input1", "input2"]):
             aiida_nodes = {"input1": Mock(), "input2": Mock()}
 
             result = collect_available_data_inputs(task, aiida_nodes)
+
+        print(f"Result: {list(result.keys())}")
+        print(f"Number of inputs collected: {len(result)}")
 
         assert len(result) == 2
         assert "port1" in result
@@ -114,7 +133,12 @@ class TestCollectAvailableDataInputs:
         task = Mock(spec=core.Task)
         task.input_data_items.return_value = []
 
+        print("\n=== Test collect_no_inputs ===")
+        print("Input data items: []")
+
         result = collect_available_data_inputs(task, {})
+
+        print(f"Result: {result}")
 
         assert result == {}
 
@@ -137,12 +161,20 @@ class TestCollectAvailableDataInputs:
             ("port2", generated),
         ]
 
-        from sirocco.engines.aiida.adapter import AiidaAdapter
+        print("\n=== Test collect_skip_generated_data ===")
+        print("Input data items: [('port1', AvailableData), ('port2', GeneratedData)]")
 
-        with patch.object(AiidaAdapter, "build_graph_item_label", side_effect=["available", "generated"]):
+        with patch.object(
+            AiidaAdapter,
+            "build_graph_item_label",
+            side_effect=["available", "generated"],
+        ):
             aiida_nodes = {"available": Mock(), "generated": Mock()}
 
             result = collect_available_data_inputs(task, aiida_nodes)
+
+        print(f"Result ports: {list(result.keys())}")
+        print("Expected: only port1 (GeneratedData skipped)")
 
         # Should only include AvailableData
         assert len(result) == 1
@@ -161,7 +193,19 @@ class TestBuildDependencyMapping:
         workflow = Mock(spec=core.Workflow)
         workflow.tasks = []
 
+        print("\n=== Test build_mapping_no_dependencies ===")
+        print("Task has no input data items")
+
         mapping = build_dependency_mapping(task, workflow, {})
+
+        print("\n=== Dependency mapping result ===")
+        pprint(
+            {
+                "port_mapping": mapping.port_mapping,
+                "parent_folders": mapping.parent_folders,
+                "job_ids": mapping.job_ids,
+            }
+        )
 
         assert mapping.port_mapping == {}
         assert mapping.parent_folders == {}
@@ -182,10 +226,20 @@ class TestBuildDependencyMapping:
         workflow = Mock(spec=core.Workflow)
         workflow.tasks = []
 
-        from sirocco.engines.aiida.adapter import AiidaAdapter
+        print("\n=== Test build_mapping_available_data_only ===")
+        print("Task has one AvailableData input on port1")
 
         with patch.object(AiidaAdapter, "build_graph_item_label", return_value="input"):
             mapping = build_dependency_mapping(task, workflow, {})
+
+        print("\n=== Dependency mapping result ===")
+        pprint(
+            {
+                "port_mapping": mapping.port_mapping,
+                "parent_folders": mapping.parent_folders,
+                "job_ids": mapping.job_ids,
+            }
+        )
 
         # AvailableData should not create dependencies
         assert mapping.port_mapping == {}
@@ -215,9 +269,12 @@ class TestBuildDependencyMapping:
         workflow.tasks = [producer]
 
         # Mock task outputs (producer has completed)
-        from sirocco.engines.aiida.adapter import AiidaAdapter
 
-        with patch.object(AiidaAdapter, "build_graph_item_label", side_effect=["producer", "output", "output"]):
+        with patch.object(
+            AiidaAdapter,
+            "build_graph_item_label",
+            side_effect=["producer", "output", "output"],
+        ):
             task_outputs = {
                 "producer": Mock(
                     remote_folder=Mock(value=123),
@@ -229,7 +286,11 @@ class TestBuildDependencyMapping:
 
         print("\n=== Dependency mapping ===")
         pprint(
-            {"port_mapping": mapping.port_mapping, "parent_folders": mapping.parent_folders, "job_ids": mapping.job_ids}
+            {
+                "port_mapping": mapping.port_mapping,
+                "parent_folders": mapping.parent_folders,
+                "job_ids": mapping.job_ids,
+            }
         )
 
         # Should create dependency
@@ -244,7 +305,7 @@ class TestBuildDependencyMapping:
         assert mapping.job_ids["producer"].value == 456
 
     def test_build_mapping_with_missing_producer(self):
-        """Test building mapping when producer doesn't exist (lines 459-461)."""
+        """Test building mapping when producer doesn't exist."""
         # Create real GeneratedData that references a non-existent producer
         generated_data = create_generated_data(
             name="output",
@@ -258,18 +319,28 @@ class TestBuildDependencyMapping:
         workflow = Mock(spec=core.Workflow)
         workflow.tasks = []
 
-        from sirocco.engines.aiida.adapter import AiidaAdapter
+        print("\n=== Test build_mapping_with_missing_producer ===")
+        print("Task has GeneratedData input but no producer in workflow")
 
         with patch.object(AiidaAdapter, "build_graph_item_label", return_value="output"):
             mapping = build_dependency_mapping(task, workflow, {})
 
-        # Should skip this input (line 461: continue)
+        print("\n=== Dependency mapping result (should be empty) ===")
+        pprint(
+            {
+                "port_mapping": mapping.port_mapping,
+                "parent_folders": mapping.parent_folders,
+                "job_ids": mapping.job_ids,
+            }
+        )
+
+        # Should skip this input (continue)
         assert mapping.port_mapping == {}
         assert mapping.parent_folders == {}
         assert mapping.job_ids == {}
 
     def test_build_mapping_producer_not_in_outputs(self):
-        """Test building mapping when producer exists but not in task_output_mapping (lines 470-471)."""
+        """Test building mapping when producer exists but not in task_output_mapping."""
         # Create real GeneratedData
         output_data = create_generated_data(
             name="output",
@@ -290,13 +361,27 @@ class TestBuildDependencyMapping:
         workflow = Mock(spec=core.Workflow)
         workflow.tasks = [producer]
 
-        from sirocco.engines.aiida.adapter import AiidaAdapter
+        print("\n=== Test build_mapping_producer_not_in_outputs ===")
+        print("Producer task exists but not in task_output_mapping (not completed)")
 
-        with patch.object(AiidaAdapter, "build_graph_item_label", side_effect=["producer", "output", "output"]):
+        with patch.object(
+            AiidaAdapter,
+            "build_graph_item_label",
+            side_effect=["producer", "output", "output"],
+        ):
             # Empty task_output_mapping - producer hasn't completed yet
             mapping = build_dependency_mapping(consumer, workflow, {})
 
-        # Should skip this dependency (line 471: continue)
+        print("\n=== Dependency mapping result (should be empty) ===")
+        pprint(
+            {
+                "port_mapping": mapping.port_mapping,
+                "parent_folders": mapping.parent_folders,
+                "job_ids": mapping.job_ids,
+            }
+        )
+
+        # Should skip this dependency
         assert "input_port" not in mapping.port_mapping
         assert mapping.parent_folders == {}
         assert mapping.job_ids == {}
@@ -304,9 +389,6 @@ class TestBuildDependencyMapping:
 
 def test_resolve_icon_restart_file_single_model(aiida_localhost, tmp_path):
     """Test resolving restart file for single model."""
-    import aiida.orm
-
-    from sirocco.engines.aiida.dependencies import resolve_icon_restart_file
 
     # Create a real namelist file
     nml_file = tmp_path / "model_atm.nml"
@@ -320,12 +402,18 @@ def test_resolve_icon_restart_file_single_model(aiida_localhost, tmp_path):
     workdir_remote = aiida.orm.RemoteData(computer=aiida_localhost, remote_path="/work/dir")
     workdir_remote.store()
 
+    print("\n=== Test resolve_icon_restart_file_single_model ===")
+    print("Workdir path: /work/dir")
+    print("Model name: atm")
+    print(f"Namelist PK: {nml_node.pk}")
+
     # Patch aiida-icon's utility function to avoid complex namelist parsing dependencies.
     # This function reads ICON namelists to find restart file names, which would require
     # setting up complex ICON namelist structures. We mock it to focus on testing
     # our dependency resolution logic rather than aiida-icon's internal namelist parsing.
     with patch(
-        "aiida_icon.iconutils.modelnml.read_latest_restart_file_link_name", return_value="restart_atm_latest.nc"
+        "aiida_icon.iconutils.modelnml.read_latest_restart_file_link_name",
+        return_value="restart_atm_latest.nc",
     ):
         result = resolve_icon_restart_file(
             workdir_path="/work/dir",
@@ -334,6 +422,9 @@ def test_resolve_icon_restart_file_single_model(aiida_localhost, tmp_path):
             workdir_remote_data=workdir_remote,
         )
 
+    print(f"Result type: {type(result).__name__}")
+    print(f"Result remote path: {result.get_remote_path()}")
+
     # Should create RemoteData pointing to restart file
     assert isinstance(result, aiida.orm.RemoteData)
     assert "restart_atm_latest.nc" in result.get_remote_path()
@@ -341,9 +432,6 @@ def test_resolve_icon_restart_file_single_model(aiida_localhost, tmp_path):
 
 def test_resolve_icon_restart_file_coupled_models(aiida_localhost, tmp_path):
     """Test resolving restart file for coupled simulation with multiple models."""
-    import aiida.orm
-
-    from sirocco.engines.aiida.dependencies import resolve_icon_restart_file
 
     # Create real namelist files for multiple models
     nml_atm = tmp_path / "model_atm.nml"
@@ -362,6 +450,11 @@ def test_resolve_icon_restart_file_coupled_models(aiida_localhost, tmp_path):
     workdir_remote = aiida.orm.RemoteData(computer=aiida_localhost, remote_path="/work/dir")
     workdir_remote.store()
 
+    print("\n=== Test resolve_icon_restart_file_coupled_models ===")
+    print("Workdir path: /work/dir")
+    print("Model name: oce")
+    print(f"Model namelist PKs: {{'atm': {nml_node_atm.pk}, 'oce': {nml_node_oce.pk}}}")
+
     # Patch aiida-icon's utility function to avoid complex namelist parsing dependencies.
     # For coupled models, the function would need to parse multiple model namelists
     # to determine the correct restart file. We mock it to test our logic for
@@ -377,6 +470,9 @@ def test_resolve_icon_restart_file_coupled_models(aiida_localhost, tmp_path):
             workdir_remote_data=workdir_remote,
         )
 
+    print(f"Result type: {type(result).__name__}")
+    print(f"Result remote path: {result.get_remote_path()}")
+
     # Should create RemoteData with combined namelist info
     assert isinstance(result, aiida.orm.RemoteData)
     assert "restart_oce_latest.nc" in result.get_remote_path()
@@ -384,10 +480,6 @@ def test_resolve_icon_restart_file_coupled_models(aiida_localhost, tmp_path):
 
 def test_resolve_icon_dependency_with_filename(aiida_localhost):
     """Test resolving ICON dependency when filename is known."""
-    import aiida.orm
-
-    from sirocco.engines.aiida.dependencies import _resolve_icon_dependency
-    from sirocco.engines.aiida.types import DependencyInfo
 
     # Create dependency with known filename
     dep_info = DependencyInfo(dep_label="task_a", data_label="output", filename="output.nc")
@@ -396,7 +488,14 @@ def test_resolve_icon_dependency_with_filename(aiida_localhost):
     workdir_remote = aiida.orm.RemoteData(computer=aiida_localhost, remote_path="/work/task_a")
     workdir_remote.store()
 
+    print("\n=== Test resolve_icon_dependency_with_filename ===")
+    print(f"Dependency info: dep_label={dep_info.dep_label}, filename={dep_info.filename}")
+    print(f"Workdir remote path: {workdir_remote.get_remote_path()}")
+
     result = _resolve_icon_dependency(dep_info, workdir_remote, model_name="atm", model_namelist_pks={})
+
+    print(f"Result type: {type(result).__name__}")
+    print(f"Result remote path: {result.get_remote_path()}")
 
     # Should create RemoteData pointing to specific file
     assert isinstance(result, aiida.orm.RemoteData)
@@ -406,11 +505,7 @@ def test_resolve_icon_dependency_with_filename(aiida_localhost):
 # Patch: Mock aiida-icon namelist utility to avoid complex ICON-specific dependencies
 @patch("aiida_icon.iconutils.modelnml.read_latest_restart_file_link_name")
 def test_resolve_icon_dependency_via_namelist(mock_read_restart, aiida_localhost, tmp_path):
-    """Test resolving ICON dependency via namelist when no filename."""
-    import aiida.orm
-
-    from sirocco.engines.aiida.dependencies import _resolve_icon_dependency
-    from sirocco.engines.aiida.types import DependencyInfo
+    """Test resolving ICON dependency via namelist when no filename is given."""
 
     # Create dependency without filename (requires namelist resolution)
     dep_info = DependencyInfo(dep_label="task_a", data_label="restart", filename=None)
@@ -428,9 +523,25 @@ def test_resolve_icon_dependency_via_namelist(mock_read_restart, aiida_localhost
     # Mock the aiida-icon utility to return restart file name
     mock_read_restart.return_value = "restart_atm_latest.nc"
 
-    result = _resolve_icon_dependency(
-        dep_info, workdir_remote, model_name="atm", model_namelist_pks={"atm": nml_node.pk}
+    print("\n=== Resolve ICON dependency via namelist ===")
+    print(
+        f"Dependency info: dep_label={dep_info.dep_label!r}, data_label={dep_info.data_label!r}, filename={dep_info.filename}"
     )
+    print(f"Workdir remote path: {workdir_remote.get_remote_path()}")
+    print(f"Namelist file content: {nml_file.read_text()!r}")
+    print("Model name: 'atm'")
+    print(f"Mock read_restart return value: {mock_read_restart.return_value!r}")
+
+    result = _resolve_icon_dependency(
+        dep_info,
+        workdir_remote,
+        model_name="atm",
+        model_namelist_pks={"atm": nml_node.pk},
+    )
+
+    print(f"Result type: {type(result)}")
+    print(f"Result remote path: {result.get_remote_path()}")
+    print(f"Mock was called: {mock_read_restart.called}")
 
     # Should call the aiida-icon function and return RemoteData with restart file
     assert mock_read_restart.called
@@ -439,11 +550,7 @@ def test_resolve_icon_dependency_via_namelist(mock_read_restart, aiida_localhost
 
 
 def test_resolve_icon_dependency_fallback(aiida_localhost):
-    """Test resolving ICON dependency fallback when no filename and no namelists (line 110)."""
-    import aiida.orm
-
-    from sirocco.engines.aiida.dependencies import _resolve_icon_dependency
-    from sirocco.engines.aiida.types import DependencyInfo
+    """Test resolving ICON dependency fallback when no filename and no namelists."""
 
     # Create dependency without filename and no model_namelist_pks
     dep_info = DependencyInfo(dep_label="task_a", data_label="restart", filename=None)
@@ -452,21 +559,23 @@ def test_resolve_icon_dependency_fallback(aiida_localhost):
     workdir_remote = aiida.orm.RemoteData(computer=aiida_localhost, remote_path="/work/task_a")
     workdir_remote.store()
 
+    print("\n=== Test resolve_icon_dependency_fallback ===")
+    print("Dependency info: filename=None, no model_namelist_pks")
+    print("Expected: return workdir_remote as fallback")
+
     # Call with empty model_namelist_pks - should return workdir_remote as fallback
     result = _resolve_icon_dependency(dep_info, workdir_remote, model_name="atm", model_namelist_pks={})
 
-    # Should return workdir_remote itself as fallback (line 110)
+    print(f"Result is same as workdir_remote: {result == workdir_remote}")
+
+    # Should return workdir_remote itself as fallback
     assert result == workdir_remote
 
 
 # Patch: Mock aiida-icon namelist utility to avoid complex multi-model parsing dependencies
 @patch("aiida_icon.iconutils.modelnml.read_latest_restart_file_link_name")
 def test_resolve_icon_dependency_mapping_with_models(mock_read_restart, aiida_localhost, tmp_path):
-    """Test resolve_icon_dependency_mapping with multiple models (lines 140-188)."""
-    import aiida.orm
-
-    from sirocco.engines.aiida.dependencies import resolve_icon_dependency_mapping
-    from sirocco.engines.aiida.types import DependencyInfo
+    """Test resolve_icon_dependency_mapping with multiple models."""
 
     # Create parent folder RemoteData
     workdir_remote = aiida.orm.RemoteData(computer=aiida_localhost, remote_path="/work/task_a")
@@ -482,20 +591,21 @@ def test_resolve_icon_dependency_mapping_with_models(mock_read_restart, aiida_lo
 
     # Create master namelist with multiple models
     master_nml_file = tmp_path / "icon_master.namelist"
-    master_nml_content = """&master_nml
- lrestart = .true.
-/
-&master_model_nml
- model_name="atm"
- model_namelist_filename="atm.namelist"
- model_type=1
-/
-&master_model_nml
- model_name="oce"
- model_namelist_filename="oce.namelist"
- model_type=1
-/
-"""
+    master_nml_content = textwrap.dedent("""\
+        &master_nml
+         lrestart = .true.
+        /
+        &master_model_nml
+         model_name="atm"
+         model_namelist_filename="atm.namelist"
+         model_type=1
+        /
+        &master_model_nml
+         model_name="oce"
+         model_namelist_filename="oce.namelist"
+         model_type=1
+        /
+        """)
     master_nml_file.write_text(master_nml_content)
     master_nml = aiida.orm.SinglefileData(file=str(master_nml_file))
     master_nml.store()
@@ -513,13 +623,24 @@ def test_resolve_icon_dependency_mapping_with_models(mock_read_restart, aiida_lo
 
     model_namelist_pks = {"atm": atm_nml.pk, "oce": oce_nml.pk}
 
+    print("\n=== Test resolve_icon_dependency_mapping_with_models ===")
+    print("Models: atm, oce")
+    print("Port dependency mapping: restart_file (no filename)")
+    print("Expected: model-specific port mappings (restart_file.atm, restart_file.oce)")
+
     # Mock restart file resolution - return different names for different models
-    mock_read_restart.side_effect = lambda model_name, _model_nml=None: f"restart_{model_name}_latest.nc"
+    mock_read_restart.side_effect = lambda model_name, **_kwargs: f"restart_{model_name}_latest.nc"
 
     # Call resolve_icon_dependency_mapping
     result = resolve_icon_dependency_mapping(parent_folders, port_dependency_mapping, master_nml.pk, model_namelist_pks)
 
-    # Should create model-specific port mappings (lines 176-186)
+    print("\n=== Result port mappings ===")
+    pprint(list(result.keys()))
+    for key, value in result.items():
+        if hasattr(value, "get_remote_path"):
+            print(f"{key}: {value.get_remote_path()}")
+
+    # Should create model-specific port mappings
     assert "restart_file.atm" in result
     assert "restart_file.oce" in result
     assert isinstance(result["restart_file.atm"], aiida.orm.RemoteData)
@@ -530,10 +651,7 @@ def test_resolve_icon_dependency_mapping_with_models(mock_read_restart, aiida_lo
 
 @pytest.mark.usefixtures("aiida_localhost")
 def test_resolve_icon_dependency_mapping_no_parent_folders(tmp_path):
-    """Test resolve_icon_dependency_mapping with no parent folders (lines 144-145)."""
-    import aiida.orm
-
-    from sirocco.engines.aiida.dependencies import resolve_icon_dependency_mapping
+    """Test resolve_icon_dependency_mapping with no parent folders."""
 
     # Create minimal namelists
     master_nml_file = tmp_path / "icon_master.namelist"
@@ -541,8 +659,14 @@ def test_resolve_icon_dependency_mapping_no_parent_folders(tmp_path):
     master_nml = aiida.orm.SinglefileData(file=str(master_nml_file))
     master_nml.store()
 
+    print("\n=== Test resolve_icon_dependency_mapping_no_parent_folders ===")
+    print("Parent folders: None")
+    print("Expected: empty dict")
+
     # Call with None parent_folders
     result = resolve_icon_dependency_mapping(None, {}, master_nml.pk, {})
+
+    print(f"Result: {result}")
 
     # Should return empty dict
     assert result == {}
@@ -550,10 +674,6 @@ def test_resolve_icon_dependency_mapping_no_parent_folders(tmp_path):
 
 def test_build_icon_calcjob_inputs_no_wrapper(aiida_localhost, tmp_path):
     """Test building ICON CalcJob inputs without wrapper script."""
-    import aiida.orm
-
-    from sirocco.engines.aiida.dependencies import build_icon_calcjob_inputs
-    from sirocco.engines.aiida.types import AiidaIconTaskSpec, AiidaMetadata, AiidaMetadataOptions
 
     # Create real code
     code = aiida.orm.InstalledCode(computer=aiida_localhost, filepath_executable="/bin/bash")
@@ -585,7 +705,16 @@ def test_build_icon_calcjob_inputs_no_wrapper(aiida_localhost, tmp_path):
 
     input_data_nodes = {}
 
+    print("\n=== Test build_icon_calcjob_inputs_no_wrapper ===")
+    print(f"Task spec label: {task_spec.label}")
+    print(f"Wrapper script PK: {task_spec.wrapper_script_pk}")
+    print("Expected: inputs should have code, namelists, but no wrapper_script")
+
     inputs = build_icon_calcjob_inputs(task_spec, input_data_nodes, metadata)
+
+    print("\n=== Built inputs ===")
+    print(f"Input keys: {list(inputs.keys())}")
+    print(f"Has wrapper_script: {'wrapper_script' in inputs}")
 
     # Should have code and namelists but no wrapper_script
     assert "code" in inputs
@@ -601,10 +730,6 @@ def test_build_icon_calcjob_inputs_no_wrapper(aiida_localhost, tmp_path):
 
 def test_build_icon_calcjob_inputs_with_wrapper(aiida_localhost, tmp_path):
     """Test building ICON CalcJob inputs with wrapper script."""
-    import aiida.orm
-
-    from sirocco.engines.aiida.dependencies import build_icon_calcjob_inputs
-    from sirocco.engines.aiida.types import AiidaIconTaskSpec, AiidaMetadata, AiidaMetadataOptions
 
     # Create real code
     code = aiida.orm.InstalledCode(computer=aiida_localhost, filepath_executable="/bin/bash")
@@ -637,7 +762,16 @@ def test_build_icon_calcjob_inputs_with_wrapper(aiida_localhost, tmp_path):
 
     input_data_nodes = {}
 
+    print("\n=== Test build_icon_calcjob_inputs_with_wrapper ===")
+    print(f"Task spec label: {task_spec.label}")
+    print(f"Wrapper script PK: {task_spec.wrapper_script_pk}")
+    print("Expected: inputs should include wrapper_script")
+
     inputs = build_icon_calcjob_inputs(task_spec, input_data_nodes, metadata)
+
+    print("\n=== Built inputs ===")
+    print(f"Input keys: {list(inputs.keys())}")
+    print(f"Has wrapper_script: {'wrapper_script' in inputs}")
 
     # Should have wrapper_script
     assert "wrapper_script" in inputs
@@ -650,11 +784,7 @@ def test_build_icon_calcjob_inputs_namespace_port(mock_icon_calc, aiida_localhos
     """Test that namespace ports are wrapped in dict."""
     from unittest.mock import Mock
 
-    import aiida.orm
     from aiida.engine.processes.ports import PortNamespace
-
-    from sirocco.engines.aiida.dependencies import build_icon_calcjob_inputs
-    from sirocco.engines.aiida.types import AiidaIconTaskSpec, AiidaMetadata, AiidaMetadataOptions
 
     # Create real code and namelist
     code = aiida.orm.InstalledCode(computer=aiida_localhost, filepath_executable="/bin/bash")
@@ -689,7 +819,17 @@ def test_build_icon_calcjob_inputs_namespace_port(mock_icon_calc, aiida_localhos
     mock_spec.inputs = {"input_files": mock_namespace_port}
     mock_icon_calc.spec.return_value = mock_spec
 
+    print("\n=== Test build_icon_calcjob_inputs_namespace_port ===")
+    print("Input data nodes: input_files -> RemoteData")
+    print("Port type: PortNamespace")
+    print("Expected: input should be wrapped in dict with label as key")
+
     inputs = build_icon_calcjob_inputs(task_spec, input_data_nodes, metadata)
+
+    print("\n=== Built inputs ===")
+    print(f"input_files type: {type(inputs.get('input_files'))}")
+    if isinstance(inputs.get("input_files"), dict):
+        print(f"input_files keys: {list(inputs['input_files'].keys())}")
 
     # Should wrap namespace port in dict
     assert "input_files" in inputs
@@ -701,13 +841,8 @@ def test_build_icon_calcjob_inputs_namespace_port(mock_icon_calc, aiida_localhos
 # Patch: Mock aiida-icon IconCalculation to test non-namespace port logic without full ICON dependencies
 @patch("aiida_icon.calculations.IconCalculation")
 def test_build_icon_calcjob_inputs_non_namespace_port(mock_icon_calc, aiida_localhost, tmp_path):
-    """Test that non-namespace ports are added directly (line 250)."""
+    """Test that non-namespace ports are added directly."""
     from unittest.mock import Mock
-
-    import aiida.orm
-
-    from sirocco.engines.aiida.dependencies import build_icon_calcjob_inputs
-    from sirocco.engines.aiida.types import AiidaIconTaskSpec, AiidaMetadata, AiidaMetadataOptions
 
     # Create real code and namelist
     code = aiida.orm.InstalledCode(computer=aiida_localhost, filepath_executable="/bin/bash")
@@ -744,9 +879,18 @@ def test_build_icon_calcjob_inputs_non_namespace_port(mock_icon_calc, aiida_loca
     mock_spec.inputs = {"restart_file": mock_regular_port}
     mock_icon_calc.spec.return_value = mock_spec
 
+    print("\n=== Test build_icon_calcjob_inputs_non_namespace_port ===")
+    print("Input data nodes: restart_file -> RemoteData")
+    print("Port type: regular (non-namespace)")
+    print("Expected: input should be added directly without wrapping")
+
     inputs = build_icon_calcjob_inputs(task_spec, input_data_nodes, metadata)
 
-    # Should add port directly without wrapping (line 250)
+    print("\n=== Built inputs ===")
+    print(f"restart_file type: {type(inputs.get('restart_file'))}")
+    print(f"restart_file is dict: {isinstance(inputs.get('restart_file'), dict)}")
+
+    # Should add port directly without wrapping
     assert "restart_file" in inputs
     assert inputs["restart_file"] == remote_data
     assert not isinstance(inputs["restart_file"], dict)
@@ -754,10 +898,6 @@ def test_build_icon_calcjob_inputs_non_namespace_port(mock_icon_calc, aiida_loca
 
 def test_resolve_remote_data_for_dependency_with_filename(aiida_localhost):
     """Test creating RemoteData for dependency with specific filename."""
-    import aiida.orm
-
-    from sirocco.engines.aiida.dependencies import _resolve_remote_data_for_dependency
-    from sirocco.engines.aiida.types import DependencyInfo
 
     dep_info = DependencyInfo(dep_label="task_a", data_label="output", filename="result.txt")
 
@@ -765,7 +905,14 @@ def test_resolve_remote_data_for_dependency_with_filename(aiida_localhost):
     workdir = aiida.orm.RemoteData(computer=aiida_localhost, remote_path="/work/task_a")
     workdir.store()
 
+    print("\n=== Test resolve_remote_data_for_dependency_with_filename ===")
+    print(f"Dependency: {dep_info.dep_label}, filename={dep_info.filename}")
+    print(f"Workdir path: {workdir.get_remote_path()}")
+
     key, result = _resolve_remote_data_for_dependency(dep_info, workdir)
+
+    print(f"Result key: {key}")
+    print(f"Result remote path: {result.get_remote_path()}")
 
     # Should create RemoteData with specific file path
     assert key == "task_a_remote"
@@ -776,10 +923,6 @@ def test_resolve_remote_data_for_dependency_with_filename(aiida_localhost):
 
 def test_resolve_remote_data_for_dependency_workdir_fallback(aiida_localhost):
     """Test using workdir when no filename specified."""
-    import aiida.orm
-
-    from sirocco.engines.aiida.dependencies import _resolve_remote_data_for_dependency
-    from sirocco.engines.aiida.types import DependencyInfo
 
     dep_info = DependencyInfo(dep_label="task_a", data_label="output", filename=None)
 
@@ -787,7 +930,14 @@ def test_resolve_remote_data_for_dependency_workdir_fallback(aiida_localhost):
     workdir = aiida.orm.RemoteData(computer=aiida_localhost, remote_path="/work/task_a")
     workdir.store()
 
+    print("\n=== Test resolve_remote_data_for_dependency_workdir_fallback ===")
+    print(f"Dependency: {dep_info.dep_label}, filename={dep_info.filename}")
+    print("Expected: return workdir itself as fallback")
+
     key, result = _resolve_remote_data_for_dependency(dep_info, workdir)
+
+    print(f"Result key: {key}")
+    print(f"Result is workdir: {result == workdir}")
 
     # Should return the workdir itself
     assert key == "task_a_remote"
@@ -797,9 +947,6 @@ def test_resolve_remote_data_for_dependency_workdir_fallback(aiida_localhost):
 @pytest.mark.usefixtures("aiida_localhost")
 def test_resolve_shell_dependency_mappings_type_error(tmp_path):
     """Test that non-RemoteData parent folders raise TypeError."""
-    import aiida.orm
-
-    from sirocco.engines.aiida.dependencies import resolve_shell_dependency_mappings
 
     # Create real SinglefileData (wrong type - should be RemoteData)
     test_file = tmp_path / "test.txt"
@@ -812,16 +959,16 @@ def test_resolve_shell_dependency_mappings_type_error(tmp_path):
     port_dependency_mapping = {}
     original_filenames = {}
 
+    print("\n=== Test resolve_shell_dependency_mappings_type_error ===")
+    print(f"Parent folder PK: {single_file.pk} (SinglefileData, should be RemoteData)")
+    print("Expected: TypeError with 'Expected RemoteData'")
+
     with pytest.raises(TypeError, match="Expected RemoteData"):
         resolve_shell_dependency_mappings(parent_folders, port_dependency_mapping, original_filenames)
 
 
 def test_resolve_shell_dependency_mappings_missing_parent(aiida_localhost):
-    """Test resolve_shell_dependency_mappings with missing parent folder (lines 342-343)."""
-    import aiida.orm
-
-    from sirocco.engines.aiida.dependencies import resolve_shell_dependency_mappings
-    from sirocco.engines.aiida.types import DependencyInfo
+    """Test resolve_shell_dependency_mappings with missing parent folder."""
 
     # Create parent folder for task_a
     workdir_a = aiida.orm.RemoteData(computer=aiida_localhost, remote_path="/work/task_a")
@@ -839,10 +986,18 @@ def test_resolve_shell_dependency_mappings_missing_parent(aiida_localhost):
 
     original_filenames = {"output_a": "output.txt", "output_b": "result.txt"}
 
-    # Call function - should skip task_b (line 343: continue)
+    print("\n=== Test resolve_shell_dependency_mappings_missing_parent ===")
+    print("Dependencies: task_a (exists), task_b (missing)")
+    print("Expected: process task_a, skip task_b")
+
+    # Call function - should skip task_b
     all_nodes, placeholder_mapping, _filenames = resolve_shell_dependency_mappings(
         parent_folders, port_dependency_mapping, original_filenames
     )
+
+    print("\n=== Result ===")
+    print(f"All nodes keys: {list(all_nodes.keys())}")
+    print(f"Placeholder mapping: {placeholder_mapping}")
 
     # Should only process task_a, skip task_b
     assert "task_a_remote" in all_nodes
@@ -854,11 +1009,7 @@ def test_resolve_shell_dependency_mappings_missing_parent(aiida_localhost):
 
 
 def test_resolve_shell_dependency_mappings_with_filenames(aiida_localhost):
-    """Test resolve_shell_dependency_mappings builds filename mapping (lines 354-356)."""
-    import aiida.orm
-
-    from sirocco.engines.aiida.dependencies import resolve_shell_dependency_mappings
-    from sirocco.engines.aiida.types import DependencyInfo
+    """Test resolve_shell_dependency_mappings builds filename mapping."""
 
     # Create parent folder
     workdir = aiida.orm.RemoteData(computer=aiida_localhost, remote_path="/work/task_a")
@@ -867,25 +1018,38 @@ def test_resolve_shell_dependency_mappings_with_filenames(aiida_localhost):
     parent_folders = {"task_a": Mock(value=workdir.pk)}
 
     # Port dependency with filename
-    port_dependency_mapping = {
-        "input_port": [DependencyInfo(dep_label="task_a", data_label="output", filename="result.txt")]
-    }
+    dep_info = DependencyInfo(dep_label="task_a", data_label="output", filename="result.txt")
+    port_dependency_mapping = {"input_port": [dep_info]}
 
     # Original filenames mapping
     original_filenames = {"output": "custom_name.txt"}
+
+    print("\n=== Test resolve_shell_dependency_mappings_with_filenames ===")
+    print(f"Dependency: {dep_info.dep_label}/{dep_info.data_label} (filename={dep_info.filename})")
+    print(f"Original filename mapping: {original_filenames}")
+    print("Expected: task_a_remote should map to custom_name.txt (from original mapping)")
 
     # Call function
     _all_nodes, _placeholder_mapping, filenames = resolve_shell_dependency_mappings(
         parent_folders, port_dependency_mapping, original_filenames
     )
 
-    # Should build filename mapping (lines 354-356)
+    print("\n=== Result filenames ===")
+    pprint(filenames)
+
+    # Should build filename mapping
     assert "task_a_remote" in filenames
     assert filenames["task_a_remote"] == "custom_name.txt"
 
 
 @pytest.mark.parametrize(
-    ("has_job_ids", "label", "expected_has_commands", "expected_job_ids_in_commands", "expected_call_link_label"),
+    (
+        "has_job_ids",
+        "label",
+        "expected_has_commands",
+        "expected_job_ids_in_commands",
+        "expected_call_link_label",
+    ),
     [
         pytest.param(
             False,
@@ -928,8 +1092,6 @@ def test_add_slurm_dependencies_to_metadata(
     - With job_ids (should add --dependency=afterok directive)
     - With call_link_label for ICON tasks
     """
-    from sirocco.engines.aiida.dependencies import add_slurm_dependencies_to_metadata
-    from sirocco.engines.aiida.types import AiidaMetadata, AiidaMetadataOptions
 
     # Create base metadata
     base_metadata = AiidaMetadata(computer=aiida_localhost, options=AiidaMetadataOptions())
@@ -939,8 +1101,17 @@ def test_add_slurm_dependencies_to_metadata(
     if has_job_ids:
         job_ids = {"task_a": Mock(value=12345), "task_b": Mock(value=67890)}
 
+    print("\n=== Test add_slurm_dependencies_to_metadata ===")
+    print(f"has_job_ids: {has_job_ids}")
+    print(f"label: {label}")
+    print(f"expected_has_commands: {expected_has_commands}")
+
     # Call the function
     result = add_slurm_dependencies_to_metadata(base_metadata, job_ids=job_ids, computer=aiida_localhost, label=label)
+
+    print("\n=== Result ===")
+    print(f"custom_scheduler_commands: {result.options.custom_scheduler_commands}")
+    print(f"call_link_label: {getattr(result, 'call_link_label', None)}")
 
     # Verify custom_scheduler_commands
     if expected_has_commands:

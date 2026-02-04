@@ -7,6 +7,8 @@ These tests verify the algorithms for:
 - Cross-dependency handling
 """
 
+from rich.pretty import pprint
+
 from sirocco.engines.aiida.topology import compute_topological_levels
 
 
@@ -21,6 +23,12 @@ class TestTopologicalLevels:
             "task_c": ["task_b"],
         }
         levels = compute_topological_levels(task_deps)
+
+        print("\n=== Simple linear chain ===")
+        print("Task dependencies:")
+        pprint(task_deps)
+        print("Computed levels:")
+        pprint(levels)
 
         assert levels["task_a"] == 0
         assert levels["task_b"] == 1
@@ -54,6 +62,12 @@ class TestTopologicalLevels:
         }
         levels = compute_topological_levels(task_deps)
 
+        print("\n=== Diamond dependency ===")
+        print("Task dependencies:")
+        pprint(task_deps)
+        print("Computed levels:")
+        pprint(levels)
+
         assert levels["root"] == 0
         assert levels["left"] == 1
         assert levels["right"] == 1
@@ -85,6 +99,12 @@ class TestTopologicalLevels:
             "f": ["d", "e"],
         }
         levels = compute_topological_levels(task_deps)
+
+        print("\n=== Complex graph ===")
+        print("Task dependencies:")
+        pprint(task_deps)
+        print("Computed levels:")
+        pprint(levels)
 
         assert levels["a"] == 0
         assert levels["b"] == 1
@@ -151,6 +171,15 @@ class TestDynamicLevels:
             if task not in completed
         }
         dynamic_levels = compute_topological_levels(remaining_deps)
+
+        print("\n=== Dynamic levels after root completes ===")
+        print("Static levels:")
+        pprint(static_levels)
+        print("Completed tasks:", completed)
+        print("Remaining dependencies:")
+        pprint(remaining_deps)
+        print("Dynamic levels:")
+        pprint(dynamic_levels)
 
         # Now fast_1 and slow_1 have no dependencies -> level 0
         assert dynamic_levels["fast_1"] == 0

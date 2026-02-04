@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import assert_never
 
 import aiida.orm
-import aiida.transports
 from aiida.common.exceptions import NotExistent
 from aiida.transports.plugins.local import LocalTransport
 

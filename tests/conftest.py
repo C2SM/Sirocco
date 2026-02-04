@@ -15,6 +15,7 @@ from sirocco import pretty_print
 from sirocco.core import _tasks as core_tasks
 from sirocco.core import workflow
 from sirocco.parsing import yaml_data_models as models
+from tests import utils as test_utils
 
 pytest_plugins = ["aiida.tools.pytest_fixtures"]
 
@@ -470,9 +471,6 @@ def workflow_with_dependencies(tmp_path):
         """
     )
     return workflow.Workflow.from_config_str(config_yaml, rootdir=tmp_path)
-
-
-from tests import utils as test_utils
 
 
 @pytest.fixture

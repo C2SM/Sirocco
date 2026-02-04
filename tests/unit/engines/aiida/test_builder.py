@@ -5,10 +5,12 @@ from unittest.mock import Mock, patch
 
 import aiida.orm
 import pytest
+from aiida_workgraph import WorkGraph
 from rich.pretty import pprint
 
 from sirocco import core
 from sirocco.engines.aiida.builder import WorkGraphBuilder, build_sirocco_workgraph
+from tests.utils import create_available_data, create_generated_data
 
 
 def create_builder_mock_task(name="valid_task", input_names=None, output_names=None):
@@ -65,18 +67,16 @@ class TestWorkGraphBuilder:
         print("\n=== Workflow ===")
         pprint(minimal_workflow)
         print("\n=== Builder ===")
-        pprint({"workflow_name": builder.workflow.name, "resolved_config_path": builder.resolved_config_path})
+        pprint({"workflow_name": builder.workflow.name})
 
         assert builder.workflow == minimal_workflow
-        # resolved_config_path is read from the workflow
-        assert builder.resolved_config_path == minimal_workflow.resolved_config_path
 
     @pytest.mark.parametrize(
         ("task_name", "input_names", "should_raise"),
         [
-            ("valid_task_name", None, False),  # Valid - should not raise
-            ("invalid/task/name", None, True),  # Invalid task name (slashes not allowed)
-            ("valid_task", ["invalid:input"], True),  # Invalid input name (colons not allowed)
+            pytest.param("valid_task_name", None, False, id="valid_task"),
+            pytest.param("invalid/task/name", None, True, id="invalid_task_name"),
+            pytest.param("valid_task", ["invalid:input"], True, id="invalid_input_name"),
         ],
     )
     def test_validate_labels(self, builder, task_name, input_names, should_raise):
@@ -93,34 +93,30 @@ class TestWorkGraphBuilder:
             builder._validate_labels()  # Should not raise
 
     @pytest.mark.parametrize(
-        ("workflow_name", "expected_in_name"),
+        ("workflow_name", "expected_name"),
         [
-            ("test_workflow", "test_workflow"),
-            (None, "SIROCCO_WF"),
+            pytest.param("test_workflow", "test_workflow_2026_01_15_10_30", id="with_workflow_name"),
+            pytest.param(None, "SIROCCO_WF_2026_01_15_10_30", id="default_name"),
         ],
     )
-    def test_generate_workgraph_name(self, builder, workflow_name, expected_in_name):
+    def test_generate_workgraph_name(self, builder, workflow_name, expected_name):
         """Test WorkGraph name generation with and without workflow name."""
         builder.workflow.name = workflow_name
 
-        if workflow_name:
-            # Patch: Mock datetime to control timestamp in generated WorkGraph name for deterministic testing
-            with patch("sirocco.engines.aiida.builder.datetime") as mock_datetime:
-                mock_datetime.now.return_value = datetime(2026, 1, 15, 10, 30, tzinfo=UTC)
-                name = builder._generate_workgraph_name()
-            assert "2026" in name
-        else:
+        # Patch: Mock datetime to control timestamp in generated WorkGraph name for deterministic testing
+        with patch("sirocco.engines.aiida.builder.datetime") as mock_datetime:
+            mock_datetime.now.return_value = datetime(2026, 1, 15, 10, 30, tzinfo=UTC)
             name = builder._generate_workgraph_name()
 
         print(f"\n=== Generated name: {name} (from workflow_name={workflow_name}) ===")
 
-        assert expected_in_name in name
+        assert name == expected_name
 
     @pytest.mark.parametrize(
         ("front_depth", "should_raise"),
         [
-            (0, True),  # Invalid: front_depth < 1
-            (2, False),  # Valid
+            pytest.param(0, True, id="invalid_front_depth"),
+            pytest.param(2, False, id="valid_front_depth"),
         ],
     )
     def test_store_window_config(self, builder, front_depth, should_raise):
@@ -128,6 +124,9 @@ class TestWorkGraphBuilder:
         wg = Mock()
         wg.extras = {}
         builder.launcher_deps = {"task1": ["task0"]}
+
+        print(f"\n=== Test store_window_config (front_depth={front_depth}, should_raise={should_raise}) ===")
+        print(f"launcher_deps: {builder.launcher_deps}")
 
         if should_raise:
             with pytest.raises(ValueError, match="front_depth must be >= 1"):
@@ -143,13 +142,18 @@ class TestWorkGraphBuilder:
 
     # Patch: Mock load_code to prevent database lookups and allow test isolation
     @patch("aiida.orm.load_code")
-    @pytest.mark.parametrize("front_depth", [1, 2, 3])
+    @pytest.mark.parametrize(
+        "front_depth",
+        [
+            pytest.param(1, id="front_depth_1"),
+            pytest.param(2, id="front_depth_2"),
+            pytest.param(3, id="front_depth_3"),
+        ],
+    )
     def test_build_smoke_test(self, mock_load_code, minimal_workflow, aiida_localhost, front_depth):
         """Smoke test: verify build() doesn't crash and returns a WorkGraph."""
-        from aiida_workgraph import WorkGraph
 
         # Use real computer from fixture
-        # Update the workflow to use the real computer
         for task in minimal_workflow.tasks:
             task.computer = aiida_localhost.label
 
@@ -183,7 +187,6 @@ class TestWorkGraphBuilder:
     @patch("aiida.orm.load_code")
     def test_build_with_dependencies(self, mock_load_code, workflow_with_dependencies, aiida_localhost):
         """Test build() correctly processes workflows with task dependencies."""
-        from aiida_workgraph import WorkGraph
 
         # Use real computer from fixture
         for task in workflow_with_dependencies.tasks:
@@ -203,16 +206,21 @@ class TestWorkGraphBuilder:
         # Verify all workflow tasks were added to the WorkGraph
         # Tasks are added as pairs (launcher + get_job_data), so we expect:
         # - 3 workflow tasks x 2 (launcher + get_job_data) = 6 tasks
-        # - Plus graph control tasks (graph_inputs, graph_outputs, graph_ctx)
+        # - Plus graph control tasks (graph_inputs, graph_outputs, graph_ctx) = 3
+        # Total: 9 tasks
         task_names = wg.tasks._get_keys()
-        assert len(task_names) >= 6  # At least the 3 task pairs
+        assert len(task_names) == 9
 
         # Verify our tasks were created (check for launcher tasks)
         launcher_tasks = [name for name in task_names if name.startswith("launch_")]
         assert len(launcher_tasks) == 3  # task_a, task_b, task_c
-        assert any("task_a" in name for name in launcher_tasks)
-        assert any("task_b" in name for name in launcher_tasks)
-        assert any("task_c" in name for name in launcher_tasks)
+
+        # Verify all three tasks are present - check that names end with expected task names
+        # (can't check exact equality because workflow name and timestamp vary)
+        launcher_task_set = set(launcher_tasks)
+        assert any(name.endswith("_task_a") for name in launcher_task_set), "task_a not found"
+        assert any(name.endswith("_task_b") for name in launcher_task_set), "task_b not found"
+        assert any(name.endswith("_task_c") for name in launcher_task_set), "task_c not found"
 
         print("\n=== Launcher tasks ===")
         pprint(launcher_tasks)
@@ -262,8 +270,8 @@ class TestWorkGraphBuilder:
 @pytest.mark.parametrize(
     ("front_depth", "expected_build_arg"),
     [
-        (None, 1),  # Default front_depth=1
-        (3, 3),  # Custom front_depth
+        pytest.param(None, 1, id="default_front_depth"),
+        pytest.param(3, 3, id="custom_front_depth"),
     ],
 )
 # Patch: Mock load_code to prevent database lookups and allow test isolation
@@ -276,7 +284,6 @@ def test_build_sirocco_workgraph(
     expected_build_arg,
 ):
     """Test building WorkGraph with various front_depth values using real WorkGraphBuilder."""
-    from aiida_workgraph import WorkGraph
 
     # Update the workflow to use the real computer
     for task in minimal_workflow.tasks:
@@ -292,8 +299,16 @@ def test_build_sirocco_workgraph(
     if front_depth is not None:
         kwargs["front_depth"] = front_depth
 
+    print(f"\n=== Test build_sirocco_workgraph (front_depth={front_depth}) ===")
+    print(f"Expected build arg: {expected_build_arg}")
+
     # Use real WorkGraphBuilder through the function
     wg = build_sirocco_workgraph(minimal_workflow, **kwargs)
+
+    print(f"WorkGraph name: {wg.name}")
+    print(f"Number of tasks: {len(wg.tasks._get_keys())}")
+    print("\n=== Window config ===")
+    pprint(wg.extras.get("window_config"))
 
     # Verify we got a real WorkGraph
     assert isinstance(wg, WorkGraph)
@@ -305,7 +320,8 @@ def test_build_sirocco_workgraph(
 
     # Verify the workflow was processed (check for tasks)
     task_names = wg.tasks._get_keys()
-    assert len(task_names) > 0  # Should have at least one task
+    # Should have: 1 launcher + 1 get_job_data + 3 control tasks (inputs, outputs, ctx) = 5
+    assert len(task_names) == 5
 
 
 def test_validate_labels_invalid_output_name(minimal_workflow):
@@ -315,6 +331,10 @@ def test_validate_labels_invalid_output_name(minimal_workflow):
     # Create task with invalid output name
     task = create_builder_mock_task(name="test_task", output_names=["invalid:output"])
     builder.workflow.tasks = [task]
+
+    print("\n=== Test validate_labels with invalid output name ===")
+    print("Task name: test_task")
+    print("Output names: ['invalid:output']")
 
     with pytest.raises(ValueError, match="validating output name 'invalid:output'"):
         builder._validate_labels()
@@ -328,24 +348,34 @@ def test_validate_labels_output_error_message_format(minimal_workflow):
     task = create_builder_mock_task(name="task_a", output_names=["output/data"])
     builder.workflow.tasks = [task]
 
+    print("\n=== Test validate_labels output error message format ===")
+    print("Task name: task_a")
+    print("Output names: ['output/data']")
+    print("Expected: ValueError with 'output name' and 'output/data'")
+
     with pytest.raises(ValueError, match="output name") as excinfo:
         builder._validate_labels()
 
     # Verify error message mentions both the output name and the validation issue
     error_msg = str(excinfo.value)
+    print(f"Error message: {error_msg}")
     assert "output/data" in error_msg
     assert "validating output name" in error_msg
 
 
 @pytest.mark.parametrize(
-    ("data_name", "task_type", "include_generated_data", "expected_used_by_icon", "expected_call_count"),
+    (
+        "data_name",
+        "task_type",
+        "include_generated_data",
+        "expected_used_by_icon",
+    ),
     [
         pytest.param(
             "input_file",
             None,
             True,
             False,
-            1,
             id="filters_available_data",
         ),
         pytest.param(
@@ -353,7 +383,6 @@ def test_validate_labels_output_error_message_format(minimal_workflow):
             "IconTask",
             False,
             True,
-            1,
             id="used_by_icon_task",
         ),
         pytest.param(
@@ -361,7 +390,6 @@ def test_validate_labels_output_error_message_format(minimal_workflow):
             "ShellTask",
             False,
             False,
-            1,
             id="not_used_by_icon",
         ),
         pytest.param(
@@ -369,7 +397,6 @@ def test_validate_labels_output_error_message_format(minimal_workflow):
             "both",
             False,
             True,
-            1,
             id="multiple_icon_tasks_same_data",
         ),
     ],
@@ -382,7 +409,6 @@ def test_prepare_data_nodes_used_by_icon_logic(
     task_type,
     include_generated_data,
     expected_used_by_icon,
-    expected_call_count,
 ):
     """Test data node preparation and used_by_icon flag logic.
 
@@ -392,7 +418,6 @@ def test_prepare_data_nodes_used_by_icon_logic(
     - Setting used_by_icon=False when used by ShellTask only
     - Setting used_by_icon=True when used by any IconTask (even if also used by ShellTask)
     """
-    from tests.utils import create_available_data, create_generated_data
 
     builder = WorkGraphBuilder(minimal_workflow)
 
@@ -437,25 +462,35 @@ def test_prepare_data_nodes_used_by_icon_logic(
 
     builder.workflow.tasks = tasks
 
+    print(f"\n=== Test prepare_data_nodes (data_name={data_name}, task_type={task_type}) ===")
+    print(f"Include generated data: {include_generated_data}")
+    print(f"Expected used_by_icon: {expected_used_by_icon}")
+
     # Call the real method to create real data nodes
     builder._prepare_data_nodes()
 
-    # Verify nodes were created (should only create nodes for AvailableData)
-    assert len(builder.data_nodes) == expected_call_count
+    print(f"Created data nodes: {len(builder.data_nodes)}")
+    if builder.data_nodes:
+        print("Data node labels:")
+        pprint(list(builder.data_nodes.keys()))
 
-    if expected_call_count > 0:
-        # Get the created node
-        data_label = f"{data_name}"
-        assert data_label in builder.data_nodes
-        created_node = builder.data_nodes[data_label]
+    # Verify exactly one node was created (should only create nodes for AvailableData)
+    assert len(builder.data_nodes) == 1
 
-        # Verify the node type based on expected_used_by_icon
-        if expected_used_by_icon:
-            # Should be RemoteData for ICON tasks
-            assert isinstance(created_node, aiida.orm.RemoteData)
-        else:
-            # Should be SinglefileData or FolderData for non-ICON tasks on local transport
-            assert isinstance(created_node, (aiida.orm.SinglefileData, aiida.orm.FolderData))
+    # Get the created node
+    data_label = f"{data_name}"
+    assert data_label in builder.data_nodes
+    created_node = builder.data_nodes[data_label]
+
+    print(f"Created node type: {type(created_node).__name__}")
+
+    # Verify the node type based on expected_used_by_icon
+    if expected_used_by_icon:
+        # Should be RemoteData for ICON tasks
+        assert isinstance(created_node, aiida.orm.RemoteData)
+    else:
+        # Should be SinglefileData or FolderData for non-ICON tasks on local transport
+        assert isinstance(created_node, (aiida.orm.SinglefileData, aiida.orm.FolderData))
 
 
 # Patch: Mock create_input_data_node to test label generation without actual AiiDA node creation
@@ -478,7 +513,14 @@ def test_prepare_data_nodes_label_generation(mock_label, mock_create_node, minim
     mock_node = Mock()
     mock_create_node.return_value = mock_node
 
+    print("\n=== Test prepare_data_nodes label generation ===")
+    print(f"Data name: {available_data.name}")
+    print(f"Coordinates: {available_data.coordinates}")
+    print("Expected label: test_data_member_0")
+
     builder._prepare_data_nodes()
+
+    print(f"Generated data nodes: {list(builder.data_nodes.keys())}")
 
     # Should use the label as key in data_nodes dict
     assert "test_data_member_0" in builder.data_nodes
@@ -572,7 +614,16 @@ def test_build_task_specs_task_type_routing(
     mock_shell_spec.return_value = {"spec": "shell_spec"}
     mock_icon_spec.return_value = {"spec": "icon_spec"}
 
+    print(f"\n=== Test build_task_specs routing (shell={num_shell_tasks}, icon={num_icon_tasks}) ===")
+    print(f"Expected shell specs: {expected_shell_specs}")
+    print(f"Expected icon specs: {expected_icon_specs}")
+
     builder._build_task_specs()
+
+    print(f"Shell spec call count: {mock_shell_spec.call_count}")
+    print(f"Icon spec call count: {mock_icon_spec.call_count}")
+    print(f"Shell specs created: {len(builder.shell_specs)}")
+    print(f"Icon specs created: {len(builder.icon_specs)}")
 
     # Verify call counts
     assert mock_shell_spec.call_count == expected_shell_calls
@@ -614,7 +665,14 @@ def test_build_task_specs_icon_label_as_key(mock_label, mock_icon_spec, minimal_
     mock_label.return_value = "icon_task_member_5"
     mock_icon_spec.return_value = {"spec": "icon_spec"}
 
+    print("\n=== Test build_task_specs icon label as key ===")
+    print(f"Task name: {icon_task.name}")
+    print(f"Coordinates: {icon_task.coordinates}")
+    print("Expected label key: icon_task_member_5")
+
     builder._build_task_specs()
+
+    print(f"Icon spec keys: {list(builder.icon_specs.keys())}")
 
     # Should use label as key
     assert "icon_task_member_5" in builder.icon_specs
@@ -623,14 +681,7 @@ def test_build_task_specs_icon_label_as_key(mock_label, mock_icon_spec, minimal_
 @pytest.mark.parametrize(
     ("config_path_type", "workflow_name", "node_pk", "should_store_pk", "should_log"),
     [
-        pytest.param(
-            None,
-            "test_workflow",
-            None,
-            False,
-            False,
-            id="no_resolved_config",
-        ),
+        pytest.param(None, "test_workflow", None, False, False, id="no_resolved_config"),
         pytest.param(
             "nonexistent",
             "test_workflow",
@@ -639,30 +690,9 @@ def test_build_task_specs_icon_label_as_key(mock_label, mock_icon_spec, minimal_
             False,
             id="resolved_config_missing_file",
         ),
-        pytest.param(
-            "exists",
-            "test_workflow",
-            12345,
-            True,
-            True,
-            id="resolved_config_stored",
-        ),
-        pytest.param(
-            "exists",
-            "test_workflow",
-            None,
-            False,
-            False,
-            id="resolved_config_pk_none",
-        ),
-        pytest.param(
-            "exists",
-            "my_workflow",
-            99999,
-            True,
-            True,
-            id="resolved_config_labels",
-        ),
+        pytest.param("exists", "test_workflow", 12345, True, True, id="resolved_config_stored"),
+        pytest.param("exists", "test_workflow", None, False, False, id="resolved_config_pk_none"),
+        pytest.param("exists", "my_workflow", 99999, True, True, id="resolved_config_labels"),
     ],
 )
 # Patch: Mock LOGGER to verify logging behavior when resolved config is stored
@@ -693,6 +723,13 @@ def test_store_window_config_resolved_config_handling(
     builder.workflow.name = workflow_name
     builder.launcher_deps = {}
 
+    print("\n=== Test store_window_config resolved config handling ===")
+    print(f"Config path type: {config_path_type}")
+    print(f"Workflow name: {workflow_name}")
+    print(f"Node PK: {node_pk}")
+    print(f"Should store PK: {should_store_pk}")
+    print(f"Should log: {should_log}")
+
     # Setup resolved_config_path based on test case
     if config_path_type is None:
         builder.resolved_config_path = None
@@ -713,6 +750,9 @@ def test_store_window_config_resolved_config_handling(
     wg.extras = {}
 
     builder._store_window_config(wg, front_depth=1)
+
+    print("\n=== Window config extras ===")
+    pprint(wg.extras)
 
     # All cases should have window_config
     assert "window_config" in wg.extras

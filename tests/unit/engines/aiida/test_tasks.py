@@ -4,12 +4,21 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
+from aiida.common.exceptions import NotExistent
 from rich.pretty import pprint
 
 from sirocco import core
 from sirocco.engines.aiida.tasks import (
+    add_icon_task_pair,
     build_icon_task_spec,
     build_shell_task_spec,
+)
+from sirocco.engines.aiida.types import (
+    AiidaIconTaskSpec,
+    AiidaMetadata,
+    AiidaMetadataOptions,
+    AiidaShellTaskSpec,
+    DependencyMapping,
 )
 from tests.utils import (
     create_available_data,
@@ -100,7 +109,6 @@ class TestBuildIconTaskSpec:
         icon_task,
     ):
         """Smoke test: verify build_icon_task_spec doesn't crash and returns valid spec."""
-        from aiida.common.exceptions import NotExistent
 
         # Code not found, will create new
         mock_load_code.side_effect = NotExistent("Not found")
@@ -144,7 +152,6 @@ class TestBuildIconTaskSpec:
         icon_task,
     ):
         """Test building ICON spec with wrapper script."""
-        from aiida.common.exceptions import NotExistent
 
         mock_load_code.side_effect = NotExistent("Not found")
 
@@ -187,7 +194,6 @@ class TestBuildIconTaskSpec:
         create_icon_task_with_models,
     ):
         """Test building ICON spec with model namelists."""
-        from aiida.common.exceptions import NotExistent
 
         # Create ICON task with model namelists (atm, oce)
         icon_task = create_icon_task_with_models()
@@ -223,7 +229,6 @@ class TestBuildShellTaskSpecErrors:
 
     def test_computer_not_found(self, create_shell_task):
         """Test that missing computer raises ValueError."""
-        from sirocco.engines.aiida.tasks import build_shell_task_spec
 
         # Create a real ShellTask with non-existent computer
         task = create_shell_task(computer="nonexistent_computer")
@@ -236,7 +241,6 @@ class TestBuildShellTaskSpecErrors:
     @patch("sirocco.engines.aiida.adapter.AiidaAdapter.create_shell_code")
     def test_code_not_stored(self, mock_create_shell_code, aiida_localhost):
         """Test that unstored code raises RuntimeError."""
-        from sirocco.engines.aiida.tasks import build_shell_task_spec
 
         # Create task
         task = create_mock_shell_task(
@@ -265,7 +269,6 @@ class TestBuildShellTaskSpecOutputs:
 
     def test_output_without_path(self, aiida_localhost):
         """Test output with path=None gets placeholder."""
-        from sirocco.engines.aiida.tasks import build_shell_task_spec
 
         # Setup task
         task = create_mock_shell_task(
@@ -285,12 +288,16 @@ class TestBuildShellTaskSpecOutputs:
         # Build spec
         spec = build_shell_task_spec(task)
 
+        print("\n=== Output without path ===")
+        print(f"Output data: {output_data}")
+        print(f"Output port mapping: {spec.output_port_mapping}")
+        print(f"Output data info: {spec.output_data_info}")
+
         # Output without path should not be in output_port_mapping
         assert "result" not in spec.output_port_mapping
 
     def test_output_with_null_port(self, aiida_localhost):
-        """Test output with None port is skipped (line 211)."""
-        from sirocco.engines.aiida.tasks import build_shell_task_spec
+        """Test output with None port is skipped."""
 
         # Setup task
         task = create_mock_shell_task(
@@ -310,13 +317,18 @@ class TestBuildShellTaskSpecOutputs:
         # Build spec - should not crash with None port
         spec = build_shell_task_spec(task)
 
+        print("\n=== Output with null port ===")
+        print(f"Output data: {output_data}")
+        print("Output data info:")
+        pprint(spec.output_data_info)
+        print(f"Output port mapping: {spec.output_port_mapping}")
+
         # Output with None port should be skipped
         assert len(spec.output_data_info) == 1
         assert spec.output_data_info[0]["port"] is None
 
     def test_generated_data_single_name_with_path(self, aiida_localhost):
-        """Test GeneratedData with single name uses path basename (line 251)."""
-        from sirocco.engines.aiida.tasks import build_shell_task_spec
+        """Test GeneratedData with single name uses path basename."""
 
         # Setup task
         task = create_mock_shell_task(
@@ -337,14 +349,20 @@ class TestBuildShellTaskSpecOutputs:
         # Build spec
         spec = build_shell_task_spec(task)
 
-        # Single GeneratedData should use path basename (line 251)
+        print("\n=== GeneratedData with single name and path ===")
+        print(f"Input data: {input1}")
+        print("Filenames:")
+        pprint(spec.filenames)
+        print("Input data info:")
+        pprint(spec.input_data_info)
+
+        # Single GeneratedData should use path basename
         # The label will be "data_cycle_1" (built by build_graph_item_label)
         data_label = [label for label in spec.filenames if "data" in label][0]
         assert spec.filenames[data_label] == "data.txt"
 
     def test_port_pattern_matching(self, aiida_localhost):
         """Test that ports referenced in command are detected."""
-        from sirocco.engines.aiida.tasks import build_shell_task_spec
 
         # Setup task with command that references an input port not in input_data_items
         task = create_mock_shell_task(
@@ -363,12 +381,17 @@ class TestBuildShellTaskSpecOutputs:
         # Build spec - should not crash even with unreferenced port
         spec = build_shell_task_spec(task)
 
+        print("\n=== Port pattern matching ===")
+        print(f"Task command: {task.command}")
+        print(f"Resolved ports: {task.resolve_ports.return_value}")
+        print(f"Spec label: {spec.label}")
+        print(f"Arguments template: {spec.arguments_template}")
+
         # Verify spec was created successfully
         assert spec.label == "test_task"
 
     def test_duplicate_input_names(self, aiida_localhost):
         """Test handling of multiple inputs with same name."""
-        from sirocco.engines.aiida.tasks import build_shell_task_spec
 
         # Setup task with two inputs that have the same name but different coordinates
         task = create_mock_shell_task(
@@ -390,6 +413,14 @@ class TestBuildShellTaskSpecOutputs:
         # Build spec
         spec = build_shell_task_spec(task)
 
+        print("\n=== Duplicate input names ===")
+        print(f"Input 1: {input1}")
+        print(f"Input 2: {input2}")
+        print("Filenames:")
+        pprint(spec.filenames)
+        print("Input data info:")
+        pprint(spec.input_data_info)
+
         # When inputs have duplicate names, filenames should use labels
         # The labels will be "data_cycle_1" and "data_cycle_2" (built by build_graph_item_label)
         data_labels = [label for label in spec.filenames if "data" in label]
@@ -402,7 +433,6 @@ class TestBuildIconTaskSpecErrors:
 
     def test_computer_not_found(self, create_icon_task):
         """Test that missing computer raises ValueError."""
-        from sirocco.engines.aiida.tasks import build_icon_task_spec
 
         # Create real task with non-existent computer
         task = create_icon_task(computer="nonexistent_computer")
@@ -431,9 +461,6 @@ class TestBuildIconTaskSpecOutputs:
         mock_get_computer,
     ):
         """Test output with None as port key is skipped."""
-        from aiida.common.exceptions import NotExistent
-
-        from sirocco.engines.aiida.tasks import build_icon_task_spec
 
         # Setup mocks
         mock_computer = Mock()
@@ -472,6 +499,12 @@ class TestBuildIconTaskSpecOutputs:
         # Build spec
         spec = build_icon_task_spec(task)
 
+        print("\n=== ICON task with null port output ===")
+        print(f"Output data: {output_data}")
+        print(f"Task outputs: {task.outputs}")
+        print("Output port mapping:")
+        pprint(spec.output_port_mapping)
+
         # Output with None port should not be in output_port_mapping
         assert "restart_file" not in spec.output_port_mapping
 
@@ -491,9 +524,6 @@ class TestBuildIconTaskSpecOutputs:
         mock_get_computer,
     ):
         """Test that output port mapping is correctly built."""
-        from aiida.common.exceptions import NotExistent
-
-        from sirocco.engines.aiida.tasks import build_icon_task_spec
 
         # Setup mocks
         mock_computer = Mock()
@@ -533,6 +563,11 @@ class TestBuildIconTaskSpecOutputs:
         # Build spec
         spec = build_icon_task_spec(task)
 
+        print("\n=== ICON task output port mapping ===")
+        print(f"Task outputs: {task.outputs}")
+        print("Output port mapping:")
+        pprint(spec.output_port_mapping)
+
         # Both outputs should map to the same port
         assert spec.output_port_mapping["atm_output"] == "restart_data"
         assert spec.output_port_mapping["oce_output"] == "restart_data"
@@ -544,15 +579,13 @@ class TestWalltimeDefaults:
     @pytest.mark.parametrize(
         ("walltime", "expected_timeout"),
         [
-            (None, 3900),  # default 3600 + 300
-            (7200, 7500),  # custom 7200 + 300
-            (1800, 2100),  # 1800 + 300
+            pytest.param(None, 3900, id="default"),
+            pytest.param(7200, 7500, id="custom_7200"),
+            pytest.param(1800, 2100, id="custom_1800"),
         ],
-        ids=["default", "custom-7200", "custom-1800"],
     )
     def test_walltime_timeout_calculation(self, aiida_localhost, walltime, expected_timeout):
-        """Test walltime defaults and timeout buffer calculation (lines 568-572)."""
-        from sirocco.engines.aiida.types import AiidaMetadata, AiidaMetadataOptions, AiidaShellTaskSpec
+        """Test walltime defaults and timeout buffer calculation."""
 
         # Create task spec with optional walltime
         options = AiidaMetadataOptions(max_wallclock_seconds=walltime) if walltime else AiidaMetadataOptions()
@@ -575,6 +608,12 @@ class TestWalltimeDefaults:
             walltime_seconds = task_spec.metadata.options.max_wallclock_seconds
         timeout = walltime_seconds + 300
 
+        print("\n=== Walltime calculation ===")
+        print(f"Input walltime: {walltime}")
+        print(f"Walltime seconds: {walltime_seconds}")
+        print(f"Timeout (with buffer): {timeout}")
+        print(f"Expected timeout: {expected_timeout}")
+
         assert timeout == expected_timeout
 
 
@@ -582,11 +621,7 @@ class TestAddTaskPairFunctions:
     """Test add_icon_task_pair and add_shell_task_pair functions."""
 
     def test_add_icon_task_pair(self, aiida_localhost):
-        """Test add_icon_task_pair creates launcher and monitor tasks (line 619)."""
-        from unittest.mock import Mock, patch
-
-        from sirocco.engines.aiida.tasks import add_icon_task_pair
-        from sirocco.engines.aiida.types import AiidaIconTaskSpec, AiidaMetadata, DependencyMapping
+        """Test add_icon_task_pair creates launcher and monitor tasks."""
 
         # Create a mock WorkGraph
         # Patch: Mock build_icon_task_with_dependencies to isolate add_icon_task_pair logic
@@ -622,6 +657,11 @@ class TestAddTaskPairFunctions:
                 task_dep_info=task_dep_info,
                 prev_dep_tasks=prev_dep_tasks,
             )
+
+            print("\n=== Add ICON task pair ===")
+            print(f"WorkGraph add_task call count: {mock_wg.add_task.call_count}")
+            print(f"Task dep info: {task_dep_info}")
+            print(f"Prev dep tasks: {prev_dep_tasks}")
 
             # Should have created two tasks: launcher and monitor
             assert mock_wg.add_task.call_count == 2
