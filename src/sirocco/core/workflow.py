@@ -59,10 +59,12 @@ class Workflow:
         front_depth: int,
         parameters: dict[str, list],
         config_sirocco_task: ConfigSiroccoTask | None = None,
+        resolved_config_path: str | None = None,
     ) -> None:
         self.name: str = name
         self._config_rootdir: Path = config_rootdir
         self.config_filename = config_filename
+        self.resolved_config_path = resolved_config_path
         self.scheduler = scheduler
         self.front_depth = front_depth
         self.front: list[list[Task]] = [[] for _ in range(self.front_depth)]
@@ -86,7 +88,7 @@ class Workflow:
                 axes["date"] = [cycle_point.chunk_start_date]
             yield from (dict(zip(axes.keys(), x, strict=False)) for x in product(*axes.values()))
 
-        # 1 - create availalbe data nodes
+        # 1 - create available data nodes
         for available_data_config in config_data.available:
             for coordinates in iter_coordinates(OneOffPoint(), available_data_config.parameters):
                 self.data.add(Data.from_config(config=available_data_config, coordinates=coordinates))
@@ -516,4 +518,5 @@ class Workflow:
             parameters=config_workflow.parameters,
             front_depth=config_workflow.front_depth,
             config_sirocco_task=sirocco_task_config,
+            resolved_config_path=config_workflow.resolved_config_path,
         )

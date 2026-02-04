@@ -1,4 +1,4 @@
-"""Unit tests for dynamic level computation and front-depth logic.
+"""Unit tests for topology analysis and dynamic level computation.
 
 These tests verify the algorithms for:
 - Topological level computation
@@ -94,6 +94,20 @@ class TestTopologicalLevels:
         assert levels["d"] == 2  # Max(b=1, c=1) + 1
         assert levels["e"] == 2  # c + 1
         assert levels["f"] == 3  # Max(d=2, e=2) + 1
+
+    def test_single_node(self):
+        """Test single node graph."""
+        task_deps = {"task_a": []}
+        levels = compute_topological_levels(task_deps)
+
+        assert levels["task_a"] == 0
+
+    def test_empty_graph(self):
+        """Test empty graph."""
+        task_deps = {}
+        levels = compute_topological_levels(task_deps)
+
+        assert levels == {}
 
 
 class TestDynamicLevels:

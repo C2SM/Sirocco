@@ -105,6 +105,15 @@ ignore = [
 
 ]
 
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+  "T201",  # 
+  "S101",  #
+  "PLR2004",  # 
+  "S607",  # Starting a process with a partial executable path
+  "RUF015",  # Prefer `next` over single element slice
+]
+
 ## Hatch configurations
 
 [tool.hatch.build.targets.sdist]
@@ -125,7 +134,10 @@ python = "3.12"
 [tool.hatch.envs.hatch-test]
 installer = "uv"
 extra-dependencies = [
-    "ipdb"
+    "ipdb",
+    "pytest-cov",
+    "pytest-sugar",
+    "coverage",
 ]
 default-args = []
 extra-args = ["--doctest-modules", "-m", "not slow and not requires_icon"]

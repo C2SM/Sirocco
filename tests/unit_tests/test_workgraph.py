@@ -3,7 +3,6 @@ import pytest
 from sirocco.core import Workflow
 from sirocco.engines.aiida import build_sirocco_workgraph
 from sirocco.engines.aiida.builder import WorkGraphBuilder
-from sirocco.engines.aiida.topology import compute_topological_levels
 from sirocco.parsing.yaml_data_models import ConfigWorkflow
 
 
@@ -290,77 +289,8 @@ def test_aiida_icon_task_metadata(config_paths):
             assert wrapper_node.filename == "todi_cpu.sh"
 
 
-def test_topological_levels_linear_chain():
-    """Test topological level calculation for a linear chain: A -> B -> C."""
-    task_deps = {
-        "launch_A": [],
-        "launch_B": ["launch_A"],
-        "launch_C": ["launch_B"],
-    }
-    levels = compute_topological_levels(task_deps)
-
-    assert levels["launch_A"] == 0
-    assert levels["launch_B"] == 1
-    assert levels["launch_C"] == 2
-
-
-def test_topological_levels_diamond():
-    """Test topological level calculation for a diamond: A -> B,C -> D."""
-    task_deps = {
-        "launch_A": [],
-        "launch_B": ["launch_A"],
-        "launch_C": ["launch_A"],
-        "launch_D": ["launch_B", "launch_C"],
-    }
-    levels = compute_topological_levels(task_deps)
-
-    assert levels["launch_A"] == 0
-    assert levels["launch_B"] == 1
-    assert levels["launch_C"] == 1
-    assert levels["launch_D"] == 2
-
-
-def test_topological_levels_parallel():
-    """Test topological level calculation for parallel tasks."""
-    task_deps = {
-        "launch_A": [],
-        "launch_B": [],
-        "launch_C": [],
-    }
-    levels = compute_topological_levels(task_deps)
-
-    assert levels["launch_A"] == 0
-    assert levels["launch_B"] == 0
-    assert levels["launch_C"] == 0
-
-
-def test_topological_levels_complex():
-    """Test topological level calculation for a complex DAG."""
-    #     A
-    #    / \
-    #   B   C
-    #   |\ /|
-    #   | X |
-    #   |/ \|
-    #   D   E
-    #    \ /
-    #     F
-    task_deps = {
-        "launch_A": [],
-        "launch_B": ["launch_A"],
-        "launch_C": ["launch_A"],
-        "launch_D": ["launch_B", "launch_C"],
-        "launch_E": ["launch_B", "launch_C"],
-        "launch_F": ["launch_D", "launch_E"],
-    }
-    levels = compute_topological_levels(task_deps)
-
-    assert levels["launch_A"] == 0
-    assert levels["launch_B"] == 1
-    assert levels["launch_C"] == 1
-    assert levels["launch_D"] == 2
-    assert levels["launch_E"] == 2
-    assert levels["launch_F"] == 3
+# NOTE: Basic topology tests have been moved to tests/unit_tests/engines/aiida/test_topology.py
+# Integration tests for dynamic levels remain below
 
 
 @pytest.mark.usefixtures("config_case", "aiida_localhost", "aiida_remote_computer")
@@ -949,124 +879,5 @@ def test_complex_workflow_with_cross_dependencies(config_paths):
     file_handler.close()
 
 
-def test_dynamic_levels_branch_independence():
-    """Test that dynamic level computation allows branch independence.
-
-    This test simulates the scenario where one branch advances faster than another.
-    With dynamic levels, the faster branch should not wait for the slower branch.
-    """
-    # Define a DAG with two parallel branches after a root
-    #     root
-    #    /    \
-    #  fast1  slow1
-    #   |      |
-    #  fast2  slow2
-    #   |      |
-    #  fast3  slow3
-
-    task_deps = {
-        "launch_root": [],
-        "launch_fast1": ["launch_root"],
-        "launch_fast2": ["launch_fast1"],
-        "launch_fast3": ["launch_fast2"],
-        "launch_slow1": ["launch_root"],
-        "launch_slow2": ["launch_slow1"],
-        "launch_slow3": ["launch_slow2"],
-    }
-
-    # Initial static levels (what the old system would compute)
-    initial_levels = compute_topological_levels(task_deps)
-    assert initial_levels["launch_root"] == 0
-    assert initial_levels["launch_fast1"] == 1
-    assert initial_levels["launch_slow1"] == 1  # Same level as fast1
-    assert initial_levels["launch_fast2"] == 2
-    assert initial_levels["launch_slow2"] == 2  # Same level as fast2
-    assert initial_levels["launch_fast3"] == 3
-    assert initial_levels["launch_slow3"] == 3  # Same level as fast3
-
-    # Simulate dynamic level computation after root finishes
-    # (fast1 and slow1 are still pending)
-    unfinished_tasks = {
-        "launch_fast1",
-        "launch_fast2",
-        "launch_fast3",
-        "launch_slow1",
-        "launch_slow2",
-        "launch_slow3",
-    }
-    filtered_deps = {
-        task: [p for p in parents if p in unfinished_tasks]
-        for task, parents in task_deps.items()
-        if task in unfinished_tasks
-    }
-    dynamic_levels_1 = compute_topological_levels(filtered_deps)
-
-    # After root finishes, both fast1 and slow1 should be at level 0
-    assert dynamic_levels_1["launch_fast1"] == 0
-    assert dynamic_levels_1["launch_slow1"] == 0
-
-    # Simulate fast1 finishing (slow1 still running)
-    # This is the key test: fast2 should move to level 0 while slow2 stays at level 1
-    unfinished_tasks = {
-        "launch_fast2",
-        "launch_fast3",
-        "launch_slow1",
-        "launch_slow2",
-        "launch_slow3",
-    }
-    filtered_deps = {
-        task: [p for p in parents if p in unfinished_tasks]
-        for task, parents in task_deps.items()
-        if task in unfinished_tasks
-    }
-    dynamic_levels_2 = compute_topological_levels(filtered_deps)
-
-    # Fast2 should be at level 0 (no unfinished dependencies)
-    assert dynamic_levels_2["launch_fast2"] == 0
-    # Slow2 should be at level 1 (waiting for slow1)
-    assert dynamic_levels_2["launch_slow2"] == 1
-
-    # This demonstrates branch independence: fast2 can run while slow1 is still running!
-
-    # Simulate fast2 finishing (slow1 still running)
-    unfinished_tasks = {
-        "launch_fast3",
-        "launch_slow1",
-        "launch_slow2",
-        "launch_slow3",
-    }
-    filtered_deps = {
-        task: [p for p in parents if p in unfinished_tasks]
-        for task, parents in task_deps.items()
-        if task in unfinished_tasks
-    }
-    dynamic_levels_3 = compute_topological_levels(filtered_deps)
-
-    # Fast3 should be at level 0 (no unfinished dependencies)
-    assert dynamic_levels_3["launch_fast3"] == 0
-    # Slow1 still at level 0, slow2 at level 1
-    assert dynamic_levels_3["launch_slow1"] == 0
-    assert dynamic_levels_3["launch_slow2"] == 1
-
-    # Now simulate slow1 finishing
-    unfinished_tasks = {
-        "launch_fast3",
-        "launch_slow2",
-        "launch_slow3",
-    }
-    filtered_deps = {
-        task: [p for p in parents if p in unfinished_tasks]
-        for task, parents in task_deps.items()
-        if task in unfinished_tasks
-    }
-    dynamic_levels_4 = compute_topological_levels(filtered_deps)
-
-    # Now slow2 should also be at level 0
-    assert dynamic_levels_4["launch_fast3"] == 0
-    assert dynamic_levels_4["launch_slow2"] == 0
-    assert dynamic_levels_4["launch_slow3"] == 1
-
-    # This test demonstrates that with dynamic levels:
-    # 1. Fast branch tasks move to level 0 as their dependencies complete
-    # 2. They don't wait for slow branch tasks at the same static level
-    # 3. With front_depth=1, fast2 and fast3 can submit while slow1 is still running
+# NOTE: test_dynamic_levels_branch_independence has been moved to
+# tests/unit_tests/engines/aiida/test_topology.py (TestComplexScenarios class)

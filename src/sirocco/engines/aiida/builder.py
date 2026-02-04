@@ -38,11 +38,23 @@ if TYPE_CHECKING:
 
 LOGGER = logging.getLogger(__name__)
 
+DEFAULT_FRONT_DEPTH = 1
+"""Default front depth for workflow execution.
+
+A value of 1 means no pre-submission: wait for topological level N to finish
+before submitting level N+1. This is the safest/most conservative strategy.
+
+Increase to 2+ for more aggressive pre-submission and better parallelism,
+at the cost of potentially wasted submissions if dependencies fail.
+"""
+
+
+# NOTE: should front_depth not be set in the constructor?
+
 
 def build_sirocco_workgraph(
     core_workflow: core.Workflow,
-    front_depth: int = 1,
-    resolved_config_path: str | None = None,
+    front_depth: int = DEFAULT_FRONT_DEPTH,
 ) -> WorkGraph:
     """Build a Sirocco WorkGraph from a core workflow.
 
@@ -54,11 +66,13 @@ def build_sirocco_workgraph(
                     1 = no pre-submission - wait for level N to finish before submitting N+1
                     2 = one level ahead
                     higher values = more aggressive streaming submission
-        resolved_config_path: Optional path to the resolved config file (with Jinja2 variables replaced).
-            Purely for provenance - stores the config with the workflow.
 
     Returns:
         A WorkGraph ready for submission
+
+    Note:
+        The resolved config path (for provenance) is read from core_workflow.resolved_config_path
+        and will be stored in the WorkGraph extras.
 
     Example::
 
@@ -74,7 +88,7 @@ def build_sirocco_workgraph(
         # Submit to AiiDA daemon
         wg.submit()
     """
-    builder = WorkGraphBuilder(core_workflow, resolved_config_path=resolved_config_path)
+    builder = WorkGraphBuilder(core_workflow)
     return builder.build(front_depth)
 
 
@@ -88,8 +102,8 @@ class WorkGraphBuilder:
     Attributes:
         workflow: Core workflow to convert
         adapter: AiiDA adapter for domain translations
-        resolved_config_path: Optional path to resolved config file
-            (this is purely for provenance, to store the config with the workflow)
+        resolved_config_path: Path to resolved config file (read from workflow.resolved_config_path).
+            This is purely for provenance, to store the config with the workflow.
         data_nodes: Maps data labels to AiiDA nodes
         shell_specs: Pre-computed shell task specifications
         icon_specs: Pre-computed ICON task specifications
@@ -98,10 +112,9 @@ class WorkGraphBuilder:
         launcher_deps: Maps launcher_name -> [parent_launcher_names]
     """
 
-    def __init__(self, core_workflow: core.Workflow, resolved_config_path: str | None = None):
+    def __init__(self, core_workflow: core.Workflow):
         self.workflow = core_workflow
-        self.adapter = AiidaAdapter(core_workflow)
-        self.resolved_config_path = resolved_config_path
+        self.resolved_config_path = core_workflow.resolved_config_path
 
         # Pre-computed static configuration
         self.data_nodes: dict[str, AiidaFileNode] = {}
@@ -116,7 +129,7 @@ class WorkGraphBuilder:
         self._wg: WorkGraph | None = None
         self._wg_name: str | None = None
 
-    def build(self, front_depth: int = 1) -> WorkGraph:
+    def build(self, front_depth: int = DEFAULT_FRONT_DEPTH) -> WorkGraph:
         """Main entry point - orchestrates the build process.
 
         Args:
@@ -160,18 +173,22 @@ class WorkGraphBuilder:
         """Create AiiDA data nodes for available data."""
         for data in self.workflow.data:
             if isinstance(data, core.AvailableData):
-                label = self.adapter.build_graph_item_label(data)
-                self.data_nodes[label] = self.adapter.create_input_data_node(data)
+                label = AiidaAdapter.build_graph_item_label(data)
+                # Check if any ICON task uses this data
+                used_by_icon = any(
+                    isinstance(task, core.IconTask) and data in task.input_data_nodes() for task in self.workflow.tasks
+                )
+                self.data_nodes[label] = AiidaAdapter.create_input_data_node(data, used_by_icon=used_by_icon)
 
     def _build_task_specs(self) -> None:
         """Build specifications for all tasks."""
         for task in self.workflow.tasks:
-            label = self.adapter.build_graph_item_label(task)
+            label = AiidaAdapter.build_graph_item_label(task)
             match task:
                 case core.ShellTask():
-                    self.shell_specs[label] = build_shell_task_spec(task, self.adapter)
+                    self.shell_specs[label] = build_shell_task_spec(task)
                 case core.IconTask():
-                    self.icon_specs[label] = build_icon_task_spec(task, self.adapter)
+                    self.icon_specs[label] = build_icon_task_spec(task)
 
     def _create_workgraph(self) -> WorkGraph:
         """Create the WorkGraph with launcher tasks."""
@@ -195,7 +212,7 @@ class WorkGraphBuilder:
 
         Also tracks launcher dependencies for window control.
         """
-        task_label = self.adapter.build_graph_item_label(task)
+        task_label = AiidaAdapter.build_graph_item_label(task)
 
         # Collect inputs
         input_data = collect_available_data_inputs(task, self.data_nodes)
@@ -207,11 +224,11 @@ class WorkGraphBuilder:
         # FIXME: No hard-coding, use actual distinction between Monitor and normal tasks
         launcher_name = f"{LAUNCHER_PREFIX}{self._wg_name}_{task_label}"
         self.launcher_deps[launcher_name] = [
-            f"{LAUNCHER_PREFIX}{self._wg_name}_{self.adapter.build_graph_item_label(dep_task)}"
+            f"{LAUNCHER_PREFIX}{self._wg_name}_{AiidaAdapter.build_graph_item_label(dep_task)}"
             for dep_label in dependencies.parent_folders
             # Find the task object from the label
             for dep_task in self.workflow.tasks
-            if self.adapter.build_graph_item_label(dep_task) == dep_label
+            if AiidaAdapter.build_graph_item_label(dep_task) == dep_label
         ]
 
         # Create launcher pair based on task type

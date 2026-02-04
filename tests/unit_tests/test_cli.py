@@ -1,12 +1,10 @@
 """Tests for the sirocco CLI interface.
 
-These tests focus on the CLI layer, testing command parsing and basic integration using mocking, rather than the
-underlying functionality which should be tested elsewhere.
+These tests focus on the CLI layer, testing command parsing and error handling.
+Integration tests for run/submit commands are in test_workgraph.py.
 """
 
-import re
 import subprocess
-from unittest.mock import Mock
 
 import pytest
 import typer.testing
@@ -14,83 +12,10 @@ import typer.testing
 from sirocco.cli import app
 
 
-def strip_ansi(text):
-    """Remove ANSI escape sequences from text."""
-    ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
-    return ansi_escape.sub("", text)
-
-
 @pytest.fixture
 def runner():
     """Create a typer test runner."""
     return typer.testing.CliRunner()
-
-
-@pytest.fixture
-def mock_aiida_wg():
-    """Create a mock AiiDA WorkGraph with common setup."""
-    mock_wg = Mock()
-    mock_wg._core_workflow.name = "minimal"
-    return mock_wg
-
-
-@pytest.fixture
-def mock_successful_run(mock_aiida_wg):
-    """Setup mock for successful workflow run."""
-    mock_aiida_wg.run.return_value = None
-    return mock_aiida_wg
-
-
-@pytest.fixture
-def mock_successful_submit(mock_aiida_wg):
-    """Setup mock for successful workflow submission."""
-    mock_result = Mock()
-    mock_result.pk = 12345
-    mock_aiida_wg.submit.return_value = mock_result
-    return mock_aiida_wg
-
-
-@pytest.fixture
-def mock_failed_submit(mock_aiida_wg):
-    """Setup mock for failed workflow submission."""
-
-    def mock_submit():
-        msg = "Submission failed"
-        raise Exception(msg)  # noqa: TRY002 | raise-vanilla-class
-
-    mock_aiida_wg.submit = mock_submit
-    return mock_aiida_wg
-
-
-@pytest.fixture
-def mock_failed_run(mock_aiida_wg):
-    """Setup mock for failed workflow run."""
-
-    def mock_run():
-        msg = "Execution failed"
-        raise Exception(msg)  # noqa: TRY002 | raise-vanilla-class
-
-    mock_aiida_wg.run = mock_run
-    return mock_aiida_wg
-
-
-def mock_create_aiida_workflow_factory(mock_wg):
-    """Factory function to create a mock_create_aiida_workflow function.
-
-    The new create_aiida_workflow signature is:
-    create_aiida_workflow(workflow_file, front_depth=1)
-    and returns: tuple[core.Workflow, WorkGraph]
-    """
-    from unittest.mock import Mock
-
-    def mock_create_aiida_workflow(_workflow_file, _front_depth=1):
-        # Create a mock core_workflow
-        mock_core_wf = Mock()
-        mock_core_wf.name = "test_workflow"
-        # Return tuple (core_workflow, workgraph)
-        return mock_core_wf, mock_wg
-
-    return mock_create_aiida_workflow
 
 
 class TestCLICommands:
@@ -116,12 +41,12 @@ class TestCLICommands:
     def test_command_with_nonexistent_workflow(self, runner, command):
         """Test commands with nonexistent workflow files."""
         result = runner.invoke(app, [command, "nonexistent.yml"])
-        # typers internal validation checks if the file exists, and if not, fails with exit code 2
+        # typer's internal validation checks if the file exists, and if not, fails with exit code 2
         assert result.exit_code == 2
 
     @pytest.mark.parametrize("command", ["verify", "represent", "visualize", "run", "submit"])
     def test_command_empty_file(self, runner, command, tmp_path):
-        """Test verify command with empty file."""
+        """Test commands with empty file."""
         empty_file = tmp_path / "empty.yml"
         empty_file.write_text("")
 
@@ -130,7 +55,6 @@ class TestCLICommands:
 
     def test_verify_command_success(self, runner, minimal_config_path):
         """Test the verify command with a valid workflow file."""
-
         result = runner.invoke(app, ["verify", str(minimal_config_path)])
 
         assert result.exit_code == 0
@@ -140,7 +64,7 @@ class TestCLICommands:
         """Test the verify command with an invalid workflow file."""
 
         # Mock failed workflow validation
-        def mock_from_config_file():
+        def mock_from_config_file(*_args, **_kwargs):
             msg = "Invalid workflow"
             raise ValueError(msg)
 
@@ -153,7 +77,6 @@ class TestCLICommands:
 
     def test_visualize_command_default_output(self, runner, minimal_config_path):
         """Test the visualize command with default output path."""
-
         result = runner.invoke(app, ["visualize", str(minimal_config_path)])
 
         assert result.exit_code == 0
@@ -188,7 +111,6 @@ class TestCLICommands:
 
     def test_represent_command(self, runner, minimal_config_path):
         """Test the represent command."""
-
         result = runner.invoke(app, ["represent", str(minimal_config_path)])
 
         assert result.exit_code == 0
@@ -196,87 +118,30 @@ class TestCLICommands:
         assert "cycles:" in result.stdout  # Should contain workflow structure
         assert "minimal" in result.stdout  # Should contain workflow name
 
-    @pytest.mark.usefixtures("aiida_localhost")
-    def test_run_command(self, runner, minimal_config_path, mock_successful_run, monkeypatch):
-        """Test the run command."""
-        # Use the factory to create the mock function
-        monkeypatch.setattr(
-            "sirocco.cli.create_aiida_workflow",
-            mock_create_aiida_workflow_factory(mock_successful_run),
-        )
 
-        result = runner.invoke(app, ["run", str(minimal_config_path)])
+class TestCreateAiidaWorkflow:
+    """Test the create_aiida_workflow helper function."""
 
-        assert result.exit_code == 0
-        assert "▶️ Running workflow" in result.stdout
-        assert "✅ Workflow execution finished" in result.stdout
-        # Verify the mock was called correctly
-        mock_successful_run.run.assert_called_once_with(inputs=None)
+    def test_invalid_file(self, capsys):
+        """Test workflow preparation with invalid config file."""
+        from sirocco.cli import create_aiida_workflow
 
-    @pytest.mark.usefixtures("aiida_localhost")
-    def test_run_execution_failure(self, runner, minimal_config_path, mock_failed_run, monkeypatch):
-        """Test handling of workflow execution failures."""
-        # Use the factory to create the mock function
-        monkeypatch.setattr(
-            "sirocco.cli.create_aiida_workflow",
-            mock_create_aiida_workflow_factory(mock_failed_run),
-        )
+        with pytest.raises(typer.Exit):
+            create_aiida_workflow("nonexistent.yml")
 
-        result = runner.invoke(app, ["run", str(minimal_config_path)])
+        captured = capsys.readouterr()
+        assert "Failed to prepare AiiDA workflow" in captured.out
 
-        assert result.exit_code == 1
-        assert "❌ Workflow execution failed during run" in result.stdout
+    def test_malformed_config(self, tmp_path, capsys):
+        """Test workflow preparation with malformed config file."""
+        from sirocco.cli import create_aiida_workflow
 
-    @pytest.mark.usefixtures("aiida_localhost")
-    def test_submit_command_basic(self, runner, minimal_config_path, mock_successful_submit, monkeypatch):
-        """Test the submit command."""
-        # Use the factory to create the mock function
-        monkeypatch.setattr(
-            "sirocco.cli.create_aiida_workflow",
-            mock_create_aiida_workflow_factory(mock_successful_submit),
-        )
+        # Create a malformed YAML file
+        bad_config = tmp_path / "bad_config.yml"
+        bad_config.write_text("invalid: yaml: content: [")
 
-        result = runner.invoke(app, ["submit", str(minimal_config_path)])
+        with pytest.raises(typer.Exit):
+            create_aiida_workflow(str(bad_config))
 
-        assert result.exit_code == 0
-        assert "🚀 Submitting workflow" in result.stdout
-
-    @pytest.mark.usefixtures("aiida_localhost")
-    def test_submit_execution_failure(self, runner, minimal_config_path, monkeypatch):
-        """Test handling of workflow submission failures."""
-        # Use the factory to create the mock function
-        monkeypatch.setattr(
-            "sirocco.cli.create_aiida_workflow",
-            mock_create_aiida_workflow_factory(mock_failed_submit),
-        )
-
-        result = runner.invoke(app, ["submit", str(minimal_config_path)])
-
-        assert result.exit_code == 1
-        assert "❌ Workflow submission failed" in result.stdout
-
-
-def test_create_aiida_workflow_invalid_file(capsys):
-    """Test workflow preparation with invalid config file."""
-    from sirocco.cli import create_aiida_workflow
-
-    with pytest.raises(typer.Exit):
-        create_aiida_workflow("nonexistent.yml")
-
-    captured = capsys.readouterr()
-    assert "Failed to prepare AiiDA workflow" in captured.out
-
-
-def test_create_aiida_workflow_malformed_config(tmp_path, capsys):
-    """Test workflow preparation with malformed config file."""
-    from sirocco.cli import create_aiida_workflow
-
-    # Create a malformed YAML file
-    bad_config = tmp_path / "bad_config.yml"
-    bad_config.write_text("invalid: yaml: content: [")
-
-    with pytest.raises(typer.Exit):
-        create_aiida_workflow(str(bad_config))
-
-    captured = capsys.readouterr()
-    assert "Failed to prepare AiiDA workflow" in captured.out
+        captured = capsys.readouterr()
+        assert "Failed to prepare AiiDA workflow" in captured.out

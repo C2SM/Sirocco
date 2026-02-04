@@ -6,7 +6,6 @@ import hashlib
 from pathlib import Path
 from typing import assert_never
 
-import aiida.common
 import aiida.orm
 import aiida.transports
 from aiida.common.exceptions import NotExistent
@@ -14,44 +13,21 @@ from aiida.common.exceptions import NotExistent
 from sirocco import core
 from sirocco.engines.aiida.types import (
     AiidaFileNode,
-    AiidaFileNodeType,
     AiidaMetadata,
     AiidaMetadataOptions,
     AiidaResources,
 )
-from sirocco.engines.aiida.utils import (
-    replace_invalid_chars_in_label,
-    split_cmd_arg,
-)
+from sirocco.engines.aiida.utils import split_cmd_arg
 from sirocco.parsing._utils import TimeUtils
 from sirocco.parsing.cycling import DateCyclePoint
 
-# Script file extensions to remove when generating code labels
-# FIXME: Hardcoded for bash and python - should be configurable or determined dynamically
-SCRIPT_EXTENSIONS = (".sh", ".py")
-
-
-def remove_script_extension(name: str) -> str:
-    """Remove common script extensions from a filename.
-
-    Args:
-        name: Filename potentially ending with a script extension
-
-    Returns:
-        Filename with extension removed, or original name if no match
-    """
-    return name[:-3] if name.endswith(SCRIPT_EXTENSIONS) else name
-
 
 class AiidaAdapter:
-    """Adapts Sirocco core domain objects to AiiDA representations.
+    """Collection of utilities for translating core domain to AiiDA representations.
 
-    This class isolates all AiiDA-specific transformations, keeping the
-    core domain AiiDA-agnostic.
+    This class provides static methods for AiiDA-specific transformations,
+    keeping the core domain AiiDA-agnostic.
     """
-
-    def __init__(self, core_workflow: core.Workflow):
-        self.core_workflow = core_workflow
 
     @staticmethod
     def build_graph_item_label(graph_item: core.GraphItem) -> str:
@@ -59,20 +35,22 @@ class AiidaAdapter:
 
         The graph item object is uniquely determined by its name and its coordinates.
         """
-        return replace_invalid_chars_in_label(
+        return AiidaAdapter.sanitize_label(
             f"{graph_item.name}" + "__".join(f"_{key}_{value}" for key, value in graph_item.coordinates.items())
         )
 
-    def create_input_data_node(self, core_data: core.AvailableData) -> AiidaFileNode:
+    @staticmethod
+    def create_input_data_node(core_data: core.AvailableData, *, used_by_icon: bool = False) -> AiidaFileNode:
         """Create an AiiDA data node from AvailableData.
 
         Args:
-            data: The AvailableData to create a node for
+            core_data: The AvailableData to create a node for
+            used_by_icon: Whether this data is used by an ICON task (affects node type selection)
 
         Returns:
             AiiDA data node (RemoteData, SinglefileData, or FolderData)
         """
-        label = self.build_graph_item_label(core_data)
+        label = AiidaAdapter.build_graph_item_label(core_data)
 
         try:
             computer = aiida.orm.load_computer(core_data.computer)
@@ -87,27 +65,14 @@ class AiidaAdapter:
                 msg = f"Could not find available data {core_data.name} in path {core_data.path} on computer {core_data.computer}."
                 raise FileNotFoundError(msg)
 
-        # Determine which type of data node to create
-        used_by_icon_task = any(
-            isinstance(task, core.IconTask) and core_data in task.input_data_nodes()
-            for task in self.core_workflow.tasks
-        )
-
-        if used_by_icon_task:
-            node_type = AiidaFileNodeType.REMOTE
-        elif computer.get_transport_class() is aiida.transports.plugins.local.LocalTransport:
-            node_type = AiidaFileNodeType.SINGLE_FILE if core_data.path.is_file() else AiidaFileNodeType.FOLDER
-        else:
-            node_type = AiidaFileNodeType.REMOTE
-
-        # Create the appropriate data node
-        match node_type:
-            case AiidaFileNodeType.REMOTE:
-                return aiida.orm.RemoteData(remote_path=str(core_data.path), label=label, computer=computer)
-            case AiidaFileNodeType.SINGLE_FILE:
+        # Create the appropriate data node based on usage and transport
+        if used_by_icon:
+            return aiida.orm.RemoteData(remote_path=str(core_data.path), label=label, computer=computer)
+        if computer.get_transport_class() is aiida.transports.plugins.local.LocalTransport:
+            if core_data.path.is_file():
                 return aiida.orm.SinglefileData(file=str(core_data.path), label=label)
-            case AiidaFileNodeType.FOLDER:
-                return aiida.orm.FolderData(tree=str(core_data.path), label=label)
+            return aiida.orm.FolderData(tree=str(core_data.path), label=label)
+        return aiida.orm.RemoteData(remote_path=str(core_data.path), label=label, computer=computer)
 
     # TODO: This needs to be generalized to cover all use cases
     @staticmethod
@@ -169,7 +134,7 @@ class AiidaAdapter:
             script_name = path_obj.name
             script_dir = path_obj.parent
 
-            base_label = remove_script_extension(script_name)
+            base_label = AiidaAdapter.remove_script_extension(script_name)
 
             path_hash = hashlib.sha256(str(path_obj).encode()).hexdigest()[:8]
 
@@ -219,7 +184,7 @@ class AiidaAdapter:
 
         # File exists remotely -> InstalledCode
         script_name = Path(executable_path).name
-        base_label = remove_script_extension(script_name)
+        base_label = AiidaAdapter.remove_script_extension(script_name)
 
         path_hash = hashlib.sha256(executable_path.encode()).hexdigest()[:8]
         code_label = f"{base_label}-{path_hash}"
@@ -276,7 +241,8 @@ class AiidaAdapter:
             resources=resources,
         )
 
-    def build_metadata(self, task: core.Task) -> AiidaMetadata:
+    @staticmethod
+    def build_metadata(task: core.Task) -> AiidaMetadata:
         """Build base metadata with scheduler options.
 
         Args:
@@ -286,19 +252,22 @@ class AiidaAdapter:
             AiidaMetadata model with computer_label and options
         """
         # Get scheduler options
-        scheduler_opts = self.build_scheduler_options(task)
+        scheduler_opts = AiidaAdapter.build_scheduler_options(task)
 
         # Merge with account and retrieve list
         options = scheduler_opts.model_copy(
             update={
                 "account": task.account,
-                "additional_retrieve_list": ["_scheduler-stdout.txt", "_scheduler-stderr.txt"],
+                "additional_retrieve_list": [
+                    "_scheduler-stdout.txt",
+                    "_scheduler-stderr.txt",
+                ],
             }
         )
 
         # Add date cycling prepend text if needed
         if isinstance(task.cycle_point, DateCyclePoint):
-            options = self._add_sirocco_time_prepend_text(options, task)
+            options = AiidaAdapter._add_sirocco_time_prepend_text(options, task)
 
         try:
             computer = aiida.orm.Computer.collection.get(label=task.computer)
@@ -332,3 +301,115 @@ class AiidaAdapter:
                 return "tot_num_mpiprocs"
             case _:
                 assert_never(placeholder)
+
+    @staticmethod
+    def sanitize_label(label: str) -> str:
+        """Replace characters that are invalid for AiiDA labels.
+
+        AiiDA labels cannot contain: "-", " ", ":", "."
+        These are replaced with underscores.
+        """
+        invalid_chars = ["-", " ", ":", "."]
+        for invalid_char in invalid_chars:
+            label = label.replace(invalid_char, "_")
+        return label
+
+    @staticmethod
+    def remove_script_extension(name: str) -> str:
+        """Remove common script extensions from a filename.
+
+        Removes extensions: .sh, .py, .pl, .rb, .R, .lua, .js, .tcl
+
+        Args:
+            name: Filename potentially ending with a script extension
+
+        Returns:
+            Filename with extension removed, or original name if no match
+        """
+        script_extensions = (".sh", ".py", ".pl", ".rb", ".R", ".lua", ".js", ".tcl")
+        for ext in script_extensions:
+            if name.endswith(ext):
+                return name[: -len(ext)]
+        return name
+
+    @staticmethod
+    def parse_mpi_cmd(mpi_cmd: str) -> str:
+        """Parse MPI command and translate placeholders to AiiDA format."""
+        for placeholder in core.MpiCmdPlaceholder:
+            mpi_cmd = mpi_cmd.replace(
+                f"{{{placeholder.value}}}",
+                f"{{{AiidaAdapter.translate_mpi_placeholder(placeholder)}}}",
+            )
+        return mpi_cmd
+
+    @staticmethod
+    def substitute_argument_placeholders(arguments_template: str | None, placeholder_to_node_key: dict) -> list[str]:
+        """Process argument template and replace placeholders with actual node keys.
+
+        Handles both standalone placeholders like {data_label} and embedded placeholders
+        like --pool=data_label where data_label should be replaced with a node key.
+
+        Args:
+            arguments_template: Template string with {placeholder} or bare placeholder syntax
+            placeholder_to_node_key: Dict mapping placeholder names to node keys
+
+        Returns:
+            List of processed arguments with placeholders replaced
+        """
+        if not arguments_template:
+            return []
+
+        arguments_list = arguments_template.split()
+        processed_arguments = []
+
+        for arg in arguments_list:
+            # Check if this argument is a standalone placeholder like {data_label}
+            if arg.startswith("{") and arg.endswith("}"):
+                placeholder_name = arg[1:-1]  # Remove the braces
+                # Map to the actual node key if we have a mapping
+                if placeholder_name in placeholder_to_node_key:
+                    actual_node_key = placeholder_to_node_key[placeholder_name]
+                    processed_arguments.append(f"{{{actual_node_key}}}")
+                else:
+                    # Keep original if no mapping found
+                    processed_arguments.append(arg)
+            else:
+                # Check if any data label from placeholder_to_node_key appears in this arg
+                # This handles cases like --pool=tmp_data_pool where tmp_data_pool needs replacement
+                processed_arg = arg
+                for data_label, node_key in placeholder_to_node_key.items():
+                    if data_label in arg:
+                        processed_arg = arg.replace(data_label, f"{{{node_key}}}")
+                        break
+                processed_arguments.append(processed_arg)
+
+        return processed_arguments
+
+    @staticmethod
+    def get_default_wrapper_script() -> aiida.orm.SinglefileData:
+        """Get default wrapper script for ICON tasks.
+
+        Returns:
+            AiiDA SinglefileData node containing the default wrapper script
+        """
+        from aiida_icon.site_support.cscs.alps import SCRIPT_DIR
+
+        # TODO: Using string constants is poor design - should use specific wrapper script classes
+        #       with isinstance checks for type-safe selection (e.g., TodiCPU, SantisCPU, GPUWrapper)
+        DEFAULT_WRAPPER_SCRIPT = "todi_cpu.sh"
+        default_script_path = SCRIPT_DIR / DEFAULT_WRAPPER_SCRIPT
+        return aiida.orm.SinglefileData(file=default_script_path)
+
+    @staticmethod
+    def get_wrapper_script_data(task) -> aiida.orm.SinglefileData:
+        """Get AiiDA SinglefileData for wrapper script.
+
+        Args:
+            task: Task with optional wrapper_script attribute
+
+        Returns:
+            AiiDA SinglefileData node for the wrapper script
+        """
+        if task.wrapper_script is not None:
+            return aiida.orm.SinglefileData(str(task.wrapper_script))
+        return AiidaAdapter.get_default_wrapper_script()

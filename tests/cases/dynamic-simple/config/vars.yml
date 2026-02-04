@@ -1,14 +1,8 @@
-# Variables for the Jinja2 template
-
 # Compute configuration
-# SIROCCO_COMPUTER: "eiger-firecrest"
-SIROCCO_COMPUTER: "santis-async-ssh"
-# SIROCCO_COMPUTER: "santis-firecrest"
+SIROCCO_COMPUTER: "santis-firecrest"
 SIROCCO_SCRIPTS_DIR: "scripts"
-# SLURM_ACCOUNT: "mr32"
 SLURM_ACCOUNT: "cwd01"
 SLURM_QUEUE: "normal"
-
 
 # Task durations
 FAST_TIME: 10

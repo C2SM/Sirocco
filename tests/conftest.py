@@ -27,7 +27,7 @@ class DownloadError(RuntimeError):
 
 
 def download_file(url: str, file_path: pathlib.Path):
-    response = requests.get(url)
+    response = requests.get(url)  # noqa S113: Probable use of `requests` call without timeout
     if not response.ok:
         raise DownloadError(url, response)
 
@@ -393,3 +393,80 @@ def minimal_config_path(tmp_path):
     minimal = tmp_path / "minimal.yml"
     minimal.write_text(minimal_config)
     return minimal
+
+
+@pytest.fixture
+def minimal_workflow(tmp_path):
+    """Create a minimal core.Workflow for testing.
+
+    Returns a real Workflow object with minimal valid configuration.
+    """
+    config_yaml = textwrap.dedent(
+        """
+        name: test_workflow
+        scheduler: slurm
+        cycles:
+          - single_cycle:
+              tasks:
+                - dummy_task: {}
+        tasks:
+          - dummy_task:
+              plugin: shell
+              computer: localhost
+              command: echo hello
+        data:
+          available: []
+          generated: []
+        """
+    )
+    return workflow.Workflow.from_config_str(config_yaml, rootdir=tmp_path)
+
+
+@pytest.fixture
+def workflow_with_dependencies(tmp_path):
+    """Create a workflow with task dependencies for testing build logic.
+
+    Returns a workflow with:
+    - task_a: generates output_a
+    - task_b: consumes output_a, generates output_b
+    - task_c: consumes output_b
+    """
+    config_yaml = textwrap.dedent(
+        """
+        name: test_workflow_deps
+        scheduler: slurm
+        cycles:
+          - cycle:
+              tasks:
+                - task_a:
+                    outputs:
+                      - output_a
+                - task_b:
+                    inputs:
+                      - output_a: {port: input_file}
+                    outputs:
+                      - output_b
+                - task_c:
+                    inputs:
+                      - output_b: {port: data_file}
+        tasks:
+          - task_a:
+              plugin: shell
+              computer: localhost
+              command: echo "data" > {output_a}
+          - task_b:
+              plugin: shell
+              computer: localhost
+              command: cat {input_file} > {output_b}
+          - task_c:
+              plugin: shell
+              computer: localhost
+              command: cat {data_file}
+        data:
+          available: []
+          generated:
+            - output_a: {path: output_a.txt}
+            - output_b: {path: output_b.txt}
+        """
+    )
+    return workflow.Workflow.from_config_str(config_yaml, rootdir=tmp_path)

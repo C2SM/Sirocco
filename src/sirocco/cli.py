@@ -73,7 +73,6 @@ def _create_aiida_workflow(
     wg = build_sirocco_workgraph(
         core_wf,
         front_depth=front_depth,
-        resolved_config_path=config_workflow.resolved_config_path,
     )
     return core_wf, wg
 

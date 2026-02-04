@@ -35,12 +35,7 @@ from sirocco.engines.aiida.types import (
     OutputDataInfo,
     WgTaskProtocol,
 )
-from sirocco.engines.aiida.utils import (
-    get_wrapper_script_aiida_data,
-    serialize_coordinates,
-    split_cmd_arg,
-    substitute_argument_placeholders,
-)
+from sirocco.engines.aiida.utils import serialize_coordinates, split_cmd_arg
 
 if TYPE_CHECKING:
     from aiida_workgraph import WorkGraph
@@ -137,7 +132,7 @@ async def get_job_data(
         raise TimeoutError(msg) from err
 
 
-def build_shell_task_spec(task: core.ShellTask, adapter: AiidaAdapter) -> AiidaShellTaskSpec:
+def build_shell_task_spec(task: core.ShellTask) -> AiidaShellTaskSpec:
     """Build all parameters needed to create a shell task.
 
     Returns a dict with keys: label, code, nodes, metadata,
@@ -147,7 +142,6 @@ def build_shell_task_spec(task: core.ShellTask, adapter: AiidaAdapter) -> AiidaS
 
     Args:
         task: The ShellTask to build spec for
-        adapter: AiiDA adapter for translations
 
     Returns:
         Dict containing all shell task parameters
@@ -162,14 +156,14 @@ def build_shell_task_spec(task: core.ShellTask, adapter: AiidaAdapter) -> AiidaS
         raise ValueError(msg) from err
 
     # Build base metadata (no job dependencies yet)
-    metadata = adapter.build_metadata(task)
+    metadata = AiidaAdapter.build_metadata(task)
 
     # Add shell-specific metadata options
     if metadata.options:
         metadata = metadata.model_copy(update={"options": metadata.options.model_copy(update={"use_symlinks": True})})
 
     # Create or load code
-    code = adapter.create_shell_code(task, computer)
+    code = AiidaAdapter.create_shell_code(task, computer)
 
     # Pre-compute input data information using dataclasses
     input_data_info: list[InputDataInfo] = []
@@ -284,7 +278,7 @@ def build_shell_task_spec(task: core.ShellTask, adapter: AiidaAdapter) -> AiidaS
     )
 
 
-def build_icon_task_spec(task: core.IconTask, adapter: AiidaAdapter) -> AiidaIconTaskSpec:
+def build_icon_task_spec(task: core.IconTask) -> AiidaIconTaskSpec:
     """Build all parameters needed to create an ICON task.
 
     Returns a dict with keys: label, builder, output_ports
@@ -293,7 +287,6 @@ def build_icon_task_spec(task: core.IconTask, adapter: AiidaAdapter) -> AiidaIco
 
     Args:
         task: The IconTask to build spec for
-        adapter: AiiDA adapter for translations
 
     Returns:
         Dict containing all ICON task parameters
@@ -324,7 +317,7 @@ def build_icon_task_spec(task: core.IconTask, adapter: AiidaAdapter) -> AiidaIco
         icon_code.store()
 
     # Build base metadata (no job dependencies yet)
-    metadata = adapter.build_metadata(task)
+    metadata = AiidaAdapter.build_metadata(task)
 
     # Update task namelists
     task.update_icon_namelists_from_workflow()
@@ -348,7 +341,7 @@ def build_icon_task_spec(task: core.IconTask, adapter: AiidaAdapter) -> AiidaIco
 
     # Wrapper script - store as PK if present
     wrapper_script_pk = None
-    wrapper_script_data = get_wrapper_script_aiida_data(task)
+    wrapper_script_data = AiidaAdapter.get_wrapper_script_data(task)
     if wrapper_script_data is not None:
         wrapper_script_data.store()
         wrapper_script_pk = wrapper_script_data.pk
@@ -435,7 +428,9 @@ def build_shell_task_with_dependencies(
     metadata = add_slurm_dependencies_to_metadata(base_metadata, job_ids, computer)  # type: ignore[arg-type]
 
     # Process argument placeholders
-    arguments = substitute_argument_placeholders(task_spec_model.arguments_template, placeholder_to_node_key)
+    arguments = AiidaAdapter.substitute_argument_placeholders(
+        task_spec_model.arguments_template, placeholder_to_node_key
+    )
 
     # Use pre-computed outputs
     outputs = task_spec_model.outputs
