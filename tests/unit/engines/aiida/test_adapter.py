@@ -161,8 +161,10 @@ def test_build_scheduler_options_with_uenv_view():
     print("\n=== Custom scheduler commands ===")
     print(options.custom_scheduler_commands)
 
-    assert "#SBATCH --uenv=icon-wcp/v1:rc4" in options.custom_scheduler_commands
-    assert "#SBATCH --view=icon" in options.custom_scheduler_commands
+    # Split on newlines to verify each command is on its own line
+    lines = options.custom_scheduler_commands.split("\n")
+    assert "#SBATCH --uenv=icon-wcp/v1:rc4" in lines
+    assert "#SBATCH --view=icon" in lines
 
 
 def test_build_metadata(aiida_localhost):
@@ -384,8 +386,8 @@ def test_create_input_data_node_local_folder(tmp_path, aiida_localhost):
 
     # Verify it created a real FolderData node with correct content
     assert isinstance(result, aiida.orm.FolderData)
-    # Check that the file exists in the folder node
-    assert "file1.txt" in result.list_object_names()
+    # Check exact folder contents
+    assert result.list_object_names() == ["file1.txt"]
 
 
 # Patch: Mock RemoteData to prevent actual database storage during test
@@ -467,7 +469,9 @@ def test_create_shell_code_remote_file_exists(aiida_localhost):
         print(f"Computer: {code.computer.label}")
 
         assert isinstance(code, aiida.orm.Code)
-        assert unique_name.replace(".sh", "") in code.label or unique_name in code.label
+        # Label should contain the base script name (without extension)
+        base_name = unique_name.replace(".sh", "")
+        assert base_name in code.label, f"Expected '{base_name}' in label '{code.label}'"
         assert code.computer.pk == aiida_localhost.pk
 
 
@@ -570,7 +574,9 @@ def test_create_shell_code_resolves_relative_path(tmp_path, aiida_localhost):
 
         # Should create a code (PortableCode or loaded from cache)
         assert isinstance(code, aiida.orm.Code)
-        assert unique_name.replace(".sh", "") in code.label or unique_name in code.label
+        # Label should contain the base script name (without extension)
+        base_name = unique_name.replace(".sh", "")
+        assert base_name in code.label, f"Expected '{base_name}' in label '{code.label}'"
         # For PortableCode, filepath_files should be absolute
         if isinstance(code, aiida.orm.PortableCode):
             assert Path(code.filepath_files).is_absolute()

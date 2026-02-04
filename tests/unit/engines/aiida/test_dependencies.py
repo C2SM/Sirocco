@@ -57,11 +57,8 @@ class TestBuildSlurmDependencyDirective:
         print("\n=== SLURM dependency directive (multiple jobs) ===")
         print(directive)
 
-        assert directive.startswith("#SBATCH --dependency=afterok:")
-        assert "12345" in directive
-        assert "67890" in directive
-        assert "11111" in directive
-        assert "--kill-on-invalid-dep=yes" in directive
+        # Dict maintains insertion order in Python 3.7+, so order is deterministic
+        assert directive == "#SBATCH --dependency=afterok:12345:67890:11111 --kill-on-invalid-dep=yes"
 
 
 class TestCollectAvailableDataInputs:
