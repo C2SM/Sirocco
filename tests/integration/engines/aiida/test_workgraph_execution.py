@@ -221,7 +221,7 @@ def test_branch_independence_with_front_depths(config_paths, front_depth):
     from aiida.cmdline.utils.common import get_calcjob_report, get_workchain_report
     from aiida.orm import CalcJobNode
 
-    from tests.unit_tests.utils import (
+    from tests.utils import (
         assert_branch_independence,
         extract_launcher_times,
     )
@@ -337,7 +337,7 @@ def test_complex_workflow_with_cross_dependencies(config_paths):
     from aiida.cmdline.utils.common import get_calcjob_report, get_workchain_report
     from aiida.orm import CalcJobNode
 
-    from tests.unit_tests.utils import (
+    from tests.utils import (
         assert_branch_independence,
         assert_cross_dependency_respected,
         extract_launcher_times,
@@ -484,7 +484,3 @@ def test_complex_workflow_with_cross_dependencies(config_paths):
     # Clean up file handler
     LOGGER.removeHandler(file_handler)
     file_handler.close()
-
-
-# NOTE: test_dynamic_levels_branch_independence has been moved to
-# tests/unit_tests/engines/aiida/test_topology.py (TestComplexScenarios class)
