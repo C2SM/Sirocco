@@ -8,7 +8,7 @@
     experimentstartdate = '2025-01-01T00:00:00Z'
     restarttimeintval = 'P2M'
     checkpointtimeintval = 'P2M'
-    experimentstopdate = '2027-01-01T00:00:00Z'
+    experimentstopdate = '2025-03-01T00:00:00Z'
 /
 
 &time_nml
