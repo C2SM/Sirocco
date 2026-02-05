@@ -1,7 +1,7 @@
 # TODO (long-term): ICON compilation as part of the workflow
 ---
 start_date: &root_start_date '2026-01-01T00:00'
-stop_date: &root_stop_date '2026-06-01T00:00'
+stop_date: &root_stop_date '2026-07-01T00:00'
 scheduler: slurm
 cycles:
   - bimonthly_tasks:

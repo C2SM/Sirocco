@@ -107,6 +107,7 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
                     "experimentStartDate": self.cycle_point.chunk_start_date.isoformat() + "Z",
                     "experimentStopDate": self.cycle_point.chunk_stop_date.isoformat() + "Z",
                     "restartTimeIntval": str(self.cycle_point.period),
+                    "checkpointTimeIntval": str(self.cycle_point.period),
                 },
                 "master_nml": {
                     "lrestart": self.is_restart,

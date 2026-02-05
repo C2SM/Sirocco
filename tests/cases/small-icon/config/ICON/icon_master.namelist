@@ -4,8 +4,8 @@
 /
 &master_time_control_nml
  calendar             = 'proleptic gregorian'
- experimentStartDate  = '2000-01-01T00:00:00Z'
- experimentStopDate = '2026-06-01T00:00:00Z'
+ experimentStartDate  = '2026-01-01T00:00:00Z'
+ experimentStopDate = '2026-07-01T00:00:00Z'
  restartTimeIntval    = 'P2M'
  checkpointTimeIntval = 'P2M'
 /
