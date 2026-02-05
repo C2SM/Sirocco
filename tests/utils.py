@@ -702,3 +702,34 @@ def assert_cross_dependency_respected(
             f"submitted before {dep} finished. {dependent_task} at {dependent_submit}, "
             f"{dep} finished at {dep_finish}"
         )
+
+
+def print_timing_summary(timing_data: dict[str, dict[str, Any]]) -> None:
+    """Print a formatted summary of task timing data.
+
+    Useful for debugging test failures or understanding workflow execution.
+
+    Args:
+        timing_data: Output from extract_launcher_times()
+    """
+    import logging
+
+    logger = logging.getLogger(__name__)
+    relative_times = compute_relative_times(timing_data)
+
+    # Sort by submission time
+    sorted_tasks = sorted(relative_times.items(), key=lambda x: x[1]["start"])
+
+    logger.info("\n=== Task Timing Summary ===")
+    logger.info("%-20s %-10s %-10s %-10s %-10s", "Task", "Branch", "Start(s)", "End(s)", "Duration(s)")
+    logger.info("-" * 70)
+
+    for task_name, times in sorted_tasks:
+        logger.info(
+            "%-20s %-10s %10.2f %10.2f %10.2f",
+            task_name,
+            times["branch"],
+            times["start"],
+            times["end"],
+            times["duration"],
+        )
