@@ -15,6 +15,7 @@
 ! io_nml: general switches for model I/O -------------------------------------
 &io_nml
  write_last_restart          =                    .TRUE.
+ restart_file_type           =                           5   ! 5: NetCDF4
  restart_write_mode          =   "joint procs multifile"
 /
 
