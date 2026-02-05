@@ -1,13 +1,13 @@
 name: AQUAPLANET
 start_date: &root_start_date "2000-01-01T00:00:00"
-stop_date: &root_stop_date "2000-01-01T00:02:00"
+stop_date: &root_stop_date "2000-01-01T00:03:00"
 front_depth: 1
 cycles: # <- GRAPH DEFINITION
-  - every_30s:
+  - every_minute:
       cycling:
         start_date: *root_start_date
         stop_date: *root_stop_date
-        period: PT30S
+        period: PT1M
       tasks:
         - icon:
             inputs:
@@ -23,7 +23,7 @@ cycles: # <- GRAPH DEFINITION
                   when:
                     after: *root_start_date
                   target_cycle:
-                    lag: -PT30S
+                    lag: -PT1M
                   port: restart_file
             outputs:
               - finish:
@@ -46,7 +46,7 @@ cycles: # <- GRAPH DEFINITION
             inputs:
               - finish:
                   target_cycle:
-                    date: ['2000-01-01T00:00:00', '2000-01-01T00:00:30', '2000-01-01T00:01:00', '2000-01-01T00:01:30']
+                    date: ['2000-01-01T00:00:00', '2000-01-01T00:01:00', '2000-01-01T00:02:00']
                   port: positional
 tasks: # <- RUNTIME SETTINGS
   - icon:
@@ -93,6 +93,7 @@ data: # <- INPUT/OUTPUT DATA
     - ecrad_data:
         path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/externals/ecrad/data
         computer: "{{ SIROCCO_COMPUTER }}"
+  # NOTE: these can be empty? should we require setting paths here?
   generated:
     - atm_2d: {}
     - atm_3d_pl: {}

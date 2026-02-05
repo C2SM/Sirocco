@@ -71,6 +71,49 @@ def resolve_icon_restart_file(
     )
 
 
+def _get_icon_output_stream_paths(icon_task: core.IconTask) -> dict[str, str]:
+    """Extract output stream directory names from ICON namelist.
+
+    Uses aiida-icon's read_output_stream_infos() to parse output_nml sections.
+
+    Args:
+        icon_task: The ICON task with model namelists
+
+    Returns:
+        Dict mapping stream data names to their directory names (e.g., {'atm_2d': 'atm_2d'})
+    """
+    from aiida_icon.iconutils import modelnml
+
+    stream_paths = {}
+
+    # Iterate through all model namelists to find output_nml sections
+    for model_namelist in icon_task.model_namelists.values():
+        # Get namelist data - handle both SinglefileData nodes and raw dicts
+        nml_data = model_namelist.namelist if hasattr(model_namelist, "namelist") else model_namelist
+
+        # Use aiida-icon's parser to extract output stream information
+        try:
+            stream_infos = modelnml.read_output_stream_infos(nml_data)
+        except (KeyError, AttributeError):
+            # This model namelist doesn't have output_nml sections
+            continue
+
+        # Match stream paths with output data names
+        for stream_info in stream_infos:
+            # stream_info.path is a pathlib.Path like 'atm_2d' or './atm_2d'
+            dir_name = str(stream_info.path).strip("./")
+
+            # Find matching output data by name
+            for port, outputs in icon_task.outputs.items():
+                if port == "output_streams":
+                    for out_data in outputs:
+                        # Match by name (e.g., 'atm_2d' matches 'atm_2d')
+                        if out_data.name == dir_name or out_data.name in dir_name:
+                            stream_paths[out_data.name] = dir_name
+
+    return stream_paths
+
+
 def _resolve_icon_dependency(
     dep_info: DependencyInfo,
     workdir_remote: aiida.orm.RemoteData,
@@ -272,7 +315,8 @@ def _resolve_remote_data_for_dependency(
         Tuple of (unique_key, remote_data_node)
     """
     workdir_path = workdir_remote.get_remote_path()
-    unique_key = f"{dep_info.dep_label}_remote"
+    # Include data_label to distinguish multiple outputs from the same producer task
+    unique_key = f"{dep_info.dep_label}_{dep_info.data_label}_remote"
 
     if dep_info.filename:
         # Create RemoteData pointing to the specific file/directory
@@ -465,6 +509,22 @@ def build_dependency_mapping(
         # Extract filename/path if GeneratedData
         path = getattr(out_data, "path", None)
         filename = path.name if path else None
+
+        # SPECIAL CASE: For ICON output streams, get directory from namelist
+        if filename is None:
+            # Find the producer task
+            producer_task: core.graph_items.Task | None = next(
+                (t for t in core_workflow.tasks if AiidaAdapter.build_graph_item_label(t) == prev_label), None
+            )
+
+            if producer_task is not None and isinstance(producer_task, core.IconTask):
+                # Check if this output is on the output_streams port
+                for port_, outputs in producer_task.outputs.items():
+                    if port_ == "output_streams" and out_data in outputs:
+                        # Extract output paths from ICON namelist
+                        stream_paths = _get_icon_output_stream_paths(producer_task)
+                        filename = stream_paths.get(out_data.name)
+                        break
 
         # Only record dependencies if this producer has completed metadata
         if prev_label not in task_output_mapping:

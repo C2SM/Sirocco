@@ -10,6 +10,7 @@ from rich.pretty import pprint
 from sirocco import core
 from sirocco.engines.aiida.adapter import AiidaAdapter
 from sirocco.engines.aiida.dependencies import (
+    _get_icon_output_stream_paths,
     _resolve_icon_dependency,
     _resolve_remote_data_for_dependency,
     add_slurm_dependencies_to_metadata,
@@ -270,7 +271,7 @@ class TestBuildDependencyMapping:
         with patch.object(
             AiidaAdapter,
             "build_graph_item_label",
-            side_effect=["producer", "output", "output"],
+            side_effect=["producer", "output", "output", "producer"],  # Added extra "producer" for generator check
         ):
             task_outputs = {
                 "producer": Mock(
@@ -364,7 +365,7 @@ class TestBuildDependencyMapping:
         with patch.object(
             AiidaAdapter,
             "build_graph_item_label",
-            side_effect=["producer", "output", "output"],
+            side_effect=["producer", "output", "output", "producer"],  # Added extra "producer" for generator check
         ):
             # Empty task_output_mapping - producer hasn't completed yet
             mapping = build_dependency_mapping(consumer, workflow, {})
@@ -912,7 +913,7 @@ def test_resolve_remote_data_for_dependency_with_filename(aiida_localhost):
     print(f"Result remote path: {result.get_remote_path()}")
 
     # Should create RemoteData with specific file path
-    assert key == "task_a_remote"
+    assert key == "task_a_output_remote"  # Updated to include data_label
     assert isinstance(result, aiida.orm.RemoteData)
     assert "result.txt" in result.get_remote_path()
     assert result.is_stored
@@ -937,7 +938,7 @@ def test_resolve_remote_data_for_dependency_workdir_fallback(aiida_localhost):
     print(f"Result is workdir: {result == workdir}")
 
     # Should return the workdir itself
-    assert key == "task_a_remote"
+    assert key == "task_a_output_remote"  # Updated to include data_label
     assert result == workdir
 
 
@@ -997,9 +998,9 @@ def test_resolve_shell_dependency_mappings_missing_parent(aiida_localhost):
     print(f"Placeholder mapping: {placeholder_mapping}")
 
     # Should only process task_a, skip task_b
-    assert "task_a_remote" in all_nodes
+    assert "task_a_output_a_remote" in all_nodes  # Updated to include data_label
     assert "output_a" in placeholder_mapping
-    assert placeholder_mapping["output_a"] == "task_a_remote"
+    assert placeholder_mapping["output_a"] == "task_a_output_a_remote"  # Updated to include data_label
 
     # task_b should be skipped
     assert "output_b" not in placeholder_mapping
@@ -1035,8 +1036,8 @@ def test_resolve_shell_dependency_mappings_with_filenames(aiida_localhost):
     pprint(filenames)
 
     # Should build filename mapping
-    assert "task_a_remote" in filenames
-    assert filenames["task_a_remote"] == "custom_name.txt"
+    assert "task_a_output_remote" in filenames  # Updated to include data_label
+    assert filenames["task_a_output_remote"] == "custom_name.txt"
 
 
 @pytest.mark.parametrize(
@@ -1125,3 +1126,131 @@ def test_add_slurm_dependencies_to_metadata(
     else:
         # call_link_label might be None or not set
         assert getattr(result, "call_link_label", None) != "icon_task" or expected_call_link_label is None
+
+
+def test_resolve_shell_dependency_mappings_multiple_outputs_from_same_task(aiida_localhost):
+    """Regression test: Multiple outputs from same task should not overwrite each other.
+
+    This tests the bug fix where multiple outputs from the same producer task
+    (e.g., ICON output streams: atm_2d, atm_3d_pl) were being mapped to the same
+    unique_key, causing one to overwrite the other.
+
+    The fix ensures unique_key includes the data_label to distinguish outputs.
+    """
+
+    # Create parent folder for the producer task
+    workdir = aiida.orm.RemoteData(computer=aiida_localhost, remote_path="/work/icon_task")
+    workdir.store()
+
+    parent_folders = {"icon_task": Mock(value=workdir.pk)}
+
+    # Two outputs from the same producer task (like ICON output streams)
+    port_dependency_mapping = {
+        "input_port": [
+            DependencyInfo(dep_label="icon_task", data_label="atm_2d", filename="atm_2d"),
+            DependencyInfo(dep_label="icon_task", data_label="atm_3d_pl", filename="atm_3d_pl"),
+        ]
+    }
+
+    original_filenames = {"atm_2d": "atm_2d", "atm_3d_pl": "atm_3d_pl"}
+
+    print("\n=== Regression test: Multiple outputs from same task ===")
+    print("Producer: icon_task")
+    print("Outputs: atm_2d, atm_3d_pl (both from same task)")
+    print("Expected: Both should be preserved with unique keys")
+
+    # Call function
+    all_nodes, placeholder_mapping, filenames = resolve_shell_dependency_mappings(
+        parent_folders, port_dependency_mapping, original_filenames
+    )
+
+    print("\n=== Result ===")
+    print(f"All nodes keys: {list(all_nodes.keys())}")
+    print(f"Placeholder mapping: {placeholder_mapping}")
+    print(f"Filenames: {filenames}")
+
+    # CRITICAL: Both outputs should be present with distinct keys
+    assert "icon_task_atm_2d_remote" in all_nodes
+    assert "icon_task_atm_3d_pl_remote" in all_nodes
+
+    # Both should have placeholder mappings
+    assert "atm_2d" in placeholder_mapping
+    assert "atm_3d_pl" in placeholder_mapping
+
+    # Each placeholder should map to its unique key
+    assert placeholder_mapping["atm_2d"] == "icon_task_atm_2d_remote"
+    assert placeholder_mapping["atm_3d_pl"] == "icon_task_atm_3d_pl_remote"
+
+    # Both should have different RemoteData nodes with different paths
+    atm_2d_node = all_nodes["icon_task_atm_2d_remote"]
+    atm_3d_pl_node = all_nodes["icon_task_atm_3d_pl_remote"]
+    assert atm_2d_node != atm_3d_pl_node
+    assert "atm_2d" in atm_2d_node.get_remote_path()
+    assert "atm_3d_pl" in atm_3d_pl_node.get_remote_path()
+
+    # Verify we have exactly 2 nodes (not 1 due to overwriting)
+    assert len(all_nodes) == 2
+
+    print("\n✓ Both outputs preserved with unique keys (bug fixed!)")
+
+
+def test_get_icon_output_stream_paths():
+    """Regression test: Extract output stream paths from ICON namelist.
+
+    This tests the _get_icon_output_stream_paths() function which extracts
+    output stream directory names from ICON namelists using aiida-icon's
+    read_output_stream_infos() utility.
+
+    This is needed when output streams are defined with empty config (atm_2d: {})
+    and the actual directory names come from the ICON namelist.
+    """
+    import f90nml
+
+    # Create mock ICON task with output streams
+    icon_task = Mock(spec=core.IconTask)
+
+    # Create output data objects
+    atm_2d_output = create_generated_data(name="atm_2d", path=None)
+    atm_3d_pl_output = create_generated_data(name="atm_3d_pl", path=None)
+
+    icon_task.outputs = {"output_streams": [atm_2d_output, atm_3d_pl_output]}
+
+    # Create a realistic ICON namelist with output_nml sections
+    # Note: filename_format includes the directory path (e.g., ./atm_2d/...)
+    namelist_content = textwrap.dedent("""
+        &output_nml
+         output_filename  = 'exclaim_ape_R02B04'
+         filename_format  = './atm_2d/<output_filename>_atm_2d_<datetime2>'
+         output_grid      = .true.
+        /
+        &output_nml
+         output_filename  = 'exclaim_ape_R02B04'
+         filename_format  = './atm_3d_pl/<output_filename>_atm_3d_pl_<datetime2>'
+         output_grid      = .false.
+        /
+    """)
+
+    nml_data = f90nml.reads(namelist_content)
+
+    # Mock the model_namelists dict
+    icon_task.model_namelists = {"atm": Mock(namelist=nml_data)}
+
+    print("\n=== Regression test: Extract ICON output stream paths ===")
+    print("Output streams in task: atm_2d, atm_3d_pl")
+    print("Namelist defines: atm_2d, atm_3d_pl directories")
+
+    # Call the function
+    stream_paths = _get_icon_output_stream_paths(icon_task)
+
+    print("\n=== Result ===")
+    print(f"Stream paths: {stream_paths}")
+
+    # Should extract both output stream paths
+    assert "atm_2d" in stream_paths
+    assert "atm_3d_pl" in stream_paths
+
+    # Path values should match the directory names (derived from filename_format)
+    assert stream_paths["atm_2d"] == "atm_2d"
+    assert stream_paths["atm_3d_pl"] == "atm_3d_pl"
+
+    print("\n✓ Output stream paths correctly extracted from namelist!")

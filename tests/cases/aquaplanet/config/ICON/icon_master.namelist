@@ -5,8 +5,9 @@
 &master_time_control_nml
  calendar             = 'proleptic gregorian'
  experimentStartDate  = '2000-01-01T00:00:00Z'
+ checkpointTimeIntval = 'PT1M'
  restartTimeIntval    = 'PT1M'
- experimentStopDate = '2000-01-01T01:00:00Z'
+ experimentStopDate = '2000-01-01T00:03:00Z'
 /
 &time_nml
  is_relative_time     = .false.
