@@ -1,14 +1,14 @@
 # TODO (long-term): ICON compilation as part of the workflow
 ---
-start_date: &root_start_date '2026-01-01T00:00'
-stop_date: &root_stop_date '2026-07-01T00:00'
+start_date: &root_start_date '2026-01-01T00:00:00'
+stop_date: &root_stop_date '2026-01-01T00:03:00'
 scheduler: slurm
 cycles:
   - bimonthly_tasks:
       cycling:
         start_date: *root_start_date
         stop_date: *root_stop_date
-        period: P2M
+        period: PT1M
       tasks:
         - icon:
             inputs:
@@ -40,7 +40,7 @@ cycles:
             inputs:
               - atmo_log:
                   target_cycle:
-                    date: 2026-05-01T00:00
+                    date: 2026-01-01T00:02:00
                   port: None
 tasks:
   - icon:

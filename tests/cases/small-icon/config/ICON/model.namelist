@@ -1,5 +1,5 @@
 &run_nml
- dtime                       = 3600              ! time step of 1 hour
+ dtime                       = 2                 ! time step of 2 seconds
 /
 
 ! grid_nml: horizontal grid --------------------------------------------------
