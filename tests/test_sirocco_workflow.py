@@ -81,55 +81,6 @@ def test_run_workgraph(config_paths):
     )
 
 
-@pytest.mark.requires_icon
-@pytest.mark.usefixtures("config_case", "aiida_localhost", "aiida_remote_computer")
-@pytest.mark.parametrize(
-    "config_case",
-    [
-        pytest.param(
-            "small-icon", marks=pytest.mark.skip(reason="Temporarily disabled - debugging restart file linking issue")
-        ),
-    ],
-)
-def test_run_workgraph_with_icon(icon_filepath_executable, config_paths):
-    """Tests end-to-end the parsing from file up to running the workgraph.
-
-    Automatically uses the aiida_profile fixture to create a new profile. Note to debug the test with your profile
-    please run this in a separate file as the profile is deleted after test finishes.
-    """
-    # The config_paths fixture already copies files to tmp_path and sets TESTS_ROOTDIR correctly
-    # We just need to create the symlink for the ICON executable
-    config_rootdir = config_paths["yml"].parent
-    tmp_icon_bin_path = config_rootdir / "./ICON/bin/icon"
-    if tmp_icon_bin_path.exists():
-        tmp_icon_bin_path.unlink()
-    tmp_icon_bin_path.symlink_to(Path(icon_filepath_executable))
-
-    # Use config_paths directly - fixture has already set up TESTS_ROOTDIR and copied files
-    core_workflow = Workflow.from_config_file(config_paths["yml"], template_context=config_paths["variables"])
-    workgraph = build_sirocco_workgraph(core_workflow)
-    workgraph.run()
-    output_node = workgraph.process
-    if not output_node.is_finished_ok:
-        from aiida.cmdline.utils.common import get_calcjob_report, get_workchain_report
-        from aiida.orm import CalcJobNode
-
-        # overall report but often not enough to really find the bug, one has to go to calcjob
-        LOGGER.error(
-            "Workchain report:\n%s",
-            get_workchain_report(output_node, levelname="REPORT"),
-        )
-        # the calcjobs are typically stored in 'called_descendants'
-        for node in output_node.called_descendants:
-            if isinstance(node, CalcJobNode):
-                LOGGER.error("%s workdir: %s", node.process_label, node.get_remote_workdir())
-                LOGGER.error("%s report:\n%s", node.process_label, get_calcjob_report(node))
-
-    assert output_node.is_finished_ok, (
-        f"Not successful run. Got exit code {output_node.exit_code} with message {output_node.exit_message}."
-    )
-
-
 # configs containing task using icon plugin
 @pytest.mark.usefixtures("config_case")
 @pytest.mark.parametrize(

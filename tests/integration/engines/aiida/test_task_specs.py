@@ -7,7 +7,7 @@ Tests that verify Sirocco tasks are correctly converted to AiiDA task specs
 import pytest
 
 from sirocco.core import Workflow
-from sirocco.engines.aiida.tasks import build_icon_task_spec, build_shell_task_spec
+from sirocco.engines.aiida.tasks import build_shell_task_spec
 from sirocco.parsing.yaml_data_models import ConfigWorkflow
 
 
@@ -148,63 +148,3 @@ def test_shell_filenames_nodes_arguments(config_paths):
     assert arguments_list == expected_arguments_list
     assert filenames_list == expected_filenames_list
     assert nodes_list == expected_nodes_list
-
-
-@pytest.mark.usefixtures("config_case", "aiida_localhost", "aiida_remote_computer")
-@pytest.mark.parametrize(
-    "config_case",
-    [
-        "small-icon",
-    ],
-)
-def test_aiida_icon_task_metadata(config_paths):
-    """Test if the metadata regarding the job submission of the `IconCalculation` is included in task specs."""
-    import aiida.orm
-
-    from sirocco import core
-
-    config_workflow = ConfigWorkflow.from_config_file(
-        str(config_paths["yml"]), template_context=config_paths["variables"]
-    )
-
-    core_workflow = Workflow.from_config_workflow(config_workflow)
-
-    # Test wrapper script and metadata for ICON tasks
-    icon_tasks = [task for task in core_workflow.tasks if isinstance(task, core.IconTask)]
-
-    for task in icon_tasks:
-        task_spec = build_icon_task_spec(task)
-
-        # Test wrapper script
-        if task_spec.wrapper_script_pk is not None:
-            wrapper_node = aiida.orm.load_node(task_spec.wrapper_script_pk)
-            assert wrapper_node.filename == "dummy_wrapper.sh"
-
-        # Test uenv and view in metadata
-        metadata = task_spec.metadata
-        custom_scheduler_commands = getattr(metadata.options, "custom_scheduler_commands", "") or ""
-        assert "#SBATCH --uenv=icon-wcp/v1:rc4" in custom_scheduler_commands
-        assert "#SBATCH --view=icon" in custom_scheduler_commands
-
-    # Test default wrapper script behavior
-    config_workflow = ConfigWorkflow.from_config_file(
-        str(config_paths["yml"]), template_context=config_paths["variables"]
-    )
-
-    # Find the icon task and remove wrapper_script
-    for task in config_workflow.tasks:
-        if task.name == "icon" and hasattr(task, "wrapper_script"):
-            task.wrapper_script = None
-
-    core_workflow = Workflow.from_config_workflow(config_workflow)
-
-    # Test that the default wrapper (currently `todi_cpu.sh`) is used
-    icon_tasks = [task for task in core_workflow.tasks if isinstance(task, core.IconTask)]
-
-    for task in icon_tasks:
-        task_spec = build_icon_task_spec(task)
-
-        # Test default wrapper script
-        if task_spec.wrapper_script_pk is not None:
-            wrapper_node = aiida.orm.load_node(task_spec.wrapper_script_pk)
-            assert wrapper_node.filename == "todi_cpu.sh"

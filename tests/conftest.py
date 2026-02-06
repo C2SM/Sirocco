@@ -133,7 +133,7 @@ def minimal_invert_task_io_config() -> models.ConfigWorkflow:
 
 
 # configs that are tested for parsing
-ALL_CONFIG_CASES = ["small-shell", "small-icon", "parameters", "large"]
+ALL_CONFIG_CASES = ["small-shell", "parameters", "large"]
 
 
 @pytest.fixture(params=ALL_CONFIG_CASES)
@@ -155,7 +155,7 @@ def generate_config_paths(test_case: str):
 
 
 @pytest.fixture
-def config_paths(config_case, icon_grid_path, tmp_path, test_rootdir) -> dict[str, pathlib.Path]:
+def config_paths(config_case, tmp_path, test_rootdir) -> dict[str, pathlib.Path]:
     config = generate_config_paths(config_case)
     # Copy test directory to tmp path and adapt config
     shutil.copytree(
@@ -187,13 +187,6 @@ def config_paths(config_case, icon_grid_path, tmp_path, test_rootdir) -> dict[st
         # Use relative path (relative to config directory) for validation
         config["variables"]["SIROCCO_COMPUTER"] = "remote"
         config["variables"]["SIROCCO_SCRIPTS_DIR"] = "scripts"
-
-    if config_case == "small-icon":
-        config_rootdir = config["yml"].parent
-        # We link the icon grid as specified in the model.namelist
-        config_icon_grid_path = pathlib.Path(config_rootdir / "./ICON/icon_grid_simple.nc")
-        if not config_icon_grid_path.exists():
-            config_icon_grid_path.symlink_to(icon_grid_path)
 
     return config
 

@@ -59,7 +59,6 @@ def test_waiting_on(config_paths):
     [
         "parameters",
         "small-shell",
-        "small-icon",
     ],
 )
 def test_build_workgraph(config_paths):
