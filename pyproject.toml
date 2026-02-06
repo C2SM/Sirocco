@@ -55,6 +55,7 @@ dependencies = [
   "jinja2>=3.0",
   "types-PyYAML",
   "coverage",
+  "isodate",
 ]
 license = {file = "LICENSE"}
 
