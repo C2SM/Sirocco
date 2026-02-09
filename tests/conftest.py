@@ -95,13 +95,21 @@ def minimal_invert_task_io_config() -> models.ConfigWorkflow:
                 tasks=[
                     models.ConfigCycleTask(
                         name="task_b",
-                        inputs={"port_b1": [models.ConfigCycleTaskInput(name="output_a")]},
-                        outputs={"port_b2": [models.ConfigCycleTaskOutput(name="output_b")]},
+                        components={
+                            models.ConfigCycleTask.__SINGLE_COMPONENT_NAME__: models.ConfigCycleTaskComponent(
+                                inputs={"port_b1": [models.ConfigCycleTaskInput(name="output_a")]},
+                                outputs={"port_b2": [models.ConfigCycleTaskOutput(name="output_b")]},
+                            )
+                        },
                     ),
                     models.ConfigCycleTask(
                         name="task_a",
-                        inputs={"port_a1": [models.ConfigCycleTaskInput(name="available")]},
-                        outputs={"port_a2": [models.ConfigCycleTaskOutput(name="output_a")]},
+                        components={
+                            models.ConfigCycleTask.__SINGLE_COMPONENT_NAME__: models.ConfigCycleTaskComponent(
+                                inputs={"port_a1": [models.ConfigCycleTaskInput(name="available")]},
+                                outputs={"port_a2": [models.ConfigCycleTaskOutput(name="output_a")]},
+                            )
+                        },
                     ),
                 ],
             ),

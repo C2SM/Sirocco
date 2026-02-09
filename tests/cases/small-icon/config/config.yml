@@ -10,21 +10,23 @@ cycles:
         period: P2M
       tasks:
         - icon:
-            inputs:
-              ecrad_data: [ecrad_data]
-              cloud_opt_props: [ECHAM6_CldOptProps]
-              rrtmg_sw: [rrtmg_sw]
-              dynamics_grid_file: [icon_grid_simple]
-              dmin_wetgrowth_lookup: [dmin_wetgrowth_lookup]
-              restart_file:
-                - restart:
-                    when:
-                      after: *root_start_date
-                    target_cycle:
-                      lag: -P2M
-            outputs:
-              finish_status: [finish]
-              latest_restart_file: [restart]
+            components:
+              atm:
+                inputs:
+                  ecrad_data: [ecrad_data]
+                  cloud_opt_props: [ECHAM6_CldOptProps]
+                  rrtmg_sw: [rrtmg_sw]
+                  dynamics_grid_file: [icon_grid_simple]
+                  dmin_wetgrowth_lookup: [dmin_wetgrowth_lookup]
+                  restart_file:
+                    - restart:
+                        when:
+                          after: *root_start_date
+                        target_cycle:
+                          lag: -P2M
+                outputs:
+                  finish_status: [finish]
+                  latest_restart_file: [restart]
   - lastly:
       tasks:
         - cleanup:

@@ -2,10 +2,14 @@ cycles:
   - init:
       tasks:
         - extpar:
-            input:
-              - obs_data
-            output:
-              - extpar_file
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  obs:
+                    - obs_data
+                outputs:
+                  out:
+                    - extpar_file
             name: 'extpar'
             coordinates: {}
             computer: 'remote'
@@ -20,12 +24,18 @@ cycles:
   - icon_bimonthly [date: 2025-01-01 00:00:00]:
       tasks:
         - preproc [date: 2025-01-01 00:00:00]:
-            input:
-              - grid_file
-              - extpar_file
-              - ERA5
-            output:
-              - icon_input [date: 2025-01-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  grid:
+                    - grid_file
+                  extpar:
+                    - extpar_file
+                  era:
+                    - ERA5
+                outputs:
+                  ini_cond:
+                    - icon_input [date: 2025-01-01 00:00:00]
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2025, 1, 1, 0, 0)}
             computer: 'remote'
@@ -38,13 +48,20 @@ cycles:
             plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2025-01-01 00:00:00]:
-            input:
-              - grid_file
-              - icon_input [date: 2025-01-01 00:00:00]
-            output:
-              - stream_1 [date: 2025-01-01 00:00:00]
-              - stream_2 [date: 2025-01-01 00:00:00]
-              - icon_restart [date: 2025-01-01 00:00:00]
+            components:
+              atm:
+                inputs:
+                  grid:
+                    - grid_file
+                  lbc:
+                    - icon_input [date: 2025-01-01 00:00:00]
+                  restart_file:
+                outputs:
+                  output_streams:
+                    - stream_1 [date: 2025-01-01 00:00:00]
+                    - stream_2 [date: 2025-01-01 00:00:00]
+                  latest_restart_file:
+                    - icon_restart [date: 2025-01-01 00:00:00]
             name: 'icon'
             coordinates: {'date': datetime.datetime(2025, 1, 1, 0, 0)}
             computer: 'remote'
@@ -58,10 +75,14 @@ cycles:
             bin: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
         - postproc_1 [date: 2025-01-01 00:00:00]:
-            input:
-              - stream_1 [date: 2025-01-01 00:00:00]
-            output:
-              - postout_1 [date: 2025-01-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  dummy:
+                    - stream_1 [date: 2025-01-01 00:00:00]
+                outputs:
+                  processed:
+                    - postout_1 [date: 2025-01-01 00:00:00]
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2025, 1, 1, 0, 0)}
             computer: 'remote'
@@ -73,12 +94,18 @@ cycles:
             plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::None}'
         - store_and_clean_1 [date: 2025-01-01 00:00:00]:
-            input:
-              - postout_1 [date: 2025-01-01 00:00:00]
-              - stream_1 [date: 2025-01-01 00:00:00]
-              - icon_input [date: 2025-01-01 00:00:00]
-            output:
-              - stored_data_1 [date: 2025-01-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  postout:
+                    - postout_1 [date: 2025-01-01 00:00:00]
+                  streams:
+                    - stream_1 [date: 2025-01-01 00:00:00]
+                  icon_input:
+                    - icon_input [date: 2025-01-01 00:00:00]
+                outputs:
+                  archive:
+                    - stored_data_1 [date: 2025-01-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2025, 1, 1, 0, 0)}
             computer: 'remote'
@@ -92,12 +119,18 @@ cycles:
   - icon_bimonthly [date: 2025-03-01 00:00:00]:
       tasks:
         - preproc [date: 2025-03-01 00:00:00]:
-            input:
-              - grid_file
-              - extpar_file
-              - ERA5
-            output:
-              - icon_input [date: 2025-03-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  grid:
+                    - grid_file
+                  extpar:
+                    - extpar_file
+                  era:
+                    - ERA5
+                outputs:
+                  ini_cond:
+                    - icon_input [date: 2025-03-01 00:00:00]
             name: 'preproc'
             coordinates: {'date': datetime.datetime(2025, 3, 1, 0, 0)}
             computer: 'remote'
@@ -110,14 +143,21 @@ cycles:
             plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2025-03-01 00:00:00]:
-            input:
-              - grid_file
-              - icon_input [date: 2025-03-01 00:00:00]
-              - icon_restart [date: 2025-01-01 00:00:00]
-            output:
-              - stream_1 [date: 2025-03-01 00:00:00]
-              - stream_2 [date: 2025-03-01 00:00:00]
-              - icon_restart [date: 2025-03-01 00:00:00]
+            components:
+              atm:
+                inputs:
+                  grid:
+                    - grid_file
+                  lbc:
+                    - icon_input [date: 2025-03-01 00:00:00]
+                  restart_file:
+                    - icon_restart [date: 2025-01-01 00:00:00]
+                outputs:
+                  output_streams:
+                    - stream_1 [date: 2025-03-01 00:00:00]
+                    - stream_2 [date: 2025-03-01 00:00:00]
+                  latest_restart_file:
+                    - icon_restart [date: 2025-03-01 00:00:00]
             name: 'icon'
             coordinates: {'date': datetime.datetime(2025, 3, 1, 0, 0)}
             computer: 'remote'
@@ -131,10 +171,14 @@ cycles:
             bin: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
         - postproc_1 [date: 2025-03-01 00:00:00]:
-            input:
-              - stream_1 [date: 2025-03-01 00:00:00]
-            output:
-              - postout_1 [date: 2025-03-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  dummy:
+                    - stream_1 [date: 2025-03-01 00:00:00]
+                outputs:
+                  processed:
+                    - postout_1 [date: 2025-03-01 00:00:00]
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2025, 3, 1, 0, 0)}
             computer: 'remote'
@@ -146,12 +190,18 @@ cycles:
             plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::None}'
         - store_and_clean_1 [date: 2025-03-01 00:00:00]:
-            input:
-              - postout_1 [date: 2025-03-01 00:00:00]
-              - stream_1 [date: 2025-03-01 00:00:00]
-              - icon_input [date: 2025-03-01 00:00:00]
-            output:
-              - stored_data_1 [date: 2025-03-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  postout:
+                    - postout_1 [date: 2025-03-01 00:00:00]
+                  streams:
+                    - stream_1 [date: 2025-03-01 00:00:00]
+                  icon_input:
+                    - icon_input [date: 2025-03-01 00:00:00]
+                outputs:
+                  archive:
+                    - stored_data_1 [date: 2025-03-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2025, 3, 1, 0, 0)}
             computer: 'remote'
@@ -165,12 +215,18 @@ cycles:
   - icon_bimonthly [date: 2025-05-01 00:00:00]:
       tasks:
         - preproc [date: 2025-05-01 00:00:00]:
-            input:
-              - grid_file
-              - extpar_file
-              - ERA5
-            output:
-              - icon_input [date: 2025-05-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  grid:
+                    - grid_file
+                  extpar:
+                    - extpar_file
+                  era:
+                    - ERA5
+                outputs:
+                  ini_cond:
+                    - icon_input [date: 2025-05-01 00:00:00]
             wait on:
               - icon [date: 2025-01-01 00:00:00]
             name: 'preproc'
@@ -185,14 +241,21 @@ cycles:
             plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2025-05-01 00:00:00]:
-            input:
-              - grid_file
-              - icon_input [date: 2025-05-01 00:00:00]
-              - icon_restart [date: 2025-03-01 00:00:00]
-            output:
-              - stream_1 [date: 2025-05-01 00:00:00]
-              - stream_2 [date: 2025-05-01 00:00:00]
-              - icon_restart [date: 2025-05-01 00:00:00]
+            components:
+              atm:
+                inputs:
+                  grid:
+                    - grid_file
+                  lbc:
+                    - icon_input [date: 2025-05-01 00:00:00]
+                  restart_file:
+                    - icon_restart [date: 2025-03-01 00:00:00]
+                outputs:
+                  output_streams:
+                    - stream_1 [date: 2025-05-01 00:00:00]
+                    - stream_2 [date: 2025-05-01 00:00:00]
+                  latest_restart_file:
+                    - icon_restart [date: 2025-05-01 00:00:00]
             name: 'icon'
             coordinates: {'date': datetime.datetime(2025, 5, 1, 0, 0)}
             computer: 'remote'
@@ -206,10 +269,14 @@ cycles:
             bin: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
         - postproc_1 [date: 2025-05-01 00:00:00]:
-            input:
-              - stream_1 [date: 2025-05-01 00:00:00]
-            output:
-              - postout_1 [date: 2025-05-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  dummy:
+                    - stream_1 [date: 2025-05-01 00:00:00]
+                outputs:
+                  processed:
+                    - postout_1 [date: 2025-05-01 00:00:00]
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2025, 5, 1, 0, 0)}
             computer: 'remote'
@@ -221,12 +288,18 @@ cycles:
             plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::None}'
         - store_and_clean_1 [date: 2025-05-01 00:00:00]:
-            input:
-              - postout_1 [date: 2025-05-01 00:00:00]
-              - stream_1 [date: 2025-05-01 00:00:00]
-              - icon_input [date: 2025-05-01 00:00:00]
-            output:
-              - stored_data_1 [date: 2025-05-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  postout:
+                    - postout_1 [date: 2025-05-01 00:00:00]
+                  streams:
+                    - stream_1 [date: 2025-05-01 00:00:00]
+                  icon_input:
+                    - icon_input [date: 2025-05-01 00:00:00]
+                outputs:
+                  archive:
+                    - stored_data_1 [date: 2025-05-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2025, 5, 1, 0, 0)}
             computer: 'remote'
@@ -240,12 +313,18 @@ cycles:
   - icon_bimonthly [date: 2025-07-01 00:00:00]:
       tasks:
         - preproc [date: 2025-07-01 00:00:00]:
-            input:
-              - grid_file
-              - extpar_file
-              - ERA5
-            output:
-              - icon_input [date: 2025-07-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  grid:
+                    - grid_file
+                  extpar:
+                    - extpar_file
+                  era:
+                    - ERA5
+                outputs:
+                  ini_cond:
+                    - icon_input [date: 2025-07-01 00:00:00]
             wait on:
               - icon [date: 2025-03-01 00:00:00]
             name: 'preproc'
@@ -260,14 +339,21 @@ cycles:
             plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2025-07-01 00:00:00]:
-            input:
-              - grid_file
-              - icon_input [date: 2025-07-01 00:00:00]
-              - icon_restart [date: 2025-05-01 00:00:00]
-            output:
-              - stream_1 [date: 2025-07-01 00:00:00]
-              - stream_2 [date: 2025-07-01 00:00:00]
-              - icon_restart [date: 2025-07-01 00:00:00]
+            components:
+              atm:
+                inputs:
+                  grid:
+                    - grid_file
+                  lbc:
+                    - icon_input [date: 2025-07-01 00:00:00]
+                  restart_file:
+                    - icon_restart [date: 2025-05-01 00:00:00]
+                outputs:
+                  output_streams:
+                    - stream_1 [date: 2025-07-01 00:00:00]
+                    - stream_2 [date: 2025-07-01 00:00:00]
+                  latest_restart_file:
+                    - icon_restart [date: 2025-07-01 00:00:00]
             name: 'icon'
             coordinates: {'date': datetime.datetime(2025, 7, 1, 0, 0)}
             computer: 'remote'
@@ -281,10 +367,14 @@ cycles:
             bin: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
         - postproc_1 [date: 2025-07-01 00:00:00]:
-            input:
-              - stream_1 [date: 2025-07-01 00:00:00]
-            output:
-              - postout_1 [date: 2025-07-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  dummy:
+                    - stream_1 [date: 2025-07-01 00:00:00]
+                outputs:
+                  processed:
+                    - postout_1 [date: 2025-07-01 00:00:00]
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2025, 7, 1, 0, 0)}
             computer: 'remote'
@@ -296,12 +386,18 @@ cycles:
             plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::None}'
         - store_and_clean_1 [date: 2025-07-01 00:00:00]:
-            input:
-              - postout_1 [date: 2025-07-01 00:00:00]
-              - stream_1 [date: 2025-07-01 00:00:00]
-              - icon_input [date: 2025-07-01 00:00:00]
-            output:
-              - stored_data_1 [date: 2025-07-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  postout:
+                    - postout_1 [date: 2025-07-01 00:00:00]
+                  streams:
+                    - stream_1 [date: 2025-07-01 00:00:00]
+                  icon_input:
+                    - icon_input [date: 2025-07-01 00:00:00]
+                outputs:
+                  archive:
+                    - stored_data_1 [date: 2025-07-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2025, 7, 1, 0, 0)}
             computer: 'remote'
@@ -315,12 +411,18 @@ cycles:
   - icon_bimonthly [date: 2025-09-01 00:00:00]:
       tasks:
         - preproc [date: 2025-09-01 00:00:00]:
-            input:
-              - grid_file
-              - extpar_file
-              - ERA5
-            output:
-              - icon_input [date: 2025-09-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  grid:
+                    - grid_file
+                  extpar:
+                    - extpar_file
+                  era:
+                    - ERA5
+                outputs:
+                  ini_cond:
+                    - icon_input [date: 2025-09-01 00:00:00]
             wait on:
               - icon [date: 2025-05-01 00:00:00]
             name: 'preproc'
@@ -335,14 +437,21 @@ cycles:
             plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2025-09-01 00:00:00]:
-            input:
-              - grid_file
-              - icon_input [date: 2025-09-01 00:00:00]
-              - icon_restart [date: 2025-07-01 00:00:00]
-            output:
-              - stream_1 [date: 2025-09-01 00:00:00]
-              - stream_2 [date: 2025-09-01 00:00:00]
-              - icon_restart [date: 2025-09-01 00:00:00]
+            components:
+              atm:
+                inputs:
+                  grid:
+                    - grid_file
+                  lbc:
+                    - icon_input [date: 2025-09-01 00:00:00]
+                  restart_file:
+                    - icon_restart [date: 2025-07-01 00:00:00]
+                outputs:
+                  output_streams:
+                    - stream_1 [date: 2025-09-01 00:00:00]
+                    - stream_2 [date: 2025-09-01 00:00:00]
+                  latest_restart_file:
+                    - icon_restart [date: 2025-09-01 00:00:00]
             name: 'icon'
             coordinates: {'date': datetime.datetime(2025, 9, 1, 0, 0)}
             computer: 'remote'
@@ -356,10 +465,14 @@ cycles:
             bin: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
         - postproc_1 [date: 2025-09-01 00:00:00]:
-            input:
-              - stream_1 [date: 2025-09-01 00:00:00]
-            output:
-              - postout_1 [date: 2025-09-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  dummy:
+                    - stream_1 [date: 2025-09-01 00:00:00]
+                outputs:
+                  processed:
+                    - postout_1 [date: 2025-09-01 00:00:00]
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2025, 9, 1, 0, 0)}
             computer: 'remote'
@@ -371,12 +484,18 @@ cycles:
             plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::None}'
         - store_and_clean_1 [date: 2025-09-01 00:00:00]:
-            input:
-              - postout_1 [date: 2025-09-01 00:00:00]
-              - stream_1 [date: 2025-09-01 00:00:00]
-              - icon_input [date: 2025-09-01 00:00:00]
-            output:
-              - stored_data_1 [date: 2025-09-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  postout:
+                    - postout_1 [date: 2025-09-01 00:00:00]
+                  streams:
+                    - stream_1 [date: 2025-09-01 00:00:00]
+                  icon_input:
+                    - icon_input [date: 2025-09-01 00:00:00]
+                outputs:
+                  archive:
+                    - stored_data_1 [date: 2025-09-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2025, 9, 1, 0, 0)}
             computer: 'remote'
@@ -390,12 +509,18 @@ cycles:
   - icon_bimonthly [date: 2025-11-01 00:00:00]:
       tasks:
         - preproc [date: 2025-11-01 00:00:00]:
-            input:
-              - grid_file
-              - extpar_file
-              - ERA5
-            output:
-              - icon_input [date: 2025-11-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  grid:
+                    - grid_file
+                  extpar:
+                    - extpar_file
+                  era:
+                    - ERA5
+                outputs:
+                  ini_cond:
+                    - icon_input [date: 2025-11-01 00:00:00]
             wait on:
               - icon [date: 2025-07-01 00:00:00]
             name: 'preproc'
@@ -410,14 +535,21 @@ cycles:
             plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2025-11-01 00:00:00]:
-            input:
-              - grid_file
-              - icon_input [date: 2025-11-01 00:00:00]
-              - icon_restart [date: 2025-09-01 00:00:00]
-            output:
-              - stream_1 [date: 2025-11-01 00:00:00]
-              - stream_2 [date: 2025-11-01 00:00:00]
-              - icon_restart [date: 2025-11-01 00:00:00]
+            components:
+              atm:
+                inputs:
+                  grid:
+                    - grid_file
+                  lbc:
+                    - icon_input [date: 2025-11-01 00:00:00]
+                  restart_file:
+                    - icon_restart [date: 2025-09-01 00:00:00]
+                outputs:
+                  output_streams:
+                    - stream_1 [date: 2025-11-01 00:00:00]
+                    - stream_2 [date: 2025-11-01 00:00:00]
+                  latest_restart_file:
+                    - icon_restart [date: 2025-11-01 00:00:00]
             name: 'icon'
             coordinates: {'date': datetime.datetime(2025, 11, 1, 0, 0)}
             computer: 'remote'
@@ -431,10 +563,14 @@ cycles:
             bin: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
         - postproc_1 [date: 2025-11-01 00:00:00]:
-            input:
-              - stream_1 [date: 2025-11-01 00:00:00]
-            output:
-              - postout_1 [date: 2025-11-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  dummy:
+                    - stream_1 [date: 2025-11-01 00:00:00]
+                outputs:
+                  processed:
+                    - postout_1 [date: 2025-11-01 00:00:00]
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2025, 11, 1, 0, 0)}
             computer: 'remote'
@@ -446,12 +582,18 @@ cycles:
             plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::None}'
         - store_and_clean_1 [date: 2025-11-01 00:00:00]:
-            input:
-              - postout_1 [date: 2025-11-01 00:00:00]
-              - stream_1 [date: 2025-11-01 00:00:00]
-              - icon_input [date: 2025-11-01 00:00:00]
-            output:
-              - stored_data_1 [date: 2025-11-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  postout:
+                    - postout_1 [date: 2025-11-01 00:00:00]
+                  streams:
+                    - stream_1 [date: 2025-11-01 00:00:00]
+                  icon_input:
+                    - icon_input [date: 2025-11-01 00:00:00]
+                outputs:
+                  archive:
+                    - stored_data_1 [date: 2025-11-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2025, 11, 1, 0, 0)}
             computer: 'remote'
@@ -465,12 +607,18 @@ cycles:
   - icon_bimonthly [date: 2026-01-01 00:00:00]:
       tasks:
         - preproc [date: 2026-01-01 00:00:00]:
-            input:
-              - grid_file
-              - extpar_file
-              - ERA5
-            output:
-              - icon_input [date: 2026-01-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  grid:
+                    - grid_file
+                  extpar:
+                    - extpar_file
+                  era:
+                    - ERA5
+                outputs:
+                  ini_cond:
+                    - icon_input [date: 2026-01-01 00:00:00]
             wait on:
               - icon [date: 2025-09-01 00:00:00]
             name: 'preproc'
@@ -485,14 +633,21 @@ cycles:
             plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2026-01-01 00:00:00]:
-            input:
-              - grid_file
-              - icon_input [date: 2026-01-01 00:00:00]
-              - icon_restart [date: 2025-11-01 00:00:00]
-            output:
-              - stream_1 [date: 2026-01-01 00:00:00]
-              - stream_2 [date: 2026-01-01 00:00:00]
-              - icon_restart [date: 2026-01-01 00:00:00]
+            components:
+              atm:
+                inputs:
+                  grid:
+                    - grid_file
+                  lbc:
+                    - icon_input [date: 2026-01-01 00:00:00]
+                  restart_file:
+                    - icon_restart [date: 2025-11-01 00:00:00]
+                outputs:
+                  output_streams:
+                    - stream_1 [date: 2026-01-01 00:00:00]
+                    - stream_2 [date: 2026-01-01 00:00:00]
+                  latest_restart_file:
+                    - icon_restart [date: 2026-01-01 00:00:00]
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
             computer: 'remote'
@@ -506,10 +661,14 @@ cycles:
             bin: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
         - postproc_1 [date: 2026-01-01 00:00:00]:
-            input:
-              - stream_1 [date: 2026-01-01 00:00:00]
-            output:
-              - postout_1 [date: 2026-01-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  dummy:
+                    - stream_1 [date: 2026-01-01 00:00:00]
+                outputs:
+                  processed:
+                    - postout_1 [date: 2026-01-01 00:00:00]
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
             computer: 'remote'
@@ -521,12 +680,18 @@ cycles:
             plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::None}'
         - store_and_clean_1 [date: 2026-01-01 00:00:00]:
-            input:
-              - postout_1 [date: 2026-01-01 00:00:00]
-              - stream_1 [date: 2026-01-01 00:00:00]
-              - icon_input [date: 2026-01-01 00:00:00]
-            output:
-              - stored_data_1 [date: 2026-01-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  postout:
+                    - postout_1 [date: 2026-01-01 00:00:00]
+                  streams:
+                    - stream_1 [date: 2026-01-01 00:00:00]
+                  icon_input:
+                    - icon_input [date: 2026-01-01 00:00:00]
+                outputs:
+                  archive:
+                    - stored_data_1 [date: 2026-01-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
             computer: 'remote'
@@ -540,12 +705,18 @@ cycles:
   - icon_bimonthly [date: 2026-03-01 00:00:00]:
       tasks:
         - preproc [date: 2026-03-01 00:00:00]:
-            input:
-              - grid_file
-              - extpar_file
-              - ERA5
-            output:
-              - icon_input [date: 2026-03-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  grid:
+                    - grid_file
+                  extpar:
+                    - extpar_file
+                  era:
+                    - ERA5
+                outputs:
+                  ini_cond:
+                    - icon_input [date: 2026-03-01 00:00:00]
             wait on:
               - icon [date: 2025-11-01 00:00:00]
             name: 'preproc'
@@ -560,14 +731,21 @@ cycles:
             plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2026-03-01 00:00:00]:
-            input:
-              - grid_file
-              - icon_input [date: 2026-03-01 00:00:00]
-              - icon_restart [date: 2026-01-01 00:00:00]
-            output:
-              - stream_1 [date: 2026-03-01 00:00:00]
-              - stream_2 [date: 2026-03-01 00:00:00]
-              - icon_restart [date: 2026-03-01 00:00:00]
+            components:
+              atm:
+                inputs:
+                  grid:
+                    - grid_file
+                  lbc:
+                    - icon_input [date: 2026-03-01 00:00:00]
+                  restart_file:
+                    - icon_restart [date: 2026-01-01 00:00:00]
+                outputs:
+                  output_streams:
+                    - stream_1 [date: 2026-03-01 00:00:00]
+                    - stream_2 [date: 2026-03-01 00:00:00]
+                  latest_restart_file:
+                    - icon_restart [date: 2026-03-01 00:00:00]
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 3, 1, 0, 0)}
             computer: 'remote'
@@ -581,10 +759,14 @@ cycles:
             bin: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
         - postproc_1 [date: 2026-03-01 00:00:00]:
-            input:
-              - stream_1 [date: 2026-03-01 00:00:00]
-            output:
-              - postout_1 [date: 2026-03-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  dummy:
+                    - stream_1 [date: 2026-03-01 00:00:00]
+                outputs:
+                  processed:
+                    - postout_1 [date: 2026-03-01 00:00:00]
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2026, 3, 1, 0, 0)}
             computer: 'remote'
@@ -596,12 +778,18 @@ cycles:
             plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::None}'
         - store_and_clean_1 [date: 2026-03-01 00:00:00]:
-            input:
-              - postout_1 [date: 2026-03-01 00:00:00]
-              - stream_1 [date: 2026-03-01 00:00:00]
-              - icon_input [date: 2026-03-01 00:00:00]
-            output:
-              - stored_data_1 [date: 2026-03-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  postout:
+                    - postout_1 [date: 2026-03-01 00:00:00]
+                  streams:
+                    - stream_1 [date: 2026-03-01 00:00:00]
+                  icon_input:
+                    - icon_input [date: 2026-03-01 00:00:00]
+                outputs:
+                  archive:
+                    - stored_data_1 [date: 2026-03-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2026, 3, 1, 0, 0)}
             computer: 'remote'
@@ -615,12 +803,18 @@ cycles:
   - icon_bimonthly [date: 2026-05-01 00:00:00]:
       tasks:
         - preproc [date: 2026-05-01 00:00:00]:
-            input:
-              - grid_file
-              - extpar_file
-              - ERA5
-            output:
-              - icon_input [date: 2026-05-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  grid:
+                    - grid_file
+                  extpar:
+                    - extpar_file
+                  era:
+                    - ERA5
+                outputs:
+                  ini_cond:
+                    - icon_input [date: 2026-05-01 00:00:00]
             wait on:
               - icon [date: 2026-01-01 00:00:00]
             name: 'preproc'
@@ -635,14 +829,21 @@ cycles:
             plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2026-05-01 00:00:00]:
-            input:
-              - grid_file
-              - icon_input [date: 2026-05-01 00:00:00]
-              - icon_restart [date: 2026-03-01 00:00:00]
-            output:
-              - stream_1 [date: 2026-05-01 00:00:00]
-              - stream_2 [date: 2026-05-01 00:00:00]
-              - icon_restart [date: 2026-05-01 00:00:00]
+            components:
+              atm:
+                inputs:
+                  grid:
+                    - grid_file
+                  lbc:
+                    - icon_input [date: 2026-05-01 00:00:00]
+                  restart_file:
+                    - icon_restart [date: 2026-03-01 00:00:00]
+                outputs:
+                  output_streams:
+                    - stream_1 [date: 2026-05-01 00:00:00]
+                    - stream_2 [date: 2026-05-01 00:00:00]
+                  latest_restart_file:
+                    - icon_restart [date: 2026-05-01 00:00:00]
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 5, 1, 0, 0)}
             computer: 'remote'
@@ -656,10 +857,14 @@ cycles:
             bin: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
         - postproc_1 [date: 2026-05-01 00:00:00]:
-            input:
-              - stream_1 [date: 2026-05-01 00:00:00]
-            output:
-              - postout_1 [date: 2026-05-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  dummy:
+                    - stream_1 [date: 2026-05-01 00:00:00]
+                outputs:
+                  processed:
+                    - postout_1 [date: 2026-05-01 00:00:00]
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2026, 5, 1, 0, 0)}
             computer: 'remote'
@@ -671,12 +876,18 @@ cycles:
             plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::None}'
         - store_and_clean_1 [date: 2026-05-01 00:00:00]:
-            input:
-              - postout_1 [date: 2026-05-01 00:00:00]
-              - stream_1 [date: 2026-05-01 00:00:00]
-              - icon_input [date: 2026-05-01 00:00:00]
-            output:
-              - stored_data_1 [date: 2026-05-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  postout:
+                    - postout_1 [date: 2026-05-01 00:00:00]
+                  streams:
+                    - stream_1 [date: 2026-05-01 00:00:00]
+                  icon_input:
+                    - icon_input [date: 2026-05-01 00:00:00]
+                outputs:
+                  archive:
+                    - stored_data_1 [date: 2026-05-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2026, 5, 1, 0, 0)}
             computer: 'remote'
@@ -690,12 +901,18 @@ cycles:
   - icon_bimonthly [date: 2026-07-01 00:00:00]:
       tasks:
         - preproc [date: 2026-07-01 00:00:00]:
-            input:
-              - grid_file
-              - extpar_file
-              - ERA5
-            output:
-              - icon_input [date: 2026-07-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  grid:
+                    - grid_file
+                  extpar:
+                    - extpar_file
+                  era:
+                    - ERA5
+                outputs:
+                  ini_cond:
+                    - icon_input [date: 2026-07-01 00:00:00]
             wait on:
               - icon [date: 2026-03-01 00:00:00]
             name: 'preproc'
@@ -710,14 +927,21 @@ cycles:
             plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2026-07-01 00:00:00]:
-            input:
-              - grid_file
-              - icon_input [date: 2026-07-01 00:00:00]
-              - icon_restart [date: 2026-05-01 00:00:00]
-            output:
-              - stream_1 [date: 2026-07-01 00:00:00]
-              - stream_2 [date: 2026-07-01 00:00:00]
-              - icon_restart [date: 2026-07-01 00:00:00]
+            components:
+              atm:
+                inputs:
+                  grid:
+                    - grid_file
+                  lbc:
+                    - icon_input [date: 2026-07-01 00:00:00]
+                  restart_file:
+                    - icon_restart [date: 2026-05-01 00:00:00]
+                outputs:
+                  output_streams:
+                    - stream_1 [date: 2026-07-01 00:00:00]
+                    - stream_2 [date: 2026-07-01 00:00:00]
+                  latest_restart_file:
+                    - icon_restart [date: 2026-07-01 00:00:00]
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 7, 1, 0, 0)}
             computer: 'remote'
@@ -731,10 +955,14 @@ cycles:
             bin: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
         - postproc_1 [date: 2026-07-01 00:00:00]:
-            input:
-              - stream_1 [date: 2026-07-01 00:00:00]
-            output:
-              - postout_1 [date: 2026-07-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  dummy:
+                    - stream_1 [date: 2026-07-01 00:00:00]
+                outputs:
+                  processed:
+                    - postout_1 [date: 2026-07-01 00:00:00]
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2026, 7, 1, 0, 0)}
             computer: 'remote'
@@ -746,12 +974,18 @@ cycles:
             plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::None}'
         - store_and_clean_1 [date: 2026-07-01 00:00:00]:
-            input:
-              - postout_1 [date: 2026-07-01 00:00:00]
-              - stream_1 [date: 2026-07-01 00:00:00]
-              - icon_input [date: 2026-07-01 00:00:00]
-            output:
-              - stored_data_1 [date: 2026-07-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  postout:
+                    - postout_1 [date: 2026-07-01 00:00:00]
+                  streams:
+                    - stream_1 [date: 2026-07-01 00:00:00]
+                  icon_input:
+                    - icon_input [date: 2026-07-01 00:00:00]
+                outputs:
+                  archive:
+                    - stored_data_1 [date: 2026-07-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2026, 7, 1, 0, 0)}
             computer: 'remote'
@@ -765,12 +999,18 @@ cycles:
   - icon_bimonthly [date: 2026-09-01 00:00:00]:
       tasks:
         - preproc [date: 2026-09-01 00:00:00]:
-            input:
-              - grid_file
-              - extpar_file
-              - ERA5
-            output:
-              - icon_input [date: 2026-09-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  grid:
+                    - grid_file
+                  extpar:
+                    - extpar_file
+                  era:
+                    - ERA5
+                outputs:
+                  ini_cond:
+                    - icon_input [date: 2026-09-01 00:00:00]
             wait on:
               - icon [date: 2026-05-01 00:00:00]
             name: 'preproc'
@@ -785,14 +1025,21 @@ cycles:
             plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2026-09-01 00:00:00]:
-            input:
-              - grid_file
-              - icon_input [date: 2026-09-01 00:00:00]
-              - icon_restart [date: 2026-07-01 00:00:00]
-            output:
-              - stream_1 [date: 2026-09-01 00:00:00]
-              - stream_2 [date: 2026-09-01 00:00:00]
-              - icon_restart [date: 2026-09-01 00:00:00]
+            components:
+              atm:
+                inputs:
+                  grid:
+                    - grid_file
+                  lbc:
+                    - icon_input [date: 2026-09-01 00:00:00]
+                  restart_file:
+                    - icon_restart [date: 2026-07-01 00:00:00]
+                outputs:
+                  output_streams:
+                    - stream_1 [date: 2026-09-01 00:00:00]
+                    - stream_2 [date: 2026-09-01 00:00:00]
+                  latest_restart_file:
+                    - icon_restart [date: 2026-09-01 00:00:00]
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 9, 1, 0, 0)}
             computer: 'remote'
@@ -806,10 +1053,14 @@ cycles:
             bin: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
         - postproc_1 [date: 2026-09-01 00:00:00]:
-            input:
-              - stream_1 [date: 2026-09-01 00:00:00]
-            output:
-              - postout_1 [date: 2026-09-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  dummy:
+                    - stream_1 [date: 2026-09-01 00:00:00]
+                outputs:
+                  processed:
+                    - postout_1 [date: 2026-09-01 00:00:00]
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2026, 9, 1, 0, 0)}
             computer: 'remote'
@@ -821,12 +1072,18 @@ cycles:
             plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::None}'
         - store_and_clean_1 [date: 2026-09-01 00:00:00]:
-            input:
-              - postout_1 [date: 2026-09-01 00:00:00]
-              - stream_1 [date: 2026-09-01 00:00:00]
-              - icon_input [date: 2026-09-01 00:00:00]
-            output:
-              - stored_data_1 [date: 2026-09-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  postout:
+                    - postout_1 [date: 2026-09-01 00:00:00]
+                  streams:
+                    - stream_1 [date: 2026-09-01 00:00:00]
+                  icon_input:
+                    - icon_input [date: 2026-09-01 00:00:00]
+                outputs:
+                  archive:
+                    - stored_data_1 [date: 2026-09-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2026, 9, 1, 0, 0)}
             computer: 'remote'
@@ -840,12 +1097,18 @@ cycles:
   - icon_bimonthly [date: 2026-11-01 00:00:00]:
       tasks:
         - preproc [date: 2026-11-01 00:00:00]:
-            input:
-              - grid_file
-              - extpar_file
-              - ERA5
-            output:
-              - icon_input [date: 2026-11-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  grid:
+                    - grid_file
+                  extpar:
+                    - extpar_file
+                  era:
+                    - ERA5
+                outputs:
+                  ini_cond:
+                    - icon_input [date: 2026-11-01 00:00:00]
             wait on:
               - icon [date: 2026-07-01 00:00:00]
             name: 'preproc'
@@ -860,14 +1123,21 @@ cycles:
             plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2026-11-01 00:00:00]:
-            input:
-              - grid_file
-              - icon_input [date: 2026-11-01 00:00:00]
-              - icon_restart [date: 2026-09-01 00:00:00]
-            output:
-              - stream_1 [date: 2026-11-01 00:00:00]
-              - stream_2 [date: 2026-11-01 00:00:00]
-              - icon_restart [date: 2026-11-01 00:00:00]
+            components:
+              atm:
+                inputs:
+                  grid:
+                    - grid_file
+                  lbc:
+                    - icon_input [date: 2026-11-01 00:00:00]
+                  restart_file:
+                    - icon_restart [date: 2026-09-01 00:00:00]
+                outputs:
+                  output_streams:
+                    - stream_1 [date: 2026-11-01 00:00:00]
+                    - stream_2 [date: 2026-11-01 00:00:00]
+                  latest_restart_file:
+                    - icon_restart [date: 2026-11-01 00:00:00]
             name: 'icon'
             coordinates: {'date': datetime.datetime(2026, 11, 1, 0, 0)}
             computer: 'remote'
@@ -881,10 +1151,14 @@ cycles:
             bin: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
             namelists: [NamelistFile(name='icon_master.namelist'), NamelistFile(name='NAMELIST_exclaim_ape_R02B04')]
         - postproc_1 [date: 2026-11-01 00:00:00]:
-            input:
-              - stream_1 [date: 2026-11-01 00:00:00]
-            output:
-              - postout_1 [date: 2026-11-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  dummy:
+                    - stream_1 [date: 2026-11-01 00:00:00]
+                outputs:
+                  processed:
+                    - postout_1 [date: 2026-11-01 00:00:00]
             name: 'postproc_1'
             coordinates: {'date': datetime.datetime(2026, 11, 1, 0, 0)}
             computer: 'remote'
@@ -896,12 +1170,18 @@ cycles:
             plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::None}'
         - store_and_clean_1 [date: 2026-11-01 00:00:00]:
-            input:
-              - postout_1 [date: 2026-11-01 00:00:00]
-              - stream_1 [date: 2026-11-01 00:00:00]
-              - icon_input [date: 2026-11-01 00:00:00]
-            output:
-              - stored_data_1 [date: 2026-11-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  postout:
+                    - postout_1 [date: 2026-11-01 00:00:00]
+                  streams:
+                    - stream_1 [date: 2026-11-01 00:00:00]
+                  icon_input:
+                    - icon_input [date: 2026-11-01 00:00:00]
+                outputs:
+                  archive:
+                    - stored_data_1 [date: 2026-11-01 00:00:00]
             name: 'store_and_clean_1'
             coordinates: {'date': datetime.datetime(2026, 11, 1, 0, 0)}
             computer: 'remote'
@@ -915,15 +1195,19 @@ cycles:
   - yearly [date: 2025-01-01 00:00:00]:
       tasks:
         - postproc_2 [date: 2025-01-01 00:00:00]:
-            input:
-              - stream_2 [date: 2025-01-01 00:00:00]
-              - stream_2 [date: 2025-03-01 00:00:00]
-              - stream_2 [date: 2025-05-01 00:00:00]
-              - stream_2 [date: 2025-07-01 00:00:00]
-              - stream_2 [date: 2025-09-01 00:00:00]
-              - stream_2 [date: 2025-11-01 00:00:00]
-            output:
-              - postout_2 [date: 2025-01-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  streams:
+                    - stream_2 [date: 2025-01-01 00:00:00]
+                    - stream_2 [date: 2025-03-01 00:00:00]
+                    - stream_2 [date: 2025-05-01 00:00:00]
+                    - stream_2 [date: 2025-07-01 00:00:00]
+                    - stream_2 [date: 2025-09-01 00:00:00]
+                    - stream_2 [date: 2025-11-01 00:00:00]
+                outputs:
+                  processed:
+                    - postout_2 [date: 2025-01-01 00:00:00]
             name: 'postproc_2'
             coordinates: {'date': datetime.datetime(2025, 1, 1, 0, 0)}
             computer: 'remote'
@@ -935,16 +1219,21 @@ cycles:
             plugin: 'shell'
             command: 'bash main_script_atm.sh --input {PORT::streams}'
         - store_and_clean_2 [date: 2025-01-01 00:00:00]:
-            input:
-              - postout_2 [date: 2025-01-01 00:00:00]
-              - stream_2 [date: 2025-01-01 00:00:00]
-              - stream_2 [date: 2025-03-01 00:00:00]
-              - stream_2 [date: 2025-05-01 00:00:00]
-              - stream_2 [date: 2025-07-01 00:00:00]
-              - stream_2 [date: 2025-09-01 00:00:00]
-              - stream_2 [date: 2025-11-01 00:00:00]
-            output:
-              - stored_data_2 [date: 2025-01-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  postout:
+                    - postout_2 [date: 2025-01-01 00:00:00]
+                  streams:
+                    - stream_2 [date: 2025-01-01 00:00:00]
+                    - stream_2 [date: 2025-03-01 00:00:00]
+                    - stream_2 [date: 2025-05-01 00:00:00]
+                    - stream_2 [date: 2025-07-01 00:00:00]
+                    - stream_2 [date: 2025-09-01 00:00:00]
+                    - stream_2 [date: 2025-11-01 00:00:00]
+                outputs:
+                  archive:
+                    - stored_data_2 [date: 2025-01-01 00:00:00]
             name: 'store_and_clean_2'
             coordinates: {'date': datetime.datetime(2025, 1, 1, 0, 0)}
             computer: 'remote'
@@ -958,15 +1247,19 @@ cycles:
   - yearly [date: 2026-01-01 00:00:00]:
       tasks:
         - postproc_2 [date: 2026-01-01 00:00:00]:
-            input:
-              - stream_2 [date: 2026-01-01 00:00:00]
-              - stream_2 [date: 2026-03-01 00:00:00]
-              - stream_2 [date: 2026-05-01 00:00:00]
-              - stream_2 [date: 2026-07-01 00:00:00]
-              - stream_2 [date: 2026-09-01 00:00:00]
-              - stream_2 [date: 2026-11-01 00:00:00]
-            output:
-              - postout_2 [date: 2026-01-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  streams:
+                    - stream_2 [date: 2026-01-01 00:00:00]
+                    - stream_2 [date: 2026-03-01 00:00:00]
+                    - stream_2 [date: 2026-05-01 00:00:00]
+                    - stream_2 [date: 2026-07-01 00:00:00]
+                    - stream_2 [date: 2026-09-01 00:00:00]
+                    - stream_2 [date: 2026-11-01 00:00:00]
+                outputs:
+                  processed:
+                    - postout_2 [date: 2026-01-01 00:00:00]
             name: 'postproc_2'
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
             computer: 'remote'
@@ -978,16 +1271,21 @@ cycles:
             plugin: 'shell'
             command: 'bash main_script_atm.sh --input {PORT::streams}'
         - store_and_clean_2 [date: 2026-01-01 00:00:00]:
-            input:
-              - postout_2 [date: 2026-01-01 00:00:00]
-              - stream_2 [date: 2026-01-01 00:00:00]
-              - stream_2 [date: 2026-03-01 00:00:00]
-              - stream_2 [date: 2026-05-01 00:00:00]
-              - stream_2 [date: 2026-07-01 00:00:00]
-              - stream_2 [date: 2026-09-01 00:00:00]
-              - stream_2 [date: 2026-11-01 00:00:00]
-            output:
-              - stored_data_2 [date: 2026-01-01 00:00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  postout:
+                    - postout_2 [date: 2026-01-01 00:00:00]
+                  streams:
+                    - stream_2 [date: 2026-01-01 00:00:00]
+                    - stream_2 [date: 2026-03-01 00:00:00]
+                    - stream_2 [date: 2026-05-01 00:00:00]
+                    - stream_2 [date: 2026-07-01 00:00:00]
+                    - stream_2 [date: 2026-09-01 00:00:00]
+                    - stream_2 [date: 2026-11-01 00:00:00]
+                outputs:
+                  archive:
+                    - stored_data_2 [date: 2026-01-01 00:00:00]
             name: 'store_and_clean_2'
             coordinates: {'date': datetime.datetime(2026, 1, 1, 0, 0)}
             computer: 'remote'

@@ -1,4 +1,5 @@
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Self
@@ -17,19 +18,29 @@ class NamelistFile(models.ConfigNamelistFileSpec):
 
     name: str = field(init=False)
     path: Path = field(repr=False)
+    namelist: f90nml.Namelist = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         self.name = self.path.name
-        self._namelist = f90nml.read(self.path)
+        self.namelist = f90nml.read(self.path)
 
     def __getitem__(self, k) -> Any:
-        return self._namelist.__getitem__(k)
+        return self.namelist.__getitem__(k)
 
     def __setitem__(self, k, v) -> None:
-        self._namelist.__setitem__(k, v)
+        self.namelist.__setitem__(k, v)
 
     def get(self, key: str, default: Any = None) -> Any:
-        return self._namelist.get(key, default=default)
+        return self.namelist.get(key, default=default)
+
+    def iter_nml(self, key: str) -> Iterator[f90nml.Namelist]:
+        match nmls := self.get(key):
+            case f90nml.Namelist():
+                yield nmls
+            case f90nml.namelist.Cogroup():
+                yield from nmls
+            case _:
+                yield
 
     @classmethod
     def from_config(cls: type[Self], config: models.ConfigNamelistFile, config_rootdir: Path) -> Self:
@@ -37,10 +48,6 @@ class NamelistFile(models.ConfigNamelistFileSpec):
         self = cls(path=path)
         self.update_from_specs(config.specs)
         return self
-
-    @property
-    def namelist(self) -> f90nml.Namelist:
-        return self._namelist
 
     def update_from_specs(self, specs: dict[str, Any]) -> None:
         """Updates the internal namelist from the specs."""
@@ -71,7 +78,8 @@ class NamelistFile(models.ConfigNamelistFileSpec):
     def _validate_namelist_path(config_namelist_path: Path, config_rootdir: Path) -> Path:
         if config_namelist_path.is_absolute():
             msg = f"Namelist path {config_namelist_path} must be relative with respect to config file."
-        namelist_path = config_namelist_path if config_rootdir is None else (config_rootdir / config_namelist_path)
+            raise ValueError(msg)
+        namelist_path = config_rootdir / config_namelist_path
         if not namelist_path.exists():
             msg = f"Namelist in path {namelist_path} does not exist."
             raise FileNotFoundError(msg)

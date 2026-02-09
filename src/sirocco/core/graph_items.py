@@ -13,6 +13,7 @@ from sirocco.parsing.yaml_data_models import (
     ConfigAvailableDataSpecs,
     ConfigBaseDataSpecs,
     ConfigBaseTaskSpecs,
+    ConfigCycleTask,
     ConfigGeneratedDataSpecs,
 )
 
@@ -22,7 +23,6 @@ if TYPE_CHECKING:
     from sirocco.parsing.cycling import CyclePoint
     from sirocco.parsing.yaml_data_models import (
         ConfigBaseData,
-        ConfigCycleTask,
         ConfigCycleTaskWaitOn,
         ConfigTask,
         TargetNodesBaseModel,
@@ -57,7 +57,7 @@ class GraphItem:
     label: str = field(init=False, repr=False)
     viz_status: VIZ_STATUS_T = field(default="undefined", repr=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.label = self.name
         if self.coordinates:
             self.label += "__" + "__".join(
@@ -101,7 +101,7 @@ class Data(ConfigBaseDataSpecs, GraphItem):
 class AvailableData(Data, ConfigAvailableDataSpecs):
     computer: str
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         Data.__post_init__(self)
         self.resolved_path = self.path
 
@@ -124,6 +124,15 @@ class GeneratedData(Data, ConfigGeneratedDataSpecs):
 
 
 @dataclass(kw_only=True)
+class TaskComponent:
+    """Internal representation of a task component"""
+
+    name: str
+    inputs: dict[str, list[Data]]
+    outputs: dict[str, list[GeneratedData]]
+
+
+@dataclass(kw_only=True)
 class Task(ConfigBaseTaskSpecs, GraphItem):
     """Internal representation of a task node"""
 
@@ -141,8 +150,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     cycle_point: CyclePoint
     cycle: Cycle = field(init=False, repr=False)
 
-    inputs: dict[str, list[Data]] = field(default_factory=dict)
-    outputs: dict[str, list[GeneratedData]] = field(default_factory=dict)
+    components: dict[str, TaskComponent] = field(default_factory=dict)
     wait_on: list[Task] = field(default_factory=list)
     waiters: list[Task] = field(default_factory=list, repr=False)
     parents: list[Task] = field(default_factory=list, repr=False)
@@ -150,11 +158,15 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
 
     _wait_on_specs: list[ConfigCycleTaskWaitOn] = field(default_factory=list, repr=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         GraphItem.__post_init__(self)
-        if set(self.inputs.keys()).intersection(self.outputs.keys()):
-            msg = f"task {self.name}: port names must be unique, even between inputs and outputs.\ninputs ports: {self.inputs.keys()}\noutputs ports: {self.outputs.keys()}"
-            raise ValueError(msg)
+        for comp_name, comp in self.components.items():
+            if set(comp.inputs.keys()).intersection(comp.outputs.keys()):
+                msg = f"task {self.name}"
+                if comp_name == ConfigCycleTask.__SINGLE_COMPONENT_NAME__:
+                    msg += f", component {comp_name}"
+                msg += f": port names must be unique, even between inputs and outputs.\ninputs ports: {comp.inputs.keys()}\noutputs ports: {comp.outputs.keys()}"
+                raise ValueError(msg)
         self.run_dir = (self.config_rootdir / self.RUN_ROOT / self.label).resolve()
 
     def __init_subclass__(cls, **kwargs):
@@ -165,16 +177,23 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
         Task.plugin_classes[cls.plugin] = cls
 
     def input_data_nodes(self) -> Iterator[Data]:
-        yield from chain(*self.inputs.values())
+        yield from chain(*(chain(*comp.inputs.values()) for comp in self.components.values()))
 
     def input_data_items(self) -> Iterator[tuple[str, Data]]:
-        yield from ((key, value) for key, values in self.inputs.items() for value in values)
+        yield from (
+            (key, value) for comp in self.components.values() for key, values in comp.inputs.items() for value in values
+        )
 
     def output_data_nodes(self) -> Iterator[GeneratedData]:
-        yield from chain(*self.outputs.values())
+        yield from chain(*(chain(*comp.outputs.values()) for comp in self.components.values()))
 
     def output_data_items(self) -> Iterator[tuple[str | None, Data]]:
-        yield from ((key, value) for key, values in self.outputs.items() for value in values)
+        yield from (
+            (key, value)
+            for comp in self.components.values()
+            for key, values in comp.outputs.items()
+            for value in values
+        )
 
     @classmethod
     def from_config(
@@ -195,13 +214,21 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
             config_rootdir=config_rootdir,
             coordinates=coordinates,
             cycle_point=cycle_point,
-            inputs={
-                port: [*chain(*(datastore.iter_from_cycle_spec(data_spec, coordinates) for data_spec in data_list))]
-                for port, data_list in graph_spec.inputs.items()
-            },
-            outputs={
-                port: [datastore[output_spec.name, coordinates] for output_spec in output_data]
-                for port, output_data in graph_spec.outputs.items()
+            components={
+                comp_name: TaskComponent(
+                    name=comp_name,
+                    inputs={
+                        port: [
+                            *chain(*(datastore.iter_from_cycle_spec(data_spec, coordinates) for data_spec in data_list))
+                        ]
+                        for port, data_list in conf_comp.inputs.items()
+                    },
+                    outputs={
+                        port: [datastore[output_spec.name, coordinates] for output_spec in output_data]
+                        for port, output_data in conf_comp.outputs.items()
+                    },
+                )
+                for comp_name, conf_comp in graph_spec.components.items()
             },
         )
 
@@ -260,6 +287,20 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
             env_list.append(f"export SIROCCO_START_DATE={self.cycle_point.chunk_start_date.isoformat()}")
             env_list.append(f"export SIROCCO_STOP_DATE={self.cycle_point.chunk_stop_date.isoformat()}")
         return env_list
+
+    def add_links(self) -> list[str]:
+        link_list: list[str] = []
+        for component in self.components.values():
+            if "link" in component.inputs:
+                link_list.extend([f"ln -s {data.resolved_path} ." for data in component.inputs["link"]])
+                if "link_content" in component.inputs:
+                    link_list.extend(
+                        [
+                            f"for item in {data.resolved_path}/*; do ln -s ${{item}} .; done"
+                            for data in component.inputs["link_content"]
+                        ]
+                    )
+        return link_list
 
     def to_yaml_state(self) -> dict[str, dict[str, Any]]:
         return {

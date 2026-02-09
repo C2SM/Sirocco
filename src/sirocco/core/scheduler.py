@@ -63,7 +63,7 @@ class Scheduler:
         script_lines.extend(task.sirocco_environemnt())
 
         # Linked input
-        script_lines.extend(self.add_links(task))
+        script_lines.extend(task.add_links())
 
         # Task runscript "content"
         script_lines.append("")
@@ -73,19 +73,6 @@ class Scheduler:
         # ================
         (task.run_dir / task.SUBMIT_FILENAME).write_text("\n".join(script_lines))
         task.jobid = self.submit_to_scheduler(task, dependency_type=dependency_type)
-
-    def add_links(self, task: Task) -> list[str]:
-        link_list: list[str] = []
-        if "link" in task.inputs:
-            link_list.extend([f"ln -s {data.resolved_path} ." for data in task.inputs["link"]])
-        if "link_content" in task.inputs:
-            link_list.extend(
-                [
-                    f"for item in {data.resolved_path}/*; do ln -s ${{item}} .; done"
-                    for data in task.inputs["link_content"]
-                ]
-            )
-        return link_list
 
     def header_lines(
         self,

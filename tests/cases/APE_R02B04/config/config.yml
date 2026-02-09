@@ -11,21 +11,23 @@ cycles:
         period: PT1H
       tasks:
         - icon:
-            inputs:
-              ecrad_data: [ecrad_data]
-              cloud_opt_props: [ECHAM6_CldOptProps]
-              rrtmg_lw: [rrtmg_lw]
-              dynamics_grid_file: [icon_grid]
-              restart_file:
-                - restart:
-                    when:
-                      after: *root_start_date
-                    target_cycle:
-                      lag: -PT1H
-            outputs:
-              finish_status: [finish]
-              latest_restart_file: [restart]
-              output_streams: [atm_2d, atm_3d_pl]
+            components:
+              atm:
+                inputs:
+                  ecrad_data: [ecrad_data]
+                  cloud_opt_props: [ECHAM6_CldOptProps]
+                  rrtmg_lw: [rrtmg_lw]
+                  dynamics_grid_file: [icon_grid]
+                  restart_file:
+                    - restart:
+                        when:
+                          after: *root_start_date
+                        target_cycle:
+                          lag: -PT1H
+                outputs:
+                  finish_status: [finish]
+                  latest_restart_file: [restart]
+                  output_streams: [atm_2d, atm_3d_pl]
         - post_proc:
             inputs:
               streams: [atm_2d, atm_3d_pl]

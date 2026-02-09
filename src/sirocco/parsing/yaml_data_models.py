@@ -237,11 +237,7 @@ def make_named_model_list_dict_converter[NAMED_BASE_T: _NamedBaseModel](
     return convert_named_model_list_dict
 
 
-class ConfigCycleTask(_NamedBaseModel):
-    """
-    To create an instance of a task in a cycle defined in a workflow file.
-    """
-
+class ConfigCycleTaskComponent(BaseModel):
     inputs: Annotated[
         dict[str, list[ConfigCycleTaskInput]],
         BeforeValidator(make_named_model_list_dict_converter(ConfigCycleTaskInput)),
@@ -250,9 +246,35 @@ class ConfigCycleTask(_NamedBaseModel):
         dict[str, list[ConfigCycleTaskOutput]],
         BeforeValidator(make_named_model_list_dict_converter(ConfigCycleTaskOutput)),
     ] = {}
+
+
+class ConfigCycleTask(_NamedBaseModel):
+    """
+    To create an instance of a task in a cycle defined in a workflow file.
+    """
+
+    __SINGLE_COMPONENT_NAME__: ClassVar[Literal["__SINGLE_COMPONENT__"]] = "__SINGLE_COMPONENT__"
+    components: dict[str, ConfigCycleTaskComponent] = {}
     wait_on: Annotated[
-        list[ConfigCycleTaskWaitOn], BeforeValidator(make_named_model_list_converter(ConfigCycleTaskWaitOn))
+        list[ConfigCycleTaskWaitOn],
+        BeforeValidator(make_named_model_list_converter(ConfigCycleTaskWaitOn)),
     ] = []
+
+    @model_validator(mode="before")
+    @classmethod
+    def ensure_components(cls, data: dict[str, Any]) -> dict[str, Any]:
+        """
+        Ensure single component if no "components" key is provided
+        """
+        # NOTE: execute _NamedBaseModel before model validator first because of this ordering issue
+        #       https://github.com/pydantic/pydantic/issues/10790
+        data = extract_merge_key_as_value(data)
+        if "components" not in data:
+            single_comp: dict[str, Any] = {}
+            for key in ("inputs", "outputs"):
+                single_comp[key] = data.pop(key, {})
+            data["components"] = {cls.__SINGLE_COMPONENT_NAME__: single_comp}
+        return data
 
 
 def select_cycling(spec: Any) -> Cycling:
