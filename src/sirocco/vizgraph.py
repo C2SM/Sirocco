@@ -67,9 +67,9 @@ class EdgeFace(enum.Enum):
     EDGE = __EDGE | edge_color(Hue.EDGE.value)
     EDGE_ACTIVE = __EDGE | __ACTIVE | edge_color(Hue.EDGE.value, status="active")
     EDGE_INACTIVE = __EDGE | edge_color(Hue.EDGE.value, status="inactive")
-    WAIT_ON_EDGE = EDGE | __WAIT  # type: ignore[operator] # dict[str, float | str] and dict[str, str] are compatible with _value_: dict[str, Any]
-    WAIT_ON_EDGE_ACTIVE = EDGE_ACTIVE | __WAIT  # type: ignore[operator] # same
-    WAIT_ON_EDGE_INACTIVE = EDGE_INACTIVE | __WAIT  # type: ignore[operator] # same
+    WAIT_ON_EDGE = EDGE | __WAIT  # type: ignore[operator]
+    WAIT_ON_EDGE_ACTIVE = EDGE_ACTIVE | __WAIT  # type: ignore[operator]
+    WAIT_ON_EDGE_INACTIVE = EDGE_INACTIVE | __WAIT  # type: ignore[operator]
 
     @classmethod
     def from_status(cls, task_status: VIZ_STATUS_T, *, wait: bool = False) -> EdgeFace:

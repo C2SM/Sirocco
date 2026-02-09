@@ -2,24 +2,23 @@
 
 from __future__ import annotations
 
-import hashlib
-from pathlib import Path
-from typing import assert_never
+from typing import TYPE_CHECKING, assert_never
 
 import aiida.orm
 from aiida.common.exceptions import NotExistent
 from aiida.transports.plugins.local import LocalTransport
 
 from sirocco import core
-from sirocco.engines.aiida.types import (
-    AiidaFileNode,
+from sirocco.engines.aiida.models import (
     AiidaMetadata,
     AiidaMetadataOptions,
     AiidaResources,
 )
-from sirocco.engines.aiida.utils import split_cmd_arg
 from sirocco.parsing._utils import TimeUtils
 from sirocco.parsing.cycling import DateCyclePoint
+
+if TYPE_CHECKING:
+    from sirocco.engines.aiida.types import FileNode
 
 
 class AiidaAdapter:
@@ -28,6 +27,50 @@ class AiidaAdapter:
     This class provides static methods for AiiDA-specific transformations,
     keeping the core domain AiiDA-agnostic.
     """
+
+    @staticmethod
+    def validate_workflow(workflow: core.Workflow) -> None:
+        """Validate that workflow can execute on AiiDA.
+
+        Performs upfront validation of AiiDA-specific requirements before
+        attempting to build the WorkGraph. This provides fail-fast behavior
+        with clear error messages.
+
+        Checks:
+        - All referenced computers exist in AiiDA database (from tasks and data)
+
+        Args:
+            workflow: The workflow to validate
+
+        Raises:
+            ValueError: If workflow cannot run on AiiDA, with details about what's missing
+        """
+        # Collect all computers referenced by tasks
+        computers = set()
+        for task in workflow.tasks:
+            if hasattr(task, "computer") and task.computer:
+                computers.add(task.computer)
+
+        # Collect all computers referenced by data
+        for data in workflow.data:
+            if hasattr(data, "computer") and data.computer:
+                computers.add(data.computer)
+
+        # Validate each computer exists
+        missing_computers = []
+        for computer_label in computers:
+            try:
+                aiida.orm.load_computer(computer_label)
+            except NotExistent:
+                missing_computers.append(computer_label)
+
+        if missing_computers:
+            msg = (
+                f"The following computers referenced in workflow are not found in AiiDA database: "
+                f"{', '.join(repr(c) for c in sorted(missing_computers))}. "
+                f"Please create them using 'verdi computer setup' or check your workflow configuration."
+            )
+            raise ValueError(msg)
 
     @staticmethod
     def build_graph_item_label(graph_item: core.GraphItem) -> str:
@@ -40,7 +83,7 @@ class AiidaAdapter:
         )
 
     @staticmethod
-    def create_input_data_node(core_data: core.AvailableData, *, used_by_icon: bool = False) -> AiidaFileNode:
+    def create_input_data_node(core_data: core.AvailableData, *, used_by_icon: bool = False) -> FileNode:
         """Create an AiiDA data node from AvailableData.
 
         Args:
@@ -73,136 +116,6 @@ class AiidaAdapter:
                 return aiida.orm.SinglefileData(file=str(core_data.path), label=label)
             return aiida.orm.FolderData(tree=str(core_data.path), label=label)
         return aiida.orm.RemoteData(remote_path=str(core_data.path), label=label, computer=computer)
-
-    # TODO: This needs to be generalized to cover all use cases
-    @staticmethod
-    def create_shell_code(task: core.ShellTask, computer: aiida.orm.Computer) -> aiida.orm.Code:
-        """Create or load an AiiDA Code for a shell task.
-
-        Determines whether to create PortableCode or InstalledCode based on where the
-        executable/script actually exists:
-        - If file exists locally (absolute or relative path) -> PortableCode (upload)
-        - If file exists remotely (absolute path only) -> InstalledCode (reference)
-        - If just executable name (no path separators) -> InstalledCode (assume in PATH)
-
-        Args:
-            task: The ShellTask to create code for
-            computer: The AiiDA computer
-
-        Returns:
-            The AiiDA Code object
-        """
-        from aiida_shell import ShellCode
-
-        # Determine the executable path to use
-        if task.path is not None:
-            executable_path = str(task.path)
-        else:
-            executable_path, _ = split_cmd_arg(task.command)
-
-        path_obj = Path(executable_path)
-
-        # Check if this is a path (contains separators) or just an executable name
-        is_path = "/" in executable_path or executable_path.startswith("./")
-
-        if not is_path:
-            # Just an executable name (e.g., "python", "bash") -> InstalledCode
-            code_label = executable_path
-
-            try:
-                code = aiida.orm.load_code(f"{code_label}@{computer.label}")
-            except NotExistent:
-                code = ShellCode(  # type: ignore[assignment]
-                    label=code_label,
-                    computer=computer,
-                    filepath_executable=executable_path,
-                    default_calc_job_plugin="core.shell",
-                    use_double_quotes=True,
-                )
-                _ = code.store()
-
-            return code
-
-        # It's a path - check if it exists locally
-        if not path_obj.is_absolute():
-            path_obj = path_obj.resolve()
-
-        exists_locally = path_obj.exists() and path_obj.is_file()
-
-        if exists_locally:
-            # File exists locally -> PortableCode
-            script_name = path_obj.name
-            script_dir = path_obj.parent
-
-            base_label = AiidaAdapter.remove_script_extension(script_name)
-
-            path_hash = hashlib.sha256(str(path_obj).encode()).hexdigest()[:8]
-
-            with open(path_obj, "rb") as f:
-                content_hash = hashlib.sha256(f.read()).hexdigest()[:8]
-
-            code_label = f"{base_label}-{path_hash}-{content_hash}"
-
-            try:
-                code = aiida.orm.load_code(f"{code_label}@{computer.label}")
-            except NotExistent:
-                code = aiida.orm.PortableCode(
-                    label=code_label,
-                    description=f"Shell script: {path_obj}",
-                    computer=computer,
-                    filepath_executable=script_name,
-                    filepath_files=str(script_dir),
-                    default_calc_job_plugin="core.shell",
-                )
-                _ = code.store()
-
-            return code
-
-        # File doesn't exist locally - check remotely
-        if not Path(executable_path).is_absolute():
-            msg = (
-                f"File not found locally at {path_obj}, and relative paths are not "
-                f"supported for remote files. Use an absolute path for remote files."
-            )
-            raise FileNotFoundError(msg)
-
-        # Check remote file existence
-        user = aiida.orm.User.collection.get_default()
-        if user is None:
-            msg = "No default AiiDA user available."
-            raise RuntimeError(msg)
-
-        authinfo = computer.get_authinfo(user)
-        with authinfo.get_transport() as transport:
-            if not transport.isfile(executable_path):
-                msg = (
-                    f"File not found locally or remotely: {executable_path}\n"
-                    f"Local path checked: {path_obj}\n"
-                    f"Remote path checked: {executable_path} on {computer.label}"
-                )
-                raise FileNotFoundError(msg)
-
-        # File exists remotely -> InstalledCode
-        script_name = Path(executable_path).name
-        base_label = AiidaAdapter.remove_script_extension(script_name)
-
-        path_hash = hashlib.sha256(executable_path.encode()).hexdigest()[:8]
-        code_label = f"{base_label}-{path_hash}"
-
-        try:
-            code = aiida.orm.load_code(f"{code_label}@{computer.label}")
-        except NotExistent:
-            code = ShellCode(  # type: ignore[assignment]
-                label=code_label,
-                description=f"Shell script: {executable_path}",
-                computer=computer,
-                filepath_executable=executable_path,
-                default_calc_job_plugin="core.shell",
-                use_double_quotes=True,
-            )
-            _ = code.store()
-
-        return code
 
     @staticmethod
     def build_scheduler_options(task: core.Task) -> AiidaMetadataOptions:
@@ -314,23 +227,8 @@ class AiidaAdapter:
             label = label.replace(invalid_char, "_")
         return label
 
-    @staticmethod
-    def remove_script_extension(name: str) -> str:
-        """Remove common script extensions from a filename.
-
-        Removes extensions: .sh, .py, .pl, .rb, .R, .lua, .js, .tcl
-
-        Args:
-            name: Filename potentially ending with a script extension
-
-        Returns:
-            Filename with extension removed, or original name if no match
-        """
-        script_extensions = (".sh", ".py", ".pl", ".rb", ".R", ".lua", ".js", ".tcl")
-        for ext in script_extensions:
-            if name.endswith(ext):
-                return name[: -len(ext)]
-        return name
+    # NOTE: Script extension removal has been moved to CodeFactory
+    # See: sirocco.engines.aiida.code_factory.CodeFactory.remove_script_extension
 
     @staticmethod
     def parse_mpi_cmd(mpi_cmd: str) -> str:

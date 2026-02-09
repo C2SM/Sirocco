@@ -28,12 +28,14 @@ from sirocco.engines.aiida.tasks import (
 )
 
 if TYPE_CHECKING:
-    from sirocco.engines.aiida.types import (
-        AiidaFileNode,
+    from sirocco.engines.aiida.models import (
         AiidaIconTaskSpec,
         AiidaShellTaskSpec,
-        DependencyTasks,
-        TaskOutputMapping,
+    )
+    from sirocco.engines.aiida.types import (
+        FileNode,
+        TaskDependencyMapping,
+        TaskMonitorOutputsMapping,
     )
 
 LOGGER = logging.getLogger(__name__)
@@ -70,6 +72,9 @@ def build_sirocco_workgraph(
     Returns:
         A WorkGraph ready for submission
 
+    Raises:
+        ValueError: If workflow cannot run on AiiDA (e.g., missing computers)
+
     Note:
         The resolved config path (for provenance) is read from core_workflow.resolved_config_path
         and will be stored in the WorkGraph extras.
@@ -88,6 +93,9 @@ def build_sirocco_workgraph(
         # Submit to AiiDA daemon
         wg.submit()
     """
+    # Validate workflow can run on AiiDA (fail fast with clear errors)
+    AiidaAdapter.validate_workflow(core_workflow)
+
     builder = WorkGraphBuilder(core_workflow)
     return builder.build(front_depth)
 
@@ -109,7 +117,7 @@ class WorkGraphBuilder:
         icon_specs: Pre-computed ICON task specifications
         task_outputs: Maps task_label -> dep_task.outputs namespace
         get_job_tasks: Maps task_label -> get_job_data task
-        launcher_deps: Maps launcher_name -> [parent_launcher_names]
+        launcher_parents: Maps launcher_name -> [parent_launcher_names]
     """
 
     def __init__(self, core_workflow: core.Workflow):
@@ -117,14 +125,14 @@ class WorkGraphBuilder:
         self.resolved_config_path = core_workflow.resolved_config_path
 
         # Pre-computed static configuration
-        self.data_nodes: dict[str, AiidaFileNode] = {}
+        self.data_nodes: dict[str, FileNode] = {}
         self.shell_specs: dict[str, AiidaShellTaskSpec] = {}
         self.icon_specs: dict[str, AiidaIconTaskSpec] = {}
 
         # Dynamic orchestration state
-        self.dependency_outputs: TaskOutputMapping = {}
-        self.dependency_tasks: DependencyTasks = {}
-        self.launcher_deps: dict[str, list[str]] = {}  # launcher_name -> [parents]
+        self.dependency_outputs: TaskMonitorOutputsMapping = {}
+        self.dependency_tasks: TaskDependencyMapping = {}
+        self.launcher_parents: dict[str, list[str]] = {}  # launcher_name -> [parents]
 
         self._wg: WorkGraph | None = None
         self._wg_name: str | None = None
@@ -223,9 +231,9 @@ class WorkGraphBuilder:
         # Track launcher dependencies for windowing
         # FIXME: No hard-coding, use actual distinction between Monitor and normal tasks
         launcher_name = f"{LAUNCHER_PREFIX}{self._wg_name}_{task_label}"
-        self.launcher_deps[launcher_name] = [
+        self.launcher_parents[launcher_name] = [
             f"{LAUNCHER_PREFIX}{self._wg_name}_{AiidaAdapter.build_graph_item_label(dep_task)}"
-            for dep_label in dependencies.parent_folders
+            for dep_label in dependencies.task_folders
             # Find the task object from the label
             for dep_task in self.workflow.tasks
             if AiidaAdapter.build_graph_item_label(dep_task) == dep_label
@@ -276,7 +284,7 @@ class WorkGraphBuilder:
         window_config = {
             "enabled": True,  # NOTE: Always enabled now, thus, even needed?
             "front_depth": front_depth,
-            "task_dependencies": self.launcher_deps,
+            "task_dependencies": self.launcher_parents,
         }
 
         extras: dict[str, Any] = {"window_config": window_config}

@@ -22,13 +22,13 @@ from sirocco.engines.aiida.dependencies import (
     resolve_icon_restart_file,
     resolve_shell_dependency_mappings,
 )
-from sirocco.engines.aiida.types import (
+from sirocco.engines.aiida.models import (
     AiidaIconTaskSpec,
     AiidaMetadata,
     AiidaMetadataOptions,
     DependencyInfo,
 )
-from tests.utils import create_available_data, create_generated_data
+from tests.unit.utils import create_available_data, create_generated_data
 
 
 class TestBuildSlurmDependencyDirective:
@@ -200,14 +200,14 @@ class TestBuildDependencyMapping:
         pprint(
             {
                 "port_mapping": mapping.port_mapping,
-                "parent_folders": mapping.parent_folders,
-                "job_ids": mapping.job_ids,
+                "parent_folders": mapping.task_folders,
+                "job_ids": mapping.task_job_ids,
             }
         )
 
         assert mapping.port_mapping == {}
-        assert mapping.parent_folders == {}
-        assert mapping.job_ids == {}
+        assert mapping.task_folders == {}
+        assert mapping.task_job_ids == {}
 
     def test_build_mapping_available_data_only(self, tmp_path):
         """Test building mapping for task with only AvailableData inputs."""
@@ -234,15 +234,15 @@ class TestBuildDependencyMapping:
         pprint(
             {
                 "port_mapping": mapping.port_mapping,
-                "parent_folders": mapping.parent_folders,
-                "job_ids": mapping.job_ids,
+                "parent_folders": mapping.task_folders,
+                "job_ids": mapping.task_job_ids,
             }
         )
 
         # AvailableData should not create dependencies
         assert mapping.port_mapping == {}
-        assert mapping.parent_folders == {}
-        assert mapping.job_ids == {}
+        assert mapping.task_folders == {}
+        assert mapping.task_job_ids == {}
 
     def test_build_mapping_with_generated_data(self):
         """Test building mapping for task with GeneratedData inputs."""
@@ -286,8 +286,8 @@ class TestBuildDependencyMapping:
         pprint(
             {
                 "port_mapping": mapping.port_mapping,
-                "parent_folders": mapping.parent_folders,
-                "job_ids": mapping.job_ids,
+                "parent_folders": mapping.task_folders,
+                "job_ids": mapping.task_job_ids,
             }
         )
 
@@ -296,11 +296,11 @@ class TestBuildDependencyMapping:
         assert len(mapping.port_mapping["input_port"]) == 1
         assert mapping.port_mapping["input_port"][0].dep_label == "producer"
 
-        assert "producer" in mapping.parent_folders
-        assert mapping.parent_folders["producer"].value == 123
+        assert "producer" in mapping.task_folders
+        assert mapping.task_folders["producer"].value == 123
 
-        assert "producer" in mapping.job_ids
-        assert mapping.job_ids["producer"].value == 456
+        assert "producer" in mapping.task_job_ids
+        assert mapping.task_job_ids["producer"].value == 456
 
     def test_build_mapping_with_missing_producer(self):
         """Test building mapping when producer doesn't exist."""
@@ -327,15 +327,15 @@ class TestBuildDependencyMapping:
         pprint(
             {
                 "port_mapping": mapping.port_mapping,
-                "parent_folders": mapping.parent_folders,
-                "job_ids": mapping.job_ids,
+                "parent_folders": mapping.task_folders,
+                "job_ids": mapping.task_job_ids,
             }
         )
 
         # Should skip this input (continue)
         assert mapping.port_mapping == {}
-        assert mapping.parent_folders == {}
-        assert mapping.job_ids == {}
+        assert mapping.task_folders == {}
+        assert mapping.task_job_ids == {}
 
     def test_build_mapping_producer_not_in_outputs(self):
         """Test building mapping when producer exists but not in task_output_mapping."""
@@ -374,15 +374,15 @@ class TestBuildDependencyMapping:
         pprint(
             {
                 "port_mapping": mapping.port_mapping,
-                "parent_folders": mapping.parent_folders,
-                "job_ids": mapping.job_ids,
+                "parent_folders": mapping.task_folders,
+                "job_ids": mapping.task_job_ids,
             }
         )
 
         # Should skip this dependency
         assert "input_port" not in mapping.port_mapping
-        assert mapping.parent_folders == {}
-        assert mapping.job_ids == {}
+        assert mapping.task_folders == {}
+        assert mapping.task_job_ids == {}
 
 
 def test_resolve_icon_restart_file_single_model(aiida_localhost, tmp_path):

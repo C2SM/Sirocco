@@ -10,7 +10,7 @@ from rich.pretty import pprint
 
 from sirocco import core
 from sirocco.engines.aiida.builder import WorkGraphBuilder, build_sirocco_workgraph
-from tests.utils import create_available_data, create_generated_data
+from tests.unit.utils import create_available_data, create_generated_data
 
 
 def create_builder_mock_task(name="valid_task", input_names=None, output_names=None):
@@ -123,10 +123,10 @@ class TestWorkGraphBuilder:
         """Test storing window config with valid and invalid front_depth."""
         wg = Mock()
         wg.extras = {}
-        builder.launcher_deps = {"task1": ["task0"]}
+        builder.launcher_parents = {"task1": ["task0"]}
 
         print(f"\n=== Test store_window_config (front_depth={front_depth}, should_raise={should_raise}) ===")
-        print(f"launcher_deps: {builder.launcher_deps}")
+        print(f"launcher_parents: {builder.launcher_parents}")
 
         if should_raise:
             with pytest.raises(ValueError, match="front_depth must be >= 1"):
@@ -228,29 +228,29 @@ class TestWorkGraphBuilder:
         # Verify the actual dependency structure is correct
         # Expected: task_a -> task_b -> task_c (linear dependency chain)
 
-        # launcher_deps maps launcher_name -> [parent_launcher_names]
+        # launcher_parents maps launcher_name -> [parent_launcher_names]
         # Find the launcher names for our tasks
         launcher_names = {name: name for name in task_names if name.startswith("launch_")}
         task_a_launcher = [n for n in launcher_names if "task_a" in n][0]
         task_b_launcher = [n for n in launcher_names if "task_b" in n][0]
         task_c_launcher = [n for n in launcher_names if "task_c" in n][0]
 
-        print("\n=== Builder launcher_deps ===")
-        pprint(builder.launcher_deps)
+        print("\n=== Builder launcher_parents ===")
+        pprint(builder.launcher_parents)
         print("\n=== Builder dependency_outputs ===")
         pprint(builder.dependency_outputs)
 
         # Verify dependency relationships
         # task_a should have no dependencies
-        assert task_a_launcher not in builder.launcher_deps or len(builder.launcher_deps[task_a_launcher]) == 0
+        assert task_a_launcher not in builder.launcher_parents or len(builder.launcher_parents[task_a_launcher]) == 0
 
         # task_b should depend on task_a
-        assert task_b_launcher in builder.launcher_deps
-        assert task_a_launcher in builder.launcher_deps[task_b_launcher]
+        assert task_b_launcher in builder.launcher_parents
+        assert task_a_launcher in builder.launcher_parents[task_b_launcher]
 
         # task_c should depend on task_b
-        assert task_c_launcher in builder.launcher_deps
-        assert task_b_launcher in builder.launcher_deps[task_c_launcher]
+        assert task_c_launcher in builder.launcher_parents
+        assert task_b_launcher in builder.launcher_parents[task_c_launcher]
 
         # Verify window config includes the dependency information
         assert "window_config" in wg.extras
@@ -721,7 +721,7 @@ def test_store_window_config_resolved_config_handling(
     """
     builder = WorkGraphBuilder(minimal_workflow)
     builder.workflow.name = workflow_name
-    builder.launcher_deps = {}
+    builder.launcher_parents = {}
 
     print("\n=== Test store_window_config resolved config handling ===")
     print(f"Config path type: {config_path_type}")
@@ -786,3 +786,49 @@ def test_store_window_config_resolved_config_handling(
     elif mock_logger.info.called and node_pk:
         log_call = mock_logger.info.call_args[0]
         # If pk is None, it shouldn't be logged
+
+
+class TestBuildSiroccoWorkgraphValidation:
+    """Test that build_sirocco_workgraph validates workflows."""
+
+    @patch("sirocco.engines.aiida.builder.AiidaAdapter.validate_workflow")
+    @patch("sirocco.engines.aiida.builder.WorkGraphBuilder")
+    def test_validation_called_before_building(self, mock_builder_class, mock_validate):
+        """Test that validate_workflow is called before building."""
+        # Create mock workflow
+        workflow = Mock(spec=core.Workflow)
+
+        # Mock the builder
+        mock_builder = Mock()
+        mock_wg = Mock(spec=WorkGraph)
+        mock_builder.build.return_value = mock_wg
+        mock_builder_class.return_value = mock_builder
+
+        # Call build_sirocco_workgraph
+        result = build_sirocco_workgraph(workflow, front_depth=2)
+
+        # Verify validation was called with the workflow
+        mock_validate.assert_called_once_with(workflow)
+
+        # Verify validation was called before builder.build
+        assert mock_validate.call_count == 1
+        assert mock_builder.build.call_count == 1
+
+        # Verify result is the WorkGraph
+        assert result == mock_wg
+
+    @patch("sirocco.engines.aiida.builder.AiidaAdapter.validate_workflow")
+    def test_validation_failure_prevents_building(self, mock_validate):
+        """Test that validation failure prevents WorkGraph building."""
+        # Create mock workflow
+        workflow = Mock(spec=core.Workflow)
+
+        # Make validation raise an error
+        mock_validate.side_effect = ValueError("Computer 'missing' not found")
+
+        # Should raise the validation error
+        with pytest.raises(ValueError, match="Computer 'missing' not found"):
+            build_sirocco_workgraph(workflow)
+
+        # Verify validation was attempted
+        mock_validate.assert_called_once_with(workflow)

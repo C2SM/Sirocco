@@ -12,6 +12,21 @@ from rich.pretty import pprint
 from sirocco.engines.aiida.topology import compute_topological_levels
 
 
+def get_remaining_deps(all_deps: dict, completed: set) -> dict:
+    """Compute remaining dependencies after some tasks have completed.
+
+    Args:
+        all_deps: Full dependency mapping {task: [dependencies]}
+        completed: Set of completed task names
+
+    Returns:
+        Dependency mapping with completed tasks removed
+    """
+    return {
+        task: [dep for dep in deps if dep not in completed] for task, deps in all_deps.items() if task not in completed
+    }
+
+
 class TestTopologicalLevels:
     """Test basic topological level computation."""
 
@@ -45,8 +60,14 @@ class TestTopologicalLevels:
         }
         levels = compute_topological_levels(task_deps)
 
+        print("\n=== Parallel branches ===")
+        print("Task dependencies:")
+        pprint(task_deps)
+        print("Computed levels:")
+        pprint(levels)
+
         assert levels["root"] == 0
-        # Both branches at same topological levels (but will diverge with dynamic levels!)
+        # Both branches at same topological levels (but will diverge with dynamic levels)
         assert levels["fast_1"] == 1
         assert levels["slow_1"] == 1
         assert levels["fast_2"] == 2
@@ -83,6 +104,12 @@ class TestTopologicalLevels:
         }
         levels = compute_topological_levels(task_deps)
 
+        print("\n=== Cross-branch dependency ===")
+        print("Task dependencies:")
+        pprint(task_deps)
+        print("Computed levels:")
+        pprint(levels)
+
         assert levels["fast_1"] == 0
         assert levels["medium_1"] == 0
         assert levels["fast_2"] == 1
@@ -118,17 +145,28 @@ class TestTopologicalLevels:
         task_deps = {"task_a": []}
         levels = compute_topological_levels(task_deps)
 
+        print("\n=== Single node ===")
+        print("Task dependencies:")
+        pprint(task_deps)
+        print("Computed levels:")
+        pprint(levels)
+
         assert levels["task_a"] == 0
 
     def test_empty_graph(self):
         """Test empty graph."""
         task_deps = {}
-        compute_topological_levels(task_deps)
+        levels = compute_topological_levels(task_deps)
+
+        print("\n=== Empty graph ===")
+        print("Task dependencies:")
+        pprint(task_deps)
+        print("Computed levels:")
+        pprint(levels)
 
     def test_parent_not_in_task_deps(self):
         """Test case where a parent is referenced but not defined as a task.
 
-        This covers line 37: if parent not in children.
         This tests defensive programming - the function should not crash even with malformed input.
         """
         task_deps = {
@@ -136,6 +174,12 @@ class TestTopologicalLevels:
             "task_b": ["task_a", "external_parent"],  # external_parent not in task_deps
         }
         levels = compute_topological_levels(task_deps)
+
+        print("\n=== Parent not in task_deps ===")
+        print("Task dependencies:")
+        pprint(task_deps)
+        print("Computed levels:")
+        pprint(levels)
 
         # Function should not crash
         # task_a has no dependencies, so it gets level 0
@@ -165,11 +209,7 @@ class TestDynamicLevels:
 
         # After root completes: remove it and recompute
         completed = {"root"}
-        remaining_deps = {
-            task: [dep for dep in deps if dep not in completed]
-            for task, deps in all_deps.items()
-            if task not in completed
-        }
+        remaining_deps = get_remaining_deps(all_deps, completed)
         dynamic_levels = compute_topological_levels(remaining_deps)
 
         print("\n=== Dynamic levels after root completes ===")
@@ -200,12 +240,15 @@ class TestDynamicLevels:
 
         # After root and fast_1 complete
         completed = {"root", "fast_1"}
-        remaining_deps = {
-            task: [dep for dep in deps if dep not in completed]
-            for task, deps in all_deps.items()
-            if task not in completed
-        }
+        remaining_deps = get_remaining_deps(all_deps, completed)
         dynamic_levels = compute_topological_levels(remaining_deps)
+
+        print("\n=== Fast branch advances independently ===")
+        print("Completed tasks:", completed)
+        print("Remaining dependencies:")
+        pprint(remaining_deps)
+        print("Dynamic levels:")
+        pprint(dynamic_levels)
 
         # Fast branch advances
         assert dynamic_levels["fast_2"] == 0  # No dependencies left!
@@ -227,12 +270,15 @@ class TestDynamicLevels:
 
         # After fast_1 completes (but medium_1 still running)
         completed = {"fast_1"}
-        remaining_deps = {
-            task: [dep for dep in deps if dep not in completed]
-            for task, deps in all_deps.items()
-            if task not in completed
-        }
+        remaining_deps = get_remaining_deps(all_deps, completed)
         dynamic_levels = compute_topological_levels(remaining_deps)
+
+        print("\n=== Cross-dependency blocks advancement (after fast_1) ===")
+        print("Completed tasks:", completed)
+        print("Remaining dependencies:")
+        pprint(remaining_deps)
+        print("Dynamic levels:")
+        pprint(dynamic_levels)
 
         assert dynamic_levels["fast_2"] == 0  # No dependencies left
         assert dynamic_levels["medium_1"] == 0  # No dependencies
@@ -240,79 +286,18 @@ class TestDynamicLevels:
 
         # After both fast_1 and medium_1 complete
         completed = {"fast_1", "medium_1"}
-        remaining_deps = {
-            task: [dep for dep in deps if dep not in completed]
-            for task, deps in all_deps.items()
-            if task not in completed
-        }
+        remaining_deps = get_remaining_deps(all_deps, completed)
         dynamic_levels = compute_topological_levels(remaining_deps)
+
+        print("\n=== Cross-dependency blocks advancement (after fast_1 and medium_1) ===")
+        print("Completed tasks:", completed)
+        print("Remaining dependencies:")
+        pprint(remaining_deps)
+        print("Dynamic levels:")
+        pprint(dynamic_levels)
 
         assert dynamic_levels["fast_2"] == 0
         assert dynamic_levels["medium_2"] == 1  # Max(fast_2) + 1
-
-
-class TestWindowSizeLogic:
-    """Test front-depth submission logic."""
-
-    def test_front_depth_zero_sequential(self):
-        """Test that front_depth=0 means sequential execution."""
-        # With front_depth=0, can only submit tasks at current level
-        current_max_level = 0
-        front_depth = 0
-
-        task_levels = {"task_a": 0, "task_b": 1, "task_c": 2}
-
-        # Can only submit level 0 tasks
-        submittable = {task for task, level in task_levels.items() if level <= current_max_level + front_depth}
-
-        assert "task_a" in submittable
-        assert "task_b" not in submittable
-        assert "task_c" not in submittable
-
-    def test_front_depth_one_ahead(self):
-        """Test that front_depth=1 allows submitting 1 level ahead."""
-        current_max_level = 0
-        front_depth = 1
-
-        task_levels = {"task_a": 0, "task_b": 1, "task_c": 2}
-
-        # Can submit levels 0 and 1
-        submittable = {task for task, level in task_levels.items() if level <= current_max_level + front_depth}
-
-        assert "task_a" in submittable
-        assert "task_b" in submittable  # Pre-submission!
-        assert "task_c" not in submittable
-
-    def test_front_depth_two_aggressive(self):
-        """Test that front_depth=2 allows submitting 2 levels ahead."""
-        current_max_level = 0
-        front_depth = 2
-
-        task_levels = {"task_a": 0, "task_b": 1, "task_c": 2, "task_d": 3}
-
-        # Can submit levels 0, 1, and 2
-        submittable = {task for task, level in task_levels.items() if level <= current_max_level + front_depth}
-
-        assert "task_a" in submittable
-        assert "task_b" in submittable
-        assert "task_c" in submittable  # Very aggressive pre-submission!
-        assert "task_d" not in submittable
-
-    def test_window_advances_with_max_level(self):
-        """Test that window advances as max running level increases."""
-        front_depth = 1
-        task_levels = {"task_a": 0, "task_b": 1, "task_c": 2, "task_d": 3}
-
-        # Initially, max level is 0
-        current_max_level = 0
-        submittable = {task for task, level in task_levels.items() if level <= current_max_level + front_depth}
-        assert submittable == {"task_a", "task_b"}
-
-        # After task_a starts, max level is still 0
-        # But after task_b starts, max level becomes 1
-        current_max_level = 1
-        submittable = {task for task, level in task_levels.items() if level <= current_max_level + front_depth}
-        assert submittable == {"task_a", "task_b", "task_c"}
 
 
 class TestComplexScenarios:
@@ -335,21 +320,31 @@ class TestComplexScenarios:
         completed_tasks = set()
         execution_sequence = []
 
+        print("\n=== Branch independence simulation ===")
+        print("Initial dependencies:")
+        pprint(all_deps)
+
         # Root completes
         completed_tasks.add("root")
-        remaining = {
-            t: [d for d in deps if d not in completed_tasks] for t, deps in all_deps.items() if t not in completed_tasks
-        }
+        remaining = get_remaining_deps(all_deps, completed_tasks)
         levels = compute_topological_levels(remaining)
         execution_sequence.append(("root_done", dict(levels)))
 
+        print("\nAfter root completes:")
+        print("Completed tasks:", completed_tasks)
+        print("Levels:")
+        pprint(levels)
+
         # Fast_1 completes (slow_1 still running)
         completed_tasks.add("fast_1")
-        remaining = {
-            t: [d for d in deps if d not in completed_tasks] for t, deps in all_deps.items() if t not in completed_tasks
-        }
+        remaining = get_remaining_deps(all_deps, completed_tasks)
         levels = compute_topological_levels(remaining)
         execution_sequence.append(("fast_1_done", dict(levels)))
+
+        print("\nAfter fast_1 completes:")
+        print("Completed tasks:", completed_tasks)
+        print("Levels:")
+        pprint(levels)
 
         # Verify: fast_2 should be level 0, while slow_2 is level 1
         assert levels["fast_2"] == 0  # Fast branch advances!
@@ -357,10 +352,13 @@ class TestComplexScenarios:
 
         # Fast_2 completes
         completed_tasks.add("fast_2")
-        remaining = {
-            t: [d for d in deps if d not in completed_tasks] for t, deps in all_deps.items() if t not in completed_tasks
-        }
+        remaining = get_remaining_deps(all_deps, completed_tasks)
         levels = compute_topological_levels(remaining)
+
+        print("\nAfter fast_2 completes:")
+        print("Completed tasks:", completed_tasks)
+        print("Levels:")
+        pprint(levels)
 
         # Verify: fast_3 should be level 0
         assert levels["fast_3"] == 0  # Fast branch continues advancing!
@@ -381,10 +379,21 @@ class TestComplexScenarios:
             "finalize": ["fast_3", "medium_3", "slow_3"],  # Convergence!
         }
 
+        print("\n=== Complex workflow with cross-deps ===")
+        print("Initial dependencies:")
+        pprint(all_deps)
+
         # After setup and fast_1 complete
         completed = {"setup", "fast_1"}
-        remaining = {t: [d for d in deps if d not in completed] for t, deps in all_deps.items() if t not in completed}
+        remaining = get_remaining_deps(all_deps, completed)
         levels = compute_topological_levels(remaining)
+
+        print("\nAfter setup and fast_1 complete:")
+        print("Completed tasks:", completed)
+        print("Remaining dependencies:")
+        pprint(remaining)
+        print("Levels:")
+        pprint(levels)
 
         # Fast branch advances
         assert levels["fast_2"] == 0
@@ -398,8 +407,15 @@ class TestComplexScenarios:
 
         # After fast_2 also completes
         completed.add("fast_2")
-        remaining = {t: [d for d in deps if d not in completed] for t, deps in all_deps.items() if t not in completed}
+        remaining = get_remaining_deps(all_deps, completed)
         levels = compute_topological_levels(remaining)
+
+        print("\nAfter fast_2 also completes:")
+        print("Completed tasks:", completed)
+        print("Remaining dependencies:")
+        pprint(remaining)
+        print("Levels:")
+        pprint(levels)
 
         # Now medium_2 can potentially start (if medium_1 is done)
         assert levels["fast_3"] == 0

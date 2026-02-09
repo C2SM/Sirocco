@@ -1,8 +1,8 @@
-"""Unit tests for sirocco.engines.aiida.types module."""
+"""Unit tests for sirocco.engines.aiida.models module."""
 
 import pytest
 
-from sirocco.engines.aiida.types import AiidaIconTaskSpec, AiidaShellTaskSpec
+from sirocco.engines.aiida.models import AiidaIconTaskSpec, AiidaShellTaskSpec
 
 
 class TestAiidaShellTaskSpecValidation:

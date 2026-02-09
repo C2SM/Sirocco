@@ -10,22 +10,24 @@ import aiida.orm
 
 from sirocco import core
 from sirocco.engines.aiida.adapter import AiidaAdapter
-from sirocco.engines.aiida.types import (
+from sirocco.engines.aiida.models import (
     AiidaIconTaskSpec,
     AiidaMetadata,
     AiidaMetadataOptions,
     DependencyInfo,
     DependencyMapping,
-    JobIds,
-    ParentFolders,
-    PortDependencyMapping,
-    TaskOutputMapping,
 )
 
 if TYPE_CHECKING:
     from f90nml import Namelist
 
-    from sirocco.engines.aiida.types import AiidaDataNodeMapping
+    from sirocco.engines.aiida.types import (
+        PortDataMapping,
+        PortDependencyMapping,
+        TaskFolderMapping,
+        TaskJobIdMapping,
+        TaskMonitorOutputsMapping,
+    )
 
 LOGGER = logging.getLogger(__name__)
 
@@ -147,14 +149,14 @@ def _resolve_icon_dependency(
             workdir_path,
             model_name,
             model_namelist_pks,
-            workdir_remote,  # type: ignore
+            workdir_remote,
         )
 
     return workdir_remote
 
 
 def resolve_icon_dependency_mapping(
-    parent_folders: ParentFolders | None,
+    parent_folders: TaskFolderMapping | None,
     port_dependency_mapping: PortDependencyMapping,
     master_namelist_pk: int,
     model_namelist_pks: dict,
@@ -197,7 +199,7 @@ def resolve_icon_dependency_mapping(
         parent_folders_loaded[dep_label] = node
 
     # Load master namelist to get model names
-    master_namelist_node: aiida.orm.SinglefileData = aiida.orm.load_node(master_namelist_pk)  # type: ignore
+    master_namelist_node: aiida.orm.SinglefileData = aiida.orm.load_node(master_namelist_pk)  # type: ignore[assignment]
     with master_namelist_node.open(mode="r") as f:
         master_nml_content = f.read()
     master_nml = f90nml.reads(master_nml_content)
@@ -270,11 +272,11 @@ def build_icon_calcjob_inputs(
     for model_name, model_pk in task_spec.model_namelist_pks.items():
         models[model_name] = aiida.orm.load_node(model_pk)
     if models:
-        inputs["models"] = models  # type: ignore[assignment]
+        inputs["models"] = models
 
     # Add wrapper script if present
     if task_spec.wrapper_script_pk is not None:
-        inputs["wrapper_script"] = aiida.orm.load_node(task_spec.wrapper_script_pk)  # type: ignore[assignment]
+        inputs["wrapper_script"] = aiida.orm.load_node(task_spec.wrapper_script_pk)
 
     # Add ALL input data nodes (both AvailableData and RemoteData for GeneratedData)
     for port_name, data_node in input_data_nodes.items():
@@ -293,7 +295,7 @@ def build_icon_calcjob_inputs(
             inputs[port_name] = data_node
 
     # Add metadata (convert Pydantic model to dict for AiiDA)
-    inputs["metadata"] = aiida_metadata.model_dump(mode="python", exclude_none=True)  # type: ignore[assignment]
+    inputs["metadata"] = aiida_metadata.model_dump(mode="python", exclude_none=True)
 
     LOGGER.debug("ICON inputs=%s", inputs)
 
@@ -335,7 +337,7 @@ def _resolve_remote_data_for_dependency(
 
 
 def resolve_shell_dependency_mappings(
-    parent_folders: ParentFolders,
+    parent_folders: TaskFolderMapping,
     port_dependency_mapping: PortDependencyMapping,
     original_filenames: dict,
 ) -> tuple[dict, dict, dict]:
@@ -402,7 +404,7 @@ def resolve_shell_dependency_mappings(
     return all_nodes, placeholder_to_node_key, filenames
 
 
-def build_slurm_dependency_directive(job_ids: JobIds) -> str:
+def build_slurm_dependency_directive(job_ids: TaskJobIdMapping) -> str:
     """Build SLURM --dependency directive from job IDs.
 
     Args:
@@ -417,7 +419,7 @@ def build_slurm_dependency_directive(job_ids: JobIds) -> str:
 
 def add_slurm_dependencies_to_metadata(
     base_metadata: AiidaMetadata,
-    job_ids: JobIds | None,
+    job_ids: TaskJobIdMapping | None,
     computer: aiida.orm.Computer | None,
     label: str | None = None,
 ) -> AiidaMetadata:
@@ -447,7 +449,7 @@ def add_slurm_dependencies_to_metadata(
     return AiidaMetadata(computer=computer, options=options)
 
 
-def collect_available_data_inputs(task: core.Task, aiida_data_nodes: AiidaDataNodeMapping) -> AiidaDataNodeMapping:
+def collect_available_data_inputs(task: core.Task, aiida_data_nodes: PortDataMapping) -> PortDataMapping:
     """Collect AvailableData input nodes for a task.
 
     Args:
@@ -469,18 +471,18 @@ def collect_available_data_inputs(task: core.Task, aiida_data_nodes: AiidaDataNo
 def build_dependency_mapping(
     task: core.Task,
     core_workflow: core.Workflow,
-    task_output_mapping: TaskOutputMapping,
+    task_output_mapping: TaskMonitorOutputsMapping,
 ) -> DependencyMapping:
     """Build dependency mapping for GeneratedData inputs.
 
     Returns:
-        DependencyMapping with port_mapping, parent_folders, and job_ids for connecting
+        DependencyMapping with port_mapping, task_folders, and task_job_ids for connecting
         this task to its upstream dependencies.
     """
 
     port_mapping: PortDependencyMapping = {}
-    parent_folders: ParentFolders = {}
-    job_ids: JobIds = {}
+    task_folders: TaskFolderMapping = {}
+    task_job_ids: TaskJobIdMapping = {}
 
     # Precompute: data_label → (producer_task_label, out_data)
     producers: dict[str, tuple[str, core.GeneratedData]] = {}
@@ -536,13 +538,13 @@ def build_dependency_mapping(
         )
 
         # Add parent folder + job_id for producer (only once)
-        if prev_label not in parent_folders:
+        if prev_label not in task_folders:
             job_data = task_output_mapping[prev_label]
-            parent_folders[prev_label] = job_data.remote_folder
-            job_ids[prev_label] = job_data.job_id
+            task_folders[prev_label] = job_data.remote_folder
+            task_job_ids[prev_label] = job_data.job_id
 
     return DependencyMapping(
         port_mapping=port_mapping,
-        parent_folders=parent_folders,
-        job_ids=job_ids,
+        task_folders=task_folders,
+        task_job_ids=task_job_ids,
     )

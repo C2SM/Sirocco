@@ -36,7 +36,7 @@ def test_branch_independence_execution(config_paths):
     from aiida.cmdline.utils.common import get_calcjob_report, get_workchain_report
     from aiida.orm import CalcJobNode
 
-    from tests.utils import (
+    from tests.integration.utils import (
         assert_branch_independence,
         assert_pre_submission_occurred,
         assert_submission_order,
@@ -221,7 +221,7 @@ def test_branch_independence_with_front_depths(config_paths, front_depth):
     from aiida.cmdline.utils.common import get_calcjob_report, get_workchain_report
     from aiida.orm import CalcJobNode
 
-    from tests.utils import (
+    from tests.integration.utils import (
         assert_branch_independence,
         extract_launcher_times,
     )
@@ -337,7 +337,7 @@ def test_complex_workflow_with_cross_dependencies(config_paths):
     from aiida.cmdline.utils.common import get_calcjob_report, get_workchain_report
     from aiida.orm import CalcJobNode
 
-    from tests.utils import (
+    from tests.integration.utils import (
         assert_branch_independence,
         assert_cross_dependency_respected,
         extract_launcher_times,

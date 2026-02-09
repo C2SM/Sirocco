@@ -1,7 +1,7 @@
-"""Utility functions for workgraph module.
+"""Utility functions for AiiDA engine module.
 
-General utilities that are not AiiDA-specific.
-AiiDA-specific transformations are in adapter.py.
+Helper functions for AiiDA-specific operations.
+AiiDA-specific domain transformations are in adapter.py.
 """
 
 from __future__ import annotations

@@ -13,8 +13,9 @@ from rich.pretty import pprint
 
 from sirocco import core
 from sirocco.engines.aiida.adapter import AiidaAdapter
-from sirocco.engines.aiida.types import AiidaMetadataOptions
-from tests.utils import (
+from sirocco.engines.aiida.code_factory import CodeFactory
+from sirocco.engines.aiida.models import AiidaMetadataOptions
+from tests.unit.utils import (
     create_authinfo,
     create_available_data,
     create_mock_icon_task,
@@ -36,6 +37,142 @@ def create_date_cycle_point():
     cycle_point.chunk_start_date = datetime(2026, 1, 1, 0, 0, 0, tzinfo=UTC)
     cycle_point.chunk_stop_date = datetime(2026, 1, 2, 0, 0, 0, tzinfo=UTC)
     return cycle_point
+
+
+class TestValidateWorkflow:
+    """Test AiidaAdapter.validate_workflow()."""
+
+    def test_validate_workflow_with_valid_computer(self, aiida_localhost):
+        """Test validation passes when all computers exist."""
+        # Create mock workflow with task referencing existing computer
+        task = Mock()
+        task.computer = aiida_localhost.label
+
+        workflow = Mock(spec=core.Workflow)
+        workflow.tasks = [task]
+        workflow.data = []
+
+        # Should not raise
+        AiidaAdapter.validate_workflow(workflow)
+
+    def test_validate_workflow_with_missing_computer(self):
+        """Test validation fails when computer doesn't exist."""
+        # Create mock workflow with task referencing non-existent computer
+        task = Mock()
+        task.computer = "nonexistent_computer"
+
+        workflow = Mock(spec=core.Workflow)
+        workflow.tasks = [task]
+        workflow.data = []
+
+        # Should raise ValueError with helpful message
+        with pytest.raises(ValueError, match=r"not found.*nonexistent_computer"):
+            AiidaAdapter.validate_workflow(workflow)
+
+    def test_validate_workflow_with_multiple_missing_computers(self, aiida_localhost):
+        """Test validation reports all missing computers."""
+        # Create tasks with mix of valid and invalid computers
+        task1 = Mock()
+        task1.computer = aiida_localhost.label
+
+        task2 = Mock()
+        task2.computer = "missing_computer_1"
+
+        task3 = Mock()
+        task3.computer = "missing_computer_2"
+
+        workflow = Mock(spec=core.Workflow)
+        workflow.tasks = [task1, task2, task3]
+        workflow.data = []
+
+        # Should raise with both missing computers mentioned
+        # ValueError: The following computers referenced in workflow are not found in AiiDA database: 'missing_computer_1', 'missing_computer_2'. Please create them using 'verdi computer setup' or check your workflow configuration.
+        with pytest.raises(ValueError, match=r"not found.*'missing_computer_1', 'missing_computer_2'") as exc_info:
+            # breakpoint()
+            AiidaAdapter.validate_workflow(workflow)
+
+        error_msg = str(exc_info.value)
+        assert "missing_computer_1" in error_msg
+        assert "missing_computer_2" in error_msg
+
+    def test_validate_workflow_with_no_computer_attribute(self):
+        """Test validation handles tasks without computer attribute."""
+        # Create mock task without computer attribute
+        task = Mock(spec=[])  # Empty spec = no attributes
+
+        workflow = Mock(spec=core.Workflow)
+        workflow.tasks = [task]
+        workflow.data = []
+
+        # Should not raise (tasks without computer are skipped)
+        AiidaAdapter.validate_workflow(workflow)
+
+    def test_validate_workflow_with_none_computer(self):
+        """Test validation handles tasks with computer=None."""
+        # Create mock task with computer=None
+        task = Mock()
+        task.computer = None
+
+        workflow = Mock(spec=core.Workflow)
+        workflow.tasks = [task]
+        workflow.data = []
+
+        # Should not raise (None computers are skipped)
+        AiidaAdapter.validate_workflow(workflow)
+
+    def test_validate_workflow_deduplicates_computers(self, aiida_localhost):
+        """Test validation checks each computer only once."""
+        # Create multiple tasks referencing same computer
+        task1 = Mock()
+        task1.computer = aiida_localhost.label
+
+        task2 = Mock()
+        task2.computer = aiida_localhost.label
+
+        workflow = Mock(spec=core.Workflow)
+        workflow.tasks = [task1, task2]
+        workflow.data = []
+
+        # Should not raise, and should only check computer once
+        with patch("aiida.orm.load_computer") as mock_load:
+            mock_load.return_value = aiida_localhost
+            AiidaAdapter.validate_workflow(workflow)
+            # Should be called once, not twice
+            assert mock_load.call_count == 1
+
+    def test_validate_workflow_with_data_computers(self, aiida_localhost):
+        """Test validation checks computers in available_data."""
+        # Create task with one computer
+        task = Mock()
+        task.computer = aiida_localhost.label
+
+        # Create data with different computer
+        data = Mock()
+        data.computer = "data_computer"
+
+        workflow = Mock(spec=core.Workflow)
+        workflow.tasks = [task]
+        workflow.data = [data]
+
+        # Should raise for missing data computer
+        with pytest.raises(ValueError, match="data_computer"):
+            AiidaAdapter.validate_workflow(workflow)
+
+    def test_validate_workflow_with_valid_data_computer(self, aiida_localhost):
+        """Test validation passes when data computers exist."""
+        # Create task and data both using existing computer
+        task = Mock()
+        task.computer = aiida_localhost.label
+
+        data = Mock()
+        data.computer = aiida_localhost.label
+
+        workflow = Mock(spec=core.Workflow)
+        workflow.tasks = [task]
+        workflow.data = [data]
+
+        # Should not raise
+        AiidaAdapter.validate_workflow(workflow)
 
 
 @pytest.mark.parametrize(
@@ -63,7 +200,7 @@ def create_date_cycle_point():
 )
 def test_remove_script_extension(input_name, expected):
     """Test script extension removal for common scripting languages."""
-    result = AiidaAdapter.remove_script_extension(input_name)
+    result = CodeFactory.remove_script_extension(input_name)
 
     print(f"\n=== Input: {input_name!r} ===")
     print(f"Result: {result!r}")
@@ -204,7 +341,7 @@ def test_create_shell_code_executable_name(mock_shell_code_class, mock_load_code
     mock_code_instance.store.return_value = None
     mock_shell_code_class.return_value = mock_code_instance
 
-    code = AiidaAdapter.create_shell_code(task, aiida_localhost)
+    code = CodeFactory.create_shell_code(task, aiida_localhost)
 
     print("\n=== Shell code creation (executable name) ===")
     print(f"Task command: {task.command!r}")
@@ -238,7 +375,7 @@ def test_create_shell_code_local_script(mock_portable_code_class, mock_load_code
     mock_code_instance.store.return_value = None
     mock_portable_code_class.return_value = mock_code_instance
 
-    code = AiidaAdapter.create_shell_code(task, aiida_localhost)
+    code = CodeFactory.create_shell_code(task, aiida_localhost)
 
     print("\n=== Shell code creation (local script) ===")
     print(f"Script file: {script_file}")
@@ -459,7 +596,7 @@ def test_create_shell_code_remote_file_exists(aiida_localhost):
     mock_authinfo = create_authinfo(mock_transport)
 
     with patch.object(aiida_localhost, "get_authinfo", return_value=mock_authinfo):
-        code = AiidaAdapter.create_shell_code(task, aiida_localhost)
+        code = CodeFactory.create_shell_code(task, aiida_localhost)
 
         print("\n=== Shell code creation (remote file) ===")
         print(f"Remote path: {remote_path}")
@@ -488,9 +625,9 @@ def test_create_shell_code_remote_file_not_found(mock_load_code, aiida_localhost
 
     with (
         patch.object(aiida_localhost, "get_authinfo", return_value=mock_authinfo),
-        pytest.raises(FileNotFoundError, match="File not found locally or remotely"),
+        pytest.raises(FileNotFoundError, match="File not found remotely"),
     ):
-        AiidaAdapter.create_shell_code(task, aiida_localhost)
+        CodeFactory.create_shell_code(task, aiida_localhost)
 
 
 # Patch: Mock User class to control default user availability for code creation
@@ -506,7 +643,7 @@ def test_create_shell_code_no_default_user(mock_load_code, mock_user_class, aiid
     task = create_mock_shell_task(command="/remote/path/script.sh")
 
     with pytest.raises(RuntimeError, match="No default AiiDA user available"):
-        AiidaAdapter.create_shell_code(task, aiida_localhost)
+        CodeFactory.create_shell_code(task, aiida_localhost)
 
 
 # Patch: Force NotExistent exception to test relative path validation logic
@@ -520,7 +657,7 @@ def test_create_shell_code_relative_path_rejected(mock_load_code, aiida_localhos
     task = create_mock_shell_task(command="./nonexistent_script.sh")
 
     with pytest.raises(FileNotFoundError, match="relative paths are not supported for remote files"):
-        AiidaAdapter.create_shell_code(task, aiida_localhost)
+        CodeFactory.create_shell_code(task, aiida_localhost)
 
 
 # Patch: Mock load_code to return existing code and verify code reuse path
@@ -532,7 +669,7 @@ def test_create_shell_code_loads_existing_code(mock_load_code, aiida_localhost):
 
     task = create_mock_shell_task(command="bash")
 
-    code = AiidaAdapter.create_shell_code(task, aiida_localhost)
+    code = CodeFactory.create_shell_code(task, aiida_localhost)
 
     print("\n=== Shell code creation (load existing) ===")
     print(f"Task command: {task.command!r}")
@@ -561,7 +698,7 @@ def test_create_shell_code_resolves_relative_path(tmp_path, aiida_localhost):
         # Use relative path
         task = create_mock_shell_task(path=Path(f"./{unique_name}"), command=f"bash {unique_name}")
 
-        code = AiidaAdapter.create_shell_code(task, aiida_localhost)
+        code = CodeFactory.create_shell_code(task, aiida_localhost)
 
         print("\n=== Shell code creation (resolve relative path) ===")
         print(f"Script file: {script_file}")
