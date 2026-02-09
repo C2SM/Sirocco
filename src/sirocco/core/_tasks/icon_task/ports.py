@@ -40,7 +40,7 @@ class PortHandler:
     section: str | None = None
     parameter: str | None = None
     target_link_name: str | None = None
-    custom_callable: Callable[[IconModel], None] | None = None
+    custom_callable: Callable[[str, IconModel], None] | None = None
 
     def __post_init__(self) -> None:
         if self.port_name in self.registered_handlers:
@@ -53,7 +53,7 @@ class PortHandler:
             msg = f"port {self.port_name} not valid for model type {model.model_type}"
             raise ValueError(msg)
         if self.custom_callable:
-            self.custom_callable(model)
+            self.custom_callable(self.port_name, model)
         else:
             if self.section is None or self.parameter is None:
                 msg = "section and parameter are required if a custom handler is not provided"
@@ -118,15 +118,15 @@ rrtmg_lw_handler = PortHandler(
 )
 
 
-def restart_in_handler_callable(model: IconModel) -> None:
+def restart_in_handler_callable(port_name: str, model: IconModel) -> None:
     if restart_write_mode := model.namelist["io_nml"].get("restart_write_mode") != "joint procs multifile":
         msg = f"Only supported restart_write_mode is 'joint procs multifile', got {restart_write_mode}"
         raise ValueError(msg)
     # Ignore empty restart port or possible when conditions
-    if not (data_list := model.inputs["restart_file"]):
+    if not (data_list := model.inputs[port_name]):
         return
     if len(data_list) > 1:
-        msg = "port 'restart_file' only accepts a single data object"
+        msg = f"port '{port_name}' only accepts a single data object"
         raise ValueError(msg)
     (model.task_run_dir / f"multifile_restart_{model.name}.mfr").symlink_to(data_list[0].resolved_path)
 
@@ -138,15 +138,15 @@ restart_in_handler = PortHandler(
 )
 
 
-def restart_out_handler_callable(model: IconModel) -> None:
+def restart_out_handler_callable(port_name: str, model: IconModel) -> None:
     if restart_write_mode := model.namelist["io_nml"].get("restart_write_mode") != "joint procs multifile":
         msg = f"Only supported restart_write_mode is 'joint procs multifile', got {restart_write_mode}"
         raise ValueError(msg)
     # Ignore empty restart port or possible when conditions
-    if not (data_list := model.inputs["latest_restart_file"]):
+    if not (data_list := model.inputs[port_name]):
         return
     if len(data_list) > 1:
-        msg = "port 'latest_restart_file' only accepts a single data object"
+        msg = f"port '{port_name}' only accepts a single data object"
         raise ValueError(msg)
     data_list[0].resolved_path = model.task_run_dir / f"multifile_restart_{model.name}.mfr"
 
@@ -158,7 +158,7 @@ restart_out_handler = PortHandler(
 )
 
 
-def output_streams_handler_callable(model: IconModel) -> None:
+def output_streams_handler_callable(port_name: str, model: IconModel) -> None:  # noqa: ARG001
     nml_streams = [*model.namelist.iter_nml("output_nml")]
     if (n_nml := len(nml_streams)) != (n_yaml := len(model.outputs["output_nml"])):
         msg = f"task {model.task_name}, model {model.name}: number of output streams speficied in namelist ({n_nml}) differs from number of streams specified in the workflow config ({n_yaml})"
@@ -185,7 +185,7 @@ output_streams_handler = PortHandler(
 )
 
 
-def finish_status_handler_callable(model: IconModel) -> None:
+def finish_status_handler_callable(port_name: str, model: IconModel) -> None:  # noqa: ARG001
     if len(model.outputs["finish_status"]) != 1:
         msg = "port finish_status accepts one and only one data object"
         raise ValueError(msg)

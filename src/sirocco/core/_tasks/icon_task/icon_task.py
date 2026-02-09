@@ -7,8 +7,6 @@ from itertools import chain
 from pathlib import Path
 from typing import Any, ClassVar, Literal, Self
 
-import f90nml
-
 from sirocco.core._tasks.icon_task.ports import IconModel, ModelType, PortHandler
 from sirocco.core.graph_items import Task
 from sirocco.core.namelistfile import NamelistFile
@@ -21,8 +19,7 @@ LOGGER = logging.getLogger(__name__)
 @dataclass(kw_only=True)
 class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
     _MASTER_NAMELIST_NAME: ClassVar[str] = field(default="icon_master.namelist", repr=False)
-    _MASTER_MODEL_NML_SECTION: ClassVar[str] = field(default="master_model_nml", repr=False)
-    _AIIDA_ICON_RESTART_FILE_PORT_NAME: ClassVar[str] = field(default="restart_file", repr=False)
+    ICON_RESTART_IN_PORT_NAME: ClassVar[str] = field(default="restart_file", repr=False)
     _MAIN: ClassVar[str] = field(default="main.sh", repr=False)
     namelists: list[NamelistFile]
     master_namelist: NamelistFile = field(init=False, repr=False)
@@ -47,7 +44,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         model_types: dict[str, int] = {}
         for master_model_nml in self.master_namelist.iter_nml("master_model_nml"):
             if not isinstance((filename := master_model_nml.get("model_namelist_filename")), str):
-                msg = f"master_model_nml does not contain a valid 'model_namelist_filename' parameter"
+                msg = "master_model_nml does not contain a valid 'model_namelist_filename' parameter"
                 raise KeyError(msg)
             if filename not in namelist_by_filename:
                 msg = f"namelist {filename} required by {self._MASTER_NAMELIST_NAME!r} not found in provided namelists"
@@ -96,6 +93,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                 self.ntasks_per_node = 4
 
     # FIXME: This is only used by workgraph, use self.models directly instead
+    #        (Wait for workgraph.py refactor before doing so)
     @property
     def model_namelists(self) -> dict[str, NamelistFile]:
         """Return mapping of model names to their namelist files."""
@@ -114,10 +112,10 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
     def is_restart(self) -> bool:
         """Check if the icon task starts from restart file(s)."""
         # Get restart status of first model
-        restart_ref = bool(next(iter(self.models.values())).inputs.get(self._AIIDA_ICON_RESTART_FILE_PORT_NAME, False))
+        restart_ref = bool(next(iter(self.models.values())).inputs.get(self.ICON_RESTART_IN_PORT_NAME, False))
         # Check if all models have the same restart status
         for model in self.models.values():
-            if bool(model.inputs.get(self._AIIDA_ICON_RESTART_FILE_PORT_NAME, False)) != restart_ref:
+            if bool(model.inputs.get(self.ICON_RESTART_IN_PORT_NAME, False)) != restart_ref:
                 msg = "All CON models must have the same restart status"
                 raise ValueError(msg)
         return restart_ref
