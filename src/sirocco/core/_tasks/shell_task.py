@@ -10,6 +10,8 @@ from sirocco.parsing import yaml_data_models as models
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from sirocco.core.graph_items import Data
+
 
 @dataclass(kw_only=True)
 class ShellTask(models.ConfigShellTaskSpecs, Task):
@@ -32,6 +34,24 @@ class ShellTask(models.ConfigShellTaskSpecs, Task):
         if config.path is not None:
             self.path = self._validate_path(config.path, config_rootdir)
         return self
+
+    @property
+    def inputs(self) -> dict[str, list[Data]]:
+        if (len(self.components) > 1) or (
+            next(iter(self.components.keys())) != models.ConfigCycleTask.__SINGLE_COMPONENT_NAME__
+        ):
+            msg = "Only single component taks can unambiguously define inputs"
+            raise ValueError(msg)
+        return next(iter(self.components.values())).inputs
+
+    @property
+    def outputs(self) -> dict[str, list[GeneratedData]]:
+        if (len(self.components) > 1) or (
+            next(iter(self.components.keys())) != models.ConfigCycleTask.__SINGLE_COMPONENT_NAME__
+        ):
+            msg = "Only single component taks can unambiguously define outputs"
+            raise ValueError(msg)
+        return next(iter(self.components.values())).outputs
 
     @staticmethod
     def _validate_path(path: Path, config_rootdir: Path) -> Path:

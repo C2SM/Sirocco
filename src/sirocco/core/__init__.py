@@ -7,6 +7,7 @@ from .graph_items import (
     GraphItem,
     MpiCmdPlaceholder,
     Task,
+    TaskComponent,
 )
 from .workflow import Workflow
 
@@ -21,5 +22,6 @@ __all__ = [
     "ShellTask",
     "SiroccoContinueTask",
     "Task",
+    "TaskComponent",
     "Workflow",
 ]
