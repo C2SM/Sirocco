@@ -7,6 +7,8 @@ from itertools import chain
 from pathlib import Path
 from typing import Any, ClassVar, Literal, Self
 
+import f90nml
+
 from sirocco.core._tasks.icon_task.ports import IconModel, ModelType, PortHandler
 from sirocco.core.graph_items import Task
 from sirocco.core.namelistfile import NamelistFile
@@ -44,16 +46,19 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         model_namelists: dict[str, NamelistFile] = {}
         model_types: dict[str, int] = {}
         for master_model_nml in self.master_namelist.iter_nml("master_model_nml"):
-            if (filename := master_model_nml["model_namelist_filename"]) not in namelist_by_filename:
+            if not isinstance((filename := master_model_nml.get("model_namelist_filename")), str):
+                msg = f"master_model_nml does not contain a valid 'model_namelist_filename' parameter"
+                raise KeyError(msg)
+            if filename not in namelist_by_filename:
                 msg = f"namelist {filename} required by {self._MASTER_NAMELIST_NAME!r} not found in provided namelists"
-                raise ValueError(msg)
-            if (model_name := master_model_nml.get("model_name")) is None:
-                msg = f"master_model_nml associated to {filename} has no 'model_name' parameter"
-                raise ValueError(msg)
+                raise KeyError(msg)
+            if not isinstance(model_name := master_model_nml.get("model_name"), str):
+                msg = f"master_model_nml associated to {filename} has an ivalid or missing 'model_name' parameter"
+                raise KeyError(msg)
             model_namelists[model_name] = namelist_by_filename[filename]
-            if (model_type := master_model_nml.get("model_type")) is None:
-                msg = f"master_model_nml associated to {filename} has no 'model_type' parameter"
-                raise ValueError(msg)
+            if not isinstance(model_type := master_model_nml.get("model_type"), int):
+                msg = f"master_model_nml associated to {filename} has an invalid or missing 'model_type' parameter"
+                raise KeyError(msg)
             model_types[model_name] = model_type
 
         # Check if models and config component names match
