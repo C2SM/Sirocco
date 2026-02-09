@@ -7,7 +7,7 @@ Tests that verify Sirocco tasks are correctly converted to AiiDA task specs
 import pytest
 
 from sirocco.core import Workflow
-from sirocco.engines.aiida.tasks import build_shell_task_spec
+from sirocco.engines.aiida.spec_builders import build_shell_task_spec
 from sirocco.parsing.yaml_data_models import ConfigWorkflow
 
 

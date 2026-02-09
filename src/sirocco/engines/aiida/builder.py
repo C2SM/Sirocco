@@ -19,12 +19,14 @@ from sirocco.engines.aiida.dependencies import (
     build_dependency_mapping,
     collect_available_data_inputs,
 )
-from sirocco.engines.aiida.tasks import (
+from sirocco.engines.aiida.spec_builders import (
+    build_icon_task_spec,
+    build_shell_task_spec,
+)
+from sirocco.engines.aiida.task_pairs import (
     LAUNCHER_PREFIX,
     add_icon_task_pair,
     add_shell_task_pair,
-    build_icon_task_spec,
-    build_shell_task_spec,
 )
 
 if TYPE_CHECKING:
