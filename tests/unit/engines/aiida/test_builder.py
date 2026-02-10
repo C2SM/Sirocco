@@ -26,6 +26,7 @@ def create_builder_mock_task(name="valid_task", input_names=None, output_names=N
     """
     task = Mock(spec=core.Task)
     task.name = name
+    task.computer = None  # Prevent computer validation from failing
 
     # Create input data mocks with name attributes
     if input_names:
@@ -80,7 +81,9 @@ class TestWorkGraphBuilder:
         ],
     )
     def test_validate_labels(self, builder, task_name, input_names, should_raise):
-        """Test label validation with valid and invalid labels."""
+        """Test label validation with valid and invalid labels (now in adapter)."""
+        from sirocco.engines.aiida.adapter import AiidaAdapter
+
         task = create_builder_mock_task(name=task_name, input_names=input_names)
         builder.workflow.tasks = [task]
 
@@ -88,9 +91,9 @@ class TestWorkGraphBuilder:
 
         if should_raise:
             with pytest.raises(ValueError, match="invalid"):
-                builder._validate_labels()
+                AiidaAdapter.validate_workflow(builder.workflow)
         else:
-            builder._validate_labels()  # Should not raise
+            AiidaAdapter.validate_workflow(builder.workflow)  # Should not raise
 
     @pytest.mark.parametrize(
         ("workflow_name", "expected_name"),
@@ -329,28 +332,28 @@ def test_build_sirocco_workgraph(
 
 
 def test_validate_labels_invalid_output_name(minimal_workflow):
-    """Test that invalid output names raise ValueError."""
-    builder = WorkGraphBuilder(minimal_workflow)
+    """Test that invalid output names raise ValueError (now in adapter)."""
+    from sirocco.engines.aiida.adapter import AiidaAdapter
 
     # Create task with invalid output name
     task = create_builder_mock_task(name="test_task", output_names=["invalid:output"])
-    builder.workflow.tasks = [task]
+    minimal_workflow.tasks = [task]
 
     print("\n=== Test validate_labels with invalid output name ===")
     print("Task name: test_task")
     print("Output names: ['invalid:output']")
 
     with pytest.raises(ValueError, match="validating output name 'invalid:output'"):
-        builder._validate_labels()
+        AiidaAdapter.validate_workflow(minimal_workflow)
 
 
 def test_validate_labels_output_error_message_format(minimal_workflow):
-    """Test that output validation errors have proper message format."""
-    builder = WorkGraphBuilder(minimal_workflow)
+    """Test that output validation errors have proper message format (now in adapter)."""
+    from sirocco.engines.aiida.adapter import AiidaAdapter
 
     # Create task with output containing multiple invalid chars
     task = create_builder_mock_task(name="task_a", output_names=["output/data"])
-    builder.workflow.tasks = [task]
+    minimal_workflow.tasks = [task]
 
     print("\n=== Test validate_labels output error message format ===")
     print("Task name: task_a")
@@ -358,7 +361,7 @@ def test_validate_labels_output_error_message_format(minimal_workflow):
     print("Expected: ValueError with 'output name' and 'output/data'")
 
     with pytest.raises(ValueError, match="output name") as excinfo:
-        builder._validate_labels()
+        AiidaAdapter.validate_workflow(minimal_workflow)
 
     # Verify error message mentions both the output name and the validation issue
     error_msg = str(excinfo.value)
@@ -793,45 +796,39 @@ def test_store_window_config_resolved_config_handling(
 
 
 class TestBuildSiroccoWorkgraphValidation:
-    """Test that build_sirocco_workgraph validates workflows."""
+    """Test that WorkGraphBuilder.build() validates workflows."""
 
     @patch("sirocco.engines.aiida.builder.AiidaAdapter.validate_workflow")
-    @patch("sirocco.engines.aiida.builder.WorkGraphBuilder")
-    def test_validation_called_before_building(self, mock_builder_class, mock_validate):
-        """Test that validate_workflow is called before building."""
-        # Create mock workflow
-        workflow = Mock(spec=core.Workflow)
+    def test_validation_called_during_build(self, mock_validate, minimal_workflow):
+        """Test that validate_workflow is called during build()."""
+        # Mock validation to do nothing
+        mock_validate.return_value = None
 
-        # Mock the builder
-        mock_builder = Mock()
-        mock_wg = Mock(spec=WorkGraph)
-        mock_builder.build.return_value = mock_wg
-        mock_builder_class.return_value = mock_builder
+        # Call build which should call validation
+        builder = WorkGraphBuilder(minimal_workflow)
 
-        # Call build_sirocco_workgraph
-        result = build_sirocco_workgraph(workflow)
+        # Mock the rest of the build process to avoid actual WorkGraph creation
+        with (
+            patch.object(builder, "_prepare_data_nodes"),
+            patch.object(builder, "_build_task_specs"),
+            patch.object(builder, "_create_workgraph", return_value=Mock(spec=WorkGraph)),
+            patch.object(builder, "_store_window_config"),
+        ):
+            builder.build()
 
         # Verify validation was called with the workflow
-        mock_validate.assert_called_once_with(workflow)
-
-        # Verify builder.build was called
-        mock_builder.build.assert_called_once_with()
-
-        # Verify result is the WorkGraph
-        assert result == mock_wg
+        mock_validate.assert_called_once_with(minimal_workflow)
 
     @patch("sirocco.engines.aiida.builder.AiidaAdapter.validate_workflow")
-    def test_validation_failure_prevents_building(self, mock_validate):
+    def test_validation_failure_prevents_building(self, mock_validate, minimal_workflow):
         """Test that validation failure prevents WorkGraph building."""
-        # Create mock workflow
-        workflow = Mock(spec=core.Workflow)
-
         # Make validation raise an error
         mock_validate.side_effect = ValueError("Computer 'missing' not found")
 
-        # Should raise the validation error
+        # Should raise the validation error during build
+        builder = WorkGraphBuilder(minimal_workflow)
         with pytest.raises(ValueError, match="Computer 'missing' not found"):
-            build_sirocco_workgraph(workflow)
+            builder.build()
 
         # Verify validation was attempted
-        mock_validate.assert_called_once_with(workflow)
+        mock_validate.assert_called_once_with(minimal_workflow)

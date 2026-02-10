@@ -39,14 +39,31 @@ def create_date_cycle_point():
     return cycle_point
 
 
+def create_mock_task_for_validation(name="test_task", computer=None):
+    """Helper to create a mock task for validation tests.
+
+    Args:
+        name: Task name (string)
+        computer: Computer label (string or None)
+
+    Returns:
+        Mock task with name, computer, and data node methods
+    """
+    task = Mock()
+    task.name = name
+    task.computer = computer
+    task.input_data_nodes.return_value = []
+    task.output_data_nodes.return_value = []
+    return task
+
+
 class TestValidateWorkflow:
     """Test AiidaAdapter.validate_workflow()."""
 
     def test_validate_workflow_with_valid_computer(self, aiida_localhost):
         """Test validation passes when all computers exist."""
         # Create mock workflow with task referencing existing computer
-        task = Mock()
-        task.computer = aiida_localhost.label
+        task = create_mock_task_for_validation(name="valid_task", computer=aiida_localhost.label)
 
         workflow = Mock(spec=core.Workflow)
         workflow.tasks = [task]
@@ -58,8 +75,7 @@ class TestValidateWorkflow:
     def test_validate_workflow_with_missing_computer(self):
         """Test validation fails when computer doesn't exist."""
         # Create mock workflow with task referencing non-existent computer
-        task = Mock()
-        task.computer = "nonexistent_computer"
+        task = create_mock_task_for_validation(name="test_task", computer="nonexistent_computer")
 
         workflow = Mock(spec=core.Workflow)
         workflow.tasks = [task]
@@ -72,14 +88,9 @@ class TestValidateWorkflow:
     def test_validate_workflow_with_multiple_missing_computers(self, aiida_localhost):
         """Test validation reports all missing computers."""
         # Create tasks with mix of valid and invalid computers
-        task1 = Mock()
-        task1.computer = aiida_localhost.label
-
-        task2 = Mock()
-        task2.computer = "missing_computer_1"
-
-        task3 = Mock()
-        task3.computer = "missing_computer_2"
+        task1 = create_mock_task_for_validation(name="task1", computer=aiida_localhost.label)
+        task2 = create_mock_task_for_validation(name="task2", computer="missing_computer_1")
+        task3 = create_mock_task_for_validation(name="task3", computer="missing_computer_2")
 
         workflow = Mock(spec=core.Workflow)
         workflow.tasks = [task1, task2, task3]
@@ -98,7 +109,10 @@ class TestValidateWorkflow:
     def test_validate_workflow_with_no_computer_attribute(self):
         """Test validation handles tasks without computer attribute."""
         # Create mock task without computer attribute
-        task = Mock(spec=[])  # Empty spec = no attributes
+        task = Mock(spec=["name", "input_data_nodes", "output_data_nodes"])  # No computer in spec
+        task.name = "test_task"
+        task.input_data_nodes.return_value = []
+        task.output_data_nodes.return_value = []
 
         workflow = Mock(spec=core.Workflow)
         workflow.tasks = [task]
@@ -110,8 +124,7 @@ class TestValidateWorkflow:
     def test_validate_workflow_with_none_computer(self):
         """Test validation handles tasks with computer=None."""
         # Create mock task with computer=None
-        task = Mock()
-        task.computer = None
+        task = create_mock_task_for_validation(name="test_task", computer=None)
 
         workflow = Mock(spec=core.Workflow)
         workflow.tasks = [task]
@@ -123,11 +136,8 @@ class TestValidateWorkflow:
     def test_validate_workflow_deduplicates_computers(self, aiida_localhost):
         """Test validation checks each computer only once."""
         # Create multiple tasks referencing same computer
-        task1 = Mock()
-        task1.computer = aiida_localhost.label
-
-        task2 = Mock()
-        task2.computer = aiida_localhost.label
+        task1 = create_mock_task_for_validation(name="task1", computer=aiida_localhost.label)
+        task2 = create_mock_task_for_validation(name="task2", computer=aiida_localhost.label)
 
         workflow = Mock(spec=core.Workflow)
         workflow.tasks = [task1, task2]
@@ -143,8 +153,7 @@ class TestValidateWorkflow:
     def test_validate_workflow_with_data_computers(self, aiida_localhost):
         """Test validation checks computers in available_data."""
         # Create task with one computer
-        task = Mock()
-        task.computer = aiida_localhost.label
+        task = create_mock_task_for_validation(name="task1", computer=aiida_localhost.label)
 
         # Create data with different computer
         data = Mock()
@@ -161,8 +170,7 @@ class TestValidateWorkflow:
     def test_validate_workflow_with_valid_data_computer(self, aiida_localhost):
         """Test validation passes when data computers exist."""
         # Create task and data both using existing computer
-        task = Mock()
-        task.computer = aiida_localhost.label
+        task = create_mock_task_for_validation(name="task1", computer=aiida_localhost.label)
 
         data = Mock()
         data.computer = aiida_localhost.label

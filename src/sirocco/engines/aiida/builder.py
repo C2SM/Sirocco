@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
 
 import aiida.orm
-from aiida.common import validate_link_label
 from aiida_workgraph import WorkGraph
 from aiida_workgraph.manager import set_current_graph
 
@@ -42,6 +41,8 @@ if TYPE_CHECKING:
 
 LOGGER = logging.getLogger(__name__)
 
+# TODO: Check if WG has a specific `Monitor` task, then we don't have to hard-code `launch_` anymore
+
 
 def build_sirocco_workgraph(
     core_workflow: core.Workflow,
@@ -57,7 +58,7 @@ def build_sirocco_workgraph(
         A WorkGraph ready for submission
 
     Raises:
-        ValueError: If workflow cannot run on AiiDA (e.g., missing computers)
+        ValueError: If workflow cannot run on AiiDA (e.g., missing computers, invalid labels)
 
     Note:
         The resolved config path (for provenance) is read from core_workflow.resolved_config_path
@@ -83,9 +84,6 @@ def build_sirocco_workgraph(
         # Submit to AiiDA daemon
         wg.submit()
     """
-    # Validate workflow can run on AiiDA (fail fast with clear errors)
-    AiidaAdapter.validate_workflow(core_workflow)
-
     builder = WorkGraphBuilder(core_workflow)
     return builder.build()
 
@@ -133,36 +131,20 @@ class WorkGraphBuilder:
         Returns:
             A WorkGraph ready for submission with window_config in extras
 
+        Raises:
+            ValueError: If workflow cannot run on AiiDA (e.g., missing computers, invalid labels)
+
         Note:
             front_depth is read from self.workflow.front_depth
         """
-        self._validate_labels()
+        # Validate workflow can run on AiiDA (fail fast with clear errors)
+        AiidaAdapter.validate_workflow(self.workflow)
+
         self._prepare_data_nodes()
         self._build_task_specs()
         wg = self._create_workgraph()
         self._store_window_config(wg, self.workflow.front_depth)
         return wg
-
-    def _validate_labels(self) -> None:
-        """Validate all workflow labels are AiiDA-compatible."""
-        for core_task in self.workflow.tasks:
-            try:
-                validate_link_label(core_task.name)
-            except ValueError as exception:
-                msg = f"Raised error when validating task name '{core_task.name}': {exception.args[0]}"
-                raise ValueError(msg) from exception
-            for input_ in core_task.input_data_nodes():
-                try:
-                    validate_link_label(input_.name)
-                except ValueError as exception:
-                    msg = f"Raised error when validating input name '{input_.name}': {exception.args[0]}"
-                    raise ValueError(msg) from exception
-            for output in core_task.output_data_nodes():
-                try:
-                    validate_link_label(output.name)
-                except ValueError as exception:
-                    msg = f"Raised error when validating output name '{output.name}': {exception.args[0]}"
-                    raise ValueError(msg) from exception
 
     def _prepare_data_nodes(self) -> None:
         """Create AiiDA data nodes for available data."""
@@ -251,7 +233,6 @@ class WorkGraphBuilder:
                     self.dependency_tasks,
                 )
 
-    # TODO: Check if WG has a specific `Monitor` task, then we don't have to hard-code `launch_` anymore
     def _generate_workgraph_name(self) -> str:
         """Generate unique WorkGraph name with timestamp."""
         base_name = self.workflow.name or "SIROCCO_WF"

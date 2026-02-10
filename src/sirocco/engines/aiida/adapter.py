@@ -38,6 +38,7 @@ class AiidaAdapter:
 
         Checks:
         - All referenced computers exist in AiiDA database (from tasks and data)
+        - All task and data labels are valid AiiDA link labels
 
         Args:
             workflow: The workflow to validate
@@ -45,6 +46,28 @@ class AiidaAdapter:
         Raises:
             ValueError: If workflow cannot run on AiiDA, with details about what's missing
         """
+        from aiida.common import validate_link_label
+
+        # Validate task and data labels are AiiDA-compatible
+        for task in workflow.tasks:
+            try:
+                validate_link_label(task.name)
+            except ValueError as exception:
+                msg = f"Raised error when validating task name '{task.name}': {exception.args[0]}"
+                raise ValueError(msg) from exception
+            for input_ in task.input_data_nodes():
+                try:
+                    validate_link_label(input_.name)
+                except ValueError as exception:
+                    msg = f"Raised error when validating input name '{input_.name}': {exception.args[0]}"
+                    raise ValueError(msg) from exception
+            for output in task.output_data_nodes():
+                try:
+                    validate_link_label(output.name)
+                except ValueError as exception:
+                    msg = f"Raised error when validating output name '{output.name}': {exception.args[0]}"
+                    raise ValueError(msg) from exception
+
         # Collect all computers referenced by tasks
         computers = set()
         for task in workflow.tasks:
