@@ -1,65 +1,26 @@
-"""Unit tests for sirocco.engines.aiida.dependencies module."""
+"""Unit tests for sirocco.engines.aiida.dependency_resolvers module."""
 
 import textwrap
 from unittest.mock import Mock, patch
 
 import aiida.orm
+import f90nml
 import pytest
 from rich.pretty import pprint
 
 from sirocco import core
 from sirocco.engines.aiida.adapter import AiidaAdapter
-from sirocco.engines.aiida.dependencies import (
-    _get_icon_output_stream_paths,
+from sirocco.engines.aiida.dependency_resolvers import (
     _resolve_icon_dependency,
-    _resolve_remote_data_for_dependency,
-    add_slurm_dependencies_to_metadata,
+    _resolve_icon_output_stream_paths,
+    _resolve_icon_restart_file,
     build_dependency_mapping,
-    build_icon_calcjob_inputs,
-    build_slurm_dependency_directive,
-    collect_available_data_inputs,
+    resolve_available_data_inputs,
     resolve_icon_dependency_mapping,
-    resolve_icon_restart_file,
     resolve_shell_dependency_mappings,
 )
-from sirocco.engines.aiida.models import (
-    AiidaIconTaskSpec,
-    AiidaMetadata,
-    AiidaMetadataOptions,
-    DependencyInfo,
-)
+from sirocco.engines.aiida.models import DependencyInfo
 from tests.unit.utils import create_available_data, create_generated_data
-
-
-class TestBuildSlurmDependencyDirective:
-    """Test SLURM dependency directive construction."""
-
-    def test_single_job_id(self):
-        """Test directive with single job ID."""
-        job_ids = {"task1": Mock(value=12345)}
-
-        directive = build_slurm_dependency_directive(job_ids)
-
-        print("\n=== SLURM dependency directive (single job) ===")
-        print(directive)
-
-        assert directive == "#SBATCH --dependency=afterok:12345 --kill-on-invalid-dep=yes"
-
-    def test_multiple_job_ids(self):
-        """Test directive with multiple job IDs."""
-        job_ids = {
-            "task1": Mock(value=12345),
-            "task2": Mock(value=67890),
-            "task3": Mock(value=11111),
-        }
-
-        directive = build_slurm_dependency_directive(job_ids)
-
-        print("\n=== SLURM dependency directive (multiple jobs) ===")
-        print(directive)
-
-        # Dict maintains insertion order in Python 3.7+, so order is deterministic
-        assert directive == "#SBATCH --dependency=afterok:12345:67890:11111 --kill-on-invalid-dep=yes"
 
 
 class TestCollectAvailableDataInputs:
@@ -83,7 +44,7 @@ class TestCollectAvailableDataInputs:
         with patch.object(AiidaAdapter, "build_label_from_graph_item", return_value="input1"):
             aiida_nodes = {"input1": Mock()}
 
-            result = collect_available_data_inputs(task, aiida_nodes)
+            result = resolve_available_data_inputs(task, aiida_nodes)
 
         print("\n=== Available data inputs ===")
         pprint(result)
@@ -117,7 +78,7 @@ class TestCollectAvailableDataInputs:
         with patch.object(AiidaAdapter, "build_label_from_graph_item", side_effect=["input1", "input2"]):
             aiida_nodes = {"input1": Mock(), "input2": Mock()}
 
-            result = collect_available_data_inputs(task, aiida_nodes)
+            result = resolve_available_data_inputs(task, aiida_nodes)
 
         print(f"Result: {list(result.keys())}")
         print(f"Number of inputs collected: {len(result)}")
@@ -134,7 +95,7 @@ class TestCollectAvailableDataInputs:
         print("\n=== Test collect_no_inputs ===")
         print("Input data items: []")
 
-        result = collect_available_data_inputs(task, {})
+        result = resolve_available_data_inputs(task, {})
 
         print(f"Result: {result}")
 
@@ -169,7 +130,7 @@ class TestCollectAvailableDataInputs:
         ):
             aiida_nodes = {"available": Mock(), "generated": Mock()}
 
-            result = collect_available_data_inputs(task, aiida_nodes)
+            result = resolve_available_data_inputs(task, aiida_nodes)
 
         print(f"Result ports: {list(result.keys())}")
         print("Expected: only port1 (GeneratedData skipped)")
@@ -413,7 +374,7 @@ def test_resolve_icon_restart_file_single_model(aiida_localhost, tmp_path):
         "aiida_icon.iconutils.modelnml.read_latest_restart_file_link_name",
         return_value="restart_atm_latest.nc",
     ):
-        result = resolve_icon_restart_file(
+        result = _resolve_icon_restart_file(
             workdir_path="/work/dir",
             model_name="atm",
             model_namelist_pks={"atm": nml_node.pk},
@@ -461,7 +422,7 @@ def test_resolve_icon_restart_file_coupled_models(aiida_localhost, tmp_path):
         "aiida_icon.iconutils.modelnml.read_latest_restart_file_link_name",
         return_value="restart_oce_latest.nc",
     ):
-        result = resolve_icon_restart_file(
+        result = _resolve_icon_restart_file(
             workdir_path="/work/dir",
             model_name="oce",
             model_namelist_pks={"atm": nml_node_atm.pk, "oce": nml_node_oce.pk},
@@ -670,278 +631,6 @@ def test_resolve_icon_dependency_mapping_no_parent_folders(tmp_path):
     assert result == {}
 
 
-def test_build_icon_calcjob_inputs_no_wrapper(aiida_localhost, tmp_path):
-    """Test building ICON CalcJob inputs without wrapper script."""
-
-    # Create real code
-    code = aiida.orm.InstalledCode(computer=aiida_localhost, filepath_executable="/bin/bash")
-    code.label = "test_code"
-    code.store()
-
-    # Create real namelist files
-    master_nml_file = tmp_path / "master.nml"
-    master_nml_file.write_text("&master_nml\n  nproma = 8\n/")
-    master_nml = aiida.orm.SinglefileData(file=str(master_nml_file))
-    master_nml.store()
-
-    model_nml_file = tmp_path / "model_atm.nml"
-    model_nml_file.write_text("&run_nml\n  model = 'atm'\n/")
-    model_nml = aiida.orm.SinglefileData(file=str(model_nml_file))
-    model_nml.store()
-
-    # Create metadata and task spec without wrapper
-    metadata = AiidaMetadata(computer=aiida_localhost, options=AiidaMetadataOptions())
-    task_spec = AiidaIconTaskSpec(
-        label="test_icon_task",
-        code_pk=code.pk,
-        master_namelist_pk=master_nml.pk,
-        model_namelist_pks={"atm": model_nml.pk},
-        wrapper_script_pk=None,
-        metadata=metadata,
-        output_port_mapping={},
-    )
-
-    input_data_nodes = {}
-
-    print("\n=== Test build_icon_calcjob_inputs_no_wrapper ===")
-    print(f"Task spec label: {task_spec.label}")
-    print(f"Wrapper script PK: {task_spec.wrapper_script_pk}")
-    print("Expected: inputs should have code, namelists, but no wrapper_script")
-
-    inputs = build_icon_calcjob_inputs(task_spec, input_data_nodes, metadata)
-
-    print("\n=== Built inputs ===")
-    print(f"Input keys: {list(inputs.keys())}")
-    print(f"Has wrapper_script: {'wrapper_script' in inputs}")
-
-    # Should have code and namelists but no wrapper_script
-    assert "code" in inputs
-    assert inputs["code"].pk == code.pk
-    assert "master_namelist" in inputs
-    assert inputs["master_namelist"].pk == master_nml.pk
-    assert "models" in inputs
-    assert "atm" in inputs["models"]
-    assert inputs["models"]["atm"].pk == model_nml.pk
-    assert "wrapper_script" not in inputs
-    assert "metadata" in inputs
-
-
-def test_build_icon_calcjob_inputs_with_wrapper(aiida_localhost, tmp_path):
-    """Test building ICON CalcJob inputs with wrapper script."""
-
-    # Create real code
-    code = aiida.orm.InstalledCode(computer=aiida_localhost, filepath_executable="/bin/bash")
-    code.label = "test_code"
-    code.store()
-
-    # Create real namelist files
-    master_nml_file = tmp_path / "master.nml"
-    master_nml_file.write_text("&master_nml\n  nproma = 8\n/")
-    master_nml = aiida.orm.SinglefileData(file=str(master_nml_file))
-    master_nml.store()
-
-    # Create wrapper script
-    wrapper_file = tmp_path / "wrapper.sh"
-    wrapper_file.write_text("#!/bin/bash\necho 'wrapper'")
-    wrapper_script = aiida.orm.SinglefileData(file=str(wrapper_file))
-    wrapper_script.store()
-
-    # Create metadata and task spec with wrapper
-    metadata = AiidaMetadata(computer=aiida_localhost, options=AiidaMetadataOptions())
-    task_spec = AiidaIconTaskSpec(
-        label="test_icon_task_wrapper",
-        code_pk=code.pk,
-        master_namelist_pk=master_nml.pk,
-        model_namelist_pks={},
-        wrapper_script_pk=wrapper_script.pk,
-        metadata=metadata,
-        output_port_mapping={},
-    )
-
-    input_data_nodes = {}
-
-    print("\n=== Test build_icon_calcjob_inputs_with_wrapper ===")
-    print(f"Task spec label: {task_spec.label}")
-    print(f"Wrapper script PK: {task_spec.wrapper_script_pk}")
-    print("Expected: inputs should include wrapper_script")
-
-    inputs = build_icon_calcjob_inputs(task_spec, input_data_nodes, metadata)
-
-    print("\n=== Built inputs ===")
-    print(f"Input keys: {list(inputs.keys())}")
-    print(f"Has wrapper_script: {'wrapper_script' in inputs}")
-
-    # Should have wrapper_script
-    assert "wrapper_script" in inputs
-    assert inputs["wrapper_script"].pk == wrapper_script.pk
-
-
-# Patch: Mock aiida-icon IconCalculation to test port wrapping logic without full ICON dependencies
-@patch("aiida_icon.calculations.IconCalculation")
-def test_build_icon_calcjob_inputs_namespace_port(mock_icon_calc, aiida_localhost, tmp_path):
-    """Test that namespace ports are wrapped in dict."""
-    from unittest.mock import Mock
-
-    from aiida.engine.processes.ports import PortNamespace
-
-    # Create real code and namelist
-    code = aiida.orm.InstalledCode(computer=aiida_localhost, filepath_executable="/bin/bash")
-    code.label = "test_code"
-    code.store()
-
-    master_nml_file = tmp_path / "master.nml"
-    master_nml_file.write_text("&master_nml\n  nproma = 8\n/")
-    master_nml = aiida.orm.SinglefileData(file=str(master_nml_file))
-    master_nml.store()
-
-    # Create metadata and task spec
-    metadata = AiidaMetadata(computer=aiida_localhost, options=AiidaMetadataOptions())
-    task_spec = AiidaIconTaskSpec(
-        label="test_namespace",
-        code_pk=code.pk,
-        master_namelist_pk=master_nml.pk,
-        model_namelist_pks={},
-        metadata=metadata,
-        output_port_mapping={},
-    )
-
-    # Create real RemoteData node that should be wrapped in namespace
-    remote_data = aiida.orm.RemoteData(computer=aiida_localhost, remote_path="/data")
-    remote_data.label = "test_label"
-    remote_data.store()
-    input_data_nodes = {"input_files": remote_data}
-
-    # Mock IconCalculation spec to have a namespace port
-    mock_spec = Mock()
-    mock_namespace_port = Mock(spec=PortNamespace)
-    mock_spec.inputs = {"input_files": mock_namespace_port}
-    mock_icon_calc.spec.return_value = mock_spec
-
-    print("\n=== Test build_icon_calcjob_inputs_namespace_port ===")
-    print("Input data nodes: input_files -> RemoteData")
-    print("Port type: PortNamespace")
-    print("Expected: input should be wrapped in dict with label as key")
-
-    inputs = build_icon_calcjob_inputs(task_spec, input_data_nodes, metadata)
-
-    print("\n=== Built inputs ===")
-    print(f"input_files type: {type(inputs.get('input_files'))}")
-    if isinstance(inputs.get("input_files"), dict):
-        print(f"input_files keys: {list(inputs['input_files'].keys())}")
-
-    # Should wrap namespace port in dict
-    assert "input_files" in inputs
-    assert isinstance(inputs["input_files"], dict)
-    assert "test_label" in inputs["input_files"]
-    assert inputs["input_files"]["test_label"] == remote_data
-
-
-# Patch: Mock aiida-icon IconCalculation to test non-namespace port logic without full ICON dependencies
-@patch("aiida_icon.calculations.IconCalculation")
-def test_build_icon_calcjob_inputs_non_namespace_port(mock_icon_calc, aiida_localhost, tmp_path):
-    """Test that non-namespace ports are added directly."""
-    from unittest.mock import Mock
-
-    # Create real code and namelist
-    code = aiida.orm.InstalledCode(computer=aiida_localhost, filepath_executable="/bin/bash")
-    code.label = "test_code"
-    code.store()
-
-    master_nml_file = tmp_path / "master.nml"
-    master_nml_file.write_text("&master_nml\n  nproma = 8\n/")
-    master_nml = aiida.orm.SinglefileData(file=str(master_nml_file))
-    master_nml.store()
-
-    # Create metadata and task spec
-    metadata = AiidaMetadata(computer=aiida_localhost, options=AiidaMetadataOptions())
-    task_spec = AiidaIconTaskSpec(
-        label="test_non_namespace",
-        code_pk=code.pk,
-        master_namelist_pk=master_nml.pk,
-        model_namelist_pks={},
-        metadata=metadata,
-        output_port_mapping={},
-    )
-
-    # Create real RemoteData node that should NOT be wrapped
-    remote_data = aiida.orm.RemoteData(computer=aiida_localhost, remote_path="/data")
-    remote_data.label = "test_label"
-    remote_data.store()
-    input_data_nodes = {"restart_file": remote_data}
-
-    # Mock IconCalculation spec to have a regular (non-namespace) port
-    # Don't use Port spec - just use a Mock that's not a PortNamespace
-    mock_spec = Mock()
-    mock_regular_port = Mock()
-    # Ensure it's NOT a PortNamespace by not setting spec
-    mock_spec.inputs = {"restart_file": mock_regular_port}
-    mock_icon_calc.spec.return_value = mock_spec
-
-    print("\n=== Test build_icon_calcjob_inputs_non_namespace_port ===")
-    print("Input data nodes: restart_file -> RemoteData")
-    print("Port type: regular (non-namespace)")
-    print("Expected: input should be added directly without wrapping")
-
-    inputs = build_icon_calcjob_inputs(task_spec, input_data_nodes, metadata)
-
-    print("\n=== Built inputs ===")
-    print(f"restart_file type: {type(inputs.get('restart_file'))}")
-    print(f"restart_file is dict: {isinstance(inputs.get('restart_file'), dict)}")
-
-    # Should add port directly without wrapping
-    assert "restart_file" in inputs
-    assert inputs["restart_file"] == remote_data
-    assert not isinstance(inputs["restart_file"], dict)
-
-
-def test_resolve_remote_data_for_dependency_with_filename(aiida_localhost):
-    """Test creating RemoteData for dependency with specific filename."""
-
-    dep_info = DependencyInfo(dep_label="task_a", data_label="output", filename="result.txt")
-
-    # Create real RemoteData for workdir
-    workdir = aiida.orm.RemoteData(computer=aiida_localhost, remote_path="/work/task_a")
-    workdir.store()
-
-    print("\n=== Test resolve_remote_data_for_dependency_with_filename ===")
-    print(f"Dependency: {dep_info.dep_label}, filename={dep_info.filename}")
-    print(f"Workdir path: {workdir.get_remote_path()}")
-
-    key, result = _resolve_remote_data_for_dependency(dep_info, workdir)
-
-    print(f"Result key: {key}")
-    print(f"Result remote path: {result.get_remote_path()}")
-
-    # Should create RemoteData with specific file path
-    assert key == "task_a_output_remote"  # Updated to include data_label
-    assert isinstance(result, aiida.orm.RemoteData)
-    assert "result.txt" in result.get_remote_path()
-    assert result.is_stored
-
-
-def test_resolve_remote_data_for_dependency_workdir_fallback(aiida_localhost):
-    """Test using workdir when no filename specified."""
-
-    dep_info = DependencyInfo(dep_label="task_a", data_label="output", filename=None)
-
-    # Create real RemoteData for workdir
-    workdir = aiida.orm.RemoteData(computer=aiida_localhost, remote_path="/work/task_a")
-    workdir.store()
-
-    print("\n=== Test resolve_remote_data_for_dependency_workdir_fallback ===")
-    print(f"Dependency: {dep_info.dep_label}, filename={dep_info.filename}")
-    print("Expected: return workdir itself as fallback")
-
-    key, result = _resolve_remote_data_for_dependency(dep_info, workdir)
-
-    print(f"Result key: {key}")
-    print(f"Result is workdir: {result == workdir}")
-
-    # Should return the workdir itself
-    assert key == "task_a_output_remote"  # Updated to include data_label
-    assert result == workdir
-
-
 @pytest.mark.usefixtures("aiida_localhost")
 def test_resolve_shell_dependency_mappings_type_error(tmp_path):
     """Test that non-RemoteData parent folders raise TypeError."""
@@ -1028,7 +717,7 @@ def test_resolve_shell_dependency_mappings_with_filenames(aiida_localhost):
     print("Expected: task_a_remote should map to custom_name.txt (from original mapping)")
 
     # Call function
-    _all_nodes, _placeholder_mapping, filenames = resolve_shell_dependency_mappings(
+    all_nodes, _placeholder_mapping, filenames = resolve_shell_dependency_mappings(
         parent_folders, port_dependency_mapping, original_filenames
     )
 
@@ -1039,93 +728,52 @@ def test_resolve_shell_dependency_mappings_with_filenames(aiida_localhost):
     assert "task_a_output_remote" in filenames  # Updated to include data_label
     assert filenames["task_a_output_remote"] == "custom_name.txt"
 
+    # Should create RemoteData pointing to specific file
+    assert "task_a_output_remote" in all_nodes
+    remote_data = all_nodes["task_a_output_remote"]
+    assert isinstance(remote_data, aiida.orm.RemoteData)
+    assert "result.txt" in remote_data.get_remote_path()
+    assert remote_data.is_stored
 
-@pytest.mark.parametrize(
-    (
-        "has_job_ids",
-        "label",
-        "expected_has_commands",
-        "expected_job_ids_in_commands",
-        "expected_call_link_label",
-    ),
-    [
-        pytest.param(
-            False,
-            None,
-            False,
-            [],
-            None,
-            id="no_job_ids",
-        ),
-        pytest.param(
-            True,
-            None,
-            True,
-            ["12345", "67890"],
-            None,
-            id="with_job_ids",
-        ),
-        pytest.param(
-            False,
-            "icon_task",
-            False,
-            [],
-            "icon_task",
-            id="with_call_link_label",
-        ),
-    ],
-)
-def test_add_slurm_dependencies_to_metadata(
-    has_job_ids,
-    label,
-    expected_has_commands,
-    expected_job_ids_in_commands,
-    expected_call_link_label,
-    aiida_localhost,
-):
-    """Test adding SLURM dependencies to metadata.
 
-    Covers:
-    - No job_ids provided (custom_scheduler_commands should be None)
-    - With job_ids (should add --dependency=afterok directive)
-    - With call_link_label for ICON tasks
-    """
+def test_resolve_shell_dependency_mappings_workdir_fallback(aiida_localhost):
+    """Test resolve_shell_dependency_mappings uses workdir when no filename specified."""
 
-    # Create base metadata
-    base_metadata = AiidaMetadata(computer=aiida_localhost, options=AiidaMetadataOptions())
+    # Create parent folder
+    workdir = aiida.orm.RemoteData(computer=aiida_localhost, remote_path="/work/task_a")
+    workdir.store()
 
-    # Setup job_ids based on test case
-    job_ids = None
-    if has_job_ids:
-        job_ids = {"task_a": Mock(value=12345), "task_b": Mock(value=67890)}
+    parent_folders = {"task_a": Mock(value=workdir.pk)}
 
-    print("\n=== Test add_slurm_dependencies_to_metadata ===")
-    print(f"has_job_ids: {has_job_ids}")
-    print(f"label: {label}")
-    print(f"expected_has_commands: {expected_has_commands}")
+    # Port dependency WITHOUT filename (should use workdir as fallback)
+    dep_info = DependencyInfo(dep_label="task_a", data_label="output", filename=None)
+    port_dependency_mapping = {"input_port": [dep_info]}
 
-    # Call the function
-    result = add_slurm_dependencies_to_metadata(base_metadata, job_ids=job_ids, computer=aiida_localhost, label=label)
+    original_filenames = {}
+
+    print("\n=== Test resolve_shell_dependency_mappings_workdir_fallback ===")
+    print(f"Dependency: {dep_info.dep_label}/{dep_info.data_label} (filename=None)")
+    print("Expected: Should use workdir itself as RemoteData (no new node created)")
+
+    # Call function
+    all_nodes, placeholder_mapping, filenames = resolve_shell_dependency_mappings(
+        parent_folders, port_dependency_mapping, original_filenames
+    )
 
     print("\n=== Result ===")
-    print(f"custom_scheduler_commands: {result.options.custom_scheduler_commands}")
-    print(f"call_link_label: {getattr(result, 'call_link_label', None)}")
+    print(f"All nodes keys: {list(all_nodes.keys())}")
+    print(f"Remote data is workdir: {all_nodes.get('task_a_output_remote') == workdir}")
 
-    # Verify custom_scheduler_commands
-    if expected_has_commands:
-        assert result.options.custom_scheduler_commands is not None
-        assert "--dependency=afterok:" in result.options.custom_scheduler_commands
-        for job_id in expected_job_ids_in_commands:
-            assert job_id in result.options.custom_scheduler_commands
-    else:
-        assert result.options.custom_scheduler_commands is None
+    # Should use workdir itself (not create new RemoteData)
+    assert "task_a_output_remote" in all_nodes
+    assert all_nodes["task_a_output_remote"] == workdir
 
-    # Verify call_link_label
-    if expected_call_link_label:
-        assert result.call_link_label == expected_call_link_label
-    else:
-        # call_link_label might be None or not set
-        assert getattr(result, "call_link_label", None) != "icon_task" or expected_call_link_label is None
+    # Should have placeholder mapping
+    assert "output" in placeholder_mapping
+    assert placeholder_mapping["output"] == "task_a_output_remote"
+
+    # No filename mapping since filename was None
+    assert "task_a_output_remote" not in filenames
 
 
 def test_resolve_shell_dependency_mappings_multiple_outputs_from_same_task(aiida_localhost):
@@ -1194,17 +842,16 @@ def test_resolve_shell_dependency_mappings_multiple_outputs_from_same_task(aiida
     print("\n✓ Both outputs preserved with unique keys (bug fixed!)")
 
 
-def test_get_icon_output_stream_paths():
+def test_resolve_icon_output_stream_paths():
     """Regression test: Extract output stream paths from ICON namelist.
 
-    This tests the _get_icon_output_stream_paths() function which extracts
+    This tests the _resolve_icon_output_stream_paths() function which extracts
     output stream directory names from ICON namelists using aiida-icon's
     read_output_stream_infos() utility.
 
     This is needed when output streams are defined with empty config (atm_2d: {})
     and the actual directory names come from the ICON namelist.
     """
-    import f90nml
 
     # Create mock ICON task with output streams
     icon_task = Mock(spec=core.IconTask)
@@ -1240,7 +887,7 @@ def test_get_icon_output_stream_paths():
     print("Namelist defines: atm_2d, atm_3d_pl directories")
 
     # Call the function
-    stream_paths = _get_icon_output_stream_paths(icon_task)
+    stream_paths = _resolve_icon_output_stream_paths(icon_task)
 
     print("\n=== Result ===")
     print(f"Stream paths: {stream_paths}")

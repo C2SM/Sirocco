@@ -11,9 +11,11 @@ from aiida_icon.calculations import IconCalculation
 from aiida_workgraph import dynamic, get_current_graph, task
 
 from sirocco.engines.aiida.adapter import AiidaAdapter
-from sirocco.engines.aiida.dependencies import (
+from sirocco.engines.aiida.calcjob_builders import (
     add_slurm_dependencies_to_metadata,
     build_icon_calcjob_inputs,
+)
+from sirocco.engines.aiida.dependency_resolvers import (
     resolve_icon_dependency_mapping,
     resolve_shell_dependency_mappings,
 )

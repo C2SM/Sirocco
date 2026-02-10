@@ -14,9 +14,9 @@ from aiida_workgraph.manager import set_current_graph
 
 from sirocco import core
 from sirocco.engines.aiida.adapter import AiidaAdapter
-from sirocco.engines.aiida.dependencies import (
+from sirocco.engines.aiida.dependency_resolvers import (
     build_dependency_mapping,
-    collect_available_data_inputs,
+    resolve_available_data_inputs,
 )
 from sirocco.engines.aiida.spec_builders import (
     build_icon_task_spec,
@@ -192,7 +192,7 @@ class WorkGraphBuilder:
         task_label = AiidaAdapter.build_label_from_graph_item(task)
 
         # Collect inputs
-        input_data = collect_available_data_inputs(task, self.data_nodes)
+        input_data = resolve_available_data_inputs(task, self.data_nodes)
 
         # Build dependency mapping
         dependencies = build_dependency_mapping(task, self.workflow, self.dependency_outputs)
