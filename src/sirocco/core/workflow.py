@@ -5,7 +5,7 @@ import logging
 from datetime import datetime
 from itertools import chain, product
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, Self, overload
+from typing import TYPE_CHECKING, Any, Literal, Self
 
 from ruamel.yaml import YAML
 
@@ -422,30 +422,6 @@ class Workflow:
         else:
             self.sirocco_continue_task.jobid = "_NO_ID_"
             self.status = WorkflowStatus.COMPLETED
-
-    @overload
-    @classmethod
-    def from_config_file(
-        cls: type[Self],
-        config_path: str | Path,
-        template_context: None = None,
-    ) -> Self: ...
-
-    @overload
-    @classmethod
-    def from_config_file(
-        cls: type[Self],
-        config_path: str | Path,
-        template_context: dict[str, Any],
-    ) -> Self: ...
-
-    @overload
-    @classmethod
-    def from_config_file(
-        cls: type[Self],
-        config_path: str | Path,
-        template_context: str | Path,
-    ) -> Self: ...
 
     @classmethod
     def from_config_file(
