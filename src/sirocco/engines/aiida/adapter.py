@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-__all__ = ["AiidaAdapter"]
-
 from typing import TYPE_CHECKING, assert_never
 
 import aiida.orm
@@ -22,6 +20,8 @@ from sirocco.parsing.cycling import DateCyclePoint
 
 if TYPE_CHECKING:
     from sirocco.engines.aiida.types import FileNode
+
+__all__ = ["AiidaAdapter"]
 
 
 class AiidaAdapter:

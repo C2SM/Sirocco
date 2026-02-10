@@ -17,16 +17,17 @@ patch_firecrest_symlink()
 patch_slurm_dependency_handling()
 patch_workgraph_window()
 
+# Imports below require patches to be applied first
 if TYPE_CHECKING:
     from aiida_workgraph import WorkGraph
 
-from aiida.manage.configuration import load_profile
-from rich.console import Console
-from rich.traceback import install as install_rich_traceback
+from aiida.manage.configuration import load_profile  # noqa: E402
+from rich.console import Console  # noqa: E402
+from rich.traceback import install as install_rich_traceback  # noqa: E402
 
-from sirocco import core, parsing, pretty_print, vizgraph
-from sirocco.core._tasks.sirocco_task import SiroccoContinueTask
-from sirocco.engines.aiida import build_sirocco_workgraph
+from sirocco import core, parsing, pretty_print, vizgraph  # noqa: E402
+from sirocco.core._tasks.sirocco_task import SiroccoContinueTask  # noqa: E402
+from sirocco.engines.aiida import build_sirocco_workgraph  # noqa: E402
 
 # --- Typer App and Rich Console Setup ---
 # Print tracebacks with syntax highlighting and rich formatting

@@ -6,6 +6,13 @@ Data Transfer Objects are in dto.py.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any, Protocol, TypedDict
+
+import aiida.orm
+
+if TYPE_CHECKING:
+    from sirocco.engines.aiida.models import DependencyInfo
+
 __all__ = [
     "FileNode",
     "LauncherParentsMapping",
@@ -22,13 +29,6 @@ __all__ = [
     "WgSocketValue",
     "WgTaskProtocol",
 ]
-
-from typing import TYPE_CHECKING, Any, Protocol, TypedDict
-
-import aiida.orm
-
-if TYPE_CHECKING:
-    from sirocco.engines.aiida.models import DependencyInfo
 
 type FileNode = aiida.orm.RemoteData | aiida.orm.SinglefileData | aiida.orm.FolderData
 """Union of AiiDA file/data node types."""

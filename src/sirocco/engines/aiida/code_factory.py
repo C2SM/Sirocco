@@ -9,8 +9,6 @@ vs. remote file resolution.
 
 from __future__ import annotations
 
-__all__ = ["CodeFactory"]
-
 import hashlib
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -22,6 +20,8 @@ from sirocco.engines.aiida.utils import split_cmd_arg
 
 if TYPE_CHECKING:
     from sirocco import core
+
+__all__ = ["CodeFactory"]
 
 
 class CodeFactory:

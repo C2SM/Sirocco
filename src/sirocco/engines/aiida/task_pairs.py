@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-__all__ = [
-    "LAUNCHER_PREFIX",
-    "MONITOR_PREFIX",
-    "TaskPairContext",
-]
-
 import logging
 from typing import TYPE_CHECKING
+
+from sirocco.engines.aiida.monitoring import get_job_data
+from sirocco.engines.aiida.spec_resolvers import (
+    build_icon_task_with_dependencies,
+    build_shell_task_with_dependencies,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -28,13 +28,14 @@ if TYPE_CHECKING:
         WgTaskProtocol,
     )
 
+__all__ = [
+    "LAUNCHER_PREFIX",
+    "MONITOR_PREFIX",
+    "TaskPairContext",
+]
+
 logger = logging.getLogger(__name__)
 
-from sirocco.engines.aiida.monitoring import get_job_data
-from sirocco.engines.aiida.spec_resolvers import (
-    build_icon_task_with_dependencies,
-    build_shell_task_with_dependencies,
-)
 
 # Task name prefixes for WorkGraph tasks
 LAUNCHER_PREFIX = "launch_"

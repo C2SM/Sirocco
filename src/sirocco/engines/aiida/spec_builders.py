@@ -2,13 +2,6 @@
 
 from __future__ import annotations
 
-__all__ = [
-    "IconTaskSpecBuilder",
-    "ShellTaskSpecBuilder",
-    "build_icon_task_spec",
-    "build_shell_task_spec",
-]
-
 import hashlib
 import io
 import logging
@@ -37,6 +30,11 @@ if TYPE_CHECKING:
         SerializedInputDataInfo,
         SerializedOutputDataInfo,
     )
+
+__all__ = [
+    "IconTaskSpecBuilder",
+    "ShellTaskSpecBuilder",
+]
 
 logger = logging.getLogger(__name__)
 
@@ -443,39 +441,3 @@ class IconTaskSpecBuilder(TaskSpecBuilder):
             metadata=self.metadata,
             output_port_mapping=output_port_mapping,
         )
-
-
-def build_shell_task_spec(task: core.ShellTask) -> AiidaShellTaskSpec:
-    """Build all parameters needed to create a shell task.
-
-    Uses ShellTaskSpecBuilder to construct the specification with common
-    logic shared across task types.
-
-    NOTE: Job dependencies are NOT included here - they're added at runtime.
-
-    Args:
-        task: The ShellTask to build spec for
-
-    Returns:
-        AiidaShellTaskSpec containing all shell task parameters
-    """
-    builder = ShellTaskSpecBuilder(task)
-    return builder.build_spec()
-
-
-def build_icon_task_spec(task: core.IconTask) -> AiidaIconTaskSpec:
-    """Build all parameters needed to create an ICON task.
-
-    Uses IconTaskSpecBuilder to construct the specification with common
-    logic shared across task types.
-
-    Note: Job dependencies are NOT included here - they're added at runtime.
-
-    Args:
-        task: The IconTask to build spec for
-
-    Returns:
-        AiidaIconTaskSpec containing all ICON task parameters
-    """
-    builder = IconTaskSpecBuilder(task)
-    return builder.build_spec()

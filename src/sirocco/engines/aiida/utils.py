@@ -6,14 +6,14 @@ AiiDA-specific domain transformations are in adapter.py.
 
 from __future__ import annotations
 
+from collections import defaultdict
+from pathlib import Path
+
 __all__ = [
     "PortLabelMapper",
     "serialize_coordinates",
     "split_cmd_arg",
 ]
-
-from collections import defaultdict
-from pathlib import Path
 
 
 def split_cmd_arg(command_line: str, script_name: str | None = None) -> tuple[str, str]:

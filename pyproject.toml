@@ -100,8 +100,7 @@ target-version = "py312"
 ignore = [
   "TID252", # prefer relative import over absolute
   "TRY003", # write custom error messages for formatting
-  "PLC0415", # import should be at the top-level of a file
-  "E402", # module level import not at top of file
+  "PLC0415", # import should be at the top-level of a file (lazy imports)
   "N806", # variable in function should be lowercase
   "SLF001", # private member accessed
 

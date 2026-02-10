@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-__all__ = ["get_job_data"]
-
 import asyncio
 import logging
 
 import yaml
 from aiida.orm.utils.serialize import AiiDALoader
 from aiida_workgraph import namespace, task
+
+__all__ = ["get_job_data"]
 
 logger = logging.getLogger(__name__)
 

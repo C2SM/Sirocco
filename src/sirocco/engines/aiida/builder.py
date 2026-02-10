@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-__all__ = ["WorkGraphBuilder", "build_sirocco_workgraph"]
-
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -37,6 +35,8 @@ if TYPE_CHECKING:
     from sirocco.engines.aiida.types import (
         FileNode,
     )
+
+__all__ = ["WorkGraphBuilder", "build_sirocco_workgraph"]
 
 logger = logging.getLogger(__name__)
 

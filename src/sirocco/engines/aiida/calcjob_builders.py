@@ -6,12 +6,6 @@ from resolved dependencies and task specifications.
 
 from __future__ import annotations
 
-__all__ = [
-    "SlurmDirectiveBuilder",
-    "add_slurm_dependencies_to_metadata",
-    "build_icon_calcjob_inputs",
-]
-
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -27,6 +21,12 @@ if TYPE_CHECKING:
     from sirocco.engines.aiida.types import (
         TaskJobIdMapping,
     )
+
+__all__ = [
+    "SlurmDirectiveBuilder",
+    "add_slurm_dependencies_to_metadata",
+    "build_icon_calcjob_inputs",
+]
 
 logger = logging.getLogger(__name__)
 
