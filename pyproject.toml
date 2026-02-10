@@ -188,7 +188,6 @@ check = "mypy --exclude 'tests/cases/*' --no-incremental {args:.}"
 ty-check = "ty check --exclude 'tests/cases/*' --python-version 3.12"
 
 [tool.mypy]
-# disable_error_code = ["import-untyped", "import-not-found"]
 disable_error_code = ["import-untyped"]
 exclude = ["^tests/"]
 
