@@ -9,6 +9,8 @@ vs. remote file resolution.
 
 from __future__ import annotations
 
+__all__ = ["CodeFactory"]
+
 import hashlib
 from pathlib import Path
 from typing import TYPE_CHECKING

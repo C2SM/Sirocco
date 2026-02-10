@@ -710,8 +710,8 @@ def test_build_task_specs_icon_label_as_key(mock_label, mock_icon_builder_class,
         pytest.param("exists", "my_workflow", 99999, True, True, id="resolved_config_labels"),
     ],
 )
-# Patch: Mock LOGGER to verify logging behavior when resolved config is stored
-@patch("sirocco.engines.aiida.builder.LOGGER")
+# Patch: Mock logger to verify logging behavior when resolved config is stored
+@patch("sirocco.engines.aiida.builder.logger")
 # Patch: Mock SinglefileData to prevent actual AiiDA node creation when storing resolved config
 @patch("sirocco.engines.aiida.builder.aiida.orm.SinglefileData")
 def test_store_window_config_resolved_config_handling(

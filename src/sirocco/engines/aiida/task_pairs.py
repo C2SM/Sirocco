@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+__all__ = [
+    "LAUNCHER_PREFIX",
+    "MONITOR_PREFIX",
+    "TaskPairContext",
+]
+
 import logging
 from typing import TYPE_CHECKING
 
@@ -22,7 +28,7 @@ if TYPE_CHECKING:
         WgTaskProtocol,
     )
 
-LOGGER = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 from sirocco.engines.aiida.monitoring import get_job_data
 from sirocco.engines.aiida.spec_resolvers import (

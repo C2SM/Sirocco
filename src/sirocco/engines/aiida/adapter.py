@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+__all__ = ["AiidaAdapter"]
+
 from typing import TYPE_CHECKING, assert_never
 
 import aiida.orm

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+__all__ = ["WorkGraphBuilder", "build_sirocco_workgraph"]
+
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -36,7 +38,7 @@ if TYPE_CHECKING:
         FileNode,
     )
 
-LOGGER = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 # TODO: Check if WG has a specific `Monitor` task, then we don't have to hard-code `launch_` anymore
 
@@ -257,6 +259,6 @@ class WorkGraphBuilder:
             node_pk = resolved_config_node.pk
             if node_pk is not None:
                 extras["resolved_config_pk"] = node_pk
-                LOGGER.info("Stored resolved config as SinglefileData (PK: %s)", node_pk)
+                logger.info("Stored resolved config as SinglefileData (PK: %s)", node_pk)
 
         wg.extras = extras

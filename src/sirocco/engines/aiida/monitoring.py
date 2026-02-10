@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+__all__ = ["get_job_data"]
+
 import asyncio
 import logging
 
@@ -9,7 +11,7 @@ import yaml
 from aiida.orm.utils.serialize import AiiDALoader
 from aiida_workgraph import namespace, task
 
-LOGGER = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 async def _poll_for_job_data(workgraph_name: str, task_name: str, interval: int = 10) -> dict:

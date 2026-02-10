@@ -2,6 +2,13 @@
 
 from __future__ import annotations
 
+__all__ = [
+    "IconTaskSpecBuilder",
+    "ShellTaskSpecBuilder",
+    "build_icon_task_spec",
+    "build_shell_task_spec",
+]
+
 import hashlib
 import io
 import logging
@@ -31,7 +38,7 @@ if TYPE_CHECKING:
         SerializedOutputDataInfo,
     )
 
-LOGGER = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class TaskSpecBuilder(ABC):

@@ -6,6 +6,12 @@ from resolved dependencies and task specifications.
 
 from __future__ import annotations
 
+__all__ = [
+    "SlurmDirectiveBuilder",
+    "add_slurm_dependencies_to_metadata",
+    "build_icon_calcjob_inputs",
+]
+
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -22,7 +28,7 @@ if TYPE_CHECKING:
         TaskJobIdMapping,
     )
 
-LOGGER = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class SlurmDirectiveBuilder:
@@ -205,7 +211,7 @@ def build_icon_calcjob_inputs(
     # Add metadata (convert Pydantic model to dict for AiiDA)
     inputs["metadata"] = aiida_metadata.model_dump(mode="python", exclude_none=True)
 
-    LOGGER.debug("ICON inputs=%s", inputs)
+    logger.debug("ICON inputs=%s", inputs)
 
     return inputs
 

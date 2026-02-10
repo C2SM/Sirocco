@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+__all__ = [
+    "build_icon_task_with_dependencies",
+    "build_shell_task_with_dependencies",
+]
+
 import logging
 from abc import ABC, abstractmethod
 from typing import Annotated
@@ -26,7 +31,7 @@ from sirocco.engines.aiida.models import (
     DependencyInfo,
 )
 
-LOGGER = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class TaskSpecResolver(ABC):

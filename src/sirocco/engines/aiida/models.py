@@ -6,6 +6,20 @@ They contain validation logic but no business logic.
 
 from __future__ import annotations
 
+__all__ = [
+    "AiidaIconTaskSpec",
+    "AiidaMetadata",
+    "AiidaMetadataOptions",
+    "AiidaResources",
+    "AiidaShellTaskSpec",
+    "BaseDataInfo",
+    "DependencyInfo",
+    "DependencyMapping",
+    "InputDataInfo",
+    "OutputDataInfo",
+    "ShellDependencyMappings",
+]
+
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, NamedTuple
 

@@ -6,12 +6,53 @@ Data Transfer Objects are in dto.py.
 
 from __future__ import annotations
 
+__all__ = [
+    "FileNode",
+    "LauncherParentsMapping",
+    "PortDataMapping",
+    "PortDependencyMapping",
+    "SerializedDependencyInfo",
+    "SerializedInputDataInfo",
+    "SerializedOutputDataInfo",
+    "TaskDependencyMapping",
+    "TaskFolderMapping",
+    "TaskJobIdMapping",
+    "TaskMonitorOutputsMapping",
+    "WgMonitorOutputs",
+    "WgSocketValue",
+    "WgTaskProtocol",
+]
+
 from typing import TYPE_CHECKING, Any, Protocol, TypedDict
 
 import aiida.orm
 
 if TYPE_CHECKING:
     from sirocco.engines.aiida.models import DependencyInfo
+
+type FileNode = aiida.orm.RemoteData | aiida.orm.SinglefileData | aiida.orm.FolderData
+"""Union of AiiDA file/data node types."""
+
+type PortDataMapping = dict[str, FileNode]
+"""Maps port/label names to data nodes."""
+
+type TaskMonitorOutputsMapping = dict[str, WgMonitorOutputs]
+"""Maps task_label -> WorkGraph monitor outputs namespace with remote_folder and job_id."""
+
+type TaskDependencyMapping = dict[str, WgTaskProtocol]
+"""Maps task_label -> task object for chaining execution order."""
+
+type PortDependencyMapping = dict[str, list[DependencyInfo]]
+"""Maps port name -> list of dependencies for that port."""
+
+type TaskFolderMapping = dict[str, WgSocketValue]
+"""Maps task_label -> WgSocketValue containing RemoteData PK."""
+
+type TaskJobIdMapping = dict[str, WgSocketValue]
+"""Maps task_label -> WgSocketValue containing SLURM job_id (int)."""
+
+type LauncherParentsMapping = dict[str, list[str]]
+"""Maps launcher_name -> list of parent launcher names."""
 
 
 class WgSocketValue(Protocol):
@@ -46,34 +87,7 @@ class WgMonitorOutputs(Protocol):
     job_id: WgSocketValue  # WgSocketValue wrapping int job_id
 
 
-type FileNode = aiida.orm.RemoteData | aiida.orm.SinglefileData | aiida.orm.FolderData
-"""Union of AiiDA file/data node types."""
-
-type PortDataMapping = dict[str, FileNode]
-"""Maps port/label names to data nodes."""
-
-type TaskMonitorOutputsMapping = dict[str, WgMonitorOutputs]
-"""Maps task_label -> WorkGraph monitor outputs namespace with remote_folder and job_id."""
-
-type TaskDependencyMapping = dict[str, WgTaskProtocol]
-"""Maps task_label -> task object for chaining execution order."""
-
-type PortDependencyMapping = dict[str, list[DependencyInfo]]
-"""Maps port name -> list of dependencies for that port."""
-
-type TaskFolderMapping = dict[str, WgSocketValue]
-"""Maps task_label -> WgSocketValue containing RemoteData PK."""
-
-type TaskJobIdMapping = dict[str, WgSocketValue]
-"""Maps task_label -> WgSocketValue containing SLURM job_id (int)."""
-
-type LauncherParentsMapping = dict[str, list[str]]
-"""Maps launcher_name -> list of parent launcher names."""
-
-
 # Serialized data structures (TypedDicts for .model_dump() output)
-
-
 class SerializedInputDataInfo(TypedDict):
     """Serialized InputDataInfo after .model_dump().
 

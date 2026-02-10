@@ -7,6 +7,13 @@ concrete RemoteData nodes for use in CalcJobs.
 
 from __future__ import annotations
 
+__all__ = [
+    "build_dependency_mapping",
+    "resolve_available_data_inputs",
+    "resolve_icon_dependency_mapping",
+    "resolve_shell_dependency_mappings",
+]
+
 import logging
 import os
 from typing import TYPE_CHECKING
@@ -32,7 +39,7 @@ if TYPE_CHECKING:
         TaskMonitorOutputsMapping,
     )
 
-LOGGER = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def _resolve_icon_restart_file(
