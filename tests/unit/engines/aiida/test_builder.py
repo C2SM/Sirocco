@@ -157,6 +157,9 @@ class TestWorkGraphBuilder:
         for task in minimal_workflow.tasks:
             task.computer = aiida_localhost.label
 
+        # Set front_depth on workflow
+        minimal_workflow.front_depth = front_depth
+
         # Mock code loading - return a mock code
         mock_code = Mock()
         mock_code.pk = 123
@@ -164,7 +167,7 @@ class TestWorkGraphBuilder:
 
         # Build with real workflow
         builder = WorkGraphBuilder(minimal_workflow)
-        wg = builder.build(front_depth=front_depth)
+        wg = builder.build()
 
         print(f"\n=== WorkGraph built (front_depth={front_depth}) ===")
         print(f"WorkGraph name: {wg.name}")
@@ -192,13 +195,16 @@ class TestWorkGraphBuilder:
         for task in workflow_with_dependencies.tasks:
             task.computer = aiida_localhost.label
 
+        # Set front_depth on workflow
+        workflow_with_dependencies.front_depth = 1
+
         mock_code = Mock()
         mock_code.pk = 123
         mock_load_code.return_value = mock_code
 
         # Build the workflow
         builder = WorkGraphBuilder(workflow_with_dependencies)
-        wg = builder.build(front_depth=1)
+        wg = builder.build()
 
         # Verify we got a WorkGraph with tasks
         assert isinstance(wg, WorkGraph)
@@ -270,7 +276,7 @@ class TestWorkGraphBuilder:
 @pytest.mark.parametrize(
     ("front_depth", "expected_build_arg"),
     [
-        pytest.param(None, 1, id="default_front_depth"),
+        pytest.param(1, 1, id="default_front_depth"),
         pytest.param(3, 3, id="custom_front_depth"),
     ],
 )
@@ -289,21 +295,19 @@ def test_build_sirocco_workgraph(
     for task in minimal_workflow.tasks:
         task.computer = aiida_localhost.label
 
+    # Set front_depth on the workflow (simulating what comes from config)
+    minimal_workflow.front_depth = front_depth
+
     # Mock code loading - return a mock code
     mock_code = Mock()
     mock_code.pk = 123
     mock_load_code.return_value = mock_code
 
-    # Build kwargs for the function call
-    kwargs = {}
-    if front_depth is not None:
-        kwargs["front_depth"] = front_depth
-
     print(f"\n=== Test build_sirocco_workgraph (front_depth={front_depth}) ===")
     print(f"Expected build arg: {expected_build_arg}")
 
     # Use real WorkGraphBuilder through the function
-    wg = build_sirocco_workgraph(minimal_workflow, **kwargs)
+    wg = build_sirocco_workgraph(minimal_workflow)
 
     print(f"WorkGraph name: {wg.name}")
     print(f"Number of tasks: {len(wg.tasks._get_keys())}")
@@ -495,8 +499,8 @@ def test_prepare_data_nodes_used_by_icon_logic(
 
 # Patch: Mock create_input_data_node to test label generation without actual AiiDA node creation
 @patch("sirocco.engines.aiida.builder.AiidaAdapter.create_input_data_node")
-# Patch: Mock build_graph_item_label to control generated labels for data nodes
-@patch("sirocco.engines.aiida.builder.AiidaAdapter.build_graph_item_label")
+# Patch: Mock build_label_from_graph_item to control generated labels for data nodes
+@patch("sirocco.engines.aiida.builder.AiidaAdapter.build_label_from_graph_item")
 def test_prepare_data_nodes_label_generation(mock_label, mock_create_node, minimal_workflow):
     """Test that correct labels are generated for data nodes."""
     builder = WorkGraphBuilder(minimal_workflow)
@@ -649,8 +653,8 @@ def test_build_task_specs_task_type_routing(
 
 # Patch: Mock build_icon_task_spec to isolate label key generation logic from spec building
 @patch("sirocco.engines.aiida.builder.build_icon_task_spec")
-# Patch: Mock build_graph_item_label to control generated task labels for testing dictionary keying
-@patch("sirocco.engines.aiida.builder.AiidaAdapter.build_graph_item_label")
+# Patch: Mock build_label_from_graph_item to control generated task labels for testing dictionary keying
+@patch("sirocco.engines.aiida.builder.AiidaAdapter.build_label_from_graph_item")
 def test_build_task_specs_icon_label_as_key(mock_label, mock_icon_spec, minimal_workflow):
     """Test that icon specs are keyed by the graph item label."""
     builder = WorkGraphBuilder(minimal_workflow)
@@ -805,14 +809,13 @@ class TestBuildSiroccoWorkgraphValidation:
         mock_builder_class.return_value = mock_builder
 
         # Call build_sirocco_workgraph
-        result = build_sirocco_workgraph(workflow, front_depth=2)
+        result = build_sirocco_workgraph(workflow)
 
         # Verify validation was called with the workflow
         mock_validate.assert_called_once_with(workflow)
 
-        # Verify validation was called before builder.build
-        assert mock_validate.call_count == 1
-        assert mock_builder.build.call_count == 1
+        # Verify builder.build was called
+        mock_builder.build.assert_called_once_with()
 
         # Verify result is the WorkGraph
         assert result == mock_wg

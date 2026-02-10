@@ -80,7 +80,7 @@ class TestCollectAvailableDataInputs:
 
         # Create mock data nodes mapping
 
-        with patch.object(AiidaAdapter, "build_graph_item_label", return_value="input1"):
+        with patch.object(AiidaAdapter, "build_label_from_graph_item", return_value="input1"):
             aiida_nodes = {"input1": Mock()}
 
             result = collect_available_data_inputs(task, aiida_nodes)
@@ -114,7 +114,7 @@ class TestCollectAvailableDataInputs:
         print("\n=== Test collect_multiple_inputs ===")
         print("Input data items: [('port1', input1), ('port2', input2)]")
 
-        with patch.object(AiidaAdapter, "build_graph_item_label", side_effect=["input1", "input2"]):
+        with patch.object(AiidaAdapter, "build_label_from_graph_item", side_effect=["input1", "input2"]):
             aiida_nodes = {"input1": Mock(), "input2": Mock()}
 
             result = collect_available_data_inputs(task, aiida_nodes)
@@ -164,7 +164,7 @@ class TestCollectAvailableDataInputs:
 
         with patch.object(
             AiidaAdapter,
-            "build_graph_item_label",
+            "build_label_from_graph_item",
             side_effect=["available", "generated"],
         ):
             aiida_nodes = {"available": Mock(), "generated": Mock()}
@@ -227,7 +227,7 @@ class TestBuildDependencyMapping:
         print("\n=== Test build_mapping_available_data_only ===")
         print("Task has one AvailableData input on port1")
 
-        with patch.object(AiidaAdapter, "build_graph_item_label", return_value="input"):
+        with patch.object(AiidaAdapter, "build_label_from_graph_item", return_value="input"):
             mapping = build_dependency_mapping(task, workflow, {})
 
         print("\n=== Dependency mapping result ===")
@@ -270,7 +270,7 @@ class TestBuildDependencyMapping:
 
         with patch.object(
             AiidaAdapter,
-            "build_graph_item_label",
+            "build_label_from_graph_item",
             side_effect=["producer", "output", "output", "producer"],  # Added extra "producer" for generator check
         ):
             task_outputs = {
@@ -320,7 +320,7 @@ class TestBuildDependencyMapping:
         print("\n=== Test build_mapping_with_missing_producer ===")
         print("Task has GeneratedData input but no producer in workflow")
 
-        with patch.object(AiidaAdapter, "build_graph_item_label", return_value="output"):
+        with patch.object(AiidaAdapter, "build_label_from_graph_item", return_value="output"):
             mapping = build_dependency_mapping(task, workflow, {})
 
         print("\n=== Dependency mapping result (should be empty) ===")
@@ -364,7 +364,7 @@ class TestBuildDependencyMapping:
 
         with patch.object(
             AiidaAdapter,
-            "build_graph_item_label",
+            "build_label_from_graph_item",
             side_effect=["producer", "output", "output", "producer"],  # Added extra "producer" for generator check
         ):
             # Empty task_output_mapping - producer hasn't completed yet

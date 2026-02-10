@@ -108,8 +108,8 @@ def test_branch_independence_config(config_paths):
     )
     core_workflow = Workflow.from_config_workflow(config_workflow)
 
-    # Build the WorkGraph with front_depth=1
-    workgraph = build_sirocco_workgraph(core_workflow, front_depth=1)
+    # Build the WorkGraph (front_depth is read from config)
+    workgraph = build_sirocco_workgraph(core_workflow)
 
     # Verify window config is stored correctly
     assert "window_config" in workgraph.extras

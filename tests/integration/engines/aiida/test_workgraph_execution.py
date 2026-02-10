@@ -61,7 +61,7 @@ def test_branch_independence_execution(config_paths):
     # Build and run the workflow
     LOGGER.info("Building workflow from config")
     core_workflow = Workflow.from_config_file(str(config_paths["yml"]), template_context=config_paths["variables"])
-    workgraph = build_sirocco_workgraph(core_workflow, front_depth=1)
+    workgraph = build_sirocco_workgraph(core_workflow)
     LOGGER.info("WorkGraph built with %s tasks", len(workgraph.tasks))
 
     # Track task completion times
@@ -243,7 +243,9 @@ def test_branch_independence_with_front_depths(config_paths, front_depth):
     # Build and run the workflow with specified front_depth
     LOGGER.info("Building workflow from config")
     core_workflow = Workflow.from_config_file(str(config_paths["yml"]), template_context=config_paths["variables"])
-    workgraph = build_sirocco_workgraph(core_workflow, front_depth=front_depth)
+    # Override front_depth for this test
+    core_workflow.front_depth = front_depth
+    workgraph = build_sirocco_workgraph(core_workflow)
     LOGGER.info("WorkGraph built with %s tasks", len(workgraph.tasks))
 
     # Track execution time
@@ -369,7 +371,7 @@ def test_complex_workflow_with_cross_dependencies(config_paths):
     # Build and run the workflow
     LOGGER.info("Building workflow from %s", complex_config_path)
     core_workflow = Workflow.from_config_file(str(complex_config_path))
-    workgraph = build_sirocco_workgraph(core_workflow, front_depth=1)
+    workgraph = build_sirocco_workgraph(core_workflow)
     LOGGER.info("WorkGraph built with %s tasks", len(workgraph.tasks))
 
     # Track execution time

@@ -66,14 +66,8 @@ def _create_aiida_workflow(
         jinja_vars_file_path=str(jinja_vars_file) if jinja_vars_file else None,
     )
 
-    # Use front_depth from config (single source of truth)
-    front_depth = config_workflow.front_depth
-
     core_wf = core.Workflow.from_config_workflow(config_workflow)
-    wg = build_sirocco_workgraph(
-        core_wf,
-        front_depth=front_depth,
-    )
+    wg = build_sirocco_workgraph(core_wf)
     return core_wf, wg
 
 

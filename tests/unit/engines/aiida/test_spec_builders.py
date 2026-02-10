@@ -344,7 +344,7 @@ class TestBuildShellTaskSpecOutputs:
         pprint(spec.input_data_info)
 
         # Single GeneratedData should use path basename
-        # The label will be "data_cycle_1" (built by build_graph_item_label)
+        # The label will be "data_cycle_1" (built by build_label_from_graph_item)
         data_label = [label for label in spec.filenames if "data" in label][0]
         assert spec.filenames[data_label] == "data.txt"
 
@@ -409,7 +409,7 @@ class TestBuildShellTaskSpecOutputs:
         pprint(spec.input_data_info)
 
         # When inputs have duplicate names, filenames should use labels
-        # The labels will be "data_cycle_1" and "data_cycle_2" (built by build_graph_item_label)
+        # The labels will be "data_cycle_1" and "data_cycle_2" (built by build_label_from_graph_item)
         data_labels = [label for label in spec.filenames if "data" in label]
         assert len(data_labels) == 2
         assert all("cycle" in label for label in data_labels)

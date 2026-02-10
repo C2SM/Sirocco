@@ -42,34 +42,16 @@ if TYPE_CHECKING:
 
 LOGGER = logging.getLogger(__name__)
 
-DEFAULT_FRONT_DEPTH = 1
-"""Default front depth for workflow execution.
-
-A value of 1 means no pre-submission: wait for topological level N to finish
-before submitting level N+1. This is the safest/most conservative strategy.
-
-Increase to 2+ for more aggressive pre-submission and better parallelism,
-at the cost of potentially wasted submissions if dependencies fail.
-"""
-
-
-# NOTE: should front_depth not be set in the constructor?
-
 
 def build_sirocco_workgraph(
     core_workflow: core.Workflow,
-    front_depth: int = DEFAULT_FRONT_DEPTH,
 ) -> WorkGraph:
     """Build a Sirocco WorkGraph from a core workflow.
 
     This is the main entry point for building Sirocco workflows.
 
     Args:
-        core_workflow: The core workflow to convert
-        front_depth: Number of topological levels to keep active (default: 1, must be >= 1)
-                    1 = no pre-submission - wait for level N to finish before submitting N+1
-                    2 = one level ahead
-                    higher values = more aggressive streaming submission
+        core_workflow: The core workflow to convert (front_depth is read from workflow.front_depth)
 
     Returns:
         A WorkGraph ready for submission
@@ -81,16 +63,22 @@ def build_sirocco_workgraph(
         The resolved config path (for provenance) is read from core_workflow.resolved_config_path
         and will be stored in the WorkGraph extras.
 
+        The front_depth configuration (number of topological levels to keep active) is read from
+        core_workflow.front_depth:
+            1 = no pre-submission - wait for level N to finish before submitting N+1
+            2 = one level ahead
+            higher values = more aggressive streaming submission
+
     Example::
 
         from sirocco import core
         from sirocco.engines.aiida import build_sirocco_workgraph
 
-        # Build your core workflow
+        # Build your core workflow (front_depth is configured in the YAML)
         wf = core.Workflow.from_config_file("workflow.yml")
 
-        # Build the WorkGraph with front_depth=2
-        wg = build_sirocco_workgraph(wf, front_depth=2)
+        # Build the WorkGraph
+        wg = build_sirocco_workgraph(wf)
 
         # Submit to AiiDA daemon
         wg.submit()
@@ -99,7 +87,7 @@ def build_sirocco_workgraph(
     AiidaAdapter.validate_workflow(core_workflow)
 
     builder = WorkGraphBuilder(core_workflow)
-    return builder.build(front_depth)
+    return builder.build()
 
 
 class WorkGraphBuilder:
@@ -139,23 +127,20 @@ class WorkGraphBuilder:
         self._wg: WorkGraph | None = None
         self._wg_name: str | None = None
 
-    def build(self, front_depth: int = DEFAULT_FRONT_DEPTH) -> WorkGraph:
+    def build(self) -> WorkGraph:
         """Main entry point - orchestrates the build process.
-
-        Args:
-            front_depth: Number of topological levels to keep active (must be >= 1)
-                1 = no pre-submission (default) - wait for level N to finish before submitting N+1)
-                2 = one level ahead
-                higher values = more aggressive streaming submission
 
         Returns:
             A WorkGraph ready for submission with window_config in extras
+
+        Note:
+            front_depth is read from self.workflow.front_depth
         """
         self._validate_labels()
         self._prepare_data_nodes()
         self._build_task_specs()
         wg = self._create_workgraph()
-        self._store_window_config(wg, front_depth)
+        self._store_window_config(wg, self.workflow.front_depth)
         return wg
 
     def _validate_labels(self) -> None:
@@ -183,7 +168,7 @@ class WorkGraphBuilder:
         """Create AiiDA data nodes for available data."""
         for data in self.workflow.data:
             if isinstance(data, core.AvailableData):
-                label = AiidaAdapter.build_graph_item_label(data)
+                label = AiidaAdapter.build_label_from_graph_item(data)
                 # Check if any ICON task uses this data
                 used_by_icon = any(
                     isinstance(task, core.IconTask) and data in task.input_data_nodes() for task in self.workflow.tasks
@@ -193,7 +178,7 @@ class WorkGraphBuilder:
     def _build_task_specs(self) -> None:
         """Build specifications for all tasks."""
         for task in self.workflow.tasks:
-            label = AiidaAdapter.build_graph_item_label(task)
+            label = AiidaAdapter.build_label_from_graph_item(task)
             match task:
                 case core.ShellTask():
                     self.shell_specs[label] = build_shell_task_spec(task)
@@ -222,7 +207,7 @@ class WorkGraphBuilder:
 
         Also tracks launcher dependencies for window control.
         """
-        task_label = AiidaAdapter.build_graph_item_label(task)
+        task_label = AiidaAdapter.build_label_from_graph_item(task)
 
         # Collect inputs
         input_data = collect_available_data_inputs(task, self.data_nodes)
@@ -234,11 +219,11 @@ class WorkGraphBuilder:
         # FIXME: No hard-coding, use actual distinction between Monitor and normal tasks
         launcher_name = f"{LAUNCHER_PREFIX}{self._wg_name}_{task_label}"
         self.launcher_parents[launcher_name] = [
-            f"{LAUNCHER_PREFIX}{self._wg_name}_{AiidaAdapter.build_graph_item_label(dep_task)}"
+            f"{LAUNCHER_PREFIX}{self._wg_name}_{AiidaAdapter.build_label_from_graph_item(dep_task)}"
             for dep_label in dependencies.task_folders
             # Find the task object from the label
             for dep_task in self.workflow.tasks
-            if AiidaAdapter.build_graph_item_label(dep_task) == dep_label
+            if AiidaAdapter.build_label_from_graph_item(dep_task) == dep_label
         ]
 
         # Create launcher pair based on task type

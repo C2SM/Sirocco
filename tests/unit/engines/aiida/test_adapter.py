@@ -230,7 +230,7 @@ def test_remove_script_extension(input_name, expected):
         ),
     ],
 )
-def test_build_graph_item_label(name, coordinates, expected_label):
+def test_build_label_from_graph_item(name, coordinates, expected_label):
     """Test label generation for various graph items."""
     item = Mock()
     item.name = name
