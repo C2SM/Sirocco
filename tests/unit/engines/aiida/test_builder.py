@@ -246,8 +246,6 @@ class TestWorkGraphBuilder:
 
         print("\n=== Builder launcher_parents ===")
         pprint(builder.launcher_parents)
-        print("\n=== Builder dependency_outputs ===")
-        pprint(builder.dependency_outputs)
 
         # Verify dependency relationships
         # task_a should have no dependencies
@@ -573,13 +571,13 @@ def test_prepare_data_nodes_label_generation(mock_label, mock_create_node, minim
         ),
     ],
 )
-# Patch: Mock build_icon_task_spec to isolate task routing logic from spec building complexity
-@patch("sirocco.engines.aiida.builder.build_icon_task_spec")
-# Patch: Mock build_shell_task_spec to isolate task routing logic from spec building complexity
-@patch("sirocco.engines.aiida.builder.build_shell_task_spec")
+# Patch: Mock IconTaskSpecBuilder to isolate task routing logic from spec building complexity
+@patch("sirocco.engines.aiida.builder.IconTaskSpecBuilder")
+# Patch: Mock ShellTaskSpecBuilder to isolate task routing logic from spec building complexity
+@patch("sirocco.engines.aiida.builder.ShellTaskSpecBuilder")
 def test_build_task_specs_task_type_routing(
-    mock_shell_spec,
-    mock_icon_spec,
+    mock_shell_builder_class,
+    mock_icon_builder_class,
     minimal_workflow,
     create_shell_task,
     create_icon_task,
@@ -596,7 +594,7 @@ def test_build_task_specs_task_type_routing(
     to isolate routing logic from spec building complexity.
 
     Covers:
-    - IconTask triggers build_icon_task_spec only
+    - IconTask triggers IconTaskSpecBuilder only
     - Mixed workflows handle both task types correctly
     - Multiple IconTasks are all processed
     """
@@ -618,8 +616,14 @@ def test_build_task_specs_task_type_routing(
 
     builder.workflow.tasks = tasks
 
-    mock_shell_spec.return_value = {"spec": "shell_spec"}
-    mock_icon_spec.return_value = {"spec": "icon_spec"}
+    # Setup mock builder instances that return specs
+    mock_shell_instance = Mock()
+    mock_shell_instance.build_spec.return_value = {"spec": "shell_spec"}
+    mock_shell_builder_class.return_value = mock_shell_instance
+
+    mock_icon_instance = Mock()
+    mock_icon_instance.build_spec.return_value = {"spec": "icon_spec"}
+    mock_icon_builder_class.return_value = mock_icon_instance
 
     print(f"\n=== Test build_task_specs routing (shell={num_shell_tasks}, icon={num_icon_tasks}) ===")
     print(f"Expected shell specs: {expected_shell_specs}")
@@ -627,38 +631,38 @@ def test_build_task_specs_task_type_routing(
 
     builder._build_task_specs()
 
-    print(f"Shell spec call count: {mock_shell_spec.call_count}")
-    print(f"Icon spec call count: {mock_icon_spec.call_count}")
+    print(f"Shell builder call count: {mock_shell_builder_class.call_count}")
+    print(f"Icon builder call count: {mock_icon_builder_class.call_count}")
     print(f"Shell specs created: {len(builder.shell_specs)}")
     print(f"Icon specs created: {len(builder.icon_specs)}")
 
-    # Verify call counts
-    assert mock_shell_spec.call_count == expected_shell_calls
-    assert mock_icon_spec.call_count == expected_icon_calls
+    # Verify call counts (builder class constructor calls)
+    assert mock_shell_builder_class.call_count == expected_shell_calls
+    assert mock_icon_builder_class.call_count == expected_icon_calls
 
     # Verify spec storage
     assert len(builder.shell_specs) == expected_shell_specs
     assert len(builder.icon_specs) == expected_icon_specs
 
-    # Verify that real task objects were passed to the spec builders
+    # Verify that real task objects were passed to the builder constructors
     if expected_shell_calls > 0:
-        for call_args in mock_shell_spec.call_args_list:
+        for call_args in mock_shell_builder_class.call_args_list:
             task_arg = call_args[0][0]
             assert isinstance(task_arg, core.ShellTask)
             assert hasattr(task_arg, "command")
 
     if expected_icon_calls > 0:
-        for call_args in mock_icon_spec.call_args_list:
+        for call_args in mock_icon_builder_class.call_args_list:
             task_arg = call_args[0][0]
             assert isinstance(task_arg, core.IconTask)
             assert hasattr(task_arg, "namelists")
 
 
-# Patch: Mock build_icon_task_spec to isolate label key generation logic from spec building
-@patch("sirocco.engines.aiida.builder.build_icon_task_spec")
+# Patch: Mock IconTaskSpecBuilder to isolate label key generation logic from spec building
+@patch("sirocco.engines.aiida.builder.IconTaskSpecBuilder")
 # Patch: Mock build_label_from_graph_item to control generated task labels for testing dictionary keying
 @patch("sirocco.engines.aiida.builder.AiidaAdapter.build_label_from_graph_item")
-def test_build_task_specs_icon_label_as_key(mock_label, mock_icon_spec, minimal_workflow):
+def test_build_task_specs_icon_label_as_key(mock_label, mock_icon_builder_class, minimal_workflow):
     """Test that icon specs are keyed by the graph item label."""
     builder = WorkGraphBuilder(minimal_workflow)
 
@@ -670,7 +674,11 @@ def test_build_task_specs_icon_label_as_key(mock_label, mock_icon_spec, minimal_
     builder.workflow.tasks = [icon_task]
 
     mock_label.return_value = "icon_task_member_5"
-    mock_icon_spec.return_value = {"spec": "icon_spec"}
+
+    # Setup mock builder instance
+    mock_icon_instance = Mock()
+    mock_icon_instance.build_spec.return_value = {"spec": "icon_spec"}
+    mock_icon_builder_class.return_value = mock_icon_instance
 
     print("\n=== Test build_task_specs icon label as key ===")
     print(f"Task name: {icon_task.name}")

@@ -6,7 +6,7 @@ Data Transfer Objects are in dto.py.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, TypedDict
 
 import aiida.orm
 
@@ -69,3 +69,47 @@ type TaskJobIdMapping = dict[str, WgSocketValue]
 
 type LauncherParentsMapping = dict[str, list[str]]
 """Maps launcher_name -> list of parent launcher names."""
+
+
+# Serialized data structures (TypedDicts for .model_dump() output)
+
+
+class SerializedInputDataInfo(TypedDict):
+    """Serialized InputDataInfo after .model_dump().
+
+    This is the dict representation of InputDataInfo that gets stored in task specs
+    and passed through WorkGraph serialization.
+    """
+
+    port: str
+    name: str
+    coordinates: dict[str, Any]
+    label: str
+    is_available: bool
+    path: str
+
+
+class SerializedOutputDataInfo(TypedDict):
+    """Serialized OutputDataInfo after .model_dump().
+
+    This is the dict representation of OutputDataInfo that gets stored in task specs
+    and passed through WorkGraph serialization.
+    """
+
+    port: str | None
+    name: str
+    coordinates: dict[str, Any]
+    label: str
+    path: str
+
+
+class SerializedDependencyInfo(TypedDict):
+    """Serialized DependencyInfo after .model_dump().
+
+    This is the dict representation of DependencyInfo that gets added to task specs
+    at runtime by the launcher.
+    """
+
+    dep_label: str
+    filename: str | None
+    data_label: str

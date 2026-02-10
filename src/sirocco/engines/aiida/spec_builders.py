@@ -7,6 +7,7 @@ import io
 import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
 import aiida.orm
 from aiida.common.exceptions import NotExistent
@@ -23,6 +24,12 @@ from sirocco.engines.aiida.models import (
     OutputDataInfo,
 )
 from sirocco.engines.aiida.utils import serialize_coordinates, split_cmd_arg
+
+if TYPE_CHECKING:
+    from sirocco.engines.aiida.types import (
+        SerializedInputDataInfo,
+        SerializedOutputDataInfo,
+    )
 
 LOGGER = logging.getLogger(__name__)
 
@@ -170,17 +177,56 @@ class ShellTaskSpecBuilder(TaskSpecBuilder):
     def build_spec(self) -> AiidaShellTaskSpec:
         """Build the complete shell task specification.
 
+        Orchestrates all steps of spec building by delegating to focused helper methods.
+
         Returns:
             AiidaShellTaskSpec with all parameters needed to launch the task
         """
-        # Create or load code
         code = self.create_or_load_code()
-
-        # Build input and output data info
         input_data_info = self.build_input_data_info()
         output_data_info = self.build_output_data_info()
 
-        # Build input labels for argument resolution
+        # Build all label mappings
+        input_labels = self._build_input_labels(input_data_info)
+        output_labels = self._build_output_labels(output_data_info)
+        self._add_referenced_ports_from_command(input_labels)
+
+        # Resolve arguments template
+        arguments_template = self._resolve_arguments_template(input_labels, output_labels)
+
+        # Build supporting mappings
+        filenames = self._build_filenames_mapping(input_data_info)
+        output_port_mapping = self.build_output_port_mapping()
+
+        if code.pk is None:
+            msg = f"Code for task {self.label} must be stored before creating task spec"
+            raise RuntimeError(msg)
+
+        return AiidaShellTaskSpec(
+            label=self.label,
+            code_pk=code.pk,
+            node_pks={},
+            metadata=self.metadata,
+            arguments_template=arguments_template,
+            filenames=filenames,
+            outputs=[],
+            input_data_info=[cast("SerializedInputDataInfo", info.model_dump()) for info in input_data_info],
+            output_data_info=[cast("SerializedOutputDataInfo", info.model_dump()) for info in output_data_info],
+            output_port_mapping=output_port_mapping,
+        )
+
+    def _build_input_labels(self, input_data_info: list[InputDataInfo]) -> dict[str, list[str]]:
+        """Build input labels mapping for argument resolution.
+
+        For AvailableData with paths, uses the actual path directly.
+        For other data, creates a placeholder like {label}.
+
+        Args:
+            input_data_info: List of input data information
+
+        Returns:
+            Dict mapping port names to list of labels/paths
+        """
         input_labels: dict[str, list[str]] = {}
         for input_info in input_data_info:
             port_name = input_info.port
@@ -192,8 +238,17 @@ class ShellTaskSpecBuilder(TaskSpecBuilder):
                 input_labels[port_name].append(input_info.path)
             else:
                 input_labels[port_name].append(f"{{{input_label}}}")
+        return input_labels
 
-        # Build output labels
+    def _build_output_labels(self, output_data_info: list[OutputDataInfo]) -> dict[str, list[str]]:
+        """Build output labels mapping for argument resolution.
+
+        Args:
+            output_data_info: List of output data information
+
+        Returns:
+            Dict mapping port names to list of labels/paths
+        """
         output_labels: dict[str, list[str]] = {}
         for output_info in output_data_info:
             if output_info.port is None:
@@ -206,51 +261,73 @@ class ShellTaskSpecBuilder(TaskSpecBuilder):
                 output_labels[port_name].append(output_info.path)
             else:
                 output_labels[port_name].append(f"{{{output_label}}}")
+        return output_labels
 
-        # Pre-scan command template to find all referenced ports
+    def _add_referenced_ports_from_command(self, input_labels: dict[str, list[str]]) -> None:
+        """Pre-scan command template to find all referenced ports.
+
+        Adds empty entries for any ports referenced in the command template
+        that don't have corresponding input data. This ensures all ports
+        can be resolved during argument substitution.
+
+        Args:
+            input_labels: Input labels dict to mutate in place
+        """
         for port_match in self.task.port_pattern.finditer(self.task.command):
             port_name = port_match.group(2)
             if port_name and port_name not in input_labels:
                 input_labels[port_name] = []
 
-        # Pre-resolve arguments template
-        script_name = Path(self.task.path).name if self.task.path else None
-        input_labels.update(output_labels)
-        arguments_with_placeholders = self.task.resolve_ports(input_labels)  # type: ignore[arg-type]
-        _, resolved_arguments_template = split_cmd_arg(arguments_with_placeholders, script_name)
+    def _resolve_arguments_template(
+        self, input_labels: dict[str, list[str]], output_labels: dict[str, list[str]]
+    ) -> str:
+        """Resolve arguments template with input/output labels.
 
-        # Build filenames mapping
+        Combines input and output labels, resolves ports in the command template,
+        and separates the script name from arguments.
+
+        Args:
+            input_labels: Input labels mapping
+            output_labels: Output labels mapping
+
+        Returns:
+            Resolved arguments template string
+        """
+        script_name = Path(self.task.path).name if self.task.path else None
+        # Combine input and output labels for port resolution
+        combined_labels = {**input_labels, **output_labels}
+        arguments_with_placeholders = self.task.resolve_ports(combined_labels)  # type: ignore[arg-type]
+        _, resolved_arguments_template = split_cmd_arg(arguments_with_placeholders, script_name)
+        return resolved_arguments_template
+
+    def _build_filenames_mapping(self, input_data_info: list[InputDataInfo]) -> dict[str, str]:
+        """Build filenames mapping for file staging.
+
+        For AvailableData, uses the original filename from the path.
+        For GeneratedData, handles naming conflicts by using labels when needed.
+
+        Args:
+            input_data_info: List of input data information
+
+        Returns:
+            Dict mapping data labels/names to filenames
+        """
         filenames = {}
         for input_info in input_data_info:
             input_label = input_info.label
             if input_info.is_available:
+                # AvailableData: use filename from path
                 filenames[input_info.name] = Path(input_info.path).name if input_info.path else input_info.name
             else:
+                # GeneratedData: check for name conflicts
                 same_name_count = sum(1 for info in input_data_info if info.name == input_info.name)
                 if same_name_count > 1:
+                    # Use label to disambiguate
                     filenames[input_label] = input_label
                 else:
+                    # No conflict, use filename from path or name
                     filenames[input_label] = Path(input_info.path).name if input_info.path else input_info.name
-
-        # Build output port mapping
-        output_port_mapping = self.build_output_port_mapping()
-
-        if code.pk is None:
-            msg = f"Code for task {self.label} must be stored before creating task spec"
-            raise RuntimeError(msg)
-
-        return AiidaShellTaskSpec(
-            label=self.label,
-            code_pk=code.pk,
-            node_pks={},
-            metadata=self.metadata,
-            arguments_template=resolved_arguments_template,
-            filenames=filenames,
-            outputs=[],
-            input_data_info=[info.model_dump() for info in input_data_info],
-            output_data_info=[info.model_dump() for info in output_data_info],
-            output_port_mapping=output_port_mapping,
-        )
+        return filenames
 
 
 class IconTaskSpecBuilder(TaskSpecBuilder):

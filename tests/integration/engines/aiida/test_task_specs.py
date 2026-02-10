@@ -7,7 +7,7 @@ Tests that verify Sirocco tasks are correctly converted to AiiDA task specs
 import pytest
 
 from sirocco.core import Workflow
-from sirocco.engines.aiida.spec_builders import build_shell_task_spec
+from sirocco.engines.aiida.spec_builders import ShellTaskSpecBuilder
 from sirocco.parsing.yaml_data_models import ConfigWorkflow
 
 
@@ -43,7 +43,7 @@ def test_shell_filenames_nodes_arguments(config_paths):
     nodes_list = []
 
     for task in shell_tasks:
-        task_spec = build_shell_task_spec(task)
+        task_spec = ShellTaskSpecBuilder(task).build_spec()
         filenames_list.append(task_spec.filenames)
         arguments_list.append(task_spec.arguments_template)
 

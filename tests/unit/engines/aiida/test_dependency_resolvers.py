@@ -678,21 +678,19 @@ def test_resolve_shell_dependency_mappings_missing_parent(aiida_localhost):
     print("Expected: process task_a, skip task_b")
 
     # Call function - should skip task_b
-    all_nodes, placeholder_mapping, _filenames = resolve_shell_dependency_mappings(
-        parent_folders, port_dependency_mapping, original_filenames
-    )
+    mappings = resolve_shell_dependency_mappings(parent_folders, port_dependency_mapping, original_filenames)
 
     print("\n=== Result ===")
-    print(f"All nodes keys: {list(all_nodes.keys())}")
-    print(f"Placeholder mapping: {placeholder_mapping}")
+    print(f"All nodes keys: {list(mappings.nodes.keys())}")
+    print(f"Placeholder mapping: {mappings.placeholders}")
 
     # Should only process task_a, skip task_b
-    assert "task_a_output_a_remote" in all_nodes  # Updated to include data_label
-    assert "output_a" in placeholder_mapping
-    assert placeholder_mapping["output_a"] == "task_a_output_a_remote"  # Updated to include data_label
+    assert "task_a_output_a_remote" in mappings.nodes  # Updated to include data_label
+    assert "output_a" in mappings.placeholders
+    assert mappings.placeholders["output_a"] == "task_a_output_a_remote"  # Updated to include data_label
 
     # task_b should be skipped
-    assert "output_b" not in placeholder_mapping
+    assert "output_b" not in mappings.placeholders
 
 
 def test_resolve_shell_dependency_mappings_with_filenames(aiida_localhost):
@@ -717,20 +715,18 @@ def test_resolve_shell_dependency_mappings_with_filenames(aiida_localhost):
     print("Expected: task_a_remote should map to custom_name.txt (from original mapping)")
 
     # Call function
-    all_nodes, _placeholder_mapping, filenames = resolve_shell_dependency_mappings(
-        parent_folders, port_dependency_mapping, original_filenames
-    )
+    mappings = resolve_shell_dependency_mappings(parent_folders, port_dependency_mapping, original_filenames)
 
     print("\n=== Result filenames ===")
-    pprint(filenames)
+    pprint(mappings.filenames)
 
     # Should build filename mapping
-    assert "task_a_output_remote" in filenames  # Updated to include data_label
-    assert filenames["task_a_output_remote"] == "custom_name.txt"
+    assert "task_a_output_remote" in mappings.filenames  # Updated to include data_label
+    assert mappings.filenames["task_a_output_remote"] == "custom_name.txt"
 
     # Should create RemoteData pointing to specific file
-    assert "task_a_output_remote" in all_nodes
-    remote_data = all_nodes["task_a_output_remote"]
+    assert "task_a_output_remote" in mappings.nodes
+    remote_data = mappings.nodes["task_a_output_remote"]
     assert isinstance(remote_data, aiida.orm.RemoteData)
     assert "result.txt" in remote_data.get_remote_path()
     assert remote_data.is_stored
@@ -756,24 +752,22 @@ def test_resolve_shell_dependency_mappings_workdir_fallback(aiida_localhost):
     print("Expected: Should use workdir itself as RemoteData (no new node created)")
 
     # Call function
-    all_nodes, placeholder_mapping, filenames = resolve_shell_dependency_mappings(
-        parent_folders, port_dependency_mapping, original_filenames
-    )
+    mappings = resolve_shell_dependency_mappings(parent_folders, port_dependency_mapping, original_filenames)
 
     print("\n=== Result ===")
-    print(f"All nodes keys: {list(all_nodes.keys())}")
-    print(f"Remote data is workdir: {all_nodes.get('task_a_output_remote') == workdir}")
+    print(f"All nodes keys: {list(mappings.nodes.keys())}")
+    print(f"Remote data is workdir: {mappings.nodes.get('task_a_output_remote') == workdir}")
 
     # Should use workdir itself (not create new RemoteData)
-    assert "task_a_output_remote" in all_nodes
-    assert all_nodes["task_a_output_remote"] == workdir
+    assert "task_a_output_remote" in mappings.nodes
+    assert mappings.nodes["task_a_output_remote"] == workdir
 
     # Should have placeholder mapping
-    assert "output" in placeholder_mapping
-    assert placeholder_mapping["output"] == "task_a_output_remote"
+    assert "output" in mappings.placeholders
+    assert mappings.placeholders["output"] == "task_a_output_remote"
 
     # No filename mapping since filename was None
-    assert "task_a_output_remote" not in filenames
+    assert "task_a_output_remote" not in mappings.filenames
 
 
 def test_resolve_shell_dependency_mappings_multiple_outputs_from_same_task(aiida_localhost):
@@ -808,36 +802,34 @@ def test_resolve_shell_dependency_mappings_multiple_outputs_from_same_task(aiida
     print("Expected: Both should be preserved with unique keys")
 
     # Call function
-    all_nodes, placeholder_mapping, filenames = resolve_shell_dependency_mappings(
-        parent_folders, port_dependency_mapping, original_filenames
-    )
+    mappings = resolve_shell_dependency_mappings(parent_folders, port_dependency_mapping, original_filenames)
 
     print("\n=== Result ===")
-    print(f"All nodes keys: {list(all_nodes.keys())}")
-    print(f"Placeholder mapping: {placeholder_mapping}")
-    print(f"Filenames: {filenames}")
+    print(f"All nodes keys: {list(mappings.nodes.keys())}")
+    print(f"Placeholder mapping: {mappings.placeholders}")
+    print(f"Filenames: {mappings.filenames}")
 
     # CRITICAL: Both outputs should be present with distinct keys
-    assert "icon_task_atm_2d_remote" in all_nodes
-    assert "icon_task_atm_3d_pl_remote" in all_nodes
+    assert "icon_task_atm_2d_remote" in mappings.nodes
+    assert "icon_task_atm_3d_pl_remote" in mappings.nodes
 
     # Both should have placeholder mappings
-    assert "atm_2d" in placeholder_mapping
-    assert "atm_3d_pl" in placeholder_mapping
+    assert "atm_2d" in mappings.placeholders
+    assert "atm_3d_pl" in mappings.placeholders
 
     # Each placeholder should map to its unique key
-    assert placeholder_mapping["atm_2d"] == "icon_task_atm_2d_remote"
-    assert placeholder_mapping["atm_3d_pl"] == "icon_task_atm_3d_pl_remote"
+    assert mappings.placeholders["atm_2d"] == "icon_task_atm_2d_remote"
+    assert mappings.placeholders["atm_3d_pl"] == "icon_task_atm_3d_pl_remote"
 
     # Both should have different RemoteData nodes with different paths
-    atm_2d_node = all_nodes["icon_task_atm_2d_remote"]
-    atm_3d_pl_node = all_nodes["icon_task_atm_3d_pl_remote"]
+    atm_2d_node = mappings.nodes["icon_task_atm_2d_remote"]
+    atm_3d_pl_node = mappings.nodes["icon_task_atm_3d_pl_remote"]
     assert atm_2d_node != atm_3d_pl_node
     assert "atm_2d" in atm_2d_node.get_remote_path()
     assert "atm_3d_pl" in atm_3d_pl_node.get_remote_path()
 
     # Verify we have exactly 2 nodes (not 1 due to overwriting)
-    assert len(all_nodes) == 2
+    assert len(mappings.nodes) == 2
 
     print("\n✓ Both outputs preserved with unique keys (bug fixed!)")
 

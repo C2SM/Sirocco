@@ -6,6 +6,7 @@ AiiDA-specific domain transformations are in adapter.py.
 
 from __future__ import annotations
 
+from collections import defaultdict
 from pathlib import Path
 
 
@@ -60,3 +61,144 @@ def serialize_coordinates(coordinates: dict) -> dict:
         else:
             serialized[key] = value
     return serialized
+
+
+class PortLabelMapper:
+    """Bidirectional mapper between port names and data labels.
+
+    Manages the relationship between AiiDA ports and data labels, supporting
+    both forward (label → port) and reverse (port → labels) lookups. A single
+    port can have multiple labels associated with it.
+
+    Example::
+
+        mapper = PortLabelMapper()
+        mapper.add("output_file", "task_a_result")
+        mapper.add("output_file", "task_b_result")
+
+        # Forward lookup: label → port
+        port = mapper.get_port_for_label("task_a_result")  # "output_file"
+
+        # Reverse lookup: port → labels
+        labels = mapper.get_labels_for_port(
+            "output_file"
+        )  # ["task_a_result", "task_b_result"]
+
+        # Export as dict (label → port)
+        mapping = mapper.to_dict()  # {"task_a_result": "output_file", ...}
+    """
+
+    def __init__(self) -> None:
+        """Initialize empty bidirectional mappings."""
+        self._label_to_port: dict[str, str] = {}
+        self._port_to_labels: dict[str, list[str]] = defaultdict(list)
+
+    def add(self, port: str, label: str) -> None:
+        """Add a mapping from label to port.
+
+        Args:
+            port: Port name
+            label: Data label
+        """
+        self._label_to_port[label] = port
+        if label not in self._port_to_labels[port]:
+            self._port_to_labels[port].append(label)
+
+    def add_many(self, port: str, labels: list[str]) -> None:
+        """Add multiple labels for a single port.
+
+        Args:
+            port: Port name
+            labels: List of data labels
+        """
+        for label in labels:
+            self.add(port, label)
+
+    def from_dict(self, mapping: dict[str, str]) -> PortLabelMapper:
+        """Populate mapper from a dict of {label: port}.
+
+        Args:
+            mapping: Dict mapping labels to ports
+
+        Returns:
+            Self for chaining
+        """
+        for label, port in mapping.items():
+            self.add(port, label)
+        return self
+
+    def get_port_for_label(self, label: str) -> str | None:
+        """Get the port name for a given label.
+
+        Args:
+            label: Data label to look up
+
+        Returns:
+            Port name, or None if label not found
+        """
+        return self._label_to_port.get(label)
+
+    def get_labels_for_port(self, port: str) -> list[str]:
+        """Get all labels associated with a port.
+
+        Args:
+            port: Port name to look up
+
+        Returns:
+            List of labels (empty if port not found)
+        """
+        return list(self._port_to_labels.get(port, []))
+
+    def has_label(self, label: str) -> bool:
+        """Check if a label exists in the mapping.
+
+        Args:
+            label: Label to check
+
+        Returns:
+            True if label is mapped to a port
+        """
+        return label in self._label_to_port
+
+    def has_port(self, port: str) -> bool:
+        """Check if a port exists in the mapping.
+
+        Args:
+            port: Port to check
+
+        Returns:
+            True if port has at least one label
+        """
+        return port in self._port_to_labels
+
+    def to_dict(self) -> dict[str, str]:
+        """Export as a dictionary of {label: port}.
+
+        Returns:
+            Dict mapping all labels to their ports
+        """
+        return dict(self._label_to_port)
+
+    def get_all_ports(self) -> list[str]:
+        """Get all unique port names.
+
+        Returns:
+            List of port names
+        """
+        return list(self._port_to_labels.keys())
+
+    def get_all_labels(self) -> list[str]:
+        """Get all unique labels.
+
+        Returns:
+            List of labels
+        """
+        return list(self._label_to_port.keys())
+
+    def __len__(self) -> int:
+        """Return the number of label mappings."""
+        return len(self._label_to_port)
+
+    def __repr__(self) -> str:
+        """Return string representation."""
+        return f"PortLabelMapper({len(self)} labels across {len(self._port_to_labels)} ports)"

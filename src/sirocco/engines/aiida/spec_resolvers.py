@@ -181,14 +181,14 @@ class ShellTaskSpecResolver(TaskSpecResolver):
         port_dep_dict = self.spec.port_dependency_mapping or {}
         port_dependencies = {port: [DependencyInfo(**dep) for dep in deps] for port, deps in port_dep_dict.items()}
 
-        dep_nodes, placeholder_to_node_key, filenames = resolve_shell_dependency_mappings(
+        mappings = resolve_shell_dependency_mappings(
             task_folders,
             port_dependencies,
             self.spec.filenames,
         )
-        all_nodes.update(dep_nodes)
+        all_nodes.update(mappings.nodes)
 
-        return placeholder_to_node_key, filenames
+        return mappings.placeholders, mappings.filenames
 
     def _build_metadata(self, task_job_ids: dict | None) -> AiidaMetadata:
         """Build metadata with SLURM job dependencies.

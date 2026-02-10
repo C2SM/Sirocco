@@ -1,5 +1,6 @@
 """Unit tests for sirocco.engines.aiida.spec_builders module."""
 
+import re
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -12,10 +13,12 @@ from sirocco.engines.aiida.models import (
     AiidaMetadata,
     AiidaMetadataOptions,
     AiidaShellTaskSpec,
+    InputDataInfo,
+    OutputDataInfo,
 )
 from sirocco.engines.aiida.spec_builders import (
-    build_icon_task_spec,
-    build_shell_task_spec,
+    IconTaskSpecBuilder,
+    ShellTaskSpecBuilder,
 )
 from tests.unit.utils import (
     create_available_data,
@@ -23,6 +26,42 @@ from tests.unit.utils import (
     create_mock_icon_task,
     create_mock_shell_task,
 )
+
+
+def create_mock_shell_task_for_builder(command: str = "echo test") -> core.ShellTask:
+    """Create a mock ShellTask for testing builder methods.
+
+    Args:
+        command: Command template for the task
+
+    Returns:
+        Mock ShellTask with necessary attributes
+    """
+    task = Mock(spec=core.ShellTask)
+    task.name = "test_task"
+    task.computer = "localhost"
+    task.path = "/bin/echo"
+    task.command = command
+    task.walltime = "01:00:00"
+    task.coordinates = {}
+    task.cycle_point = None  # For DateCyclePoint check in build_metadata
+    # Simple port pattern that matches {name} format with group(2) capturing the name
+    task.port_pattern = re.compile(r"\{()([^}]+)\}")
+    task.resolve_ports = Mock(return_value=command)
+    task.input_data_items = Mock(return_value=[])
+    task.output_data_items = Mock(return_value=[])
+    # Resource attributes (for build_scheduler_options)
+    task.nodes = None
+    task.ntasks_per_node = None
+    task.cpus_per_task = None
+    task.mem = None  # Memory in MB
+    task.mem_per_cpu = None
+    task.account = None
+    task.partition = None
+    task.mpi = None
+    task.uenv = None
+    task.view = None
+    return task
 
 
 class TestBuildShellTaskSpec:
@@ -34,9 +73,9 @@ class TestBuildShellTaskSpec:
         return create_shell_task(name="test_shell", command="echo hello")
 
     def test_build_shell_spec_smoke_test(self, shell_task):
-        """Smoke test: verify build_shell_task_spec doesn't crash and returns valid spec."""
+        """Smoke test: verify ShellTaskSpecBuilder doesn't crash and returns valid spec."""
         # Build spec
-        spec = build_shell_task_spec(shell_task)
+        spec = ShellTaskSpecBuilder(shell_task).build_spec()
 
         print("\n=== Shell task spec ===")
         pprint(spec)
@@ -52,7 +91,7 @@ class TestBuildShellTaskSpec:
         shell_task.inputs["port1"] = [input_data]
 
         # Build spec
-        spec = build_shell_task_spec(shell_task)
+        spec = ShellTaskSpecBuilder(shell_task).build_spec()
 
         print("\n=== Input data info ===")
         pprint(spec.input_data_info)
@@ -71,7 +110,7 @@ class TestBuildShellTaskSpec:
         shell_task.outputs["output_port"] = [output_data]
 
         # Build spec
-        spec = build_shell_task_spec(shell_task)
+        spec = ShellTaskSpecBuilder(shell_task).build_spec()
 
         print("\n=== Output data info ===")
         pprint(spec.output_data_info)
@@ -82,6 +121,353 @@ class TestBuildShellTaskSpec:
         assert len(spec.output_data_info) == 1
         assert spec.output_data_info[0]["name"] == "output1"
         assert spec.output_data_info[0]["port"] == "output_port"
+
+
+class TestShellTaskSpecBuilderHelpers:
+    """Test private helper methods of ShellTaskSpecBuilder."""
+
+    def test_build_input_labels_available_data_with_path(self, aiida_localhost):
+        """Test _build_input_labels with AvailableData that has a path."""
+        task = create_mock_shell_task_for_builder()
+        task.computer = aiida_localhost.label
+        task.computer = aiida_localhost.label
+        builder = ShellTaskSpecBuilder(task)
+
+        input_data_info = [
+            InputDataInfo(
+                port="input_file",
+                name="test.txt",
+                coordinates={},
+                label="test_label",
+                is_available=True,
+                path="/path/to/test.txt",
+            )
+        ]
+
+        result = builder._build_input_labels(input_data_info)
+
+        print("\n=== Build input labels (AvailableData with path) ===")
+        print(f"Result: {result}")
+
+        assert "input_file" in result
+        assert result["input_file"] == ["/path/to/test.txt"]
+
+    def test_build_input_labels_generated_data_creates_placeholder(self, aiida_localhost):
+        """Test _build_input_labels with GeneratedData creates placeholder."""
+        task = create_mock_shell_task_for_builder()
+        task.computer = aiida_localhost.label
+        task.computer = aiida_localhost.label
+        builder = ShellTaskSpecBuilder(task)
+
+        input_data_info = [
+            InputDataInfo(
+                port="generated_input",
+                name="output.txt",
+                coordinates={},
+                label="task_a_output",
+                is_available=False,
+                path="output.txt",
+            )
+        ]
+
+        result = builder._build_input_labels(input_data_info)
+
+        print("\n=== Build input labels (GeneratedData) ===")
+        print(f"Result: {result}")
+
+        assert "generated_input" in result
+        assert result["generated_input"] == ["{task_a_output}"]
+
+    def test_build_input_labels_multiple_inputs_same_port(self, aiida_localhost):
+        """Test _build_input_labels with multiple inputs on same port."""
+        task = create_mock_shell_task_for_builder()
+        task.computer = aiida_localhost.label
+        builder = ShellTaskSpecBuilder(task)
+
+        input_data_info = [
+            InputDataInfo(
+                port="input_files",
+                name="file1.txt",
+                coordinates={},
+                label="file1",
+                is_available=True,
+                path="/path/to/file1.txt",
+            ),
+            InputDataInfo(
+                port="input_files",
+                name="file2.txt",
+                coordinates={},
+                label="file2",
+                is_available=True,
+                path="/path/to/file2.txt",
+            ),
+        ]
+
+        result = builder._build_input_labels(input_data_info)
+
+        print("\n=== Build input labels (multiple inputs same port) ===")
+        print(f"Result: {result}")
+
+        assert "input_files" in result
+        assert len(result["input_files"]) == 2
+        assert "/path/to/file1.txt" in result["input_files"]
+        assert "/path/to/file2.txt" in result["input_files"]
+
+    def test_build_output_labels_with_path(self, aiida_localhost):
+        """Test _build_output_labels with output that has a path."""
+        task = create_mock_shell_task_for_builder()
+        task.computer = aiida_localhost.label
+        builder = ShellTaskSpecBuilder(task)
+
+        output_data_info = [
+            OutputDataInfo(
+                port="output_file",
+                name="result.txt",
+                coordinates={},
+                label="result",
+                path="result.txt",
+            )
+        ]
+
+        result = builder._build_output_labels(output_data_info)
+
+        print("\n=== Build output labels (with path) ===")
+        print(f"Result: {result}")
+
+        assert "output_file" in result
+        assert result["output_file"] == ["result.txt"]
+
+    def test_build_output_labels_without_path_creates_placeholder(self, aiida_localhost):
+        """Test _build_output_labels without path creates placeholder."""
+        task = create_mock_shell_task_for_builder()
+        task.computer = aiida_localhost.label
+        builder = ShellTaskSpecBuilder(task)
+
+        output_data_info = [
+            OutputDataInfo(
+                port="output_data",
+                name="result",
+                coordinates={},
+                label="result_label",
+                path="",
+            )
+        ]
+
+        result = builder._build_output_labels(output_data_info)
+
+        print("\n=== Build output labels (without path) ===")
+        print(f"Result: {result}")
+
+        assert "output_data" in result
+        assert result["output_data"] == ["{result_label}"]
+
+    def test_build_output_labels_skips_none_port(self, aiida_localhost):
+        """Test _build_output_labels skips outputs with None port."""
+        task = create_mock_shell_task_for_builder()
+        task.computer = aiida_localhost.label
+        builder = ShellTaskSpecBuilder(task)
+
+        output_data_info = [
+            OutputDataInfo(
+                port=None,
+                name="result.txt",
+                coordinates={},
+                label="result",
+                path="result.txt",
+            )
+        ]
+
+        result = builder._build_output_labels(output_data_info)
+
+        print("\n=== Build output labels (None port) ===")
+        print(f"Result: {result}")
+
+        assert len(result) == 0
+
+    def test_add_referenced_ports_from_command(self, aiida_localhost):
+        """Test _add_referenced_ports_from_command finds ports in command."""
+        task = create_mock_shell_task_for_builder(command="process {input_file} > {output_file}")
+        task.computer = aiida_localhost.label
+        builder = ShellTaskSpecBuilder(task)
+
+        input_labels: dict[str, list[str]] = {}
+        builder._add_referenced_ports_from_command(input_labels)
+
+        print("\n=== Add referenced ports from command ===")
+        print(f"Command: {task.command}")
+        print(f"Found ports: {list(input_labels.keys())}")
+
+        # Should have found both input_file and output_file ports
+        assert "input_file" in input_labels
+        assert "output_file" in input_labels
+        assert input_labels["input_file"] == []
+        assert input_labels["output_file"] == []
+
+    def test_add_referenced_ports_does_not_overwrite_existing(self, aiida_localhost):
+        """Test _add_referenced_ports_from_command doesn't overwrite existing entries."""
+        task = create_mock_shell_task_for_builder(command="process {input_file}")
+        task.computer = aiida_localhost.label
+        builder = ShellTaskSpecBuilder(task)
+
+        input_labels = {"input_file": ["/path/to/file.txt"]}
+        builder._add_referenced_ports_from_command(input_labels)
+
+        print("\n=== Add referenced ports (existing entry) ===")
+        print(f"Result: {input_labels}")
+
+        # Should preserve existing entry
+        assert input_labels["input_file"] == ["/path/to/file.txt"]
+
+    def test_resolve_arguments_template(self, aiida_localhost):
+        """Test _resolve_arguments_template combines labels and resolves."""
+        task = create_mock_shell_task_for_builder(command="echo {input} > {output}")
+        task.computer = aiida_localhost.label
+        task.path = "/bin/echo"
+        task.resolve_ports.return_value = "echo /path/to/input.txt > result.txt"
+        builder = ShellTaskSpecBuilder(task)
+
+        input_labels = {"input": ["/path/to/input.txt"]}
+        output_labels = {"output": ["result.txt"]}
+
+        result = builder._resolve_arguments_template(input_labels, output_labels)
+
+        print("\n=== Resolve arguments template ===")
+        print(f"Input labels: {input_labels}")
+        print(f"Output labels: {output_labels}")
+        print(f"Result: {result}")
+
+        # Should have called resolve_ports with combined labels
+        combined = {**input_labels, **output_labels}
+        task.resolve_ports.assert_called_once_with(combined)
+
+        # Result should be the arguments without script name
+        assert result == "/path/to/input.txt > result.txt"
+
+    def test_build_filenames_mapping_available_data(self, aiida_localhost):
+        """Test _build_filenames_mapping for AvailableData."""
+        task = create_mock_shell_task_for_builder()
+        task.computer = aiida_localhost.label
+        builder = ShellTaskSpecBuilder(task)
+
+        input_data_info = [
+            InputDataInfo(
+                port="input_file",
+                name="test.txt",
+                coordinates={},
+                label="test_label",
+                is_available=True,
+                path="/path/to/test.txt",
+            )
+        ]
+
+        result = builder._build_filenames_mapping(input_data_info)
+
+        print("\n=== Build filenames mapping (AvailableData) ===")
+        print(f"Result: {result}")
+
+        # For AvailableData, uses name as key and filename from path
+        assert "test.txt" in result
+        assert result["test.txt"] == "test.txt"
+
+    def test_build_filenames_mapping_generated_data_unique_name(self, aiida_localhost):
+        """Test _build_filenames_mapping for GeneratedData with unique name."""
+        task = create_mock_shell_task_for_builder()
+        task.computer = aiida_localhost.label
+        builder = ShellTaskSpecBuilder(task)
+
+        input_data_info = [
+            InputDataInfo(
+                port="generated_input",
+                name="output",
+                coordinates={},
+                label="task_a_output",
+                is_available=False,
+                path="output.txt",
+            )
+        ]
+
+        result = builder._build_filenames_mapping(input_data_info)
+
+        print("\n=== Build filenames mapping (GeneratedData, unique name) ===")
+        print(f"Result: {result}")
+
+        # For GeneratedData with unique name, uses label as key and filename from path
+        assert "task_a_output" in result
+        assert result["task_a_output"] == "output.txt"
+
+    def test_build_filenames_mapping_generated_data_duplicate_names(self, aiida_localhost):
+        """Test _build_filenames_mapping for GeneratedData with duplicate names."""
+        task = create_mock_shell_task_for_builder()
+        task.computer = aiida_localhost.label
+        builder = ShellTaskSpecBuilder(task)
+
+        input_data_info = [
+            InputDataInfo(
+                port="input1",
+                name="output",  # Same name
+                coordinates={},
+                label="task_a_output",
+                is_available=False,
+                path="output.txt",
+            ),
+            InputDataInfo(
+                port="input2",
+                name="output",  # Same name
+                coordinates={},
+                label="task_b_output",
+                is_available=False,
+                path="output.txt",
+            ),
+        ]
+
+        result = builder._build_filenames_mapping(input_data_info)
+
+        print("\n=== Build filenames mapping (GeneratedData, duplicate names) ===")
+        print(f"Result: {result}")
+
+        # For duplicate names, uses label as both key and value to disambiguate
+        assert "task_a_output" in result
+        assert result["task_a_output"] == "task_a_output"
+        assert "task_b_output" in result
+        assert result["task_b_output"] == "task_b_output"
+
+    def test_build_filenames_mapping_mixed_data_types(self, aiida_localhost):
+        """Test _build_filenames_mapping with mixed AvailableData and GeneratedData."""
+        task = create_mock_shell_task_for_builder()
+        task.computer = aiida_localhost.label
+        builder = ShellTaskSpecBuilder(task)
+
+        input_data_info = [
+            InputDataInfo(
+                port="available",
+                name="input.txt",
+                coordinates={},
+                label="input_label",
+                is_available=True,
+                path="/path/to/input.txt",
+            ),
+            InputDataInfo(
+                port="generated",
+                name="output",
+                coordinates={},
+                label="task_a_output",
+                is_available=False,
+                path="output.txt",
+            ),
+        ]
+
+        result = builder._build_filenames_mapping(input_data_info)
+
+        print("\n=== Build filenames mapping (mixed types) ===")
+        print(f"Result: {result}")
+
+        # AvailableData uses name as key
+        assert "input.txt" in result
+        assert result["input.txt"] == "input.txt"
+
+        # GeneratedData uses label as key
+        assert "task_a_output" in result
+        assert result["task_a_output"] == "output.txt"
 
 
 class TestBuildIconTaskSpec:
@@ -105,7 +491,7 @@ class TestBuildIconTaskSpec:
         mock_load_code,
         icon_task,
     ):
-        """Smoke test: verify build_icon_task_spec doesn't crash and returns valid spec."""
+        """Smoke test: verify IconTaskSpecBuilder doesn't crash and returns valid spec."""
 
         # Code not found, will create new
         mock_load_code.side_effect = NotExistent("Not found")
@@ -121,7 +507,7 @@ class TestBuildIconTaskSpec:
         mock_create_nml.return_value = mock_master_nml
 
         # Build spec
-        spec = build_icon_task_spec(icon_task)
+        spec = IconTaskSpecBuilder(icon_task).build_spec()
 
         print("\n=== ICON task spec ===")
         pprint(spec)
@@ -169,7 +555,7 @@ class TestBuildIconTaskSpec:
         icon_task.wrapper_script = Path("/path/to/wrapper.sh")
 
         # Build spec
-        spec = build_icon_task_spec(icon_task)
+        spec = IconTaskSpecBuilder(icon_task).build_spec()
 
         print("\n=== ICON spec with wrapper ===")
         print(f"Wrapper script PK: {spec.wrapper_script_pk}")
@@ -209,7 +595,7 @@ class TestBuildIconTaskSpec:
         mock_create_nml.side_effect = [mock_master, mock_atm, mock_oce]
 
         # Build spec
-        spec = build_icon_task_spec(icon_task)
+        spec = IconTaskSpecBuilder(icon_task).build_spec()
 
         print("\n=== Model namelist PKs ===")
         pprint(spec.model_namelist_pks)
@@ -222,7 +608,7 @@ class TestBuildIconTaskSpec:
 
 
 class TestBuildShellTaskSpecErrors:
-    """Test error cases in build_shell_task_spec."""
+    """Test error cases in ShellTaskSpecBuilder."""
 
     # Patch: Mock create_shell_code to return unstored code and test error condition
     @patch("sirocco.engines.aiida.code_factory.CodeFactory.create_shell_code")
@@ -248,11 +634,11 @@ class TestBuildShellTaskSpecErrors:
 
         # Should raise RuntimeError
         with pytest.raises(RuntimeError, match=r"Code for task .* must be stored"):
-            build_shell_task_spec(task)
+            ShellTaskSpecBuilder(task).build_spec()
 
 
 class TestBuildShellTaskSpecOutputs:
-    """Test output handling in build_shell_task_spec."""
+    """Test output handling in ShellTaskSpecBuilder."""
 
     def test_output_without_path(self, aiida_localhost):
         """Test output with path=None gets placeholder."""
@@ -273,7 +659,7 @@ class TestBuildShellTaskSpecOutputs:
         task.output_data_items.return_value = [("output_port", output_data)]
 
         # Build spec
-        spec = build_shell_task_spec(task)
+        spec = ShellTaskSpecBuilder(task).build_spec()
 
         print("\n=== Output without path ===")
         print(f"Output data: {output_data}")
@@ -302,7 +688,7 @@ class TestBuildShellTaskSpecOutputs:
         task.output_data_items.return_value = [(None, output_data)]  # port=None
 
         # Build spec - should not crash with None port
-        spec = build_shell_task_spec(task)
+        spec = ShellTaskSpecBuilder(task).build_spec()
 
         print("\n=== Output with null port ===")
         print(f"Output data: {output_data}")
@@ -334,7 +720,7 @@ class TestBuildShellTaskSpecOutputs:
         task.input_data_items.return_value = [("port1", input1)]
 
         # Build spec
-        spec = build_shell_task_spec(task)
+        spec = ShellTaskSpecBuilder(task).build_spec()
 
         print("\n=== GeneratedData with single name and path ===")
         print(f"Input data: {input1}")
@@ -366,7 +752,7 @@ class TestBuildShellTaskSpecOutputs:
         task.resolve_ports.return_value = "script.sh "
 
         # Build spec - should not crash even with unreferenced port
-        spec = build_shell_task_spec(task)
+        spec = ShellTaskSpecBuilder(task).build_spec()
 
         print("\n=== Port pattern matching ===")
         print(f"Task command: {task.command}")
@@ -398,7 +784,7 @@ class TestBuildShellTaskSpecOutputs:
         task.input_data_items.return_value = [("port1", input1), ("port2", input2)]
 
         # Build spec
-        spec = build_shell_task_spec(task)
+        spec = ShellTaskSpecBuilder(task).build_spec()
 
         print("\n=== Duplicate input names ===")
         print(f"Input 1: {input1}")
@@ -416,7 +802,7 @@ class TestBuildShellTaskSpecOutputs:
 
 
 class TestBuildIconTaskSpecOutputs:
-    """Test output port mapping in build_icon_task_spec."""
+    """Test output port mapping in IconTaskSpecBuilder."""
 
     # Patch: Mock computer retrieval to control computer object in test
     @patch("aiida.orm.Computer.collection.get")
@@ -470,7 +856,7 @@ class TestBuildIconTaskSpecOutputs:
         task.outputs = {None: [output_data]}
 
         # Build spec
-        spec = build_icon_task_spec(task)
+        spec = IconTaskSpecBuilder(task).build_spec()
 
         print("\n=== ICON task with null port output ===")
         print(f"Output data: {output_data}")
@@ -534,7 +920,7 @@ class TestBuildIconTaskSpecOutputs:
         task.outputs = {"restart_data": [output1, output2]}
 
         # Build spec
-        spec = build_icon_task_spec(task)
+        spec = IconTaskSpecBuilder(task).build_spec()
 
         print("\n=== ICON task output port mapping ===")
         print(f"Task outputs: {task.outputs}")

@@ -6,7 +6,7 @@ import aiida.orm
 import pytest
 
 from sirocco.engines.aiida.calcjob_builders import (
-    _build_slurm_dependency_directive,
+    SlurmDirectiveBuilder,
     add_slurm_dependencies_to_metadata,
     build_icon_calcjob_inputs,
 )
@@ -17,35 +17,142 @@ from sirocco.engines.aiida.models import (
 )
 
 
-class TestBuildSlurmDependencyDirective:
-    """Test SLURM dependency directive construction."""
+class TestSlurmDirectiveBuilder:
+    """Test SlurmDirectiveBuilder fluent interface."""
 
-    def test_single_job_id(self):
-        """Test directive with single job ID."""
+    def test_empty_builder(self):
+        """Test builder with no directives returns None."""
+        builder = SlurmDirectiveBuilder()
+        result = builder.build()
+
+        print("\n=== Empty builder ===")
+        print(f"Result: {result}")
+
+        assert result is None
+
+    def test_add_uenv(self):
+        """Test adding --uenv directive."""
+        builder = SlurmDirectiveBuilder()
+        result = builder.add_uenv("icon-wcp/v1:rc4").build()
+
+        print("\n=== Add uenv ===")
+        print(result)
+
+        assert result == "#SBATCH --uenv=icon-wcp/v1:rc4"
+
+    def test_add_view(self):
+        """Test adding --view directive."""
+        builder = SlurmDirectiveBuilder()
+        result = builder.add_view("icon").build()
+
+        print("\n=== Add view ===")
+        print(result)
+
+        assert result == "#SBATCH --view=icon"
+
+    def test_add_uenv_and_view(self):
+        """Test chaining uenv and view directives."""
+        builder = SlurmDirectiveBuilder()
+        result = builder.add_uenv("icon-wcp/v1:rc4").add_view("icon").build()
+
+        print("\n=== Add uenv and view ===")
+        print(result)
+
+        lines = result.split("\n")
+        assert "#SBATCH --uenv=icon-wcp/v1:rc4" in lines
+        assert "#SBATCH --view=icon" in lines
+
+    def test_add_dependency_single_job(self):
+        """Test dependency directive with single job ID."""
         job_ids = {"task1": Mock(value=12345)}
+        builder = SlurmDirectiveBuilder()
+        result = builder.add_dependency_afterok(job_ids).build()
 
-        directive = _build_slurm_dependency_directive(job_ids)
+        print("\n=== Dependency (single job) ===")
+        print(result)
 
-        print("\n=== SLURM dependency directive (single job) ===")
-        print(directive)
+        assert result == "#SBATCH --dependency=afterok:12345 --kill-on-invalid-dep=yes"
 
-        assert directive == "#SBATCH --dependency=afterok:12345 --kill-on-invalid-dep=yes"
-
-    def test_multiple_job_ids(self):
-        """Test directive with multiple job IDs."""
+    def test_add_dependency_multiple_jobs(self):
+        """Test dependency directive with multiple job IDs."""
         job_ids = {
             "task1": Mock(value=12345),
             "task2": Mock(value=67890),
             "task3": Mock(value=11111),
         }
+        builder = SlurmDirectiveBuilder()
+        result = builder.add_dependency_afterok(job_ids).build()
 
-        directive = _build_slurm_dependency_directive(job_ids)
+        print("\n=== Dependency (multiple jobs) ===")
+        print(result)
 
-        print("\n=== SLURM dependency directive (multiple jobs) ===")
-        print(directive)
+        assert result == "#SBATCH --dependency=afterok:12345:67890:11111 --kill-on-invalid-dep=yes"
 
-        # Dict maintains insertion order in Python 3.7+, so order is deterministic
-        assert directive == "#SBATCH --dependency=afterok:12345:67890:11111 --kill-on-invalid-dep=yes"
+    def test_add_dependency_list_of_ints(self):
+        """Test dependency directive with list of integers."""
+        job_ids = [12345, 67890]
+        builder = SlurmDirectiveBuilder()
+        result = builder.add_dependency_afterok(job_ids).build()
+
+        print("\n=== Dependency (list of ints) ===")
+        print(result)
+
+        assert result == "#SBATCH --dependency=afterok:12345:67890 --kill-on-invalid-dep=yes"
+
+    def test_extend_from_string(self):
+        """Test extending directives from a string."""
+        existing = "#SBATCH --nodes=4\n#SBATCH --time=01:00:00"
+        builder = SlurmDirectiveBuilder()
+        result = builder.extend_from_string(existing).add_uenv("test").build()
+
+        print("\n=== Extend from string ===")
+        print(result)
+
+        lines = result.split("\n")
+        assert "#SBATCH --nodes=4" in lines
+        assert "#SBATCH --time=01:00:00" in lines
+        assert "#SBATCH --uenv=test" in lines
+
+    def test_add_raw_directive(self):
+        """Test adding a raw directive."""
+        builder = SlurmDirectiveBuilder()
+        result = builder.add_directive("#SBATCH --custom-flag=value").build()
+
+        print("\n=== Raw directive ===")
+        print(result)
+
+        assert result == "#SBATCH --custom-flag=value"
+
+    def test_skip_none_values(self):
+        """Test that None values are skipped."""
+        builder = SlurmDirectiveBuilder()
+        result = builder.add_uenv(None).add_view(None).build()
+
+        print("\n=== Skip None values ===")
+        print(f"Result: {result}")
+
+        assert result is None
+
+    def test_complex_chaining(self):
+        """Test complex chaining of multiple directives."""
+        builder = SlurmDirectiveBuilder()
+        result = (
+            builder.add_uenv("icon-wcp/v1:rc4")
+            .add_view("icon")
+            .add_directive("#SBATCH --constraint=gpu")
+            .add_dependency_afterok([12345, 67890])
+            .build()
+        )
+
+        print("\n=== Complex chaining ===")
+        print(result)
+
+        lines = result.split("\n")
+        assert len(lines) == 4
+        assert "#SBATCH --uenv=icon-wcp/v1:rc4" in lines
+        assert "#SBATCH --view=icon" in lines
+        assert "#SBATCH --constraint=gpu" in lines
+        assert "#SBATCH --dependency=afterok:12345:67890 --kill-on-invalid-dep=yes" in lines
 
 
 def test_build_icon_calcjob_inputs_no_wrapper(aiida_localhost, tmp_path):

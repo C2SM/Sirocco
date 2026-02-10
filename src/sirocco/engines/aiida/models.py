@@ -6,10 +6,18 @@ They contain validation logic but no business logic.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 import aiida.orm  # noqa TC002:
 from pydantic import BaseModel, ConfigDict, field_validator
+
+# Import TypedDicts outside TYPE_CHECKING for Pydantic runtime validation
+from sirocco.engines.aiida.types import (
+    SerializedDependencyInfo,  # noqa TC001
+    SerializedInputDataInfo,  # noqa TC001
+    SerializedOutputDataInfo,  # noqa TC001
+)
 
 if TYPE_CHECKING:
     from sirocco.engines.aiida.types import (
@@ -33,6 +41,26 @@ class DependencyMapping(NamedTuple):
 
     task_job_ids: TaskJobIdMapping
     """Maps dependency task labels to their SLURM job IDs."""
+
+
+@dataclass
+class ShellDependencyMappings:
+    """Result of resolving shell task dependencies.
+
+    Groups all three mappings needed for shell task execution:
+    - nodes: The actual RemoteData nodes to pass as inputs
+    - placeholders: Maps data labels to node keys for argument substitution
+    - filenames: Maps node keys to filenames for file staging
+    """
+
+    nodes: dict[str, aiida.orm.RemoteData]
+    """RemoteData nodes for each dependency, keyed by unique node key."""
+
+    placeholders: dict[str, str]
+    """Maps data labels to node keys for argument placeholder substitution."""
+
+    filenames: dict[str, str]
+    """Maps node keys to filenames for file staging."""
 
 
 class DependencyInfo(BaseModel):
@@ -137,10 +165,10 @@ class AiidaShellTaskSpec(BaseModel):
     arguments_template: str
     filenames: dict[str, str]
     outputs: list[str]
-    input_data_info: list[dict[str, Any]]
-    output_data_info: list[dict[str, Any]]
+    input_data_info: list[SerializedInputDataInfo]
+    output_data_info: list[SerializedOutputDataInfo]
     output_port_mapping: dict[str, str]
-    port_dependency_mapping: dict[str, list[dict[str, Any]]] | None = None  # Added by launcher
+    port_dependency_mapping: dict[str, list[SerializedDependencyInfo]] | None = None  # Added by launcher
 
     @field_validator("code_pk")
     @classmethod

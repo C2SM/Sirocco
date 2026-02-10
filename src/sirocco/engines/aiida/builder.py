@@ -19,13 +19,12 @@ from sirocco.engines.aiida.dependency_resolvers import (
     resolve_available_data_inputs,
 )
 from sirocco.engines.aiida.spec_builders import (
-    build_icon_task_spec,
-    build_shell_task_spec,
+    IconTaskSpecBuilder,
+    ShellTaskSpecBuilder,
 )
 from sirocco.engines.aiida.task_pairs import (
     LAUNCHER_PREFIX,
-    add_icon_task_pair,
-    add_shell_task_pair,
+    TaskPairContext,
 )
 
 if TYPE_CHECKING:
@@ -35,8 +34,6 @@ if TYPE_CHECKING:
     )
     from sirocco.engines.aiida.types import (
         FileNode,
-        TaskDependencyMapping,
-        TaskMonitorOutputsMapping,
     )
 
 LOGGER = logging.getLogger(__name__)
@@ -97,14 +94,11 @@ class WorkGraphBuilder:
 
     Attributes:
         workflow: Core workflow to convert
-        adapter: AiiDA adapter for domain translations
         resolved_config_path: Path to resolved config file (read from workflow.resolved_config_path).
             This is purely for provenance, to store the config with the workflow.
         data_nodes: Maps data labels to AiiDA nodes
         shell_specs: Pre-computed shell task specifications
         icon_specs: Pre-computed ICON task specifications
-        task_outputs: Maps task_label -> dep_task.outputs namespace
-        get_job_tasks: Maps task_label -> get_job_data task
         launcher_parents: Maps launcher_name -> [parent_launcher_names]
     """
 
@@ -118,12 +112,11 @@ class WorkGraphBuilder:
         self.icon_specs: dict[str, AiidaIconTaskSpec] = {}
 
         # Dynamic orchestration state
-        self.dependency_outputs: TaskMonitorOutputsMapping = {}
-        self.dependency_tasks: TaskDependencyMapping = {}
         self.launcher_parents: dict[str, list[str]] = {}  # launcher_name -> [parents]
 
         self._wg: WorkGraph | None = None
         self._wg_name: str | None = None
+        self._task_pair_context: TaskPairContext  # Initialized in _create_workgraph()
 
     def build(self) -> WorkGraph:
         """Main entry point - orchestrates the build process.
@@ -163,15 +156,18 @@ class WorkGraphBuilder:
             label = AiidaAdapter.build_label_from_graph_item(task)
             match task:
                 case core.ShellTask():
-                    self.shell_specs[label] = build_shell_task_spec(task)
+                    self.shell_specs[label] = ShellTaskSpecBuilder(task).build_spec()
                 case core.IconTask():
-                    self.icon_specs[label] = build_icon_task_spec(task)
+                    self.icon_specs[label] = IconTaskSpecBuilder(task).build_spec()
 
     def _create_workgraph(self) -> WorkGraph:
         """Create the WorkGraph with launcher tasks."""
         self._wg_name = self._generate_workgraph_name()
         self._wg = WorkGraph(self._wg_name)
         set_current_graph(self._wg)
+
+        # Create task pair context for managing task creation
+        self._task_pair_context = TaskPairContext(self._wg, self._wg_name)
 
         # Process all tasks in cycle order
         for cycle in self.workflow.cycles:
@@ -194,8 +190,9 @@ class WorkGraphBuilder:
         # Collect inputs
         input_data = resolve_available_data_inputs(task, self.data_nodes)
 
-        # Build dependency mapping
-        dependencies = build_dependency_mapping(task, self.workflow, self.dependency_outputs)
+        # Build dependency mapping using context's accumulated outputs
+        dependency_outputs = self._task_pair_context.get_dependency_outputs()
+        dependencies = build_dependency_mapping(task, self.workflow, dependency_outputs)
 
         # Track launcher dependencies for windowing
         # FIXME: No hard-coding, use actual distinction between Monitor and normal tasks
@@ -208,29 +205,21 @@ class WorkGraphBuilder:
             if AiidaAdapter.build_label_from_graph_item(dep_task) == dep_label
         ]
 
-        # Create launcher pair based on task type
+        # Create launcher pair based on task type using context
         match task:
             case core.IconTask():
-                add_icon_task_pair(
-                    self._wg,
-                    self._wg_name,  # type: ignore[arg-type]
+                self._task_pair_context.add_icon_task_pair(
                     task_label,
                     self.icon_specs[task_label],
                     input_data,
                     dependencies,
-                    self.dependency_outputs,
-                    self.dependency_tasks,
                 )
             case core.ShellTask():
-                add_shell_task_pair(
-                    self._wg,
-                    self._wg_name,  # type: ignore[arg-type]
+                self._task_pair_context.add_shell_task_pair(
                     task_label,
                     self.shell_specs[task_label],
                     input_data,
                     dependencies,
-                    self.dependency_outputs,
-                    self.dependency_tasks,
                 )
 
     def _generate_workgraph_name(self) -> str:

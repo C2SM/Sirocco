@@ -18,6 +18,7 @@ from sirocco.engines.aiida.adapter import AiidaAdapter
 from sirocco.engines.aiida.models import (
     DependencyInfo,
     DependencyMapping,
+    ShellDependencyMappings,
 )
 
 if TYPE_CHECKING:
@@ -235,11 +236,80 @@ def resolve_icon_dependency_mapping(
     return input_nodes
 
 
+def _load_parent_folder_nodes(parent_folders: TaskFolderMapping) -> dict[str, aiida.orm.RemoteData]:
+    """Load and validate RemoteData nodes from parent folder PKs.
+
+    Args:
+        parent_folders: Dict of {dep_label: remote_folder_pk_tagged_value}
+
+    Returns:
+        Dict mapping dependency labels to RemoteData nodes
+
+    Raises:
+        TypeError: If a loaded node is not RemoteData
+    """
+    parent_folders_loaded: dict[str, aiida.orm.RemoteData] = {}
+    for key, val in parent_folders.items():
+        node = aiida.orm.load_node(val.value)
+        if not isinstance(node, aiida.orm.RemoteData):
+            msg = f"Expected RemoteData for {key} but got {type(node)}"
+            raise TypeError(msg)
+        parent_folders_loaded[key] = node
+    return parent_folders_loaded
+
+
+def _process_single_dependency(
+    dep_info: DependencyInfo,
+    parent_folders_loaded: dict[str, aiida.orm.RemoteData],
+    original_filenames: dict[str, str],
+    mappings: ShellDependencyMappings,
+) -> None:
+    """Process a single dependency and update mappings.
+
+    Args:
+        dep_info: Information about the dependency
+        parent_folders_loaded: Dict of loaded RemoteData nodes
+        original_filenames: Dict mapping data labels to filenames
+        mappings: ShellDependencyMappings to update in place
+    """
+    if dep_info.dep_label not in parent_folders_loaded:
+        return
+
+    workdir_remote_data = parent_folders_loaded[dep_info.dep_label]
+
+    # Create unique key and RemoteData for this dependency
+    workdir_path = workdir_remote_data.get_remote_path()
+    # Include data_label to distinguish multiple outputs from the same producer task
+    unique_key = f"{dep_info.dep_label}_{dep_info.data_label}_remote"
+
+    if dep_info.filename:
+        # Create RemoteData pointing to the specific file/directory
+        # Normalize path to remove trailing slashes
+        specific_file_path = os.path.normpath(f"{workdir_path}/{dep_info.filename}")
+        remote_data = aiida.orm.RemoteData(
+            computer=workdir_remote_data.computer,
+            remote_path=specific_file_path,
+        )
+        remote_data.store()
+    else:
+        # No specific filename, use the workdir itself (already stored)
+        remote_data = workdir_remote_data
+
+    mappings.nodes[unique_key] = remote_data
+
+    # Build placeholder mapping for arguments
+    mappings.placeholders[dep_info.data_label] = unique_key
+
+    # Build filename mapping (from original_filenames via data_label)
+    if dep_info.data_label in original_filenames:
+        mappings.filenames[unique_key] = original_filenames[dep_info.data_label]
+
+
 def resolve_shell_dependency_mappings(
     parent_folders: TaskFolderMapping,
     port_dependency_mapping: PortDependencyMapping,
     original_filenames: dict,
-) -> tuple[dict, dict, dict]:
+) -> ShellDependencyMappings:
     """Resolve shell task dependencies and build multiple mappings for aiida-shell.
 
     This function handles shell-specific dependency resolution, including:
@@ -248,7 +318,7 @@ def resolve_shell_dependency_mappings(
     - Building placeholder mappings for command argument substitution
     - Building filename mappings for file staging
 
-    The return type is a tuple of 3 dicts because shell tasks (via aiida-shell) need:
+    Shell tasks (via aiida-shell) need three coordinated mappings:
     1. RemoteData nodes for inputs
     2. Placeholder mappings to substitute {data_label} in shell command arguments
     3. Filename mappings to control how files are named when staged/linked
@@ -262,61 +332,28 @@ def resolve_shell_dependency_mappings(
         original_filenames: Dict mapping data labels to filenames
 
     Returns:
-        Tuple of (all_nodes, placeholder_to_node_key, filenames) dicts:
-        - all_nodes: Dict mapping unique keys to RemoteData nodes
-        - placeholder_to_node_key: Dict mapping data labels to node keys (for argument substitution)
+        ShellDependencyMappings containing:
+        - nodes: Dict mapping unique keys to RemoteData nodes
+        - placeholders: Dict mapping data labels to node keys (for argument substitution)
         - filenames: Dict mapping node keys to filenames (for file staging)
     """
-    all_nodes: dict[str, aiida.orm.RemoteData] = {}
-    placeholder_to_node_key: dict[str, str] = {}
-    filenames: dict[str, str] = {}
+    # Initialize empty mappings
+    mappings = ShellDependencyMappings(
+        nodes={},
+        placeholders={},
+        filenames={},
+    )
 
     # Load RemoteData nodes from their PKs
-    parent_folders_loaded: dict[str, aiida.orm.RemoteData] = {}
-    for key, val in parent_folders.items():
-        node = aiida.orm.load_node(val.value)
-        if not isinstance(node, aiida.orm.RemoteData):
-            msg = f"Expected RemoteData for {key} but got {type(node)}"
-            raise TypeError(msg)
-        parent_folders_loaded[key] = node
+    parent_folders_loaded = _load_parent_folder_nodes(parent_folders)
 
     # Process ALL dependencies: create nodes, map placeholders, and map filenames
     for dep_info_list in port_dependency_mapping.values():
         # dep_info_list is a list of DependencyInfo objects
         for dep_info in dep_info_list:
-            if dep_info.dep_label not in parent_folders_loaded:
-                continue
+            _process_single_dependency(dep_info, parent_folders_loaded, original_filenames, mappings)
 
-            workdir_remote_data = parent_folders_loaded[dep_info.dep_label]
-
-            # Create unique key and RemoteData for this dependency
-            workdir_path = workdir_remote_data.get_remote_path()
-            # Include data_label to distinguish multiple outputs from the same producer task
-            unique_key = f"{dep_info.dep_label}_{dep_info.data_label}_remote"
-
-            if dep_info.filename:
-                # Create RemoteData pointing to the specific file/directory
-                # Normalize path to remove trailing slashes
-                specific_file_path = os.path.normpath(f"{workdir_path}/{dep_info.filename}")
-                remote_data = aiida.orm.RemoteData(
-                    computer=workdir_remote_data.computer,
-                    remote_path=specific_file_path,
-                )
-                remote_data.store()
-            else:
-                # No specific filename, use the workdir itself (already stored)
-                remote_data = workdir_remote_data
-
-            all_nodes[unique_key] = remote_data
-
-            # Build placeholder mapping for arguments
-            placeholder_to_node_key[dep_info.data_label] = unique_key
-
-            # Build filename mapping (from original_filenames via data_label)
-            if dep_info.data_label in original_filenames:
-                filenames[unique_key] = original_filenames[dep_info.data_label]
-
-    return all_nodes, placeholder_to_node_key, filenames
+    return mappings
 
 
 def resolve_available_data_inputs(task: core.Task, aiida_data_nodes: PortDataMapping) -> PortDataMapping:

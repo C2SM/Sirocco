@@ -9,6 +9,7 @@ from aiida.common.exceptions import NotExistent
 from aiida.transports.plugins.local import LocalTransport
 
 from sirocco import core
+from sirocco.engines.aiida.calcjob_builders import SlurmDirectiveBuilder
 from sirocco.engines.aiida.models import (
     AiidaMetadata,
     AiidaMetadataOptions,
@@ -162,15 +163,10 @@ class AiidaAdapter:
         Returns:
             AiidaMetadataOptions model
         """
-        # Build custom scheduler commands
-        custom_cmds = ""
+        # Build custom scheduler commands using fluent builder
+        builder = SlurmDirectiveBuilder()
         if isinstance(task, (core.IconTask, core.ShellTask)):
-            if task.uenv is not None:
-                custom_cmds += f"#SBATCH --uenv={task.uenv}"
-            if task.view is not None:
-                if custom_cmds:
-                    custom_cmds += "\n"
-                custom_cmds += f"#SBATCH --view={task.view}"
+            builder.add_uenv(task.uenv).add_view(task.view)
 
         # Build resources
         resources = None
@@ -185,7 +181,7 @@ class AiidaAdapter:
             max_wallclock_seconds=TimeUtils.walltime_to_seconds(task.walltime) if task.walltime else None,
             max_memory_kb=task.mem * 1024 if task.mem else None,
             queue_name=task.partition,
-            custom_scheduler_commands=custom_cmds if custom_cmds else None,
+            custom_scheduler_commands=builder.build(),
             resources=resources,
         )
 

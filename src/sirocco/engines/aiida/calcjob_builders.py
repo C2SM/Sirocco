@@ -25,6 +25,122 @@ if TYPE_CHECKING:
 LOGGER = logging.getLogger(__name__)
 
 
+class SlurmDirectiveBuilder:
+    """Fluent builder for SLURM scheduler directives.
+
+    Provides a clean API for building SBATCH directives with automatic
+    newline handling and validation.
+
+    Example::
+
+        builder = SlurmDirectiveBuilder()
+        directives = (
+            builder.add_uenv("icon-wcp/v1:rc4")
+            .add_view("icon")
+            .add_dependency_afterok([12345, 67890])
+            .build()
+        )
+        # Result: "#SBATCH --uenv=icon-wcp/v1:rc4\\n#SBATCH --view=icon\\n..."
+    """
+
+    def __init__(self) -> None:
+        """Initialize empty directive list."""
+        self._directives: list[str] = []
+
+    def add_directive(self, directive: str) -> SlurmDirectiveBuilder:
+        """Add a raw SBATCH directive.
+
+        Args:
+            directive: Full directive string (e.g., "#SBATCH --nodes=4")
+
+        Returns:
+            Self for chaining
+        """
+        if directive:
+            self._directives.append(directive)
+        return self
+
+    def add_uenv(self, uenv: str | None) -> SlurmDirectiveBuilder:
+        """Add --uenv directive.
+
+        Args:
+            uenv: User environment specification
+
+        Returns:
+            Self for chaining
+        """
+        if uenv is not None:
+            self._directives.append(f"#SBATCH --uenv={uenv}")
+        return self
+
+    def add_view(self, view: str | None) -> SlurmDirectiveBuilder:
+        """Add --view directive.
+
+        Args:
+            view: View specification
+
+        Returns:
+            Self for chaining
+        """
+        if view is not None:
+            self._directives.append(f"#SBATCH --view={view}")
+        return self
+
+    def add_dependency_afterok(
+        self,
+        job_ids: list[int] | TaskJobIdMapping,
+        *,
+        kill_on_invalid: bool = True,
+    ) -> SlurmDirectiveBuilder:
+        """Add --dependency=afterok directive.
+
+        Args:
+            job_ids: List of job IDs or TaskJobIdMapping dict
+            kill_on_invalid: Whether to add --kill-on-invalid-dep=yes (keyword-only)
+
+        Returns:
+            Self for chaining
+        """
+        if not job_ids:
+            return self
+
+        # Handle both list[int] and TaskJobIdMapping
+        if isinstance(job_ids, dict):
+            dep_str = ":".join(str(jid.value) for jid in job_ids.values())
+        else:
+            dep_str = ":".join(str(jid) for jid in job_ids)
+
+        directive = f"#SBATCH --dependency=afterok:{dep_str}"
+        if kill_on_invalid:
+            directive += " --kill-on-invalid-dep=yes"
+
+        self._directives.append(directive)
+        return self
+
+    def extend_from_string(self, commands: str | None) -> SlurmDirectiveBuilder:
+        """Extend directives from a newline-separated string.
+
+        Args:
+            commands: String containing multiple directives separated by newlines
+
+        Returns:
+            Self for chaining
+        """
+        if commands:
+            self._directives.extend(line.strip() for line in commands.split("\n") if line.strip())
+        return self
+
+    def build(self) -> str | None:
+        """Build final directive string.
+
+        Returns:
+            Newline-joined directives, or None if no directives were added
+        """
+        if not self._directives:
+            return None
+        return "\n".join(self._directives)
+
+
 def build_icon_calcjob_inputs(
     task_spec: AiidaIconTaskSpec,
     input_data_nodes: dict,
@@ -94,19 +210,6 @@ def build_icon_calcjob_inputs(
     return inputs
 
 
-def _build_slurm_dependency_directive(job_ids: TaskJobIdMapping) -> str:
-    """Build SLURM --dependency directive from job IDs.
-
-    Args:
-        job_ids: Dict of {dep_label: job_id_tagged_value}
-
-    Returns:
-        SLURM directive string like "#SBATCH --dependency=afterok:123:456"
-    """
-    dep_str = ":".join(str(jid.value) for jid in job_ids.values())
-    return f"#SBATCH --dependency=afterok:{dep_str} --kill-on-invalid-dep=yes"
-
-
 def add_slurm_dependencies_to_metadata(
     base_metadata: AiidaMetadata,
     job_ids: TaskJobIdMapping | None,
@@ -129,9 +232,9 @@ def add_slurm_dependencies_to_metadata(
 
     # Add SLURM dependency directive if needed
     if job_ids:
-        custom_cmd = _build_slurm_dependency_directive(job_ids)
-        current_cmds = options.custom_scheduler_commands or ""
-        new_cmds = f"{current_cmds}\n{custom_cmd}" if current_cmds else custom_cmd
+        builder = SlurmDirectiveBuilder()
+        builder.extend_from_string(options.custom_scheduler_commands).add_dependency_afterok(job_ids)
+        new_cmds = builder.build()
         options = options.model_copy(update={"custom_scheduler_commands": new_cmds})
 
     if label is not None:
