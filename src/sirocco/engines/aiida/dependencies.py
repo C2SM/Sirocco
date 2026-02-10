@@ -461,7 +461,7 @@ def collect_available_data_inputs(task: core.Task, aiida_data_nodes: PortDataMap
     """
     input_data_for_task = {}
     for port, input_data in task.input_data_items():
-        input_label = AiidaAdapter.build_graph_item_label(input_data)
+        input_label = AiidaAdapter.build_label_from_graph_item(input_data)
         if isinstance(input_data, core.AvailableData):
             input_data_for_task[port] = aiida_data_nodes[input_label]
 
@@ -488,10 +488,10 @@ def build_dependency_mapping(
     producers: dict[str, tuple[str, core.GeneratedData]] = {}
 
     for prev_task in core_workflow.tasks:
-        prev_label = AiidaAdapter.build_graph_item_label(prev_task)
+        prev_label = AiidaAdapter.build_label_from_graph_item(prev_task)
 
         for _, out_data in prev_task.output_data_items():
-            out_label = AiidaAdapter.build_graph_item_label(out_data)
+            out_label = AiidaAdapter.build_label_from_graph_item(out_data)
             producers[out_label] = (prev_label, out_data)
 
     # Process inputs for the current task
@@ -499,7 +499,7 @@ def build_dependency_mapping(
         if not isinstance(input_data, core.GeneratedData):
             continue
 
-        input_label = AiidaAdapter.build_graph_item_label(input_data)
+        input_label = AiidaAdapter.build_label_from_graph_item(input_data)
 
         # Find the producer (if exists)
         producer_info = producers.get(input_label)
@@ -516,7 +516,7 @@ def build_dependency_mapping(
         if filename is None:
             # Find the producer task
             producer_task: core.graph_items.Task | None = next(
-                (t for t in core_workflow.tasks if AiidaAdapter.build_graph_item_label(t) == prev_label), None
+                (t for t in core_workflow.tasks if AiidaAdapter.build_label_from_graph_item(t) == prev_label), None
             )
 
             if producer_task is not None and isinstance(producer_task, core.IconTask):

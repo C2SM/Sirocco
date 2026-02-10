@@ -73,7 +73,19 @@ class AiidaAdapter:
             raise ValueError(msg)
 
     @staticmethod
-    def build_graph_item_label(graph_item: core.GraphItem) -> str:
+    def sanitize_label(label: str) -> str:
+        """Replace characters that are invalid for AiiDA labels.
+
+        AiiDA labels cannot contain: "-", " ", ":", "."
+        These are replaced with underscores.
+        """
+        invalid_chars = ["-", " ", ":", "."]
+        for invalid_char in invalid_chars:
+            label = label.replace(invalid_char, "_")
+        return label
+
+    @staticmethod
+    def build_label_from_graph_item(graph_item: core.GraphItem) -> str:
         """Returns a unique AiiDA label for the given graph item.
 
         The graph item object is uniquely determined by its name and its coordinates.
@@ -93,7 +105,7 @@ class AiidaAdapter:
         Returns:
             AiiDA data node (RemoteData, SinglefileData, or FolderData)
         """
-        label = AiidaAdapter.build_graph_item_label(core_data)
+        label = AiidaAdapter.build_label_from_graph_item(core_data)
 
         try:
             computer = aiida.orm.load_computer(core_data.computer)
@@ -214,21 +226,6 @@ class AiidaAdapter:
                 return "tot_num_mpiprocs"
             case _:
                 assert_never(placeholder)
-
-    @staticmethod
-    def sanitize_label(label: str) -> str:
-        """Replace characters that are invalid for AiiDA labels.
-
-        AiiDA labels cannot contain: "-", " ", ":", "."
-        These are replaced with underscores.
-        """
-        invalid_chars = ["-", " ", ":", "."]
-        for invalid_char in invalid_chars:
-            label = label.replace(invalid_char, "_")
-        return label
-
-    # NOTE: Script extension removal has been moved to CodeFactory
-    # See: sirocco.engines.aiida.code_factory.CodeFactory.remove_script_extension
 
     @staticmethod
     def parse_mpi_cmd(mpi_cmd: str) -> str:

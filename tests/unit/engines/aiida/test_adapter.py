@@ -236,7 +236,7 @@ def test_build_graph_item_label(name, coordinates, expected_label):
     item.name = name
     item.coordinates = coordinates
 
-    label = AiidaAdapter.build_graph_item_label(item)
+    label = AiidaAdapter.build_label_from_graph_item(item)
 
     print("\n=== Graph item ===")
     print(f"Name: {name!r}")

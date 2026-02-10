@@ -50,7 +50,7 @@ class TaskSpecBuilder(ABC):
             task: The core task (ShellTask or IconTask)
         """
         self.task = task
-        self.label = AiidaAdapter.build_graph_item_label(task)
+        self.label = AiidaAdapter.build_label_from_graph_item(task)
         self.computer = aiida.orm.Computer.collection.get(label=task.computer)
         self.metadata = AiidaAdapter.build_metadata(task)
 
@@ -128,7 +128,7 @@ class ShellTaskSpecBuilder(TaskSpecBuilder):
                 port=port_name,
                 name=input_.name,
                 coordinates=serialize_coordinates(input_.coordinates),
-                label=AiidaAdapter.build_graph_item_label(input_),
+                label=AiidaAdapter.build_label_from_graph_item(input_),
                 is_available=isinstance(input_, core.AvailableData),
                 path=str(input_.path) if input_.path is not None else "",  # type: ignore[attr-defined]
             )
@@ -146,7 +146,7 @@ class ShellTaskSpecBuilder(TaskSpecBuilder):
             output_info = OutputDataInfo(
                 name=output.name,
                 coordinates=serialize_coordinates(output.coordinates),
-                label=AiidaAdapter.build_graph_item_label(output),
+                label=AiidaAdapter.build_label_from_graph_item(output),
                 path=str(output.path) if output.path is not None else "",
                 port=port_name,
             )
