@@ -204,7 +204,7 @@ def assert_pre_submission_occurred(
 ) -> None:
     """Assert that a task was submitted before its dependency finished.
 
-    This validates pre-submission behavior (front_depth > 0), where tasks can
+    This validates pre-submission behavior (front_depth > 1), where tasks can
     be submitted before their dependencies complete.
 
     Args:
