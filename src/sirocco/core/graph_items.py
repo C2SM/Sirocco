@@ -293,13 +293,13 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
         for component in self.components.values():
             if "link" in component.inputs:
                 link_list.extend([f"ln -s {data.resolved_path} ." for data in component.inputs["link"]])
-                if "link_content" in component.inputs:
-                    link_list.extend(
-                        [
-                            f"for item in {data.resolved_path}/*; do ln -s ${{item}} .; done"
-                            for data in component.inputs["link_content"]
-                        ]
-                    )
+            if "link_content" in component.inputs:
+                link_list.extend(
+                    [
+                        f"for item in {data.resolved_path}/*; do ln -s ${{item}} .; done"
+                        for data in component.inputs["link_content"]
+                    ]
+                )
         return link_list
 
     def to_yaml_state(self) -> dict[str, dict[str, Any]]:

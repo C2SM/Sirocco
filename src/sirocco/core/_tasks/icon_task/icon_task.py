@@ -50,31 +50,30 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                 msg = f"namelist {filename} required by {self._MASTER_NAMELIST_NAME!r} not found in provided namelists"
                 raise KeyError(msg)
             if not isinstance(model_name := master_model_nml.get("model_name"), str):
-                msg = f"master_model_nml associated to {filename} has an ivalid or missing 'model_name' parameter"
+                msg = f"master_model_nml associated to {filename} does not contain a valid 'model_name' parameter"
                 raise KeyError(msg)
             model_namelists[model_name] = namelist_by_filename[filename]
             if not isinstance(model_type := master_model_nml.get("model_type"), int):
-                msg = f"master_model_nml associated to {filename} has an invalid or missing 'model_type' parameter"
+                msg = f"master_model_nml associated to {filename} does not contain a valid 'model_type' parameter"
                 raise KeyError(msg)
             model_types[model_name] = model_type
 
         # Check if models and config component names match
-        model_names = set(model_namelists.keys())
-        comp_names = {k for k in self.components if k != "master"}
-        if (model_names := set(model_namelists.keys())) != (comp_names := set(self.components.keys())):
+        if (model_names := set(model_namelists.keys())) != (
+            comp_names := {k for k in self.components if k != "master"}
+        ):
             msg = f"models specified in {self._MASTER_NAMELIST_NAME} ({model_names}) don't match components from the config ({comp_names})"
             raise ValueError(msg)
 
         # Build ICON models
         for comp_name, component in self.components.items():
             if comp_name != "master":
-                namelist = model_namelists[comp_name]
                 self.models[comp_name] = IconModel(
                     name=comp_name,
                     core_component=component,
-                    task_name=self.name,
+                    task_label=self.label,
                     task_run_dir=self.run_dir,
-                    namelist=namelist,
+                    namelist=model_namelists[comp_name],
                     model_type=ModelType(model_types[comp_name]),
                 )
 
@@ -87,10 +86,11 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         # Set default MPI variables
         self.nodes = 1 if self.nodes is None else self.nodes
         if self.ntasks_per_node is None:
-            if self.target == "santis_cpu":
-                self.ntasks_per_node = 288
-            elif self.target == "santis_gpu":
-                self.ntasks_per_node = 4
+            match self.target:
+                case "santis_cpu":
+                    self.ntasks_per_node = 288
+                case "santis_gpu":
+                    self.ntasks_per_node = 4
 
     # FIXME: This is only used by workgraph, use self.models directly instead
     #        (Wait for workgraph.py refactor before doing so)
@@ -165,9 +165,13 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
             if self.runtime is None:
                 msg = f"task {self.name}: 'runtime' is required when 'target' is unset"
                 raise ValueError(msg)
-        elif self.runtime is not None:
-            msg = f"task {self.name}: 'target' set to {self.target}: 'runtime' is ignored. Unset 'target' to take it into account."
-            LOGGER.warning(msg)
+        else:
+            if not (Path(__file__).parent / "target_runtime" / self.target).exists():
+                msg = f"target {self.target} not defined"
+                raise ValueError(msg)
+            if self.runtime is not None:
+                msg = f"task {self.name}: 'target' set to {self.target}: 'runtime' is ignored. Unset 'target' to take it into account."
+                LOGGER.warning(msg)
 
         # Link ICON binary
         match self.target:

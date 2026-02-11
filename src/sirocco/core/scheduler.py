@@ -49,7 +49,7 @@ class Scheduler:
         # Scheduler header
         script_lines.extend(self.header_lines(task, output_mode=output_mode))
 
-        # Some MPI environment variables for potential usage by the user defined runscript content
+        # Some MPI environment variables for potential usage by the user provided script
         script_lines.append("")
         if task.nodes is not None:
             script_lines.append(f"N_NODES={task.nodes}")
