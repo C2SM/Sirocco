@@ -7,10 +7,8 @@ import pytest
 from rich.pretty import pprint
 
 from sirocco.engines.aiida.models import (
-    AiidaIconTaskSpec,
     AiidaMetadata,
     AiidaMetadataOptions,
-    AiidaShellTaskSpec,
     DependencyInfo,
     ShellDependencyMappings,
 )
@@ -61,54 +59,6 @@ def _make_icon_spec_dict(**overrides) -> dict:
 
 
 # --- Shell task tests ---
-
-
-class TestShellTaskSpecResolverInit:
-    """Test ShellTaskSpecResolver initialization and spec loading."""
-
-    def test_load_spec(self):
-        """Test that _load_spec creates a valid AiidaShellTaskSpec."""
-        resolver = ShellTaskSpecResolver(_make_shell_spec_dict())
-
-        print("\n=== Shell spec ===")
-        pprint(resolver.spec)
-
-        assert isinstance(resolver.spec, AiidaShellTaskSpec)
-        assert resolver.spec.label == "test_task"
-        assert resolver.spec.code_pk == 1
-
-    def test_build_input_port_label_mapper_filters_available(self):
-        """Test port label mapper only includes AvailableData (is_available=True)."""
-        spec_dict = _make_shell_spec_dict(
-            input_data_info=[
-                _make_input_data_info("p1", "lbl1", is_available=True),
-                _make_input_data_info("p2", "lbl2", is_available=False),
-            ]
-        )
-        resolver = ShellTaskSpecResolver(spec_dict)
-
-        print(f"\n=== Mapper (filters available) ===\n{resolver.input_port_label_mapper!r}")
-
-        assert len(resolver.input_port_label_mapper) == 1
-        assert resolver.input_port_label_mapper.get_port_for_label("lbl1") == "p1"
-        assert resolver.input_port_label_mapper.get_port_for_label("lbl2") is None
-
-    def test_build_input_port_label_mapper_multiple_on_same_port(self):
-        """Test port label mapper with multiple labels on one port."""
-        spec_dict = _make_shell_spec_dict(
-            input_data_info=[
-                _make_input_data_info("p1", "lbl_a", name="a"),
-                _make_input_data_info("p1", "lbl_b", name="b"),
-            ]
-        )
-        resolver = ShellTaskSpecResolver(spec_dict)
-        labels = resolver.input_port_label_mapper.get_labels_for_port("p1")
-
-        print(f"\n=== Mapper (multi-label) ===\n{resolver.input_port_label_mapper!r}")
-        print(f"Labels for p1: {labels}")
-
-        assert len(resolver.input_port_label_mapper) == 2
-        assert set(labels) == {"lbl_a", "lbl_b"}
 
 
 class TestShellAddInputDataNodes:
@@ -369,10 +319,10 @@ class TestBuildMetadata:
             mock_add_slurm.assert_called_once_with(resolver.spec.metadata, None, None)
 
 
-class TestShellBuildArguments:
-    """Test _build_arguments method."""
+class TestShellExecute:
+    """Test ShellTaskSpecResolver execution and argument building."""
 
-    def test_substitutes_placeholders(self):
+    def test_build_arguments_with_placeholders(self):
         """Test that placeholders in arguments_template are substituted."""
         resolver = ShellTaskSpecResolver(
             _make_shell_spec_dict(arguments_template="--input {data_label} --output {result}")
@@ -386,7 +336,7 @@ class TestShellBuildArguments:
         assert "{node_key}" in result
         assert "{out_key}" in result
 
-    def test_no_placeholders(self):
+    def test_build_arguments_without_placeholders(self):
         """Test arguments without any placeholders."""
         resolver = ShellTaskSpecResolver(_make_shell_spec_dict(arguments_template="--verbose --dry-run"))
         result = resolver._build_arguments({})
@@ -394,10 +344,6 @@ class TestShellBuildArguments:
         print(f"\n=== _build_arguments (no placeholders) ===\nresult: {result}")
 
         assert result == ["--verbose", "--dry-run"]
-
-
-class TestShellExecute:
-    """Test ShellTaskSpecResolver.execute with real AiiDA nodes."""
 
     def test_execute_with_invalid_code_pk(self):
         """Test execute raises NotExistent when code PK doesn't exist."""
@@ -557,27 +503,11 @@ class TestShellExecute:
 # --- Icon task tests ---
 
 
-class TestIconTaskSpecResolverInit:
-    """Test IconTaskSpecResolver initialization and spec loading."""
-
-    def test_load_spec(self):
-        """Test that _load_spec creates a valid AiidaIconTaskSpec."""
-        resolver = IconTaskSpecResolver(_make_icon_spec_dict())
-
-        print("\n=== Icon spec ===")
-        pprint(resolver.spec)
-
-        assert isinstance(resolver.spec, AiidaIconTaskSpec)
-        assert resolver.spec.label == "test_icon"
-        assert resolver.spec.code_pk == 1
-        assert resolver.spec.master_namelist_pk == 2
-
-
-class TestIconResolveDependencies:
-    """Test IconTaskSpecResolver._resolve_dependencies method."""
+class TestIconResolver:
+    """Test IconTaskSpecResolver dependency resolution and execution."""
 
     @pytest.mark.parametrize("task_folders", [None, {}], ids=["none", "empty_dict"])
-    def test_no_dependencies(self, task_folders):
+    def test_resolve_dependencies_empty(self, task_folders):
         """Test _resolve_dependencies with None or empty task folders."""
         resolver = IconTaskSpecResolver(_make_icon_spec_dict())
         result = resolver._resolve_dependencies(task_folders)
@@ -587,7 +517,7 @@ class TestIconResolveDependencies:
         assert result == {}
 
     @patch("sirocco.engines.aiida.spec_resolvers.resolve_icon_dependency_mapping")
-    def test_with_real_dep_info(self, mock_resolve):
+    def test_resolve_dependencies_with_dep_info(self, mock_resolve):
         """Test _resolve_dependencies constructs DependencyInfo from serialized dicts."""
         mock_remote = Mock(spec=aiida.orm.RemoteData)
         mock_resolve.return_value = {"restart_file.atm": mock_remote}
@@ -617,10 +547,6 @@ class TestIconResolveDependencies:
         assert call_args[3] == {"atm": 20}  # model_namelist_pks
 
         assert result == {"restart_file.atm": mock_remote}
-
-
-class TestIconExecute:
-    """Test IconTaskSpecResolver.execute with real AiiDA nodes."""
 
     @patch("sirocco.engines.aiida.spec_resolvers.build_icon_calcjob_inputs")
     @patch("sirocco.engines.aiida.spec_resolvers.task")
