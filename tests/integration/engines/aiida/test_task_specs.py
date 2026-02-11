@@ -20,7 +20,7 @@ from sirocco.parsing.yaml_data_models import ConfigWorkflow
 )
 def test_shell_filenames_nodes_arguments(config_paths):
     """Test that shell task specs contain correct filenames, nodes, and arguments."""
-    import datetime
+    from datetime import UTC, datetime
 
     from sirocco import core
 
@@ -29,10 +29,8 @@ def test_shell_filenames_nodes_arguments(config_paths):
     )
 
     # Update the stop_date for both cycles to make the result shorter
-    # NOTE: We currently don't use timezone-aware times in config YAML, thus ignora DTZ001 for now.
-    # See https://github.com/C2SM/Sirocco/issues/161
-    config_workflow.cycles[0].cycling.stop_date = datetime.datetime(2027, 1, 1, 0, 0)  # noqa: DTZ001
-    config_workflow.cycles[1].cycling.stop_date = datetime.datetime(2027, 1, 1, 0, 0)  # noqa: DTZ001
+    config_workflow.cycles[0].cycling.stop_date = datetime(2027, 1, 1, 0, 0, tzinfo=UTC)
+    config_workflow.cycles[1].cycling.stop_date = datetime(2027, 1, 1, 0, 0, tzinfo=UTC)
     core_workflow = Workflow.from_config_workflow(config_workflow)
 
     # Build task specs for shell tasks

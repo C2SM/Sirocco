@@ -104,8 +104,8 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         self.master_namelist.update_from_specs(
             {
                 "master_time_control_nml": {
-                    "experimentStartDate": self.cycle_point.chunk_start_date.isoformat() + "Z",
-                    "experimentStopDate": self.cycle_point.chunk_stop_date.isoformat() + "Z",
+                    "experimentStartDate": self.cycle_point.chunk_start_date.isoformat(),
+                    "experimentStopDate": self.cycle_point.chunk_stop_date.isoformat(),
                     "restartTimeIntval": str(self.cycle_point.period),
                     "checkpointTimeIntval": str(self.cycle_point.period),
                 },

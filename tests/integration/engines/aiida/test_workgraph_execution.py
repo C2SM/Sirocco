@@ -6,10 +6,14 @@ Tests that actually execute workflows and verify runtime behavior
 These tests are marked as slow and require a running AiiDA daemon.
 """
 
+import logging
+
 import pytest
 
 from sirocco.core import Workflow
 from sirocco.engines.aiida import build_sirocco_workgraph
+
+LOGGER = logging.getLogger(__name__)
 
 
 @pytest.mark.slow
@@ -486,3 +490,42 @@ def test_complex_workflow_with_cross_dependencies(config_paths):
     # Clean up file handler
     LOGGER.removeHandler(file_handler)
     file_handler.close()
+
+
+# configs that are tested for running workgraph
+@pytest.mark.slow
+@pytest.mark.usefixtures("config_case", "aiida_localhost", "aiida_remote_computer")
+@pytest.mark.parametrize(
+    "config_case",
+    [
+        "small-shell",
+        # "parameters",
+    ],
+)
+def test_run_workgraph(config_paths):
+    """Tests end-to-end the parsing from file up to running the workgraph.
+
+    Automatically uses the aiida_profile fixture to create a new profile. Note to debug the test with your profile
+    please run this in a separate file as the profile is deleted after test finishes.
+    """
+    core_workflow = Workflow.from_config_file(str(config_paths["yml"]), template_context=config_paths["variables"])
+    workgraph = build_sirocco_workgraph(core_workflow)
+    workgraph.run()
+    output_node = workgraph.process
+    if not output_node.is_finished_ok:
+        from aiida.cmdline.utils.common import get_calcjob_report, get_workchain_report
+        from aiida.orm import CalcJobNode
+
+        # overall report but often not enough to really find the bug, one has to go to calcjob
+        LOGGER.error(
+            "Workchain report:\n%s",
+            get_workchain_report(output_node, levelname="REPORT"),
+        )
+        # the calcjobs are typically stored in 'called_descendants'
+        for node in output_node.called_descendants:
+            if isinstance(node, CalcJobNode):
+                LOGGER.error("%s workdir: %s", node.process_label, node.get_remote_workdir())
+                LOGGER.error("%s report:\n%s", node.process_label, get_calcjob_report(node))
+    assert output_node.is_finished_ok, (
+        f"Not successful run. Got exit code {output_node.exit_code} with message {output_node.exit_message}."
+    )
