@@ -189,4 +189,10 @@ def finish_status_handler_callable(port_name: str, model: IconModel) -> None:  #
     if len(model.outputs["finish_status"]) != 1:
         msg = "port finish_status accepts one and only one data object"
         raise ValueError(msg)
-    model.outputs["finish_status"][0].resolved_path = model.task_run_dir / "finish.status"
+    model.outputs["finish_status"][0].resolved_path = model.task_run_dir / f"finish_{model.name}.status"
+
+finish_status_handler = PortHandler(
+    port_name="finish_status",
+    valid_model_types=[ModelType.ATMOSPHERE, ModelType.OCEAN],
+    custom_callable=finish_status_handler_callable,
+)
