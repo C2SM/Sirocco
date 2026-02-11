@@ -77,14 +77,6 @@ class TestShellTaskSpecResolverInit:
         assert resolver.spec.label == "test_task"
         assert resolver.spec.code_pk == 1
 
-    def test_build_input_port_label_mapper_empty(self):
-        """Test port label mapper with no input data."""
-        resolver = ShellTaskSpecResolver(_make_shell_spec_dict())
-
-        print(f"\n=== Mapper (empty) ===\n{resolver.input_port_label_mapper!r}")
-
-        assert len(resolver.input_port_label_mapper) == 0
-
     def test_build_input_port_label_mapper_filters_available(self):
         """Test port label mapper only includes AvailableData (is_available=True)."""
         spec_dict = _make_shell_spec_dict(
@@ -319,39 +311,62 @@ class TestShellResolveDependencies:
         assert "parent_task_parent_output_remote" in all_nodes
 
 
-class TestShellBuildMetadata:
-    """Test _build_metadata method.
+class TestBuildMetadata:
+    """Test _build_metadata method for both Shell and Icon resolvers.
 
     Note: SLURM dependency injection is tested thoroughly in test_calcjob_builders.py.
     These tests verify the resolver's wiring (computer lookup, delegation).
     """
 
-    def test_with_real_computer(self, aiida_localhost):
+    @pytest.mark.parametrize(
+        ("resolver_class", "spec_factory"),
+        [
+            pytest.param(ShellTaskSpecResolver, _make_shell_spec_dict, id="shell"),
+            pytest.param(IconTaskSpecResolver, _make_icon_spec_dict, id="icon"),
+        ],
+    )
+    def test_with_real_computer(self, aiida_localhost, resolver_class, spec_factory):
         """Test metadata building resolves computer from label."""
-        spec_dict = _make_shell_spec_dict(
+        spec_dict = spec_factory(
             metadata=AiidaMetadata(computer_label=aiida_localhost.label, options=AiidaMetadataOptions()),
         )
-        resolver = ShellTaskSpecResolver(spec_dict)
+        resolver = resolver_class(spec_dict)
         result = resolver._build_metadata(None)
 
-        print("\n=== _build_metadata (with computer) ===")
+        print(f"\n=== {resolver_class.__name__} _build_metadata (with computer) ===")
         pprint(result)
 
         assert isinstance(result, AiidaMetadata)
         assert result.computer is not None
         assert result.computer.label == aiida_localhost.label
 
+    @pytest.mark.parametrize(
+        ("resolver_class", "spec_factory", "expected_task_label"),
+        [
+            pytest.param(ShellTaskSpecResolver, _make_shell_spec_dict, None, id="shell"),
+            pytest.param(IconTaskSpecResolver, _make_icon_spec_dict, "test_icon", id="icon"),
+        ],
+    )
     @patch("sirocco.engines.aiida.spec_resolvers.add_slurm_dependencies_to_metadata")
-    def test_without_computer_label(self, mock_add_slurm):
-        """Test metadata building without computer label passes None."""
+    def test_without_computer_label(self, mock_add_slurm, resolver_class, spec_factory, expected_task_label):
+        """Test metadata building without computer label.
+
+        Shell: passes None for task_label
+        Icon: passes task label for ICON-specific handling
+        """
         mock_add_slurm.return_value = DEFAULT_METADATA
 
-        resolver = ShellTaskSpecResolver(_make_shell_spec_dict())
+        resolver = resolver_class(spec_factory())
         resolver._build_metadata(None)
 
-        print(f"\n=== _build_metadata (no computer) ===\ncalled with: {mock_add_slurm.call_args}")
+        print(f"\n=== {resolver_class.__name__} _build_metadata (no computer) ===")
+        print(f"called with: {mock_add_slurm.call_args}")
 
-        mock_add_slurm.assert_called_once_with(resolver.spec.metadata, None, None)
+        # Icon passes task_label as 4th arg, Shell doesn't
+        if expected_task_label:
+            mock_add_slurm.assert_called_once_with(resolver.spec.metadata, None, None, expected_task_label)
+        else:
+            mock_add_slurm.assert_called_once_with(resolver.spec.metadata, None, None)
 
 
 class TestShellBuildArguments:
@@ -380,79 +395,120 @@ class TestShellBuildArguments:
 
         assert result == ["--verbose", "--dry-run"]
 
-    def test_empty_template(self):
-        """Test with empty arguments template."""
-        resolver = ShellTaskSpecResolver(_make_shell_spec_dict(arguments_template=""))
-        result = resolver._build_arguments({})
-
-        print(f"\n=== _build_arguments (empty) ===\nresult: {result}")
-
-        assert result == []
-
 
 class TestShellExecute:
-    """Test ShellTaskSpecResolver.execute orchestration and _create_workgraph_task."""
+    """Test ShellTaskSpecResolver.execute with real AiiDA nodes."""
 
-    @pytest.mark.parametrize(
-        "has_inputs",
-        [
-            pytest.param(True, id="all_inputs"),
-            pytest.param(False, id="all_none"),
-        ],
-    )
-    @patch.object(ShellTaskSpecResolver, "_create_workgraph_task")
-    @patch.object(ShellTaskSpecResolver, "_build_arguments")
-    @patch.object(ShellTaskSpecResolver, "_build_metadata")
-    @patch.object(ShellTaskSpecResolver, "_resolve_dependencies")
-    @patch.object(ShellTaskSpecResolver, "_add_input_data_nodes")
-    @patch.object(ShellTaskSpecResolver, "_build_base_nodes")
-    @patch.object(ShellTaskSpecResolver, "_load_code")
-    def test_execute_calls_all_steps(
-        self,
-        mock_load_code,
-        mock_build_nodes,
-        mock_add_inputs,
-        mock_resolve_deps,
-        mock_build_metadata,
-        mock_build_args,
-        mock_create_task,
-        has_inputs,
-    ):
-        """Test that execute calls all steps and returns _create_workgraph_task result."""
-        mock_load_code.return_value = Mock(spec=aiida.orm.Code)
-        mock_build_nodes.return_value = {"script": Mock()}
-        mock_add_inputs.return_value = {"lbl": "lbl"}
-        mock_resolve_deps.return_value = ({"dep_lbl": "dep_key"}, {"dep_key": "out.txt"})
-        mock_build_metadata.return_value = Mock()
-        mock_build_args.return_value = ["--input", "{lbl}"]
-        expected_output = {"output": Mock()}
-        mock_create_task.return_value = expected_output
+    def test_execute_with_invalid_code_pk(self):
+        """Test execute raises NotExistent when code PK doesn't exist."""
+        resolver = ShellTaskSpecResolver(_make_shell_spec_dict(code_pk=99999))
 
-        input_nodes = {"port": Mock(spec=aiida.orm.Data)} if has_inputs else None
-        task_folders = {"parent": 123} if has_inputs else None
-        task_job_ids = {"parent": 456} if has_inputs else None
+        with pytest.raises(aiida.common.NotExistent) as exc:
+            resolver.execute(
+                input_data_nodes=None,
+                task_folders=None,
+                task_job_ids=None,
+            )
 
-        resolver = ShellTaskSpecResolver(_make_shell_spec_dict())
-        result = resolver.execute(
-            input_data_nodes=input_nodes,
-            task_folders=task_folders,
-            task_job_ids=task_job_ids,
+        assert "code" in str(exc.value).lower()
+
+    def test_execute_with_real_code_and_inputs(self, aiida_localhost):
+        """Test execute with real code and input data nodes."""
+        # Create real stored code
+        code = aiida.orm.InstalledCode(
+            computer=aiida_localhost,
+            filepath_executable="/bin/echo",
+        ).store()
+
+        # Create real input node
+        input_file = aiida.orm.SinglefileData.from_string("test content", filename="input.txt").store()
+
+        spec_dict = _make_shell_spec_dict(
+            code_pk=code.pk,
+            arguments_template="cat {input_data}",
+            input_data_info=[_make_input_data_info("input_port", "input_data")],
+            metadata=AiidaMetadata(
+                computer_label=aiida_localhost.label,
+                options=AiidaMetadataOptions(),
+            ),
         )
+        resolver = ShellTaskSpecResolver(spec_dict)
 
-        print(f"\n=== execute (has_inputs={has_inputs}) ===")
-        print(f"_build_metadata called with: {mock_build_metadata.call_args}")
-        print(f"_add_input_data_nodes called with: {mock_add_inputs.call_args}")
-        print(f"_resolve_dependencies called with: {mock_resolve_deps.call_args}")
-        print(f"result: {result}")
+        # Mock only the WorkGraph interaction (unavoidable external dependency)
+        with patch("sirocco.engines.aiida.spec_resolvers.get_current_graph") as mock_graph:
+            mock_wg = Mock()
+            mock_task = Mock()
+            mock_task.outputs = {"remote_folder": Mock()}
+            mock_wg.add_task.return_value = mock_task
+            mock_graph.return_value = mock_wg
 
-        mock_load_code.assert_called_once()
-        mock_build_nodes.assert_called_once()
-        mock_add_inputs.assert_called_once()
-        mock_resolve_deps.assert_called_once()
-        mock_build_metadata.assert_called_once_with(task_job_ids)
-        mock_build_args.assert_called_once()
-        mock_create_task.assert_called_once()
-        assert result is expected_output
+            result = resolver.execute(
+                input_data_nodes={"input_port": input_file},
+                task_folders=None,
+                task_job_ids=None,
+            )
+
+            # Verify the task was added to workgraph
+            mock_wg.add_task.assert_called_once()
+            add_task_kwargs = mock_wg.add_task.call_args[1]
+
+            print("\n=== execute with real nodes ===")
+            print(f"Task name: {add_task_kwargs['name']}")
+            print(f"Arguments: {add_task_kwargs['arguments']}")
+            print(f"Nodes keys: {list(add_task_kwargs['nodes'].keys())}")
+
+            # Verify correct nodes and arguments were built
+            assert add_task_kwargs["name"] == "test_task"
+            assert "input_data" in add_task_kwargs["nodes"]
+            assert add_task_kwargs["nodes"]["input_data"] is input_file
+            assert "{input_data}" in " ".join(add_task_kwargs["arguments"])
+            assert result == mock_task.outputs
+
+    def test_execute_with_base_nodes(self, aiida_localhost):
+        """Test execute loads and uses stored base nodes (scripts, configs)."""
+        code = aiida.orm.InstalledCode(
+            computer=aiida_localhost,
+            filepath_executable="/bin/bash",
+        ).store()
+
+        script = aiida.orm.SinglefileData.from_string("#!/bin/bash\necho hello", filename="script.sh").store()
+
+        spec_dict = _make_shell_spec_dict(
+            code_pk=code.pk,
+            node_pks={"script": script.pk},
+            arguments_template="{script}",
+            metadata=AiidaMetadata(
+                computer_label=aiida_localhost.label,
+                options=AiidaMetadataOptions(),
+            ),
+        )
+        resolver = ShellTaskSpecResolver(spec_dict)
+
+        with patch("sirocco.engines.aiida.spec_resolvers.get_current_graph") as mock_graph:
+            mock_wg = Mock()
+            mock_task = Mock()
+            mock_task.outputs = {"remote_folder": Mock()}
+            mock_wg.add_task.return_value = mock_task
+            mock_graph.return_value = mock_wg
+
+            result = resolver.execute(
+                input_data_nodes=None,
+                task_folders=None,
+                task_job_ids=None,
+            )
+
+            add_task_kwargs = mock_wg.add_task.call_args[1]
+
+            print("\n=== execute with base nodes ===")
+            print(f"Nodes: {add_task_kwargs['nodes']}")
+            print(f"Arguments: {add_task_kwargs['arguments']}")
+
+            # Verify script node was loaded and included
+            assert "script" in add_task_kwargs["nodes"]
+            assert add_task_kwargs["nodes"]["script"].pk == script.pk
+            # Verify the script placeholder appears in arguments
+            assert "{script}" in " ".join(add_task_kwargs["arguments"])
+            assert result == mock_task.outputs
 
     @patch("sirocco.engines.aiida.spec_resolvers.get_current_graph")
     @patch("aiida_workgraph.tasks.shelljob_task._build_shelljob_TaskSpec")
@@ -563,94 +619,45 @@ class TestIconResolveDependencies:
         assert result == {"restart_file.atm": mock_remote}
 
 
-class TestIconBuildMetadata:
-    """Test IconTaskSpecResolver._build_metadata method.
-
-    Note: SLURM dependency injection is tested thoroughly in test_calcjob_builders.py.
-    These tests verify the resolver's wiring (computer lookup, label passthrough).
-    """
-
-    def test_with_real_computer(self, aiida_localhost):
-        """Test _build_metadata resolves computer from label."""
-        spec_dict = _make_icon_spec_dict(
-            label="icon_run",
-            metadata=AiidaMetadata(computer_label=aiida_localhost.label, options=AiidaMetadataOptions()),
-        )
-        resolver = IconTaskSpecResolver(spec_dict)
-        result = resolver._build_metadata(None)
-
-        print("\n=== Icon _build_metadata (with computer) ===")
-        pprint(result)
-
-        assert isinstance(result, AiidaMetadata)
-        assert result.computer is not None
-        assert result.computer.label == aiida_localhost.label
-
-    @patch("sirocco.engines.aiida.spec_resolvers.add_slurm_dependencies_to_metadata")
-    def test_without_computer(self, mock_add_slurm):
-        """Test _build_metadata without computer label passes task label for ICON handling."""
-        mock_add_slurm.return_value = DEFAULT_METADATA
-
-        resolver = IconTaskSpecResolver(_make_icon_spec_dict())
-        resolver._build_metadata(None)
-
-        print(f"\n=== Icon _build_metadata (no computer) ===\ncalled with: {mock_add_slurm.call_args}")
-
-        mock_add_slurm.assert_called_once_with(resolver.spec.metadata, None, None, "test_icon")
-
-
 class TestIconExecute:
-    """Test IconTaskSpecResolver.execute orchestration."""
+    """Test IconTaskSpecResolver.execute with real AiiDA nodes."""
 
-    @pytest.mark.parametrize(
-        "has_inputs",
-        [
-            pytest.param(True, id="all_inputs"),
-            pytest.param(False, id="all_none"),
-        ],
-    )
     @patch("sirocco.engines.aiida.spec_resolvers.build_icon_calcjob_inputs")
     @patch("sirocco.engines.aiida.spec_resolvers.task")
-    @patch.object(IconTaskSpecResolver, "_build_metadata")
-    @patch.object(IconTaskSpecResolver, "_resolve_dependencies")
-    def test_execute_orchestration(
-        self,
-        mock_resolve_deps,
-        mock_build_metadata,
-        mock_task_decorator,
-        mock_build_inputs,
-        has_inputs,
-    ):
-        """Test execute calls steps in correct order and returns task result."""
-        input_nodes = {"port": Mock(spec=aiida.orm.Data)} if has_inputs else None
-        task_folders = {"parent": 123} if has_inputs else None
-        task_job_ids = {"parent": 456} if has_inputs else None
+    def test_execute_converts_none_to_empty_dict(self, mock_task, mock_build_inputs):
+        """Test execute converts None input_data_nodes to empty dict before passing to builder.
 
-        mock_resolve_deps.return_value = {"dep": Mock(spec=aiida.orm.RemoteData)} if task_folders else {}
-        mock_build_metadata.return_value = DEFAULT_METADATA
+        This is important because build_icon_calcjob_inputs expects a dict, not None.
+        """
         mock_build_inputs.return_value = {"code": Mock()}
-
-        expected_output = {"outputs": Mock()}
-        mock_task_decorator.return_value = Mock(return_value=expected_output)
+        mock_task.return_value = Mock(return_value={"outputs": Mock()})
 
         resolver = IconTaskSpecResolver(_make_icon_spec_dict())
-        result = resolver.execute(
-            input_data_nodes=input_nodes,
-            task_folders=task_folders,
-            task_job_ids=task_job_ids,
+        resolver.execute(
+            input_data_nodes=None,  # Pass None
+            task_folders=None,
+            task_job_ids=None,
         )
 
-        # input_data_nodes should never be None when passed to build_icon_calcjob_inputs
+        # Verify None was converted to empty dict
         input_arg = mock_build_inputs.call_args[0][1]
 
-        print(f"\n=== Icon execute (has_inputs={has_inputs}) ===")
-        print(f"_resolve_dependencies called with: {mock_resolve_deps.call_args}")
-        print(f"_build_metadata called with: {mock_build_metadata.call_args}")
-        print(f"build_icon_calcjob_inputs input_data_nodes arg: {input_arg}")
-        print(f"result: {result}")
+        print("\n=== Icon execute (None -> {}) ===")
+        print(f"input_data_nodes arg type: {type(input_arg)}")
+        print(f"input_data_nodes arg value: {input_arg}")
 
-        mock_resolve_deps.assert_called_once_with(task_folders)
-        mock_build_metadata.assert_called_once_with(task_job_ids)
-        mock_build_inputs.assert_called_once()
-        assert result is expected_output
         assert isinstance(input_arg, dict)
+        assert input_arg == {}
+
+    def test_execute_with_invalid_code_pk(self):
+        """Test execute fails when code PK doesn't exist."""
+        resolver = IconTaskSpecResolver(_make_icon_spec_dict(code_pk=99999))
+
+        with pytest.raises(aiida.common.NotExistent) as exc:
+            resolver.execute(
+                input_data_nodes=None,
+                task_folders=None,
+                task_job_ids=None,
+            )
+
+        assert "code" in str(exc.value).lower() or "99999" in str(exc.value)

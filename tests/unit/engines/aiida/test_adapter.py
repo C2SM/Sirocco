@@ -887,8 +887,10 @@ def test_parse_mpi_cmd(input_cmd, expected_contains, expected_not_contains, expe
 
 @pytest.mark.parametrize(
     "use_custom_script",
-    [True, False],
-    ids=["custom_script", "default_script"],
+    [
+        pytest.param(True, id="custom_script"),
+        pytest.param(False, id="default_script"),
+    ],
 )
 def test_get_wrapper_script_data(use_custom_script, tmp_path):
     """Test getting wrapper script with custom or default script."""

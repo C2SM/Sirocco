@@ -138,7 +138,8 @@ extra-dependencies = [
     "ipdb",
     "pytest-cov",
     "pytest-sugar",  # Nicer pytest output
-    "coverage",  # For showing coverage gutter in IDEs
+    "pytest-xdist",  # Parallel test execution
+    "coverage",      # For showing coverage gutter in IDEs
 ]
 default-args = []
 extra-args = ["--doctest-modules", "-m", "not slow and not requires_icon"]
