@@ -104,7 +104,7 @@ class TestPortLabelMapper:
         assert len(mapper) == 0
         assert mapper.get_all_ports() == []
         assert mapper.get_all_labels() == []
-        assert mapper.to_dict() == {}
+        assert mapper.to_label_port_dict() == {}
 
     def test_add_single_mapping(self):
         """Test adding a single label-port mapping."""
@@ -147,22 +147,49 @@ class TestPortLabelMapper:
         assert labels == ["file1", "file2", "file3"]
         assert len(mapper) == 3
 
-    def test_from_dict(self):
-        """Test populating from a dictionary."""
+    def test_from_label_port_dict(self):
+        """Test populating from a label→port dictionary."""
         mapping = {
             "task_a_output": "output_file",
             "task_b_output": "output_file",
             "task_c_result": "results",
         }
-        mapper = PortLabelMapper().from_dict(mapping)
+        mapper = PortLabelMapper().from_label_port_dict(mapping)
 
-        print("\n=== From dict ===")
-        pprint(mapper.to_dict())
+        print("\n=== From label→port dict ===")
+        pprint(mapper.to_label_port_dict())
 
         assert mapper.get_port_for_label("task_a_output") == "output_file"
         assert mapper.get_port_for_label("task_c_result") == "results"
         assert len(mapper.get_labels_for_port("output_file")) == 2
         assert len(mapper) == 3
+
+    def test_from_port_labels_dict(self):
+        """Test populating from a port→labels dictionary."""
+        mapping = {
+            "output_file": ["task_a_output", "task_b_output"],
+            "results": ["task_c_result"],
+        }
+        mapper = PortLabelMapper().from_port_labels_dict(mapping)
+
+        print("\n=== From port→labels dict ===")
+        pprint(mapper.to_port_labels_dict())
+
+        assert mapper.get_port_for_label("task_a_output") == "output_file"
+        assert mapper.get_port_for_label("task_c_result") == "results"
+        assert len(mapper.get_labels_for_port("output_file")) == 2
+        assert len(mapper) == 3
+
+        # Verify it's the same as from_label_port_dict (just different input format)
+        mapper2 = PortLabelMapper().from_label_port_dict(
+            {
+                "task_a_output": "output_file",
+                "task_b_output": "output_file",
+                "task_c_result": "results",
+            }
+        )
+        assert mapper.to_label_port_dict() == mapper2.to_label_port_dict()
+        assert mapper.to_port_labels_dict() == mapper2.to_port_labels_dict()
 
     def test_get_port_for_nonexistent_label(self):
         """Test getting port for a label that doesn't exist."""
@@ -239,17 +266,34 @@ class TestPortLabelMapper:
         assert "result2" in labels
         assert "result3" in labels
 
-    def test_to_dict(self):
-        """Test exporting to dictionary."""
+    def test_to_label_port_dict(self):
+        """Test exporting to label→port dictionary."""
         mapper = PortLabelMapper()
         mapper.add("output", "result1")
         mapper.add("data", "result2")
 
-        print("\n=== To dict ===")
-        pprint(mapper.to_dict())
+        print("\n=== To label→port dict ===")
+        pprint(mapper.to_label_port_dict())
 
-        result = mapper.to_dict()
+        result = mapper.to_label_port_dict()
         assert result == {"result1": "output", "result2": "data"}
+
+    def test_to_port_labels_dict(self):
+        """Test exporting to port→labels dictionary."""
+        mapper = PortLabelMapper()
+        mapper.add("output_file", "result1")
+        mapper.add("output_file", "result2")
+        mapper.add("data", "result3")
+
+        print("\n=== To port→labels dict ===")
+        pprint(mapper.to_port_labels_dict())
+
+        result = mapper.to_port_labels_dict()
+        assert result == {"output_file": ["result1", "result2"], "data": ["result3"]}
+
+        # Verify it returns a copy (not the internal list)
+        result["output_file"].append("new_label")
+        assert mapper.get_labels_for_port("output_file") == ["result1", "result2"]
 
     def test_duplicate_label_overwrites(self):
         """Test that adding same label with different port overwrites."""

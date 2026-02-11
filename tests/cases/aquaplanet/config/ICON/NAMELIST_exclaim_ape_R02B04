@@ -171,7 +171,7 @@
  output_filename = './atm_2d/'  ! file name base
  filetype        = 5   ! output format 5:NetCDFv4
  filename_format = "<output_filename>exclaim_ape_R02B04_atm_2d_<datetime2>"   ! Output filename format
- output_start    = "2000-01-01T00:00:03Z"
+ output_start    = "2000-01-01T00:00:00Z"
  output_end      = "2000-01-01T00:03:00Z"
  output_interval = "PT2S"
  file_interval   = "P1D"

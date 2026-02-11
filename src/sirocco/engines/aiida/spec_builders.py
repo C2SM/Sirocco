@@ -23,7 +23,7 @@ from sirocco.engines.aiida.models import (
     InputDataInfo,
     OutputDataInfo,
 )
-from sirocco.engines.aiida.utils import serialize_coordinates, split_cmd_arg
+from sirocco.engines.aiida.utils import PortLabelMapper, serialize_coordinates, split_cmd_arg
 
 if TYPE_CHECKING:
     from sirocco.engines.aiida.types import (
@@ -168,16 +168,19 @@ class ShellTaskSpecBuilder(TaskSpecBuilder):
     def build_output_port_mapping(self) -> dict[str, str]:
         """Build mapping from output data names to shell parser link labels.
 
+        Uses PortLabelMapper internally for clearer port-label relationship
+        management, then exports as dict for serialization.
+
         Returns:
-            Dict mapping data names to shell output link labels
+            Dict mapping data names (labels) to shell output link labels (ports)
         """
-        output_port_mapping = {}
+        mapper = PortLabelMapper()
         output_data_info = self.build_output_data_info()
         for output_info in output_data_info:
             if output_info.path:
-                link_label = ShellParser.format_link_label(output_info.path)
-                output_port_mapping[output_info.name] = link_label
-        return output_port_mapping
+                port = ShellParser.format_link_label(output_info.path)
+                mapper.add(port, output_info.name)
+        return mapper.to_label_port_dict()
 
     def build_spec(self) -> AiidaShellTaskSpec:
         """Build the complete shell task specification.
@@ -223,6 +226,9 @@ class ShellTaskSpecBuilder(TaskSpecBuilder):
     def _build_input_labels(self, input_data_info: list[InputDataInfo]) -> dict[str, list[str]]:
         """Build input labels mapping for argument resolution.
 
+        Uses PortLabelMapper to track port→label relationships, then exports
+        as port→labels dict for argument template resolution.
+
         For AvailableData with paths, uses the actual path directly.
         For other data, creates a placeholder like {label}.
 
@@ -232,21 +238,18 @@ class ShellTaskSpecBuilder(TaskSpecBuilder):
         Returns:
             Dict mapping port names to list of labels/paths
         """
-        input_labels: dict[str, list[str]] = {}
+        mapper = PortLabelMapper()
         for input_info in input_data_info:
-            port_name = input_info.port
-            input_label = input_info.label
-            if port_name not in input_labels:
-                input_labels[port_name] = []
             # For AvailableData with a path, use the actual path directly
-            if input_info.is_available and input_info.path:
-                input_labels[port_name].append(input_info.path)
-            else:
-                input_labels[port_name].append(f"{{{input_label}}}")
-        return input_labels
+            label = input_info.path if input_info.is_available and input_info.path else f"{{{input_info.label}}}"
+            mapper.add(input_info.port, label)
+        return mapper.to_port_labels_dict()
 
     def _build_output_labels(self, output_data_info: list[OutputDataInfo]) -> dict[str, list[str]]:
         """Build output labels mapping for argument resolution.
+
+        Uses PortLabelMapper to track port→label relationships, then exports
+        as port→labels dict for argument template resolution.
 
         Args:
             output_data_info: List of output data information
@@ -254,19 +257,13 @@ class ShellTaskSpecBuilder(TaskSpecBuilder):
         Returns:
             Dict mapping port names to list of labels/paths
         """
-        output_labels: dict[str, list[str]] = {}
+        mapper = PortLabelMapper()
         for output_info in output_data_info:
             if output_info.port is None:
                 continue
-            port_name = output_info.port
-            output_label = output_info.label
-            if port_name not in output_labels:
-                output_labels[port_name] = []
-            if output_info.path:
-                output_labels[port_name].append(output_info.path)
-            else:
-                output_labels[port_name].append(f"{{{output_label}}}")
-        return output_labels
+            label = output_info.path or f"{{{output_info.label}}}"
+            mapper.add(output_info.port, label)
+        return mapper.to_port_labels_dict()
 
     def _add_referenced_ports_from_command(self, input_labels: dict[str, list[str]]) -> None:
         """Pre-scan command template to find all referenced ports.
@@ -382,15 +379,18 @@ class IconTaskSpecBuilder(TaskSpecBuilder):
     def build_output_port_mapping(self) -> dict[str, str]:
         """Build mapping from output data names to ICON port names.
 
+        Uses PortLabelMapper internally for clearer port-label relationship
+        management, then exports as dict for serialization.
+
         Returns:
-            Dict mapping data names to their ICON output port names
+            Dict mapping data names (labels) to their ICON output port names
         """
-        output_port_mapping: dict[str, str] = {}
+        mapper = PortLabelMapper()
         for port_name, output_list in self.task.outputs.items():
             if port_name is not None:
                 for data in output_list:
-                    output_port_mapping[data.name] = port_name
-        return output_port_mapping
+                    mapper.add(port_name, data.name)
+        return mapper.to_label_port_dict()
 
     def build_spec(self) -> AiidaIconTaskSpec:
         """Build the complete ICON task specification.

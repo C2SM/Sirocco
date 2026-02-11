@@ -78,20 +78,28 @@ class PortLabelMapper:
 
     Example::
 
+        # Build mapper
         mapper = PortLabelMapper()
         mapper.add("output_file", "task_a_result")
         mapper.add("output_file", "task_b_result")
 
-        # Forward lookup: label → port
+        # Query in both directions
         port = mapper.get_port_for_label("task_a_result")  # "output_file"
-
-        # Reverse lookup: port → labels
         labels = mapper.get_labels_for_port(
             "output_file"
         )  # ["task_a_result", "task_b_result"]
 
-        # Export as dict (label → port)
-        mapping = mapper.to_dict()  # {"task_a_result": "output_file", ...}
+        # Export in either direction
+        label_to_port = (
+            mapper.to_label_port_dict()
+        )  # {"task_a_result": "output_file", ...}
+        port_to_labels = (
+            mapper.to_port_labels_dict()
+        )  # {"output_file": ["task_a_result", ...]}
+
+        # Import from either direction
+        mapper2 = PortLabelMapper().from_label_port_dict(label_to_port)
+        mapper3 = PortLabelMapper().from_port_labels_dict(port_to_labels)
     """
 
     def __init__(self) -> None:
@@ -120,17 +128,46 @@ class PortLabelMapper:
         for label in labels:
             self.add(port, label)
 
-    def from_dict(self, mapping: dict[str, str]) -> PortLabelMapper:
-        """Populate mapper from a dict of {label: port}.
+    def from_label_port_dict(self, mapping: dict[str, str]) -> PortLabelMapper:
+        """Populate mapper from a label→port dictionary.
+
+        This is the inverse of to_label_port_dict(), accepting the same
+        format that method exports.
 
         Args:
-            mapping: Dict mapping labels to ports
+            mapping: Dict mapping labels to ports (e.g., {"task_a_output": "output_file"})
 
         Returns:
             Self for chaining
+
+        See Also:
+            to_label_port_dict: Export in the same format this method accepts
+            from_port_labels_dict: Import from port→labels format
         """
         for label, port in mapping.items():
             self.add(port, label)
+        return self
+
+    def from_port_labels_dict(self, mapping: dict[str, list[str]]) -> PortLabelMapper:
+        """Populate mapper from a port→labels dictionary.
+
+        This is the inverse of to_port_labels_dict(), accepting the same
+        format that method exports.
+
+        Args:
+            mapping: Dict mapping ports to lists of labels
+                    (e.g., {"output_file": ["task_a_output", "task_b_output"]})
+
+        Returns:
+            Self for chaining
+
+        See Also:
+            to_port_labels_dict: Export in the same format this method accepts
+            from_label_port_dict: Import from label→port format
+        """
+        for port, labels in mapping.items():
+            for label in labels:
+                self.add(port, label)
         return self
 
     def get_port_for_label(self, label: str) -> str | None:
@@ -177,13 +214,35 @@ class PortLabelMapper:
         """
         return port in self._port_to_labels
 
-    def to_dict(self) -> dict[str, str]:
-        """Export as a dictionary of {label: port}.
+    def to_label_port_dict(self) -> dict[str, str]:
+        """Export as label→port dictionary.
+
+        Each label maps to exactly one port. This is useful when you need to
+        look up which port a specific label belongs to.
 
         Returns:
-            Dict mapping all labels to their ports
+            Dict mapping labels to ports (e.g., {"task_a_output": "output_file"})
+
+        See Also:
+            to_port_labels_dict: Export as port→labels (inverse direction)
         """
         return dict(self._label_to_port)
+
+    def to_port_labels_dict(self) -> dict[str, list[str]]:
+        """Export as port→labels dictionary.
+
+        Each port maps to a list of labels. This is useful when you need to
+        know all labels associated with a port (e.g., for iteration or checking
+        if a port has multiple labels).
+
+        Returns:
+            Dict mapping ports to lists of labels
+            (e.g., {"output_file": ["task_a_output", "task_b_output"]})
+
+        See Also:
+            to_label_port_dict: Export as label→port (inverse direction)
+        """
+        return {port: labels[:] for port, labels in self._port_to_labels.items()}
 
     def get_all_ports(self) -> list[str]:
         """Get all unique port names.

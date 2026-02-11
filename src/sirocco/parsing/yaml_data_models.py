@@ -754,7 +754,6 @@ class ConfigGeneratedDataSpecs:
     # Path is optional because certain task types (e.g., ICON tasks) compute
     # output paths programmatically at runtime based on port names
     # (e.g., 'finish_status' -> 'finish.status', 'latest_restart_file' -> computed from namelist).
-    # See icon_task.py:282-312 for ICON-specific path resolution logic.
     path: Path | None = None
 
 

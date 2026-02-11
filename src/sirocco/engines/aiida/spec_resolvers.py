@@ -25,6 +25,7 @@ from sirocco.engines.aiida.models import (
     AiidaShellTaskSpec,
     DependencyInfo,
 )
+from sirocco.engines.aiida.utils import PortLabelMapper
 
 __all__ = [
     "build_icon_task_with_dependencies",
@@ -95,9 +96,23 @@ class ShellTaskSpecResolver(TaskSpecResolver):
     - Resolving dependency mappings
     - Building metadata with SLURM dependencies
     - Creating WorkGraph shell task
+
+    Attributes:
+        spec: The shell task specification
+        input_port_label_mapper: Bidirectional mapper for input ports and labels
     """
 
     spec: AiidaShellTaskSpec
+
+    def __init__(self, task_spec_dict: dict):
+        """Initialize resolver and build port-label mapper.
+
+        Args:
+            task_spec_dict: Serialized task specification from WorkGraph
+        """
+        super().__init__(task_spec_dict)
+        # Build port-label mapper once at initialization
+        self.input_port_label_mapper = self._build_input_port_label_mapper()
 
     def _load_spec(self, spec_dict: dict) -> AiidaShellTaskSpec:
         """Load Shell task specification.
@@ -109,6 +124,22 @@ class ShellTaskSpecResolver(TaskSpecResolver):
             Validated AiidaShellTaskSpec model
         """
         return AiidaShellTaskSpec(**spec_dict)
+
+    def _build_input_port_label_mapper(self) -> PortLabelMapper:
+        """Build bidirectional port-label mapper from input data info.
+
+        This is built once during initialization to avoid repeated reconstruction.
+        Provides both port→label and label→port lookups needed for argument
+        placeholder substitution.
+
+        Returns:
+            PortLabelMapper with all AvailableData port-label relationships
+        """
+        mapper = PortLabelMapper()
+        for input_info in self.spec.input_data_info:
+            if input_info["is_available"]:
+                mapper.add(input_info["port"], input_info["label"])
+        return mapper
 
     def _load_code(self) -> aiida.orm.Code:
         """Load the code from its stored PK.
@@ -126,25 +157,13 @@ class ShellTaskSpecResolver(TaskSpecResolver):
         """
         return {key: aiida.orm.load_node(pk) for key, pk in self.spec.node_pks.items()}  # type: ignore[misc]
 
-    def _build_port_to_label_mapping(self) -> dict[str, str]:
-        """Build mapping from input port names to data labels.
-
-        This is needed because WorkGraph passes nodes by port name, but
-        argument placeholders use data labels.
-
-        Returns:
-            Dict mapping port names to data labels for AvailableData
-        """
-        port_to_label = {}
-        for input_info in self.spec.input_data_info:
-            if input_info["is_available"]:
-                port_to_label[input_info["port"]] = input_info["label"]
-        return port_to_label
-
     def _add_input_data_nodes(
         self, all_nodes: dict[str, aiida.orm.Data], input_data_nodes: dict | None
     ) -> dict[str, str]:
         """Add AvailableData nodes and build placeholder mapping.
+
+        Uses the input_port_label_mapper to convert port names (from WorkGraph)
+        to data labels (for argument placeholders).
 
         Args:
             all_nodes: Existing node dictionary (mutated in place)
@@ -158,10 +177,10 @@ class ShellTaskSpecResolver(TaskSpecResolver):
         if not input_data_nodes:
             return placeholder_to_node_key
 
-        port_to_label = self._build_port_to_label_mapping()
-
         for port_name, node in input_data_nodes.items():
-            data_label = port_to_label.get(port_name, port_name)
+            # Use mapper to get label from port (fallback to port_name if not found)
+            labels = self.input_port_label_mapper.get_labels_for_port(port_name)
+            data_label = labels[0] if labels else port_name
             all_nodes[data_label] = node  # type: ignore[arg-type]
             placeholder_to_node_key[data_label] = data_label  # type: ignore[arg-type]
 
