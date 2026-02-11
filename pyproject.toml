@@ -140,8 +140,8 @@ extra-dependencies = [
     "pytest-sugar",  # Nicer pytest output
     "coverage",  # For showing coverage gutter in IDEs
 ]
-default-args = ["-m", "not slow and not requires_icon"]
-extra-args = ["--doctest-modules"]
+default-args = []
+extra-args = ["--doctest-modules", "-m", "not slow and not requires_icon"]
 
 [[tool.hatch.envs.hatch-test.matrix]]
 python = ["3.12"]
