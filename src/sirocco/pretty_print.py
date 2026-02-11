@@ -72,7 +72,16 @@ class PrettyPrinter:
 
         Default implementation simply calls str()
         """
-        # this prevents empty strings being not visibliy displayed
+        from datetime import datetime
+
+        # Format dicts with datetime values as ISO strings for readability
+        if isinstance(obj, dict):
+            formatted_items = []
+            for key, value in obj.items():
+                formatted_value = str(value) if isinstance(value, datetime) else repr(value)
+                formatted_items.append(f"{key!r}: {formatted_value}")
+            return "{" + ", ".join(formatted_items) + "}"
+        # this prevents empty strings being not visibly displayed
         return repr(obj) if isinstance(obj, str) else str(obj)
 
     @format.register

@@ -104,8 +104,9 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         self.master_namelist.update_from_specs(
             {
                 "master_time_control_nml": {
-                    "experimentStartDate": self.cycle_point.chunk_start_date.isoformat(),
-                    "experimentStopDate": self.cycle_point.chunk_stop_date.isoformat(),
+                    # Use Z instead of +00:00 for UTC (ISO 8601 compact form)
+                    "experimentStartDate": self.cycle_point.chunk_start_date.isoformat().replace("+00:00", "Z"),
+                    "experimentStopDate": self.cycle_point.chunk_stop_date.isoformat().replace("+00:00", "Z"),
                     "restartTimeIntval": str(self.cycle_point.period),
                     "checkpointTimeIntval": str(self.cycle_point.period),
                 },
@@ -132,7 +133,17 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         for namelist in self.namelists:
             filename = namelist.name
             if filename_mode == "append_coordinates":
-                suffix = ("_".join([str(p) for p in self.coordinates.values()])).replace(" ", "_")
+                from datetime import datetime
+
+                # Format coordinates - strip timezone from datetimes (all Sirocco datetimes are UTC)
+                coord_strs = []
+                for p in self.coordinates.values():
+                    if isinstance(p, datetime):
+                        # Remove timezone for filename (keeps original format otherwise)
+                        coord_strs.append(str(p.replace(tzinfo=None)))
+                    else:
+                        coord_strs.append(str(p))
+                suffix = "_".join(coord_strs).replace(" ", "_")
                 filename += "_" + suffix
             namelist.dump(directory / filename)
 

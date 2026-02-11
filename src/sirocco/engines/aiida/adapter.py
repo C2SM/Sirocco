@@ -102,12 +102,12 @@ class AiidaAdapter:
     def sanitize_label(label: str) -> str:
         """Replace characters that are invalid for AiiDA labels.
 
-        AiiDA labels cannot contain: "-", " ", ":", "."
-        These are replaced with underscores.
+        AiiDA labels cannot contain: "-", " ", ":", ".", "T", "+"
+        These are replaced with double underscores to differentiate from existing underscores.
         """
-        invalid_chars = ["-", " ", ":", "."]
+        invalid_chars = ["-", " ", ":", ".", "T", "+"]
         for invalid_char in invalid_chars:
-            label = label.replace(invalid_char, "_")
+            label = label.replace(invalid_char, "__")
         return label
 
     @staticmethod
@@ -116,9 +116,16 @@ class AiidaAdapter:
 
         The graph item object is uniquely determined by its name and its coordinates.
         """
-        return AiidaAdapter.sanitize_label(
-            f"{graph_item.name}" + "__".join(f"_{key}_{value}" for key, value in graph_item.coordinates.items())
-        )
+        from datetime import datetime
+
+        # Format coordinates - strip timezone from datetimes for label compatibility
+        coord_parts = []
+        for key, value in graph_item.coordinates.items():
+            # Strip timezone info for labels (all Sirocco datetimes are UTC)
+            formatted_value = value.replace(tzinfo=None).isoformat() if isinstance(value, datetime) else str(value)
+            coord_parts.append(f"_{key}_{formatted_value}")
+
+        return AiidaAdapter.sanitize_label(f"{graph_item.name}" + "__".join(coord_parts))
 
     @staticmethod
     def create_input_data_node(core_data: core.AvailableData, *, used_by_icon: bool = False) -> FileNode:

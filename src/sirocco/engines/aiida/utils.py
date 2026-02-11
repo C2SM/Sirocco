@@ -56,14 +56,17 @@ def split_cmd_arg(command_line: str, script_name: str | None = None) -> tuple[st
 def serialize_coordinates(coordinates: dict) -> dict:
     """Convert coordinates dict to JSON-serializable format.
 
-    Converts datetime objects to ISO format strings.
+    Converts datetime objects to ISO format strings without timezone suffix.
+    All Sirocco datetimes are UTC, so timezone info is redundant in labels/names.
     """
     from datetime import datetime
 
     serialized = {}
     for key, value in coordinates.items():
         if isinstance(value, datetime):
-            serialized[key] = value.isoformat()
+            # Use replace(tzinfo=None) to get naive datetime, then isoformat()
+            # This produces "2026-01-01T00:00:00" instead of "2026-01-01T00:00:00+00:00"
+            serialized[key] = value.replace(tzinfo=None).isoformat()
         else:
             serialized[key] = value
     return serialized

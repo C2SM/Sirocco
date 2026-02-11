@@ -226,14 +226,14 @@ def test_remove_script_extension(input_name, expected):
         pytest.param(
             "test_task",
             {"member": 0, "date": "2026-01-01"},
-            "test_task_member_0___date_2026_01_01",
+            "test_task_member_0___date_2026__01__01",
             id="with_coordinates",
         ),
-        # Invalid characters should be replaced with underscores
+        # Invalid characters should be replaced with double underscores
         pytest.param(
             "test-task.v1",
             {"date": "2026-01-01"},
-            "test_task_v1_date_2026_01_01",
+            "test__task__v1_date_2026__01__01",
             id="sanitize_name",
         ),
     ],
@@ -402,13 +402,13 @@ def test_create_shell_code_local_script(mock_portable_code_class, mock_load_code
 @pytest.mark.parametrize(
     ("input_label", "expected"),
     [
-        # Individual invalid characters
-        pytest.param("task-name", "task_name", id="replace_dash"),
-        pytest.param("task name", "task_name", id="replace_space"),
-        pytest.param("task:name", "task_name", id="replace_colon"),
-        pytest.param("task.name", "task_name", id="replace_dot"),
+        # Individual invalid characters (replaced with double underscores)
+        pytest.param("task-name", "task__name", id="replace_dash"),
+        pytest.param("task name", "task__name", id="replace_space"),
+        pytest.param("task:name", "task__name", id="replace_colon"),
+        pytest.param("task.name", "task__name", id="replace_dot"),
         # Multiple invalid characters
-        pytest.param("task-name.v1:final", "task_name_v1_final", id="replace_multiple"),
+        pytest.param("task-name.v1:final", "task__name__v1__final", id="replace_multiple"),
         # Valid label unchanged
         pytest.param("task_name_123", "task_name_123", id="valid_label"),
     ],

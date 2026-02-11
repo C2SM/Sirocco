@@ -62,26 +62,26 @@ def test_shell_filenames_nodes_arguments(config_paths):
         {"initial_conditions": "initial_conditions", "forcing": "forcing"},
         {"initial_conditions": "initial_conditions", "forcing": "forcing"},
         {
-            "icon_restart_foo_0___bar_3_0___date_2026_01_01_00_00_00": "restart",
+            "icon_restart_foo_0___bar_3__0___date_2026__01__01__00__00__00": "restart",
             "forcing": "forcing",
         },
         {
-            "icon_restart_foo_1___bar_3_0___date_2026_01_01_00_00_00": "restart",
+            "icon_restart_foo_1___bar_3__0___date_2026__01__01__00__00__00": "restart",
             "forcing": "forcing",
         },
         {
-            "icon_output_foo_0___bar_3_0___date_2026_01_01_00_00_00": "icon_output_foo_0___bar_3_0___date_2026_01_01_00_00_00",
-            "icon_output_foo_1___bar_3_0___date_2026_01_01_00_00_00": "icon_output_foo_1___bar_3_0___date_2026_01_01_00_00_00",
+            "icon_output_foo_0___bar_3__0___date_2026__01__01__00__00__00": "icon_output_foo_0___bar_3__0___date_2026__01__01__00__00__00",
+            "icon_output_foo_1___bar_3__0___date_2026__01__01__00__00__00": "icon_output_foo_1___bar_3__0___date_2026__01__01__00__00__00",
         },
         {
-            "icon_output_foo_0___bar_3_0___date_2026_07_01_00_00_00": "icon_output_foo_0___bar_3_0___date_2026_07_01_00_00_00",
-            "icon_output_foo_1___bar_3_0___date_2026_07_01_00_00_00": "icon_output_foo_1___bar_3_0___date_2026_07_01_00_00_00",
+            "icon_output_foo_0___bar_3__0___date_2026__07__01__00__00__00": "icon_output_foo_0___bar_3__0___date_2026__07__01__00__00__00",
+            "icon_output_foo_1___bar_3__0___date_2026__07__01__00__00__00": "icon_output_foo_1___bar_3__0___date_2026__07__01__00__00__00",
         },
-        {"analysis_foo_bar_3_0___date_2026_01_01_00_00_00": "analysis"},
-        {"analysis_foo_bar_3_0___date_2026_07_01_00_00_00": "analysis"},
+        {"analysis_foo_bar_3__0___date_2026__01__01__00__00__00": "analysis"},
+        {"analysis_foo_bar_3__0___date_2026__07__01__00__00__00": "analysis"},
         {
-            "analysis_foo_bar_date_2026_01_01_00_00_00": "analysis_foo_bar_date_2026_01_01_00_00_00",
-            "analysis_foo_bar_date_2026_07_01_00_00_00": "analysis_foo_bar_date_2026_07_01_00_00_00",
+            "analysis_foo_bar_date_2026__01__01__00__00__00": "analysis_foo_bar_date_2026__01__01__00__00__00",
+            "analysis_foo_bar_date_2026__07__01__00__00__00": "analysis_foo_bar_date_2026__07__01__00__00__00",
         },
     ]
 
@@ -95,13 +95,13 @@ def test_shell_filenames_nodes_arguments(config_paths):
     expected_arguments_list = [
         f"--restart --init {initial_conditions_path} --forcing {forcing_path}",
         f"--restart --init {initial_conditions_path} --forcing {forcing_path}",
-        f"--restart {{icon_restart_foo_0___bar_3_0___date_2026_01_01_00_00_00}} --init --forcing {forcing_path}",
-        f"--restart {{icon_restart_foo_1___bar_3_0___date_2026_01_01_00_00_00}} --init --forcing {forcing_path}",
-        "{icon_output_foo_0___bar_3_0___date_2026_01_01_00_00_00} {icon_output_foo_1___bar_3_0___date_2026_01_01_00_00_00}",
-        "{icon_output_foo_0___bar_3_0___date_2026_07_01_00_00_00} {icon_output_foo_1___bar_3_0___date_2026_07_01_00_00_00}",
-        "{analysis_foo_bar_3_0___date_2026_01_01_00_00_00}",
-        "{analysis_foo_bar_3_0___date_2026_07_01_00_00_00}",
-        "{analysis_foo_bar_date_2026_01_01_00_00_00} {analysis_foo_bar_date_2026_07_01_00_00_00}",
+        f"--restart {{icon_restart_foo_0___bar_3__0___date_2026__01__01__00__00__00}} --init --forcing {forcing_path}",
+        f"--restart {{icon_restart_foo_1___bar_3__0___date_2026__01__01__00__00__00}} --init --forcing {forcing_path}",
+        "{icon_output_foo_0___bar_3__0___date_2026__01__01__00__00__00} {icon_output_foo_1___bar_3__0___date_2026__01__01__00__00__00}",
+        "{icon_output_foo_0___bar_3__0___date_2026__07__01__00__00__00} {icon_output_foo_1___bar_3__0___date_2026__07__01__00__00__00}",
+        "{analysis_foo_bar_3__0___date_2026__01__01__00__00__00}",
+        "{analysis_foo_bar_3__0___date_2026__07__01__00__00__00}",
+        "{analysis_foo_bar_date_2026__01__01__00__00__00} {analysis_foo_bar_date_2026__07__01__00__00__00}",
     ]
 
     # Note: Scripts are no longer stored in node_pks in the current architecture
@@ -116,30 +116,30 @@ def test_shell_filenames_nodes_arguments(config_paths):
             "forcing",
         ],
         [
-            "icon_restart_foo_0___bar_3_0___date_2026_01_01_00_00_00",
+            "icon_restart_foo_0___bar_3__0___date_2026__01__01__00__00__00",
             "forcing",
         ],
         [
-            "icon_restart_foo_1___bar_3_0___date_2026_01_01_00_00_00",
+            "icon_restart_foo_1___bar_3__0___date_2026__01__01__00__00__00",
             "forcing",
         ],
         [
-            "icon_output_foo_0___bar_3_0___date_2026_01_01_00_00_00",
-            "icon_output_foo_1___bar_3_0___date_2026_01_01_00_00_00",
+            "icon_output_foo_0___bar_3__0___date_2026__01__01__00__00__00",
+            "icon_output_foo_1___bar_3__0___date_2026__01__01__00__00__00",
         ],
         [
-            "icon_output_foo_0___bar_3_0___date_2026_07_01_00_00_00",
-            "icon_output_foo_1___bar_3_0___date_2026_07_01_00_00_00",
+            "icon_output_foo_0___bar_3__0___date_2026__07__01__00__00__00",
+            "icon_output_foo_1___bar_3__0___date_2026__07__01__00__00__00",
         ],
         [
-            "analysis_foo_bar_3_0___date_2026_01_01_00_00_00",
+            "analysis_foo_bar_3__0___date_2026__01__01__00__00__00",
         ],
         [
-            "analysis_foo_bar_3_0___date_2026_07_01_00_00_00",
+            "analysis_foo_bar_3__0___date_2026__07__01__00__00__00",
         ],
         [
-            "analysis_foo_bar_date_2026_01_01_00_00_00",
-            "analysis_foo_bar_date_2026_07_01_00_00_00",
+            "analysis_foo_bar_date_2026__01__01__00__00__00",
+            "analysis_foo_bar_date_2026__07__01__00__00__00",
         ],
     ]
 
