@@ -19,7 +19,7 @@ class IconModel:
     core_component: TaskComponent
     name: str
     task_run_dir: Path
-    task_name: str
+    task_label: str
     namelist: NamelistFile
     model_type: ModelType
 
@@ -72,7 +72,7 @@ class PortHandler:
     @classmethod
     def handle(cls: type[Self], port_name: str, model: IconModel) -> None:
         if port_name not in cls.registered_handlers:
-            msg = f"IconTask: unsopported input port {port_name}"
+            msg = f"IconTask {model.task_label}, model {model.name}: unsopported input port {port_name}"
             raise KeyError(msg)
         cls.registered_handlers[port_name](model)
 
@@ -161,18 +161,18 @@ restart_out_handler = PortHandler(
 def output_streams_handler_callable(port_name: str, model: IconModel) -> None:  # noqa: ARG001
     nml_streams = [*model.namelist.iter_nml("output_nml")]
     if (n_nml := len(nml_streams)) != (n_yaml := len(model.outputs["output_nml"])):
-        msg = f"task {model.task_name}, model {model.name}: number of output streams speficied in namelist ({n_nml}) differs from number of streams specified in the workflow config ({n_yaml})"
+        msg = f"task {model.task_label}, model {model.name}: number of output streams speficied in namelist ({n_nml}) differs from number of streams specified in the workflow config ({n_yaml})"
         raise ValueError(msg)
     for k, (nml_stream, output_data) in enumerate(zip(nml_streams, model.outputs["output_nml"], strict=False)):
         filename_format = nml_stream.get("filename_format", "<output_filename>_XXX_YYY")
         output_filename = nml_stream.get("output_filename", "")
         # for type checkers
         if not isinstance(filename_format, str) or not isinstance(output_filename, str):
-            msg = f"task {model.task_name}, model {model.name}, output stream number {k}: 'filename_format' and 'output_filename' namelist parameters must be strings"
+            msg = f"task {model.task_label}, model {model.name}, output stream number {k}: 'filename_format' and 'output_filename' namelist parameters must be strings"
             raise TypeError(msg)
         stream_dir = Path(filename_format.replace("<output_filename>", output_filename)).parent
         if stream_dir == Path("."):
-            msg = f"task {model.task_name}, model {model.name}: output stream number {k} specifies an output stream directly in the run directory. Please specify a subdirectory using the 'filename_format' and 'output_filename' parameters (see ICON documentation)"
+            msg = f"task {model.task_label}, model {model.name}: output stream number {k} specifies an output stream directly in the run directory. Please specify a subdirectory using the 'filename_format' and 'output_filename' parameters (see ICON documentation)"
             raise ValueError(msg)
         output_data.resolved_path = stream_dir if stream_dir.is_absolute() else model.task_run_dir / stream_dir
         output_data.resolved_path.mkdir(parents=True, exist_ok=True)
