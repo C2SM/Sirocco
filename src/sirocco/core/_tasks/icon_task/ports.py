@@ -143,7 +143,7 @@ def restart_out_handler_callable(port_name: str, model: IconModel) -> None:
         msg = f"Only supported restart_write_mode is 'joint procs multifile', got {restart_write_mode}"
         raise ValueError(msg)
     # Ignore empty restart port or possible when conditions
-    if not (data_list := model.inputs[port_name]):
+    if not (data_list := model.outputs[port_name]):
         return
     if len(data_list) > 1:
         msg = f"port '{port_name}' only accepts a single data object"
