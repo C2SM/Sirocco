@@ -4,7 +4,7 @@ import enum
 from colorsys import hsv_to_rgb
 from itertools import chain
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Self, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Self
 
 from lxml import etree
 from pygraphviz import AGraph
@@ -242,30 +242,6 @@ class VizGraph:
     @classmethod
     def from_core_workflow(cls, workflow: core.Workflow) -> Self:
         return cls(name=workflow.name, tasks=workflow.tasks, data=workflow.data, cycles=workflow.cycles)
-
-    @overload
-    @classmethod
-    def from_config_file(
-        cls,
-        config_path: str | Path,
-        template_context: None = None,
-    ) -> Self: ...
-
-    @overload
-    @classmethod
-    def from_config_file(
-        cls,
-        config_path: str | Path,
-        template_context: dict[str, Any],
-    ) -> Self: ...
-
-    @overload
-    @classmethod
-    def from_config_file(
-        cls,
-        config_path: str | Path,
-        template_context: str | Path,
-    ) -> Self: ...
 
     @classmethod
     def from_config_file(
