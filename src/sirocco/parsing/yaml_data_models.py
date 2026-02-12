@@ -531,7 +531,6 @@ class ConfigIconTaskSpecs:
     bin_gpu: Path | None = field(repr=True, default=None)
     wrapper_script: Path | None = field(
         default=None,
-        repr=False,
         metadata={"description": "Path to wrapper script file relative to the config directory or absolute."},
     )
     target: Literal["santis_cpu", "santis_gpu"] | None = field(
