@@ -192,20 +192,13 @@ class TargetNodesBaseModel(_NamedBaseModel):
     parameters: Annotated[dict[str, Literal["all", "single"]], BeforeValidator(check_parameters_spec)] = {}
 
 
-class ConfigCycleTaskInput(TargetNodesBaseModel):
-    port: str
+class ConfigCycleTaskInput(TargetNodesBaseModel): ...
 
 
-class ConfigCycleTaskWaitOn(TargetNodesBaseModel):
-    pass
+class ConfigCycleTaskWaitOn(TargetNodesBaseModel): ...
 
 
-class ConfigCycleTaskOutput(_NamedBaseModel):
-    """
-    To create an instance of an output in a task in a cycle defined in a workflow file.
-    """
-
-    port: str | None = None
+class ConfigCycleTaskOutput(_NamedBaseModel): ...
 
 
 def make_named_model_list_converter[NAMED_BASE_T: _NamedBaseModel](
@@ -230,20 +223,58 @@ def make_named_model_list_converter[NAMED_BASE_T: _NamedBaseModel](
     return convert_named_model_list
 
 
+def make_named_model_list_dict_converter[NAMED_BASE_T: _NamedBaseModel](
+    cls: type[NAMED_BASE_T],
+) -> typing.Callable[[dict[str, list[NAMED_BASE_T | str | dict]] | None], dict[str, list[NAMED_BASE_T]]]:
+    def convert_named_model_list_dict(
+        values: dict[str, list[NAMED_BASE_T | str | dict]] | None,
+    ) -> dict[str, list[NAMED_BASE_T]]:
+        if values is None:
+            return {}
+        named_model_list_converter = make_named_model_list_converter(cls)
+        return {port: named_model_list_converter(data_list) for port, data_list in values.items()}
+
+    return convert_named_model_list_dict
+
+
+class ConfigCycleTaskComponent(BaseModel):
+    inputs: Annotated[
+        dict[str, list[ConfigCycleTaskInput]],
+        BeforeValidator(make_named_model_list_dict_converter(ConfigCycleTaskInput)),
+    ] = {}
+    outputs: Annotated[
+        dict[str, list[ConfigCycleTaskOutput]],
+        BeforeValidator(make_named_model_list_dict_converter(ConfigCycleTaskOutput)),
+    ] = {}
+
+
 class ConfigCycleTask(_NamedBaseModel):
     """
     To create an instance of a task in a cycle defined in a workflow file.
     """
 
-    inputs: Annotated[
-        list[ConfigCycleTaskInput], BeforeValidator(make_named_model_list_converter(ConfigCycleTaskInput))
-    ] = []
-    outputs: Annotated[
-        list[ConfigCycleTaskOutput], BeforeValidator(make_named_model_list_converter(ConfigCycleTaskOutput))
-    ] = []
+    __SINGLE_COMPONENT_NAME__: ClassVar[Literal["__SINGLE_COMPONENT__"]] = "__SINGLE_COMPONENT__"
+    components: dict[str, ConfigCycleTaskComponent] = {}
     wait_on: Annotated[
-        list[ConfigCycleTaskWaitOn], BeforeValidator(make_named_model_list_converter(ConfigCycleTaskWaitOn))
+        list[ConfigCycleTaskWaitOn],
+        BeforeValidator(make_named_model_list_converter(ConfigCycleTaskWaitOn)),
     ] = []
+
+    @model_validator(mode="before")
+    @classmethod
+    def ensure_components(cls, data: dict[str, Any]) -> dict[str, Any]:
+        """
+        Ensure single component if no "components" key is provided
+        """
+        # NOTE: execute _NamedBaseModel before model validator first because of this ordering issue
+        #       https://github.com/pydantic/pydantic/issues/10790
+        data = extract_merge_key_as_value(data)
+        if "components" not in data:
+            single_comp: dict[str, Any] = {}
+            for key in ("inputs", "outputs"):
+                single_comp[key] = data.pop(key, {})
+            data["components"] = {cls.__SINGLE_COMPONENT_NAME__: single_comp}
+        return data
 
 
 def select_cycling(spec: Any) -> Cycling:
@@ -348,7 +379,7 @@ class ConfigShellTaskSpecs:
     )
 
     # TODO: move str | None in the signature to str once ports are compulsery everywhere (also for output)
-    def resolve_ports(self, input_labels: dict[str | None, list[str]]) -> str:
+    def resolve_ports(self, input_labels: dict[str, list[str]]) -> str:
         """Replace port placeholders in command string with provided input labels.
 
         Returns a string corresponding to self.command with "{PORT::port_name}"
@@ -403,6 +434,15 @@ class ConfigShellTaskSpecs:
             ...     {"when_input": [], "repeat_input": ["input_1", "input_2", "input_3"]}
             ... )
             './my_script --input input_1 --input input_2 --input input_3'
+            >>> task_specs = ConfigShellTaskSpecs(
+            ...     command="./my_script [--when_opt_1 {PORT::when_input_1}] [--when_opt_2 {PORT::when_input_2}]"
+            ... )
+            >>> task_specs.resolve_ports({})
+            './my_script  '
+            >>> task_specs.resolve_ports({"when_input_1": ["opt_1"]})
+            './my_script --when_opt_1 opt_1 '
+            >>> task_specs.resolve_ports({"when_input_2": ["opt_2"]})
+            './my_script  --when_opt_2 opt_2'
         """
 
         def replace_port(cmd: str, match_obj: re.Match) -> str:
@@ -429,7 +469,7 @@ class ConfigShellTaskSpecs:
                 return cmd.replace(full_match, opt + sep.join(input_labels[port]))
 
             if port not in input_labels:
-                msg = f"The input_labels dictionnary doesn't have the {port} key. If the port has a when condition, enclose the whole dedicated command line part in square brackets e.g. command: ... [--arg={{PORT:my_port}}] ..."
+                msg = f"The input_labels dictionnary doesn't have the {port} key. If the port has a when condition, enclose the whole dedicated command line part in square brackets e.g. command: ... [--arg={{PORT::my_port}}] ..."
                 raise KeyError(msg)
             return cmd.replace(full_match, sep.join(input_labels[port]))
 

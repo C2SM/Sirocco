@@ -11,20 +11,20 @@ cycles:
       tasks:
         - icon:
             inputs:
-              - icon_namelist:
-                  port: UNUSED
-              - initial_conditions:
-                  when:
-                    at: *root_start_date
-                  port:
-                    init
-              - icon_restart:
-                  when:
-                    after: *root_start_date
-                  target_cycle:
-                    lag: -P2M
-                  port: restart
-            outputs: [icon_output, icon_restart]
+              UNUSED: [icon_namelist]
+              init:
+                - initial_conditions:
+                    when:
+                      at: *root_start_date
+              restart_in:
+                - icon_restart:
+                    when:
+                      after: *root_start_date
+                    target_cycle:
+                      lag: -P2M
+            outputs:
+              output_streams: [icon_output]
+              restart_out: [icon_restart]
   - lastly:
       tasks:
         - cleanup:
@@ -37,7 +37,7 @@ tasks:
       plugin: shell
       computer: remote
       path: scripts/icon.py
-      command: "python icon.py --restart {PORT::restart} --init {PORT::init}"
+      command: "python icon.py [--restart {PORT::restart_in}] [--init {PORT::init}]"
       uenv: "icon-wcp/v1:rc4"
   - cleanup:
       plugin: shell

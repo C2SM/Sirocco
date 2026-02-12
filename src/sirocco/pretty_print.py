@@ -36,7 +36,7 @@ class PrettyPrinter:
           foo
           bar
         """
-        return f"{header}:\n{self.indent(body)}"
+        return f"{header}:\n{self.indent(body)}" if body else f"{header}:"
 
     def as_item(self, content: str) -> str:
         """
@@ -128,22 +128,42 @@ class PrettyPrinter:
         return self.as_item(self.as_block(self.format_basic(obj), tasks))
 
     @format.register
+    def format_component(self, obj: core.TaskComponent) -> str:
+        sections: list[str] = []
+        sections.append(
+            self.as_block(
+                "inputs",
+                "\n".join(
+                    self.as_block(
+                        port,
+                        "\n".join(self.as_item(self.format_basic(data)) for data in data_list) if data_list else "",
+                    )
+                    for port, data_list in obj.inputs.items()
+                ),
+            )
+        )
+        sections.append(
+            self.as_block(
+                "outputs",
+                "\n".join(
+                    self.as_block(
+                        port,
+                        "\n".join(self.as_item(self.format_basic(data)) for data in data_list) if data_list else "",
+                    )
+                    for port, data_list in obj.outputs.items()
+                ),
+            ),
+        )
+        return "\n".join(sections)
+
+    @format.register
     def format_task(self, obj: core.Task) -> str:
-        sections = []
-        if obj.inputs:
-            sections.append(
-                self.as_block(
-                    "input",
-                    "\n".join(self.as_item(self.format_basic(inp)) for inp in obj.input_data_nodes()),
-                )
+        sections: list[str] = []
+        sections.append(
+            self.as_block(
+                "components", "\n".join(self.as_block(name, self.format(comp)) for name, comp in obj.components.items())
             )
-        if obj.outputs:
-            sections.append(
-                self.as_block(
-                    "output",
-                    "\n".join(self.as_item(self.format_basic(output)) for output in obj.output_data_nodes()),
-                )
-            )
+        )
         if obj.wait_on:
             sections.append(
                 self.as_block(
@@ -155,8 +175,7 @@ class PrettyPrinter:
         # Handling remaining member variables
         repr_attrs = [field_name for field_name, field in obj.__dataclass_fields__.items() if field.repr]
         # removing attributs that are specifically handled above
-        repr_attrs.remove("inputs")
-        repr_attrs.remove("outputs")
+        repr_attrs.remove("components")
         repr_attrs.remove("wait_on")
         repr_attrs.remove("config_rootdir")
         repr_attrs.remove("RUN_ROOT")

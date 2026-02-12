@@ -95,7 +95,7 @@ class Workflow:
         for cycle_config in config_cycles:
             for cycle_point in cycle_config.cycling.iter_cycle_points():
                 for task_ref in cycle_config.tasks:
-                    for data_ref in task_ref.outputs:
+                    for data_ref in chain(*chain(*(comp.outputs.values() for comp in task_ref.components.values()))):
                         data_config = config_data_dict[data_ref.name]
                         for coordinates in iter_coordinates(cycle_point, data_config.parameters):
                             self.data.add(Data.from_config(config=data_config, coordinates=coordinates))

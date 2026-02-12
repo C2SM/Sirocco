@@ -3,36 +3,32 @@ from __future__ import annotations
 import logging
 import shutil
 from dataclasses import dataclass, field
+from itertools import chain
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
+from typing import Any, ClassVar, Literal, Self
 
-import f90nml
-from aiida_icon.iconutils import masternml
-
-from sirocco.core.graph_items import Data, GeneratedData, Task
+from sirocco.core._tasks.icon_task.ports import IconModel, ModelType, PortHandler
+from sirocco.core.graph_items import Task
 from sirocco.core.namelistfile import NamelistFile
-from sirocco.parsing import yaml_data_models as models
+from sirocco.parsing import yaml_data_models
 from sirocco.parsing.cycling import DateCyclePoint
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
-
 
 LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(kw_only=True)
-class IconTask(models.ConfigIconTaskSpecs, Task):
+class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
     _MASTER_NAMELIST_NAME: ClassVar[str] = field(default="icon_master.namelist", repr=False)
-    _MASTER_MODEL_NML_SECTION: ClassVar[str] = field(default="master_model_nml", repr=False)
-    _AIIDA_ICON_RESTART_FILE_PORT_NAME: ClassVar[str] = field(default="restart_file", repr=False)
+    ICON_RESTART_IN_PORT_NAME: ClassVar[str] = field(default="restart_file", repr=False)
     _MAIN: ClassVar[str] = field(default="main.sh", repr=False)
     namelists: list[NamelistFile]
+    master_namelist: NamelistFile = field(init=False, repr=False)
+    models: dict[str, IconModel] = field(default_factory=dict, repr=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__()
-        # Detect master namelist
-        master_namelist = None
+        # Detect and set master namelist
+        master_namelist: NamelistFile | None = None
         for namelist in self.namelists:
             if namelist.name == self._MASTER_NAMELIST_NAME:
                 master_namelist = namelist
@@ -40,62 +36,89 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         if master_namelist is None:
             msg = f"Failed to read master namelists. Could not find {self._MASTER_NAMELIST_NAME!r} in namelists {self.namelists}"
             raise ValueError(msg)
-        self._master_namelist = master_namelist
+        self.master_namelist = master_namelist
 
-        # Parse master namelist to identify required model namelists
-        master_nml_data = f90nml.reads(str(self._master_namelist.namelist))
-        self._required_models = dict(masternml.iter_model_name_filepath(master_nml_data))
+        # Build dictionnary mapping component names to model namelists
+        namelist_by_filename: dict[str, NamelistFile] = {nml.name: nml for nml in self.namelists}
+        model_namelists: dict[str, NamelistFile] = {}
+        model_types: dict[str, int] = {}
+        for master_model_nml in self.master_namelist.iter_nml("master_model_nml"):
+            if not isinstance((filename := master_model_nml.get("model_namelist_filename")), str):
+                msg = "master_model_nml does not contain a valid 'model_namelist_filename' parameter"
+                raise KeyError(msg)
+            if filename not in namelist_by_filename:
+                msg = f"namelist {filename} required by {self._MASTER_NAMELIST_NAME!r} not found in provided namelists"
+                raise KeyError(msg)
+            if not isinstance(model_name := master_model_nml.get("model_name"), str):
+                msg = f"master_model_nml associated to {filename} does not contain a valid 'model_name' parameter"
+                raise KeyError(msg)
+            model_namelists[model_name] = namelist_by_filename[filename]
+            if not isinstance(model_type := master_model_nml.get("model_type"), int):
+                msg = f"master_model_nml associated to {filename} does not contain a valid 'model_type' parameter"
+                raise KeyError(msg)
+            model_types[model_name] = model_type
 
-        # Build mapping of available model namelists
-        self._model_namelists = {}
-        namelist_by_name = {nml.name: nml for nml in self.namelists}
+        # Check if models and config component names match
+        if (model_names := set(model_namelists.keys())) != (
+            comp_names := {k for k in self.components if k != "master"}
+        ):
+            msg = f"models specified in {self._MASTER_NAMELIST_NAME} ({model_names}) don't match components from the config ({comp_names})"
+            raise ValueError(msg)
 
-        for model_name, model_path in self._required_models.items():
-            # Look for the namelist file by filename
-            model_filename = model_path.name
-            if model_filename in namelist_by_name:
-                self._model_namelists[model_name] = namelist_by_name[model_filename]
-            elif not model_path.is_absolute():
-                # TODO: do not allow this case anymore
-                # For relative paths, require the namelist to be provided
-                msg = f"Missing model namelist for model '{model_name}': expected file '{model_filename}' not found in provided namelists"
-                raise ValueError(msg)
-            # For absolute paths, the file is expected to exist on the target system
-            # We don't validate this here as it will be handled by aiida-icon
+        # Build ICON models
+        for comp_name, component in self.components.items():
+            if comp_name != "master":
+                self.models[comp_name] = IconModel(
+                    name=comp_name,
+                    core_component=component,
+                    task_label=self.label,
+                    task_run_dir=self.run_dir,
+                    namelist=model_namelists[comp_name],
+                    model_type=ModelType(model_types[comp_name]),
+                )
 
+        # Set wrapper script
+        # TODO: sync this aiida-icon feature with standalone orchestration
+        #       where wrapper script is not what the user provides
         if self.wrapper_script is not None:
             self.wrapper_script = self._validate_wrapper_script(self.wrapper_script, self.config_rootdir)
 
         # Set default MPI variables
         self.nodes = 1 if self.nodes is None else self.nodes
         if self.ntasks_per_node is None:
-            if self.target == "santis_cpu":
-                self.ntasks_per_node = 288
-            elif self.target == "santis_gpu":
-                self.ntasks_per_node = 4
+            match self.target:
+                case "santis_cpu":
+                    self.ntasks_per_node = 288
+                case "santis_gpu":
+                    self.ntasks_per_node = 4
 
-    @property
-    def master_namelist(self) -> NamelistFile:
-        return self._master_namelist
-
+    # FIXME: This is only used by workgraph, use self.models directly instead
+    #        (Wait for workgraph.py refactor before doing so)
     @property
     def model_namelists(self) -> dict[str, NamelistFile]:
         """Return mapping of model names to their namelist files."""
-        return self._model_namelists
+        return {name: model.namelist for name, model in self.models.items()}
 
+    # NOTE: This is only used by workgraph, remove if unnecessary
     @property
     def model_namelist(self) -> NamelistFile:
         # NOTE: This is a workaround until multiple models are implemented
-        if len(self._model_namelists) != 1:
+        if len(self.models) != 1:
             msg = "multiple models not yet implemented"
             raise NotImplementedError(msg)
-        return next(iter(self._model_namelists.values()))
+        return next(iter(self.models.values())).namelist
 
     @property
     def is_restart(self) -> bool:
-        """Check if the icon task starts from the restart file."""
-        # restart port must be present and nonempty
-        return bool(self.inputs.get(self._AIIDA_ICON_RESTART_FILE_PORT_NAME, False))
+        """Check if the icon task starts from restart file(s)."""
+        # Get restart status of first model
+        restart_ref = bool(next(iter(self.models.values())).inputs.get(self.ICON_RESTART_IN_PORT_NAME, False))
+        # Check if all models have the same restart status
+        for model in self.models.values():
+            if bool(model.inputs.get(self.ICON_RESTART_IN_PORT_NAME, False)) != restart_ref:
+                msg = "All CON models must have the same restart status"
+                raise ValueError(msg)
+        return restart_ref
 
     def update_icon_namelists_from_workflow(self) -> None:
         if not isinstance(self.cycle_point, DateCyclePoint):
@@ -120,7 +143,6 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
     def dump_namelists(
         self, directory: Path, filename_mode: Literal["append_coordinates", "raw"] = "append_coordinates"
     ) -> None:
-        # TODO: if standalone becomes the only orchestrator, no need for directory and filename_mode kw args
         if not directory.exists():
             msg = f"Dumping path {directory} does not exist."
             raise OSError(msg)
@@ -138,14 +160,18 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
     def prepare_for_submission(self) -> None:
         # Ensure either target or runscript is set
         # NOTE: This code is there as it is the first available place where we know the standalone orchestrator is used
-        # TODO: unify `runtime` spec with aiida-icon and then  make this a yaml model validator
+        # TODO: unify `runtime` spec with aiida-icon and then make this a yaml model validator
         if self.target is None:
             if self.runtime is None:
                 msg = f"task {self.name}: 'runtime' is required when 'target' is unset"
                 raise ValueError(msg)
-        elif self.runtime is not None:
-            msg = f"task {self.name}: 'target' set to {self.target}: 'runtime' is ignored. Unset 'target' to take it into account."
-            LOGGER.warning(msg)
+        else:
+            if not (Path(__file__).parent / "target_runtime" / self.target).exists():
+                msg = f"target {self.target} not defined"
+                raise ValueError(msg)
+            if self.runtime is not None:
+                msg = f"task {self.name}: 'target' set to {self.target}: 'runtime' is ignored. Unset 'target' to take it into account."
+                LOGGER.warning(msg)
 
         # Link ICON binary
         match self.target:
@@ -168,11 +194,12 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
                     (self.run_dir / "icon_gpu").symlink_to(self.bin)
 
         # Take input/output ports specifications into account:
-        # - adapt namelist paramters
+        # - adapt namelist parameters
         # - resolve data path
         # - link data
-        self.handle_input_ports()
-        self.handle_output_ports()
+        for model in self.models.values():
+            for port in chain(model.inputs, model.outputs):
+                PortHandler.handle(port, model)
 
         # Dump namelists
         self.dump_namelists(directory=self.run_dir, filename_mode="raw")
@@ -197,181 +224,21 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
     def runscript_lines(self) -> list[str]:
         return [f"source ./{self._MAIN}"]
 
-    def handle_input_ports(self) -> None:
-        """Reflect port specs in namelist and link necessary input data"""
-
-        for port, data_list in self.inputs.items():
-            if not data_list:
-                continue
-            match port:
-                case "dynamics_grid_file":
-                    self.adapt_nml_param_and_link(
-                        port=port,
-                        data_list=data_list,
-                        namelist=self.model_namelist,
-                        section="grid_nml",
-                        parameter="dynamics_grid_filename",
-                    )
-                case "ifs2icon":
-                    self.adapt_nml_param_and_link(
-                        port=port,
-                        data_list=data_list,
-                        namelist=self.model_namelist,
-                        section="initicon_nml",
-                        parameter="ifs2icon_filename",
-                    )
-                case "ecrad_data":
-                    self.adapt_nml_param_and_link(
-                        port=port,
-                        data_list=data_list,
-                        namelist=self.model_namelist,
-                        section="radiation_nml",
-                        parameter="ecrad_data_path",
-                        target_link_name="ecrad_data",
-                    )
-                case "extpar_file":
-                    self.adapt_nml_param_and_link(
-                        port=port,
-                        data_list=data_list,
-                        namelist=self.model_namelist,
-                        section="extpar_nml",
-                        parameter="extpar_filename",
-                    )
-                case "cloud_opt_props":
-                    self.adapt_nml_param_and_link(
-                        port=port,
-                        data_list=data_list,
-                        namelist=self.model_namelist,
-                        section="nwp_phy_nml",
-                        parameter="cldopt_filename",
-                        target_link_name="CldOptProps.nc",
-                    )
-                case "rrtmg_lw":
-                    self.adapt_nml_param_and_link(
-                        port=port,
-                        data_list=data_list,
-                        namelist=self.model_namelist,
-                        section="nwp_phy_nml",
-                        parameter="lrtm_filename",
-                        target_link_name="rrtmg_lw.nc",
-                    )
-                case "restart_file":
-                    if (
-                        restart_write_mode := self.model_namelist["io_nml"].get("restart_write_mode")
-                        != "joint procs multifile"
-                    ):
-                        msg = f"Only supported restart_write_mode is 'joint procs multifile', got {restart_write_mode}"
-                        raise ValueError(msg)
-                    data = self.ensure_single_data_port(port, data_list)
-                    # TODO: adapt for multi model
-                    model_name = self.master_namelist[self._MASTER_MODEL_NML_SECTION]["model_name"]
-                    (self.run_dir / f"multifile_restart_{model_name}.mfr").symlink_to(data.resolved_path)
-                case "link" | "link_content":
-                    pass
-                case _:
-                    msg = f"IconTask: unsopported input port {port}"
-                    raise ValueError(msg)
-
-    def handle_output_ports(self) -> None:
-        """Check namelist parameters and resolve output data path"""
-
-        for port, data_list in self.outputs.items():
-            if not data_list:
-                continue
-            match port:
-                case "latest_restart_file":
-                    data = self.ensure_single_data_port(port, data_list)
-                    # TODO: adapt for multi model
-                    model_name = self.master_namelist[self._MASTER_MODEL_NML_SECTION]["model_name"]
-                    data.resolved_path = self.run_dir / f"multifile_restart_{model_name}.mfr"
-                case "output_streams":
-                    output_nml = self.model_namelist.get("output_nml", [])
-                    nml_streams: list[f90nml.Namelist] = (
-                        [output_nml] if isinstance(output_nml, f90nml.Namelist) else output_nml
-                    )
-                    if (n_nml := len(nml_streams)) != (n_yaml := len(data_list)):
-                        msg = f"for task {self.name}: number of output streams speficied in namelist ({n_nml}) differs from number of streams specified the workflow config ({n_yaml})"
-                        raise ValueError(msg)
-                    for k, (nml_stream, output_data) in enumerate(zip(nml_streams, data_list, strict=False)):
-                        filename_format = nml_stream.get("filename_format", "<output_filename>_XXX_YYY")
-                        output_filename = nml_stream.get("output_filename", "")
-                        # for type checkers
-                        if not isinstance(filename_format, str) or not isinstance(output_filename, str):
-                            msg = f"for task {self.name}, output stream number {k}: 'filename_format' and 'output_filename' namelist parameters must be strings"
-                            raise TypeError(msg)
-                        stream_dir = Path(filename_format.replace("<output_filename>", output_filename)).parent
-                        if stream_dir == Path("."):
-                            msg = f"for task {self.name}: output stream number {k} specifies an output stream directly in the run directory. Please specify a subdirectory using the 'filename_format' and 'output_filename' parameters (see ICON documentation)"
-                            raise ValueError(msg)
-                        output_data.resolved_path = (
-                            stream_dir if stream_dir.is_absolute() else self.run_dir / stream_dir
-                        )
-                        output_data.resolved_path.mkdir(parents=True, exist_ok=True)
-                case "finish_status":
-                    data = self.ensure_single_data_port(port, data_list)
-                    data.resolved_path = self.run_dir / "finish.status"
-                case _:
-                    msg = f"IconTask: unsopported oputput port {port}"
-                    raise ValueError(msg)
-
-    @staticmethod
-    def ensure_single_data_port(port: str | None, data_list: Sequence[Data]) -> Data:
-        if len(data_list) > 1:
-            msg = f"port {port} only accepts a single object"
-            raise ValueError(msg)
-        return data_list[0]
-
     def resolve_output_data_paths(self) -> None:
-        self.handle_output_ports()
-
-    def adapt_nml_param_and_link(
-        self,
-        port: str,
-        data_list: list[Data],
-        namelist: NamelistFile,
-        section: str,
-        parameter: str,
-        target_link_name: str | None = None,
-    ) -> None:
-        data = self.ensure_single_data_port(port, data_list)
-        if isinstance(data, GeneratedData):
-            target_link_name = target_link_name if target_link_name else data.resolved_path.name
-            namelist[section][parameter] = f"./{target_link_name}"
-            (self.run_dir / target_link_name).symlink_to(data.resolved_path)
-        else:
-            namelist[section][parameter] = str(data.resolved_path)
-
-    # FIXME: This is broken, `output_nml` as well as other namelist blocks can be present in multiple namelists
-    # SOLUTION: Implement a proper component level for the icon task, each having its model namelis, inputs and outputs
-    # TODO: Move this checker in aiida_icon.iconutils together with masternml
-    def _validate_output_streams(self, data_list: list[Data]) -> None:
-        """Validate output stream configuration against namelist"""
-        # Find the model namelist containing output_nml
-        model_namelist = None
-        for namelist in self.model_namelists.values():
-            if "output_nml" in namelist.namelist:
-                model_namelist = namelist
-                break
-
-        if model_namelist is None:
-            msg = f"for task {self.name}: could not find model namelist containing 'output_nml' sections"
-            raise ValueError(msg)
-
-        output_nml = model_namelist.namelist.get("output_nml", [])
-        nml_streams: list[f90nml.Namelist] = [output_nml] if isinstance(output_nml, f90nml.Namelist) else output_nml
-
-        if (n_nml := len(nml_streams)) != (n_yaml := len(data_list)):
-            msg = f"for task {self.name}: number of output streams specified in namelist ({n_nml}) differs from number of streams specified in the workflow config ({n_yaml})"
-            raise ValueError(msg)
+        for model in self.models.values():
+            for port in model.outputs:
+                PortHandler.handle(port, model)
 
     @classmethod
-    def build_from_config(cls: type[Self], config: models.ConfigTask, config_rootdir: Path, **kwargs: Any) -> Self:
+    def build_from_config(
+        cls: type[Self], config: yaml_data_models.ConfigTask, config_rootdir: Path, **kwargs: Any
+    ) -> Self:
         config_kwargs = dict(config)
         del config_kwargs["parameters"]
         # The following check is here for type checkers.
         # We don't want to narrow the type in the signature, as that would break liskov substitution.
         # We guarantee elsewhere this is called with the correct type at runtime
-        if not isinstance(config, models.ConfigIconTask):
+        if not isinstance(config, yaml_data_models.ConfigIconTask):
             raise TypeError
 
         config_kwargs["namelists"] = [

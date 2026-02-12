@@ -10,37 +10,31 @@ cycles:
         period: P2M
       tasks:
         - icon:
-            inputs:
-              - ecrad_data:
-                  port: ecrad_data
-              - ECHAM6_CldOptProps:
-                  port: cloud_opt_props
-              - rrtmg_sw:
-                  port: rrtmg_sw
-              - icon_grid_simple:
-                  port: dynamics_grid_file
-              - dmin_wetgrowth_lookup:
-                  port: dmin_wetgrowth_lookup
-              - restart:
-                  when:
-                    after: *root_start_date
-                  target_cycle:
-                    lag: -P2M
-                  port: restart_file
-            outputs:
-              - finish:
-                  port: finish_status
-              - restart:
-                  port: latest_restart_file
-              - atmo_log
+            components:
+              atm:
+                inputs:
+                  ecrad_data: [ecrad_data]
+                  cloud_opt_props: [ECHAM6_CldOptProps]
+                  rrtmg_sw: [rrtmg_sw]
+                  dynamics_grid_file: [icon_grid_simple]
+                  dmin_wetgrowth_lookup: [dmin_wetgrowth_lookup]
+                  restart_file:
+                    - restart:
+                        when:
+                          after: *root_start_date
+                        target_cycle:
+                          lag: -P2M
+                outputs:
+                  finish_status: [finish]
+                  latest_restart_file: [restart]
   - lastly:
       tasks:
         - cleanup:
             inputs:
-              - atmo_log:
-                  target_cycle:
-                    date: 2026-05-01T00:00
-                  port: None
+              dummy:
+                - restart:
+                    target_cycle:
+                      date: 2026-05-01T00:00
 tasks:
   - icon:
       plugin: icon
@@ -61,7 +55,7 @@ tasks:
       plugin: shell
       computer: remote
       path: scripts/cleanup.py
-      command: "python cleanup.py"
+      command: "python cleanup.py {PORT::dummy}"
       mpi_cmd: "mpirun -np {MPI_TOTAL_PROCS}"
       walltime: 00:05:00
       nodes: 1
@@ -87,5 +81,3 @@ data:
   generated:
      - finish: {}
      - restart: {}
-     - atmo_log:
-         path: nml.atmo.log

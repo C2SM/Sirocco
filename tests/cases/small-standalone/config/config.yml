@@ -13,19 +13,17 @@ cycles:
       tasks:
         - icon:
             inputs:
-              - icon_namelist:
-                  port: UNUSED
-              - initial_conditions:
-                  when:
-                    at: *root_start_date
-                  port:
-                    init
-              - icon_restart:
-                  when:
-                    after: *root_start_date
-                  target_cycle:
-                    lag: -P2M
-                  port: restart
+              UNUSED: [icon_namelist]
+              init:
+                - initial_conditions:
+                    when:
+                      at: *root_start_date
+              restart:
+                - icon_restart:
+                    when:
+                      after: *root_start_date
+                    target_cycle:
+                      lag: -P2M
             outputs: [icon_output, icon_restart]
   - lastly:
       tasks:
