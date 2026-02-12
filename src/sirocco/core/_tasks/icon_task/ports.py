@@ -80,8 +80,8 @@ class PortHandler:
 dynamics_grid_file_handler = PortHandler(
     port_name="dynamics_grid_file",
     valid_model_types=[ModelType.ATMOSPHERE],
-    section="initicon_nml",
-    parameter="ifs2icon_filename",
+    section="grid_nml",
+    parameter="dynamics_grid_filename",
 )
 ifs2icon_handler = PortHandler(
     port_name="ifs2icon",
@@ -158,12 +158,12 @@ restart_out_handler = PortHandler(
 )
 
 
-def output_streams_handler_callable(port_name: str, model: IconModel) -> None:  # noqa: ARG001
+def output_streams_handler_callable(port_name: str, model: IconModel) -> None:
     nml_streams = [*model.namelist.iter_nml("output_nml")]
-    if (n_nml := len(nml_streams)) != (n_yaml := len(model.outputs["output_nml"])):
+    if (n_nml := len(nml_streams)) != (n_yaml := len(model.outputs[port_name])):
         msg = f"task {model.task_label}, model {model.name}: number of output streams speficied in namelist ({n_nml}) differs from number of streams specified in the workflow config ({n_yaml})"
         raise ValueError(msg)
-    for k, (nml_stream, output_data) in enumerate(zip(nml_streams, model.outputs["output_nml"], strict=False)):
+    for k, (nml_stream, output_data) in enumerate(zip(nml_streams, model.outputs[port_name], strict=False)):
         filename_format = nml_stream.get("filename_format", "<output_filename>_XXX_YYY")
         output_filename = nml_stream.get("output_filename", "")
         # for type checkers
