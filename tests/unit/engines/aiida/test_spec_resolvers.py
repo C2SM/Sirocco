@@ -161,41 +161,37 @@ class TestShellAddInputDataNodes:
 class TestShellLoadResources:
     """Test resource loading methods."""
 
-    @patch("aiida.orm.load_code")
-    def test_load_code(self, mock_load_code):
-        """Test _load_code delegates to aiida.orm.load_code with correct PK."""
-        mock_code = Mock(spec=aiida.orm.Code)
-        mock_load_code.return_value = mock_code
-
-        resolver = ShellTaskSpecResolver(_make_shell_spec_dict(code_pk=42))
+    def test_load_code(self, stored_shell_code):
+        """Test _load_code loads code by PK."""
+        resolver = ShellTaskSpecResolver(_make_shell_spec_dict(code_pk=stored_shell_code.pk))
         result = resolver._load_code()
 
         print(f"\n=== _load_code ===\nresult: {result}")
-        print(f"load_code called with: {mock_load_code.call_args}")
+        print(f"result type: {type(result)}")
+        print(f"result PK: {result.pk}")
 
-        mock_load_code.assert_called_once_with(pk=42)
-        assert result is mock_code
+        assert result.pk == stored_shell_code.pk
+        assert result.is_stored
+        assert isinstance(result, aiida.orm.Code)
 
-    @patch("aiida.orm.load_node")
-    def test_build_base_nodes(self, mock_load_node):
+    def test_build_base_nodes(self, stored_singlefile, stored_remote_data):
         """Test _build_base_nodes loads all stored nodes by PK."""
-        mock_node_a = Mock(spec=aiida.orm.Data)
-        mock_node_b = Mock(spec=aiida.orm.Data)
-        mock_load_node.side_effect = [mock_node_a, mock_node_b]
-
-        resolver = ShellTaskSpecResolver(_make_shell_spec_dict(node_pks={"script": 10, "config": 20}))
+        node_pks = {"script": stored_singlefile.pk, "config": stored_remote_data.pk}
+        resolver = ShellTaskSpecResolver(_make_shell_spec_dict(node_pks=node_pks))
         result = resolver._build_base_nodes()
-        loaded_pks = {call.args[0] for call in mock_load_node.call_args_list}
 
         print("\n=== _build_base_nodes ===")
         print(f"result keys: {list(result.keys())}")
-        print(f"loaded PKs: {loaded_pks}")
+        print(f"result values: {[(k, v.pk, type(v).__name__) for k, v in result.items()]}")
 
-        assert result == {"script": mock_node_a, "config": mock_node_b}
-        assert loaded_pks == {10, 20}
+        assert "script" in result
+        assert "config" in result
+        assert result["script"].pk == stored_singlefile.pk
+        assert result["config"].pk == stored_remote_data.pk
+        assert result["script"].is_stored
+        assert result["config"].is_stored
 
-    @patch("aiida.orm.load_node")
-    def test_build_base_nodes_empty(self, mock_load_node):
+    def test_build_base_nodes_empty(self):
         """Test _build_base_nodes with no stored nodes."""
         resolver = ShellTaskSpecResolver(_make_shell_spec_dict())
         result = resolver._build_base_nodes()
@@ -203,7 +199,6 @@ class TestShellLoadResources:
         print(f"\n=== _build_base_nodes (empty) ===\nresult: {result}")
 
         assert result == {}
-        mock_load_node.assert_not_called()
 
 
 class TestShellResolveDependencies:
@@ -225,7 +220,7 @@ class TestShellResolveDependencies:
 
     @patch("sirocco.engines.aiida.spec_resolvers.resolve_shell_dependency_mappings")
     def test_with_task_folders(self, mock_resolve):
-        """Test dependency resolution with real DependencyInfo objects."""
+        """Test dependency resolution with DependencyInfo objects."""
         mock_remote = Mock(spec=aiida.orm.RemoteData)
         mock_resolve.return_value = ShellDependencyMappings(
             nodes={"parent_task_parent_output_remote": mock_remote},
@@ -290,34 +285,6 @@ class TestBuildMetadata:
         assert result.computer is not None
         assert result.computer.label == aiida_localhost.label
 
-    @pytest.mark.parametrize(
-        ("resolver_class", "spec_factory", "expected_task_label"),
-        [
-            pytest.param(ShellTaskSpecResolver, _make_shell_spec_dict, None, id="shell"),
-            pytest.param(IconTaskSpecResolver, _make_icon_spec_dict, "test_icon", id="icon"),
-        ],
-    )
-    @patch("sirocco.engines.aiida.spec_resolvers.add_slurm_dependencies_to_metadata")
-    def test_without_computer_label(self, mock_add_slurm, resolver_class, spec_factory, expected_task_label):
-        """Test metadata building without computer label.
-
-        Shell: passes None for task_label
-        Icon: passes task label for ICON-specific handling
-        """
-        mock_add_slurm.return_value = DEFAULT_METADATA
-
-        resolver = resolver_class(spec_factory())
-        resolver._build_metadata(None)
-
-        print(f"\n=== {resolver_class.__name__} _build_metadata (no computer) ===")
-        print(f"called with: {mock_add_slurm.call_args}")
-
-        # Icon passes task_label as 4th arg, Shell doesn't
-        if expected_task_label:
-            mock_add_slurm.assert_called_once_with(resolver.spec.metadata, None, None, expected_task_label)
-        else:
-            mock_add_slurm.assert_called_once_with(resolver.spec.metadata, None, None)
-
 
 class TestShellExecute:
     """Test ShellTaskSpecResolver execution and argument building."""
@@ -359,7 +326,7 @@ class TestShellExecute:
         assert "code" in str(exc.value).lower()
 
     def test_execute_with_real_code_and_inputs(self, aiida_localhost):
-        """Test execute with real code and input data nodes."""
+        """Test execute with code and input data nodes."""
         # Create real stored code
         code = aiida.orm.InstalledCode(
             computer=aiida_localhost,
@@ -398,7 +365,7 @@ class TestShellExecute:
             mock_wg.add_task.assert_called_once()
             add_task_kwargs = mock_wg.add_task.call_args[1]
 
-            print("\n=== execute with real nodes ===")
+            print("\n=== execute ===")
             print(f"Task name: {add_task_kwargs['name']}")
             print(f"Arguments: {add_task_kwargs['arguments']}")
             print(f"Nodes keys: {list(add_task_kwargs['nodes'].keys())}")

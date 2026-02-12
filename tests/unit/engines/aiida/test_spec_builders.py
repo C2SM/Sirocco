@@ -5,7 +5,6 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
-from aiida.common.exceptions import NotExistent
 from rich.pretty import pprint
 
 from sirocco import core
@@ -474,34 +473,27 @@ class TestBuildIconTaskSpec:
     """Test building ICON task specifications."""
 
     @pytest.fixture
-    def icon_task(self, create_icon_task):
+    def icon_task(self, create_icon_task, aiida_localhost):
         """Create a real IconTask for testing."""
-        return create_icon_task(name="test_icon")
+        return create_icon_task(name="test_icon", computer=aiida_localhost.label)
 
-    # Patch: Force NotExistent exception to test code creation path when code doesn't exist
-    @patch("aiida.orm.load_code")
-    # Patch: Mock InstalledCode class to prevent actual database storage during test
-    @patch("aiida.orm.InstalledCode")
     # Patch: Mock external package dependency (aiida-icon) to prevent actual namelist file creation
     @patch("sirocco.engines.aiida.spec_builders.create_namelist_singlefiledata_from_content")
     def test_build_icon_spec_smoke_test(
         self,
         mock_create_nml,
-        mock_installed_code_class,
-        mock_load_code,
         icon_task,
     ):
-        """Smoke test: verify IconTaskSpecBuilder doesn't crash and returns valid spec."""
+        """Smoke test: verify IconTaskSpecBuilder doesn't crash and returns valid spec.
 
-        # Code not found, will create new
-        mock_load_code.side_effect = NotExistent("Not found")
+        Tests Sirocco logic:
+        - Icon spec builder creates a real Code in the database
+        - Code has correct properties (label, with_mpi, etc.)
+        - Master namelist is handled correctly
 
-        mock_code_instance = Mock()
-        mock_code_instance.pk = 123
-        mock_code_instance.store.return_value = None
-        mock_installed_code_class.return_value = mock_code_instance
+        """
 
-        # Mock namelist creation
+        # Mock namelist creation (external aiida-icon dependency)
         mock_master_nml = Mock()
         mock_master_nml.pk = 456
         mock_create_nml.return_value = mock_master_nml
@@ -512,16 +504,20 @@ class TestBuildIconTaskSpec:
         print("\n=== ICON task spec ===")
         pprint(spec)
 
-        # Verify basic properties
-        # Label includes date for DateCyclePoint tasks
+        # Verify spec properties
         assert spec.label.startswith("test_icon")
-        assert spec.code_pk == 123
+        assert spec.code_pk is not None
         assert spec.master_namelist_pk == 456
 
-    # Patch: Force NotExistent exception to test code creation path when code doesn't exist
-    @patch("aiida.orm.load_code")
-    # Patch: Mock InstalledCode class to prevent actual database storage during test
-    @patch("aiida.orm.InstalledCode")
+        # Verify real Code was created in database (Sirocco logic test)
+        from aiida.orm import load_node
+
+        code = load_node(spec.code_pk)
+        assert code.is_stored
+        assert "icon" in code.label
+        assert code.with_mpi is True
+        assert code.use_double_quotes is True
+
     # Patch: Mock external package dependency (aiida-icon) to prevent actual namelist file creation
     @patch("sirocco.engines.aiida.spec_builders.create_namelist_singlefiledata_from_content")
     # Patch: Mock wrapper script retrieval to test wrapper script handling path
@@ -530,22 +526,20 @@ class TestBuildIconTaskSpec:
         self,
         mock_get_wrapper,
         mock_create_nml,
-        mock_installed_code_class,
-        mock_load_code,
         icon_task,
     ):
-        """Test building ICON spec with wrapper script."""
+        """Test building ICON spec with wrapper script.
 
-        mock_load_code.side_effect = NotExistent("Not found")
+        Tests Sirocco logic:
+        - Wrapper script is properly attached to spec
+        - Code is still created correctly
 
-        mock_code = Mock(pk=123)
-        mock_code.store.return_value = None
-        mock_installed_code_class.return_value = mock_code
+        """
 
         mock_master_nml = Mock(pk=456)
         mock_create_nml.return_value = mock_master_nml
 
-        # Mock wrapper script
+        # Mock wrapper script (external dependency)
         mock_wrapper = Mock()
         mock_wrapper.pk = 789
         mock_wrapper.store.return_value = None
@@ -560,34 +554,35 @@ class TestBuildIconTaskSpec:
         print("\n=== ICON spec with wrapper ===")
         print(f"Wrapper script PK: {spec.wrapper_script_pk}")
 
-        # Verify wrapper was stored
+        # Verify wrapper was stored (Sirocco logic test)
         assert spec.wrapper_script_pk == 789
 
-    # Patch: Force NotExistent exception to test code creation path when code doesn't exist
-    @patch("aiida.orm.load_code")
-    # Patch: Mock InstalledCode class to prevent actual database storage during test
-    @patch("aiida.orm.InstalledCode")
+        # Verify real Code was created
+        from aiida.orm import load_node
+
+        code = load_node(spec.code_pk)
+        assert code.is_stored
+
     # Patch: Mock external package dependency (aiida-icon) to prevent actual namelist file creation
+    @pytest.mark.usefixtures("aiida_localhost")
     @patch("sirocco.engines.aiida.spec_builders.create_namelist_singlefiledata_from_content")
     def test_build_icon_spec_with_model_namelists(
         self,
         mock_create_nml,
-        mock_installed_code_class,
-        mock_load_code,
         create_icon_task_with_models,
     ):
-        """Test building ICON spec with model namelists."""
+        """Test building ICON spec with model namelists.
+
+        Tests Sirocco logic:
+        - Model namelists are correctly collected and stored in spec
+        - Code is created for multi-model ICON task
+
+        """
 
         # Create ICON task with model namelists (atm, oce)
         icon_task = create_icon_task_with_models()
 
-        mock_load_code.side_effect = NotExistent("Not found")
-
-        mock_code = Mock(pk=123)
-        mock_code.store.return_value = None
-        mock_installed_code_class.return_value = mock_code
-
-        # Mock master and model namelists
+        # Mock master and model namelists (external aiida-icon dependency)
         mock_master = Mock(pk=456)
         mock_atm = Mock(pk=789)
         mock_oce = Mock(pk=101)
@@ -600,11 +595,17 @@ class TestBuildIconTaskSpec:
         print("\n=== Model namelist PKs ===")
         pprint(spec.model_namelist_pks)
 
-        # Verify model namelists were stored
+        # Verify model namelists were stored (Sirocco logic test)
         assert "atm" in spec.model_namelist_pks
         assert "oce" in spec.model_namelist_pks
         assert spec.model_namelist_pks["atm"] == 789
         assert spec.model_namelist_pks["oce"] == 101
+
+        # Verify real Code was created
+        from aiida.orm import load_node
+
+        code = load_node(spec.code_pk)
+        assert code.is_stored
 
 
 class TestBuildShellTaskSpecErrors:
@@ -804,32 +805,20 @@ class TestBuildShellTaskSpecOutputs:
 class TestBuildIconTaskSpecOutputs:
     """Test output port mapping in IconTaskSpecBuilder."""
 
-    # Patch: Mock computer retrieval to control computer object in test
-    @patch("aiida.orm.Computer.collection.get")
-    # Patch: Force NotExistent exception to test code creation path when code doesn't exist
-    @patch("aiida.orm.load_code")
-    # Patch: Mock InstalledCode class to prevent actual database storage during test
-    @patch("aiida.orm.InstalledCode")
     # Patch: Mock external package dependency (aiida-icon) to prevent actual namelist file creation
     @patch("sirocco.engines.aiida.spec_builders.create_namelist_singlefiledata_from_content")
     def test_null_port_output(
         self,
         mock_create_nml,
-        mock_installed_code_class,
-        mock_load_code,
-        mock_get_computer,
+        aiida_localhost,  # Real Computer object
     ):
-        """Test output with None as port key is skipped."""
+        """Test output with None as port key is skipped.
 
-        # Setup mocks
-        mock_computer = Mock()
-        mock_computer.label = "localhost"
-        mock_get_computer.return_value = mock_computer
-        mock_load_code.side_effect = NotExistent("Not found")
+        Tests Sirocco logic:
+        - Outputs with None port are correctly filtered out
+        - Spec building handles None ports gracefully
 
-        mock_code = Mock(pk=123)
-        mock_code.store.return_value = None
-        mock_installed_code_class.return_value = mock_code
+        """
 
         mock_master_nml = Mock(pk=456)
         mock_create_nml.return_value = mock_master_nml
@@ -837,7 +826,7 @@ class TestBuildIconTaskSpecOutputs:
         # Create task with output that has None port
         task = create_mock_icon_task(
             name="test_icon",
-            computer="localhost",
+            computer=aiida_localhost.label,
             walltime="01:00:00",
             nodes=1,
             ntasks_per_node=12,
@@ -864,35 +853,23 @@ class TestBuildIconTaskSpecOutputs:
         print("Output port mapping:")
         pprint(spec.output_port_mapping)
 
-        # Output with None port should not be in output_port_mapping
+        # Verify None port is filtered out (Sirocco logic test)
         assert "restart_file" not in spec.output_port_mapping
 
-    # Patch: Mock computer retrieval to control computer object in test
-    @patch("aiida.orm.Computer.collection.get")
-    # Patch: Force NotExistent exception to test code creation path when code doesn't exist
-    @patch("aiida.orm.load_code")
-    # Patch: Mock InstalledCode class to prevent actual database storage during test
-    @patch("aiida.orm.InstalledCode")
     # Patch: Mock external package dependency (aiida-icon) to prevent actual namelist file creation
     @patch("sirocco.engines.aiida.spec_builders.create_namelist_singlefiledata_from_content")
     def test_output_port_mapping(
         self,
         mock_create_nml,
-        mock_installed_code_class,
-        mock_load_code,
-        mock_get_computer,
+        aiida_localhost,  # Real Computer object
     ):
-        """Test that output port mapping is correctly built."""
+        """Test that output port mapping is correctly built.
 
-        # Setup mocks
-        mock_computer = Mock()
-        mock_computer.label = "localhost"
-        mock_get_computer.return_value = mock_computer
-        mock_load_code.side_effect = NotExistent("Not found")
+        Tests Sirocco logic:
+        - Multiple outputs on the same port are correctly mapped
+        - Output port mapping structure is built correctly
 
-        mock_code = Mock(pk=123)
-        mock_code.store.return_value = None
-        mock_installed_code_class.return_value = mock_code
+        """
 
         mock_master_nml = Mock(pk=456)
         mock_create_nml.return_value = mock_master_nml
@@ -900,7 +877,7 @@ class TestBuildIconTaskSpecOutputs:
         # Create task with multiple outputs on same port
         task = create_mock_icon_task(
             name="test_icon",
-            computer="localhost",
+            computer=aiida_localhost.label,
             walltime="01:00:00",
             nodes=1,
             ntasks_per_node=12,
@@ -927,7 +904,7 @@ class TestBuildIconTaskSpecOutputs:
         print("Output port mapping:")
         pprint(spec.output_port_mapping)
 
-        # Both outputs should map to the same port
+        # Verify port mapping is correct (Sirocco logic test)
         assert spec.output_port_mapping["atm_output"] == "restart_data"
         assert spec.output_port_mapping["oce_output"] == "restart_data"
 

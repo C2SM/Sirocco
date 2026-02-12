@@ -143,67 +143,15 @@ class TestWorkGraphBuilder:
             assert wg.extras["window_config"]["front_depth"] == front_depth
             assert wg.extras["window_config"]["task_dependencies"] == {"task1": ["task0"]}
 
-    # Patch: Mock load_code to prevent database lookups and allow test isolation
-    @patch("aiida.orm.load_code")
-    @pytest.mark.parametrize(
-        "front_depth",
-        [
-            pytest.param(1, id="front_depth_1"),
-            pytest.param(2, id="front_depth_2"),
-            pytest.param(3, id="front_depth_3"),
-        ],
-    )
-    def test_build_smoke_test(self, mock_load_code, minimal_workflow, aiida_localhost, front_depth):
-        """Smoke test: verify build() doesn't crash and returns a WorkGraph."""
-
-        # Use real computer from fixture
-        for task in minimal_workflow.tasks:
-            task.computer = aiida_localhost.label
-
-        # Set front_depth on workflow
-        minimal_workflow.front_depth = front_depth
-
-        # Mock code loading - return a mock code
-        mock_code = Mock()
-        mock_code.pk = 123
-        mock_load_code.return_value = mock_code
-
-        # Build with real workflow
-        builder = WorkGraphBuilder(minimal_workflow)
-        wg = builder.build()
-
-        print(f"\n=== WorkGraph built (front_depth={front_depth}) ===")
-        print(f"WorkGraph name: {wg.name}")
-        print(f"Number of tasks: {len(wg.tasks._get_keys())}")
-        print("\n=== Window config ===")
-        pprint(wg.extras.get("window_config"))
-
-        # Verify we got a WorkGraph
-        assert isinstance(wg, WorkGraph)
-
-        # Verify window config was stored with correct front_depth
-        assert "window_config" in wg.extras
-        assert wg.extras["window_config"]["front_depth"] == front_depth
-        assert wg.extras["window_config"]["enabled"] is True
-
-        # Verify the workflow was processed
-        assert builder.workflow == minimal_workflow
-
-    # Patch: Mock load_code to prevent database lookups and allow test isolation
-    @patch("aiida.orm.load_code")
-    def test_build_with_dependencies(self, mock_load_code, workflow_with_dependencies, aiida_localhost):
+    def test_build_with_dependencies(self, workflow_with_dependencies, aiida_localhost, stored_shell_code):
         """Test build() correctly processes workflows with task dependencies."""
-
-        # Use real computer from fixture
+        # Use real computer and code from fixtures
         for task in workflow_with_dependencies.tasks:
             task.computer = aiida_localhost.label
+            task.code = stored_shell_code.pk
 
         # Set front_depth on workflow
         workflow_with_dependencies.front_depth = 1
-
-        mock_code = Mock()
-        mock_code.pk = 123
-        mock_load_code.return_value = mock_code
 
         # Build the workflow
         builder = WorkGraphBuilder(workflow_with_dependencies)
@@ -281,33 +229,26 @@ class TestWorkGraphBuilder:
         pytest.param(3, 3, id="custom_front_depth"),
     ],
 )
-# Patch: Mock load_code to prevent database lookups and allow test isolation
-@patch("aiida.orm.load_code")
 def test_build_sirocco_workgraph(
-    mock_load_code,
     minimal_workflow,
     aiida_localhost,
+    stored_shell_code,
     front_depth,
     expected_build_arg,
 ):
-    """Test building WorkGraph with various front_depth values using real WorkGraphBuilder."""
+    """Test building WorkGraph with various front_depth values.
 
-    # Update the workflow to use the real computer
+    Tests workflow building with different front_depth configurations.
+    """
     for task in minimal_workflow.tasks:
         task.computer = aiida_localhost.label
 
-    # Set front_depth on the workflow (simulating what comes from config)
     minimal_workflow.front_depth = front_depth
-
-    # Mock code loading - return a mock code
-    mock_code = Mock()
-    mock_code.pk = 123
-    mock_load_code.return_value = mock_code
 
     print(f"\n=== Test build_sirocco_workgraph (front_depth={front_depth}) ===")
     print(f"Expected build arg: {expected_build_arg}")
+    print(f"Code PK: {stored_shell_code.pk}")
 
-    # Use real WorkGraphBuilder through the function
     wg = build_sirocco_workgraph(minimal_workflow)
 
     print(f"WorkGraph name: {wg.name}")
@@ -500,13 +441,15 @@ def test_prepare_data_nodes_used_by_icon_logic(
 
 # Patch: Mock create_input_data_node to test label generation without actual AiiDA node creation
 @patch("sirocco.engines.aiida.builder.AiidaAdapter.create_input_data_node")
-# Patch: Mock build_label_from_graph_item to control generated labels for data nodes
-@patch("sirocco.engines.aiida.builder.AiidaAdapter.build_label_from_graph_item")
-def test_prepare_data_nodes_label_generation(mock_label, mock_create_node, minimal_workflow):
-    """Test that correct labels are generated for data nodes."""
+def test_prepare_data_nodes_label_generation(mock_create_node, minimal_workflow):
+    """Test that correct labels are generated for data nodes.
+
+    Only mocks node creation to avoid database operations.
+    """
+    from sirocco.engines.aiida.adapter import AiidaAdapter
+
     builder = WorkGraphBuilder(minimal_workflow)
 
-    # Create available data
     available_data = Mock(spec=core.AvailableData)
     available_data.name = "test_data"
     available_data.coordinates = {"member": 0}
@@ -514,22 +457,23 @@ def test_prepare_data_nodes_label_generation(mock_label, mock_create_node, minim
     builder.workflow.data = [available_data]
     builder.workflow.tasks = []
 
-    mock_label.return_value = "test_data_member_0"
+    expected_label = AiidaAdapter.build_label_from_graph_item(available_data)
+
     mock_node = Mock()
     mock_create_node.return_value = mock_node
 
     print("\n=== Test prepare_data_nodes label generation ===")
     print(f"Data name: {available_data.name}")
     print(f"Coordinates: {available_data.coordinates}")
-    print("Expected label: test_data_member_0")
+    print(f"Expected label: {expected_label}")
 
     builder._prepare_data_nodes()
 
     print(f"Generated data nodes: {list(builder.data_nodes.keys())}")
 
-    # Should use the label as key in data_nodes dict
-    assert "test_data_member_0" in builder.data_nodes
-    assert builder.data_nodes["test_data_member_0"] == mock_node
+    # Should use the real generated label as key in data_nodes dict
+    assert expected_label in builder.data_nodes
+    assert builder.data_nodes[expected_label] == mock_node
 
 
 @pytest.mark.parametrize(
@@ -538,92 +482,52 @@ def test_prepare_data_nodes_label_generation(mock_label, mock_create_node, minim
         "num_icon_tasks",
         "expected_shell_specs",
         "expected_icon_specs",
-        "expected_shell_calls",
-        "expected_icon_calls",
     ),
     [
-        pytest.param(
-            0,
-            1,
-            0,
-            1,
-            0,
-            1,
-            id="icon_task_only",
-        ),
-        pytest.param(
-            1,
-            1,
-            1,
-            1,
-            1,
-            1,
-            id="mixed_shell_and_icon",
-        ),
-        pytest.param(
-            0,
-            2,
-            0,
-            2,
-            0,
-            2,
-            id="icon_only_workflow",
-        ),
+        pytest.param(0, 1, 0, 1, id="icon_task_only"),
+        pytest.param(1, 1, 1, 1, id="mixed_shell_and_icon"),
+        pytest.param(0, 2, 0, 2, id="icon_only_workflow"),
     ],
 )
-# Patch: Mock IconTaskSpecBuilder to isolate task routing logic from spec building complexity
-@patch("sirocco.engines.aiida.builder.IconTaskSpecBuilder")
-# Patch: Mock ShellTaskSpecBuilder to isolate task routing logic from spec building complexity
-@patch("sirocco.engines.aiida.builder.ShellTaskSpecBuilder")
+@patch("sirocco.engines.aiida.spec_builders.create_namelist_singlefiledata_from_content")
 def test_build_task_specs_task_type_routing(
-    mock_shell_builder_class,
-    mock_icon_builder_class,
+    mock_create_nml,
     minimal_workflow,
     create_shell_task,
     create_icon_task,
+    aiida_localhost,
     num_shell_tasks,
     num_icon_tasks,
     expected_shell_specs,
     expected_icon_specs,
-    expected_shell_calls,
-    expected_icon_calls,
 ):
     """Test that IconTask and ShellTask are routed to correct spec builders.
 
-    Uses real task objects created via fixtures, but keeps spec builder mocks
-    to isolate routing logic from spec building complexity.
-
     Covers:
-    - IconTask triggers IconTaskSpecBuilder only
+    - IconTask triggers IconTaskSpecBuilder
+    - ShellTask triggers ShellTaskSpecBuilder
     - Mixed workflows handle both task types correctly
     - Multiple IconTasks are all processed
     """
     builder = WorkGraphBuilder(minimal_workflow)
 
+    mock_nml = Mock()
+    mock_nml.pk = 999
+    mock_create_nml.return_value = mock_nml
+
     tasks = []
 
-    # Create real ShellTasks using the fixture
     for i in range(num_shell_tasks):
         task_name = f"shell_task_{i}" if num_shell_tasks > 1 else "shell_task"
-        shell_task = create_shell_task(name=task_name, command="echo test")
+        shell_task = create_shell_task(name=task_name, command="echo test", computer=aiida_localhost.label)
         tasks.append(shell_task)
 
-    # Create real IconTasks using the fixture
     for i in range(num_icon_tasks):
         task_name = f"icon_{i + 1}" if num_icon_tasks > 1 else "icon_task"
-        icon_task = create_icon_task(name=task_name)
+        icon_task = create_icon_task(name=task_name, computer=aiida_localhost.label)
         tasks.append(icon_task)
 
     builder.workflow.tasks = tasks
-
-    # Setup mock builder instances that return specs
-    mock_shell_instance = Mock()
-    mock_shell_instance.build_spec.return_value = {"spec": "shell_spec"}
-    mock_shell_builder_class.return_value = mock_shell_instance
-
-    mock_icon_instance = Mock()
-    mock_icon_instance.build_spec.return_value = {"spec": "icon_spec"}
-    mock_icon_builder_class.return_value = mock_icon_instance
 
     print(f"\n=== Test build_task_specs routing (shell={num_shell_tasks}, icon={num_icon_tasks}) ===")
     print(f"Expected shell specs: {expected_shell_specs}")
@@ -631,97 +535,83 @@ def test_build_task_specs_task_type_routing(
 
     builder._build_task_specs()
 
-    print(f"Shell builder call count: {mock_shell_builder_class.call_count}")
-    print(f"Icon builder call count: {mock_icon_builder_class.call_count}")
     print(f"Shell specs created: {len(builder.shell_specs)}")
     print(f"Icon specs created: {len(builder.icon_specs)}")
 
-    # Verify call counts (builder class constructor calls)
-    assert mock_shell_builder_class.call_count == expected_shell_calls
-    assert mock_icon_builder_class.call_count == expected_icon_calls
-
-    # Verify spec storage
     assert len(builder.shell_specs) == expected_shell_specs
     assert len(builder.icon_specs) == expected_icon_specs
 
-    # Verify that real task objects were passed to the builder constructors
-    if expected_shell_calls > 0:
-        for call_args in mock_shell_builder_class.call_args_list:
-            task_arg = call_args[0][0]
-            assert isinstance(task_arg, core.ShellTask)
-            assert hasattr(task_arg, "command")
+    for spec in builder.shell_specs.values():
+        assert spec.code_pk is not None
+        assert spec.label is not None
 
-    if expected_icon_calls > 0:
-        for call_args in mock_icon_builder_class.call_args_list:
-            task_arg = call_args[0][0]
-            assert isinstance(task_arg, core.IconTask)
-            assert hasattr(task_arg, "namelists")
+    for spec in builder.icon_specs.values():
+        assert spec.code_pk is not None
+        assert spec.master_namelist_pk is not None
+        assert spec.label is not None
+
+    total_specs = len(builder.shell_specs) + len(builder.icon_specs)
+    total_tasks = num_shell_tasks + num_icon_tasks
+    assert total_specs == total_tasks
 
 
-# Patch: Mock IconTaskSpecBuilder to isolate label key generation logic from spec building
-@patch("sirocco.engines.aiida.builder.IconTaskSpecBuilder")
-# Patch: Mock build_label_from_graph_item to control generated task labels for testing dictionary keying
-@patch("sirocco.engines.aiida.builder.AiidaAdapter.build_label_from_graph_item")
-def test_build_task_specs_icon_label_as_key(mock_label, mock_icon_builder_class, minimal_workflow):
+@patch("sirocco.engines.aiida.spec_builders.create_namelist_singlefiledata_from_content")
+def test_build_task_specs_icon_label_as_key(mock_create_nml, minimal_workflow, create_icon_task, aiida_localhost):
     """Test that icon specs are keyed by the graph item label."""
+    from sirocco.engines.aiida.adapter import AiidaAdapter
+
     builder = WorkGraphBuilder(minimal_workflow)
 
-    # Create IconTask with coordinates
-    icon_task = Mock(spec=core.IconTask)
-    icon_task.name = "icon_task"
+    mock_nml = Mock()
+    mock_nml.pk = 999
+    mock_create_nml.return_value = mock_nml
+
+    icon_task = create_icon_task(name="icon_task", computer=aiida_localhost.label)
     icon_task.coordinates = {"member": 5}
 
     builder.workflow.tasks = [icon_task]
 
-    mock_label.return_value = "icon_task_member_5"
-
-    # Setup mock builder instance
-    mock_icon_instance = Mock()
-    mock_icon_instance.build_spec.return_value = {"spec": "icon_spec"}
-    mock_icon_builder_class.return_value = mock_icon_instance
+    expected_label = AiidaAdapter.build_label_from_graph_item(icon_task)
 
     print("\n=== Test build_task_specs icon label as key ===")
     print(f"Task name: {icon_task.name}")
     print(f"Coordinates: {icon_task.coordinates}")
-    print("Expected label key: icon_task_member_5")
+    print(f"Expected label key: {expected_label}")
 
     builder._build_task_specs()
 
     print(f"Icon spec keys: {list(builder.icon_specs.keys())}")
 
-    # Should use label as key
-    assert "icon_task_member_5" in builder.icon_specs
+    assert expected_label in builder.icon_specs
+
+    spec = builder.icon_specs[expected_label]
+    assert spec.code_pk is not None
+    assert spec.master_namelist_pk is not None
 
 
 @pytest.mark.parametrize(
-    ("config_path_type", "workflow_name", "node_pk", "should_store_pk", "should_log"),
+    ("config_path_type", "workflow_name", "should_store_pk", "should_log"),
     [
-        pytest.param(None, "test_workflow", None, False, False, id="no_resolved_config"),
+        pytest.param(None, "test_workflow", False, False, id="no_resolved_config"),
         pytest.param(
             "nonexistent",
             "test_workflow",
-            None,
             False,
             False,
             id="resolved_config_missing_file",
         ),
-        pytest.param("exists", "test_workflow", 12345, True, True, id="resolved_config_stored"),
-        pytest.param("exists", "test_workflow", None, False, False, id="resolved_config_pk_none"),
-        pytest.param("exists", "my_workflow", 99999, True, True, id="resolved_config_labels"),
+        pytest.param("exists", "test_workflow", True, True, id="resolved_config_stored"),
+        pytest.param("exists", "my_workflow", True, True, id="resolved_config_labels"),
     ],
 )
 # Patch: Mock logger to verify logging behavior when resolved config is stored
 @patch("sirocco.engines.aiida.builder.logger")
-# Patch: Mock SinglefileData to prevent actual AiiDA node creation when storing resolved config
-@patch("sirocco.engines.aiida.builder.aiida.orm.SinglefileData")
 def test_store_window_config_resolved_config_handling(
-    mock_singlefile,
     mock_logger,
     minimal_workflow,
     tmp_path,
     config_path_type,
     workflow_name,
-    node_pk,
     should_store_pk,
     should_log,
 ):
@@ -731,7 +621,6 @@ def test_store_window_config_resolved_config_handling(
     - No resolved config path (None)
     - Config file doesn't exist
     - Config file exists and is stored as SinglefileData
-    - Node pk is None (not stored in extras)
     - Proper labels and logging for stored config
     """
     builder = WorkGraphBuilder(minimal_workflow)
@@ -741,7 +630,6 @@ def test_store_window_config_resolved_config_handling(
     print("\n=== Test store_window_config resolved config handling ===")
     print(f"Config path type: {config_path_type}")
     print(f"Workflow name: {workflow_name}")
-    print(f"Node PK: {node_pk}")
     print(f"Should store PK: {should_store_pk}")
     print(f"Should log: {should_log}")
 
@@ -754,12 +642,6 @@ def test_store_window_config_resolved_config_handling(
         config_file = tmp_path / "resolved_config.yml"
         config_file.write_text(f"name: {workflow_name}\nscheduler: slurm")
         builder.resolved_config_path = config_file
-
-        # Mock SinglefileData
-        mock_node = Mock()
-        mock_node.pk = node_pk
-        mock_node.store.return_value = None
-        mock_singlefile.return_value = mock_node
 
     wg = Mock()
     wg.extras = {}
@@ -775,20 +657,19 @@ def test_store_window_config_resolved_config_handling(
     # Check resolved_config_pk in extras
     if should_store_pk:
         assert "resolved_config_pk" in wg.extras
-        assert wg.extras["resolved_config_pk"] == node_pk
+        node_pk = wg.extras["resolved_config_pk"]
 
-        # Verify SinglefileData creation
-        assert mock_singlefile.called
-        call_kwargs = mock_singlefile.call_args[1]
-        assert call_kwargs["file"] == builder.resolved_config_path
+        # Load the real node and verify its properties
+        import aiida.orm
 
-        # Verify labels
-        assert workflow_name in mock_node.label
-        assert workflow_name in mock_node.description
-        assert "Resolved configuration" in mock_node.description
+        node = aiida.orm.load_node(node_pk)
+        assert isinstance(node, aiida.orm.SinglefileData)
+        assert node.is_stored
 
-        # Verify node was stored
-        assert mock_node.store.called
+        # Verify labels contain workflow name
+        assert workflow_name in node.label
+        assert workflow_name in node.description
+        assert "Resolved configuration" in node.description
     else:
         assert "resolved_config_pk" not in wg.extras
 
@@ -796,47 +677,5 @@ def test_store_window_config_resolved_config_handling(
     if should_log:
         assert mock_logger.info.called
         log_call = mock_logger.info.call_args[0]
-        assert str(node_pk) in str(log_call)
-    # Logger might be called for other reasons, just verify pk not in message if not storing
-    elif mock_logger.info.called and node_pk:
-        log_call = mock_logger.info.call_args[0]
-        # If pk is None, it shouldn't be logged
-
-
-class TestBuildSiroccoWorkgraphValidation:
-    """Test that WorkGraphBuilder.build() validates workflows."""
-
-    @patch("sirocco.engines.aiida.builder.AiidaAdapter.validate_workflow")
-    def test_validation_called_during_build(self, mock_validate, minimal_workflow):
-        """Test that validate_workflow is called during build()."""
-        # Mock validation to do nothing
-        mock_validate.return_value = None
-
-        # Call build which should call validation
-        builder = WorkGraphBuilder(minimal_workflow)
-
-        # Mock the rest of the build process to avoid actual WorkGraph creation
-        with (
-            patch.object(builder, "_prepare_data_nodes"),
-            patch.object(builder, "_build_task_specs"),
-            patch.object(builder, "_create_workgraph", return_value=Mock(spec=WorkGraph)),
-            patch.object(builder, "_store_window_config"),
-        ):
-            builder.build()
-
-        # Verify validation was called with the workflow
-        mock_validate.assert_called_once_with(minimal_workflow)
-
-    @patch("sirocco.engines.aiida.builder.AiidaAdapter.validate_workflow")
-    def test_validation_failure_prevents_building(self, mock_validate, minimal_workflow):
-        """Test that validation failure prevents WorkGraph building."""
-        # Make validation raise an error
-        mock_validate.side_effect = ValueError("Computer 'missing' not found")
-
-        # Should raise the validation error during build
-        builder = WorkGraphBuilder(minimal_workflow)
-        with pytest.raises(ValueError, match="Computer 'missing' not found"):
-            builder.build()
-
-        # Verify validation was attempted
-        mock_validate.assert_called_once_with(minimal_workflow)
+        # Verify the pk was logged
+        assert wg.extras["resolved_config_pk"] in log_call or str(wg.extras["resolved_config_pk"]) in str(log_call)

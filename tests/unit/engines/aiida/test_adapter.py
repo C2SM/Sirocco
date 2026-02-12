@@ -15,12 +15,11 @@ from sirocco import core
 from sirocco.engines.aiida.adapter import AiidaAdapter
 from sirocco.engines.aiida.code_factory import CodeFactory
 from sirocco.engines.aiida.models import AiidaMetadataOptions
+from tests.unit.engines.aiida.utils import create_authinfo, create_mock_transport
 from tests.unit.utils import (
-    create_authinfo,
     create_available_data,
     create_mock_icon_task,
     create_mock_shell_task,
-    create_mock_transport,
 )
 
 
@@ -334,69 +333,52 @@ def test_build_metadata(aiida_localhost):
     assert "_scheduler-stderr.txt" in metadata.options.additional_retrieve_list
 
 
-# Patch: Force NotExistent exception to test code creation path when code doesn't exist
-@patch("aiida.orm.load_code")
-# Patch: Mock ShellCode class to prevent actual database storage during test
-@patch("aiida_shell.ShellCode")
-def test_create_shell_code_executable_name(mock_shell_code_class, mock_load_code, aiida_localhost):
+def test_create_shell_code_executable_name(aiida_localhost):
     """Test creating code for executable name (no path)."""
-
-    mock_load_code.side_effect = NotExistent("Code not found")  # Force code creation
-
-    task = create_mock_shell_task(command="bash script.sh")
-
-    mock_code_instance = Mock()
-    mock_code_instance.store.return_value = None
-    mock_shell_code_class.return_value = mock_code_instance
+    # Use unique command to avoid conflicts with existing codes
+    unique_command = f"bash_{uuid.uuid4().hex[:8]}"
+    task = create_mock_shell_task(command=f"{unique_command} script.sh")
 
     code = CodeFactory.create_shell_code(task, aiida_localhost)
 
     print("\n=== Shell code creation (executable name) ===")
     print(f"Task command: {task.command!r}")
-    pprint(mock_shell_code_class.call_args)
-    print(f"Code instance: {code}")
+    print(f"Code type: {type(code)}")
+    print(f"Code label: {code.label}")
 
-    # Should create InstalledCode for "bash"
-    assert mock_shell_code_class.called
-    call_args = mock_shell_code_class.call_args
-    assert call_args[1]["label"] == "bash"
-    assert call_args[1]["filepath_executable"] == "bash"
-    assert code == mock_code_instance
+    # Should create a Code for the executable
+    # Could be ShellCode or InstalledCode depending on implementation
+    assert isinstance(code, aiida.orm.Code)
+    assert code.is_stored
+    assert unique_command in code.label
+    assert code.computer.pk == aiida_localhost.pk
 
 
-# Patch: Force NotExistent exception to test code creation path when code doesn't exist
-@patch("aiida.orm.load_code")
-# Patch: Mock PortableCode class to prevent actual database storage during test
-@patch("aiida.orm.PortableCode")
-def test_create_shell_code_local_script(mock_portable_code_class, mock_load_code, tmp_path, aiida_localhost):
+def test_create_shell_code_local_script(tmp_path, aiida_localhost):
     """Test creating code for local script file."""
-
-    mock_load_code.side_effect = NotExistent("Code not found")
-
-    # Create a temporary script file
-    script_file = tmp_path / "test_script.sh"
+    # Create a temporary script file with unique name
+    unique_name = f"test_script_{uuid.uuid4().hex[:8]}.sh"
+    script_file = tmp_path / unique_name
     script_file.write_text("#!/bin/bash\necho hello")
 
-    task = create_mock_shell_task(path=script_file, command="bash test_script.sh")
-
-    mock_code_instance = Mock()
-    mock_code_instance.store.return_value = None
-    mock_portable_code_class.return_value = mock_code_instance
+    task = create_mock_shell_task(path=script_file, command=f"bash {unique_name}")
 
     code = CodeFactory.create_shell_code(task, aiida_localhost)
 
     print("\n=== Shell code creation (local script) ===")
     print(f"Script file: {script_file}")
     print(f"Task command: {task.command!r}")
-    pprint(mock_portable_code_class.call_args)
-    print(f"Code instance: {code}")
+    print(f"Code type: {type(code)}")
+    print(f"Code label: {code.label}")
 
     # Should create PortableCode for local script
-    assert mock_portable_code_class.called
-    call_args = mock_portable_code_class.call_args
-    assert "test_script" in call_args[1]["label"]  # Extension removed
-    assert call_args[1]["filepath_executable"] == "test_script.sh"
-    assert code == mock_code_instance
+    assert isinstance(code, aiida.orm.PortableCode)
+    assert code.is_stored
+    # Label should contain the base name (extension removed)
+    base_name = unique_name.replace(".sh", "")
+    assert base_name in code.label
+    assert str(code.filepath_executable) == unique_name
+    assert code.computer.pk == aiida_localhost.pk
 
 
 @pytest.mark.parametrize(
@@ -535,9 +517,7 @@ def test_create_input_data_node_local_folder(tmp_path, aiida_localhost):
     assert result.list_object_names() == ["file1.txt"]
 
 
-# Patch: Mock RemoteData to prevent actual database storage during test
-@patch("sirocco.engines.aiida.adapter.aiida.orm.RemoteData")
-def test_create_input_data_node_remote_transport(mock_remote_data, tmp_path, aiida_localhost):
+def test_create_input_data_node_remote_transport(tmp_path, aiida_localhost):
     """Test creating RemoteData for remote computer."""
     from pathlib import Path
 
@@ -545,9 +525,6 @@ def test_create_input_data_node_remote_transport(mock_remote_data, tmp_path, aii
     remote_path.write_text("netcdf data")
 
     core_data = create_available_data("remote_file", aiida_localhost.label, remote_path)
-
-    mock_node = Mock()
-    mock_remote_data.return_value = mock_node
 
     # Make the LocalTransport check fail (so it's treated as remote)
     # Patch: Mock LocalTransport to control computer type detection (local vs remote)
@@ -560,13 +537,13 @@ def test_create_input_data_node_remote_transport(mock_remote_data, tmp_path, aii
         print("\n=== Create input data node (remote transport) ===")
         print(f"Remote path: {remote_path}")
         print(f"Core data: {core_data}")
-        pprint(mock_remote_data.call_args)
-        print(f"Result: {result}")
+        print(f"Result type: {type(result)}")
+        print(f"Result PK: {result.pk}")
 
-        assert mock_remote_data.called
-        assert mock_remote_data.call_args[1]["remote_path"] == str(remote_path)
-        assert mock_remote_data.call_args[1]["computer"] == aiida_localhost
-        assert result == mock_node
+        # Should create real RemoteData (may or may not be stored yet)
+        assert isinstance(result, aiida.orm.RemoteData)
+        assert result.get_remote_path() == str(remote_path)
+        assert result.computer.pk == aiida_localhost.pk
 
 
 # Patch: Force NotExistent exception to test error handling when computer is not found
@@ -668,12 +645,17 @@ def test_create_shell_code_relative_path_rejected(mock_load_code, aiida_localhos
         CodeFactory.create_shell_code(task, aiida_localhost)
 
 
-# Patch: Mock load_code to return existing code and verify code reuse path
+# Patch: Mock load_code to test code reuse path (loading existing code)
+# Note: Testing real code reuse requires matching the factory's label format,
+# which is complex. This test verifies the factory correctly delegates to load_code.
 @patch("sirocco.engines.aiida.adapter.aiida.orm.load_code")
-def test_create_shell_code_loads_existing_code(mock_load_code, aiida_localhost):
-    """Test that existing code is loaded instead of creating new one."""
-    mock_existing_code = Mock()
-    mock_load_code.return_value = mock_existing_code
+def test_create_shell_code_loads_existing_code(mock_load_code, aiida_localhost, stored_shell_code):
+    """Test that existing code is loaded instead of creating new one.
+
+    Tests the delegation path: when load_code succeeds, factory returns that code.
+    """
+    # Make load_code return our real stored code
+    mock_load_code.return_value = stored_shell_code
 
     task = create_mock_shell_task(command="bash")
 
@@ -682,11 +664,13 @@ def test_create_shell_code_loads_existing_code(mock_load_code, aiida_localhost):
     print("\n=== Shell code creation (load existing) ===")
     print(f"Task command: {task.command!r}")
     print(f"Loaded code: {code}")
-    print(f"load_code called: {mock_load_code.called}")
+    print(f"Code type: {type(code)}")
+    print(f"Code PK: {code.pk}")
 
-    # Should load existing code without creating new one
-    assert code == mock_existing_code
-    assert mock_load_code.called
+    # Should return the existing code from load_code
+    assert code.pk == stored_shell_code.pk
+    assert code.label == stored_shell_code.label
+    assert code.is_stored
 
 
 def test_create_shell_code_resolves_relative_path(tmp_path, aiida_localhost):
