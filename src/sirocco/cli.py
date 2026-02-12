@@ -40,7 +40,7 @@ app = typer.Typer(
 )
 
 # Create a Rich console instance for printing
-console = Console()
+console = Console(record=True)
 
 # Create logger
 logger = logging.getLogger(__name__)
