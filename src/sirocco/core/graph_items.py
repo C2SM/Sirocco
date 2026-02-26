@@ -213,8 +213,6 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
 
         # Store for actual linking in link_wait_on_tasks() once all tasks are created
         new._wait_on_specs = graph_spec.wait_on
-        #                                                and setting an underscored attribute from
-        #                                                the class itself raises SLF001
 
         # Link new task to input and output data nodes
         for data in new.input_data_nodes():
