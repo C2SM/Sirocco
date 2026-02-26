@@ -168,6 +168,7 @@ deploy = [
 ]
 
 [tool.hatch.envs.types]
+installer = "uv"
 python = "3.12"
 extra-dependencies = [
   "mypy>=1.0.0",
