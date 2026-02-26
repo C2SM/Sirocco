@@ -922,8 +922,8 @@ class ConfigWorkflow(BaseModel):
     data: ConfigData
     parameters: Annotated[dict[str, list], BeforeValidator(check_parameters_lists)] = {}
     front_depth: int = Field(
-        default=1,
-        description="Number of topological levels to keep active. 1=sequential (default, no pre-submission), 2=one level ahead, higher values=more aggressive streaming.",
+        default=2,
+        description="Number of active topological levels. n: n-1 levels of presubmitted tasks, i.e. 1: only ongoing tasks (no pre-submission), 2: one level of pre-submitted tasks (default), etc...",
         ge=1,
     )
 
