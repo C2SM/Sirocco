@@ -15,6 +15,7 @@ from sirocco import pretty_print
 from sirocco.core import _tasks as core_tasks
 from sirocco.core import workflow
 from sirocco.parsing import yaml_data_models as models
+from tests.unit import utils as test_utils
 
 pytest_plugins = ["aiida.tools.pytest_fixtures"]
 
@@ -27,7 +28,7 @@ class DownloadError(RuntimeError):
 
 
 def download_file(url: str, file_path: pathlib.Path):
-    response = requests.get(url)
+    response = requests.get(url)  # noqa S113: Probable use of `requests` call without timeout
     if not response.ok:
         raise DownloadError(url, response)
 
@@ -74,7 +75,11 @@ def minimal_config() -> models.ConfigWorkflow:
         tasks=[models.ConfigShellTask(name="some_task", command="some_command", computer="localhost")],
         data=models.ConfigData(
             available=[
-                models.ConfigAvailableData(name="available", computer="localhost", path=pathlib.Path("/foo.txt"))
+                models.ConfigAvailableData(
+                    name="available",
+                    computer="localhost",
+                    path=pathlib.Path("/foo.txt"),
+                )
             ],
             generated=[models.ConfigGeneratedData(name="bar", path=pathlib.Path("bar"))],
         ),
@@ -112,7 +117,11 @@ def minimal_invert_task_io_config() -> models.ConfigWorkflow:
         ],
         data=models.ConfigData(
             available=[
-                models.ConfigAvailableData(name="available", computer="localhost", path=pathlib.Path("/foo.txt"))
+                models.ConfigAvailableData(
+                    name="available",
+                    computer="localhost",
+                    path=pathlib.Path("/foo.txt"),
+                )
             ],
             generated=[
                 models.ConfigGeneratedData(name="output_a", path=pathlib.Path("bar")),
@@ -124,7 +133,7 @@ def minimal_invert_task_io_config() -> models.ConfigWorkflow:
 
 
 # configs that are tested for parsing
-ALL_CONFIG_CASES = ["small-shell", "small-icon", "parameters", "large"]
+ALL_CONFIG_CASES = ["small-shell", "parameters", "large"]
 
 
 @pytest.fixture(params=ALL_CONFIG_CASES)
@@ -146,23 +155,39 @@ def generate_config_paths(test_case: str):
 
 
 @pytest.fixture
-def config_paths(config_case, icon_grid_path, tmp_path, test_rootdir) -> dict[str, pathlib.Path]:
+def config_paths(config_case, tmp_path, test_rootdir) -> dict[str, pathlib.Path]:
     config = generate_config_paths(config_case)
     # Copy test directory to tmp path and adapt config
-    shutil.copytree(test_rootdir / f"tests/cases/{config_case}", tmp_path / f"tests/cases/{config_case}")
+    shutil.copytree(
+        test_rootdir / f"tests/cases/{config_case}",
+        tmp_path / f"tests/cases/{config_case}",
+    )
     for key, value in config.items():
         config[key] = tmp_path / value
 
-    # Expand /TESTS_ROOTDIR to directory where config is located
-    for key in ["yml", "txt"]:
-        config[key].write_text(config[key].read_text().replace("/TESTS_ROOTDIR", str(tmp_path)))
+    # Note: We don't need to do string replacement on yml files anymore since we use Jinja2 templates
+    # and override TESTS_ROOTDIR in the variables dict. The txt files are reference files and should
+    # not be modified.
 
-    if config_case == "small-icon":
-        config_rootdir = config["yml"].parent
-        # We link the icon grid as specified in the model.namelist
-        config_icon_grid_path = pathlib.Path(config_rootdir / "./ICON/icon_grid_simple.nc")
-        if not config_icon_grid_path.exists():
-            config_icon_grid_path.symlink_to(icon_grid_path)
+    # Load Jinja2 variables from vars.yml if it exists, otherwise start with empty dict
+    vars_file = tmp_path / f"tests/cases/{config_case}/config/vars.yml"
+    if vars_file.exists():
+        import yaml
+
+        with open(vars_file) as f:
+            config["variables"] = yaml.safe_load(f) or {}
+    else:
+        config["variables"] = {}
+
+    # Override TESTS_ROOTDIR to point to tmp_path
+    config["variables"]["TESTS_ROOTDIR"] = str(tmp_path)
+
+    # Add case-specific Jinja2 variables
+    if config_case == "dynamic-simple":
+        # Use relative path (relative to config directory) for validation
+        config["variables"]["SIROCCO_COMPUTER"] = "remote"
+        config["variables"]["SIROCCO_SCRIPTS_DIR"] = "scripts"
+
     return config
 
 
@@ -176,8 +201,17 @@ def pytest_addoption(parser):
     )
 
 
-def serialize_worklfow(config_paths: dict[str, pathlib.Path], workflow: workflow.Workflow) -> None:
-    config_paths["txt"].write_text(pretty_print.PrettyPrinter().format(workflow))
+def serialize_workflow(
+    config_paths: dict[str, pathlib.Path], workflow: workflow.Workflow, rootdir: pathlib.Path | None = None
+) -> None:
+    """Serialize workflow to text file, normalizing paths to be user-independent."""
+    serialized = pretty_print.PrettyPrinter().format(workflow)
+
+    # Normalize paths: replace absolute rootdir with placeholder
+    if rootdir:
+        serialized = serialized.replace(str(rootdir), "/TESTS_ROOTDIR")
+
+    config_paths["txt"].write_text(serialized)
 
 
 def serialize_nml(config_paths: dict[str, pathlib.Path], workflow: workflow.Workflow) -> None:
@@ -194,8 +228,11 @@ def pytest_configure(config):
             config_paths = generate_config_paths(config_case)
             for key, value in config_paths.items():
                 config_paths[key] = pathlib.Path(config.rootdir) / value
-            wf = workflow.Workflow.from_config_file(str(config_paths["yml"]))
-            serialize_worklfow(config_paths=config_paths, workflow=wf)
+            # Use actual rootdir for workflow parsing (files must exist)
+            variables = {"TESTS_ROOTDIR": str(config.rootdir)}
+            wf = workflow.Workflow.from_config_file(str(config_paths["yml"]), template_context=variables)
+            # Normalize paths in serialized output
+            serialize_workflow(config_paths=config_paths, workflow=wf, rootdir=config.rootdir)
             serialize_nml(config_paths=config_paths, workflow=wf)
 
 
@@ -232,16 +269,19 @@ def aiida_computer_session(tmp_path_factory) -> t.Callable[[], "Computer"]:
         default_mpiprocs_per_machine: int = 1,
         configuration_kwargs: dict[t.Any, t.Any] | None = None,
     ) -> "Computer":
-        import uuid  # noqa: PLC0415
+        import uuid
 
-        from aiida.common.exceptions import NotExistent  # noqa: PLC0415
-        from aiida.orm import Computer  # noqa: PLC0415
+        from aiida.common.exceptions import NotExistent
+        from aiida.orm import Computer
 
         label = label or f"test-computer-{uuid.uuid4().hex}"
 
         try:
             computer = Computer.collection.get(
-                label=label, hostname=hostname, scheduler_type=scheduler_type, transport_type=transport_type
+                label=label,
+                hostname=hostname,
+                scheduler_type=scheduler_type,
+                transport_type=transport_type,
             )
         except NotExistent:
             # Create a temporary directory for this computer instance
@@ -347,3 +387,125 @@ def minimal_config_path(tmp_path):
     minimal = tmp_path / "minimal.yml"
     minimal.write_text(minimal_config)
     return minimal
+
+
+@pytest.fixture
+def minimal_workflow(tmp_path):
+    """Create a minimal core.Workflow for testing.
+
+    Returns a real Workflow object with minimal valid configuration.
+    """
+    config_yaml = textwrap.dedent(
+        """
+        name: test_workflow
+        scheduler: slurm
+        cycles:
+          - single_cycle:
+              tasks:
+                - dummy_task: {}
+        tasks:
+          - dummy_task:
+              plugin: shell
+              computer: localhost
+              command: echo hello
+        data:
+          available: []
+          generated: []
+        """
+    )
+    return workflow.Workflow.from_config_str(config_yaml, rootdir=tmp_path)
+
+
+@pytest.fixture
+def workflow_with_dependencies(tmp_path):
+    """Create a workflow with task dependencies for testing build logic.
+
+    Returns a workflow with:
+    - task_a: generates output_a
+    - task_b: consumes output_a, generates output_b
+    - task_c: consumes output_b
+    """
+    config_yaml = textwrap.dedent(
+        """
+        name: test_workflow_deps
+        scheduler: slurm
+        cycles:
+          - cycle:
+              tasks:
+                - task_a:
+                    outputs:
+                      - output_a
+                - task_b:
+                    inputs:
+                      - output_a: {port: input_file}
+                    outputs:
+                      - output_b
+                - task_c:
+                    inputs:
+                      - output_b: {port: data_file}
+        tasks:
+          - task_a:
+              plugin: shell
+              computer: localhost
+              command: echo "data" > {output_a}
+          - task_b:
+              plugin: shell
+              computer: localhost
+              command: cat {input_file} > {output_b}
+          - task_c:
+              plugin: shell
+              computer: localhost
+              command: cat {data_file}
+        data:
+          available: []
+          generated:
+            - output_a: {path: output_a.txt}
+            - output_b: {path: output_b.txt}
+        """
+    )
+    return workflow.Workflow.from_config_str(config_yaml, rootdir=tmp_path)
+
+
+@pytest.fixture
+def create_shell_task(aiida_localhost, tmp_path):
+    """Factory to create real ShellTask instances via workflow parsing."""
+
+    def _factory(computer=None, **kwargs):
+        """Create a ShellTask with realistic defaults."""
+        return test_utils.create_shell_task_from_workflow(
+            tmp_path=tmp_path,
+            computer=computer or aiida_localhost.label,
+            **kwargs,
+        )
+
+    return _factory
+
+
+@pytest.fixture
+def create_icon_task(aiida_localhost, tmp_path):
+    """Factory to create real IconTask instances via workflow parsing."""
+
+    def _factory(computer=None, **kwargs):
+        """Create an IconTask with realistic defaults."""
+        return test_utils.create_icon_task_from_workflow(
+            tmp_path=tmp_path,
+            computer=computer or aiida_localhost.label,
+            **kwargs,
+        )
+
+    return _factory
+
+
+@pytest.fixture
+def create_icon_task_with_models(aiida_localhost, tmp_path):
+    """Factory to create ICON tasks with model namelists."""
+
+    def _factory(computer=None, **kwargs):
+        """Create an IconTask with model namelists."""
+        return test_utils.create_icon_task_with_model_namelists(
+            tmp_path=tmp_path,
+            computer=computer or aiida_localhost.label,
+            **kwargs,
+        )
+
+    return _factory

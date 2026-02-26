@@ -57,35 +57,35 @@ cycles:
 tasks:
   - icon:
       plugin: shell
-      computer: remote
+      computer: "{{ SIROCCO_COMPUTER }}"
       path: scripts/icon.py
       command: "python icon.py --restart {PORT::restart} --init {PORT::init} --forcing {PORT::forcing}"
       parameters: [foo, bar]
   - statistics_foo:
       plugin: shell
-      computer: remote
+      computer: "{{ SIROCCO_COMPUTER }}"
       path: scripts/statistics.py
       command: "python statistics.py {PORT::None}"
       parameters: [bar]
   - statistics_foo_bar:
       plugin: shell
-      computer: remote
+      computer: "{{ SIROCCO_COMPUTER }}"
       path: scripts/statistics.py
       command: "python statistics.py {PORT::None}"
   - merge:
       plugin: shell
-      computer: remote
+      computer: "{{ SIROCCO_COMPUTER }}"
       path: scripts/merge.py
       command: "python merge.py {PORT::None}"
 
 data:
   available:
     - initial_conditions:
-        computer: remote
-        path: /TESTS_ROOTDIR/tests/cases/parameters/config/data/initial_conditions
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ TESTS_ROOTDIR }}/tests/cases/parameters/config/data/initial_conditions"
     - forcing:
-        computer: remote
-        path: /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ TESTS_ROOTDIR }}/tests/cases/parameters/config/data/forcing"
   generated:
     - icon_output:
         path: icon_output

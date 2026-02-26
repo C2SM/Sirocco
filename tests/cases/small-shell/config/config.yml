@@ -1,6 +1,7 @@
 ---
 start_date: &root_start_date '2026-01-01T00:00'
 stop_date: &root_stop_date '2026-06-01T00:00'
+engine: aiida
 scheduler: slurm
 cycles:
   - bimonthly_tasks:
@@ -35,24 +36,24 @@ cycles:
 tasks:
   - icon:
       plugin: shell
-      computer: remote
+      computer: "{{ SIROCCO_COMPUTER }}"
       path: scripts/icon.py
       command: "python icon.py --restart {PORT::restart} --init {PORT::init}"
       uenv: "icon-wcp/v1:rc4"
   - cleanup:
       plugin: shell
-      computer: remote
+      computer: "{{ SIROCCO_COMPUTER }}"
       path: scripts/cleanup.py
       command: "python cleanup.py"
 data:
   available:
      - icon_namelist:
          # Different computer between task and available data
-         computer: localhost
-         path: /TESTS_ROOTDIR/tests/cases/small-shell/config/data/input
+         computer: "{{ SIROCCO_DATA_COMPUTER }}"
+         path: "{{ TESTS_ROOTDIR }}/tests/cases/small-shell/config/data/input"
      - initial_conditions:
-         computer: localhost
-         path: /TESTS_ROOTDIR/tests/cases/small-shell/config/data/initial_conditions
+         computer: "{{ SIROCCO_DATA_COMPUTER }}"
+         path: "{{ TESTS_ROOTDIR }}/tests/cases/small-shell/config/data/initial_conditions"
   generated:
      - icon_output:
          path: icon_output

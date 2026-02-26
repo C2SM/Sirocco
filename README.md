@@ -18,10 +18,11 @@ To manage the repo we use [hatch](https://hatch.pypa.io) please install it
 
 ``` bash
 pip install hatch
-hatch test # run tests
-hatch fmt # run formatting
-hatch run docs:build # build docs
-hatch run docs:serve # live preview of doc for development
+hatch test              # run tests
+hatch test -- -n auto   # run tests in parallel
+hatch fmt               # run formatting
+hatch run docs:build    # build docs
+hatch run docs:serve    # live preview of doc for development
 ```
 
 ## Resources

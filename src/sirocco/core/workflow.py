@@ -4,6 +4,7 @@ import enum
 import logging
 from datetime import datetime
 from itertools import chain, product
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Self
 
 from ruamel.yaml import YAML
@@ -21,7 +22,6 @@ from sirocco.parsing.yaml_data_models import (
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from pathlib import Path
 
     from sirocco.parsing.cycling import CyclePoint
     from sirocco.parsing.yaml_data_models import (
@@ -59,10 +59,12 @@ class Workflow:
         front_depth: int,
         parameters: dict[str, list],
         config_sirocco_task: ConfigSiroccoTask | None = None,
+        resolved_config_path: str | None = None,
     ) -> None:
         self.name: str = name
         self._config_rootdir: Path = config_rootdir
         self.config_filename = config_filename
+        self.resolved_config_path = resolved_config_path
         self.scheduler = scheduler
         self.front_depth = front_depth
         self.front: list[list[Task]] = [[] for _ in range(self.front_depth)]
@@ -86,7 +88,7 @@ class Workflow:
                 axes["date"] = [cycle_point.chunk_start_date]
             yield from (dict(zip(axes.keys(), x, strict=False)) for x in product(*axes.values()))
 
-        # 1 - create availalbe data nodes
+        # 1 - create available data nodes
         for available_data_config in config_data.available:
             for coordinates in iter_coordinates(OneOffPoint(), available_data_config.parameters):
                 self.data.add(Data.from_config(config=available_data_config, coordinates=coordinates))
@@ -425,13 +427,52 @@ class Workflow:
     def from_config_file(
         cls: type[Self],
         config_path: str | Path,
+        template_context: dict[str, Any] | str | Path | None = None,
     ) -> Self:
-        """
-        Loads a python representation of a workflow config file.
+        """Load workflow from a config file.
 
-        :param config_path: the string to the config yaml file containing the workflow definition
+        Args:
+            config_path: Path to the config YAML file
+            template_context: Either a dict of inline context variables, path to a variables file, or None
+
+        Returns:
+            Workflow instance
         """
+        if isinstance(template_context, dict):
+            # Inline context dict (for tests/programmatic use)
+            return cls.from_config_workflow(
+                ConfigWorkflow.from_config_file(config_path, template_context=template_context)
+            )
+        if isinstance(template_context, (str, Path)):
+            # Path to variables file (file-based approach)
+            return cls.from_config_workflow(
+                ConfigWorkflow.from_config_file(config_path, jinja_vars_file_path=template_context)
+            )
+        # No context
         return cls.from_config_workflow(ConfigWorkflow.from_config_file(config_path))
+
+    @classmethod
+    def from_config_str(
+        cls: type[Self],
+        content: str,
+        template_context: dict[str, Any] | None = None,
+        name: str | None = None,
+        rootdir: Path | None = None,
+    ) -> Self:
+        """Load workflow from a YAML string (for testing/programmatic use).
+
+        Args:
+            content: YAML string containing the workflow definition
+            template_context: Optional dict of context variables for Jinja2 template rendering
+            name: Optional workflow name (defaults to "workflow")
+            rootdir: Optional root directory for relative paths (defaults to cwd)
+
+        Returns:
+            Workflow instance
+        """
+        return cls.from_config_workflow(
+            ConfigWorkflow.from_config_str(content, template_context=template_context, name=name, rootdir=rootdir)
+        )
 
     @classmethod
     def from_config_workflow(
@@ -453,4 +494,5 @@ class Workflow:
             parameters=config_workflow.parameters,
             front_depth=config_workflow.front_depth,
             config_sirocco_task=sirocco_task_config,
+            resolved_config_path=config_workflow.resolved_config_path,
         )

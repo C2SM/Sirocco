@@ -72,7 +72,16 @@ class PrettyPrinter:
 
         Default implementation simply calls str()
         """
-        # this prevents empty strings being not visibliy displayed
+        from datetime import datetime
+
+        # Format dicts with datetime values as ISO strings for readability
+        if isinstance(obj, dict):
+            formatted_items = []
+            for key, value in obj.items():
+                formatted_value = str(value) if isinstance(value, datetime) else repr(value)
+                formatted_items.append(f"{key!r}: {formatted_value}")
+            return "{" + ", ".join(formatted_items) + "}"
+        # this prevents empty strings being not visibly displayed
         return repr(obj) if isinstance(obj, str) else str(obj)
 
     @format.register
@@ -87,6 +96,7 @@ class PrettyPrinter:
         >>> from datetime import datetime
         >>> import pathlib
         >>> from sirocco.parsing.cycling import DateCyclePoint
+        >>> from datetime import UTC, datetime
         >>> print(
         ...     PrettyPrinter().format_basic(
         ...         core.Task(
@@ -94,13 +104,13 @@ class PrettyPrinter:
         ...             computer="localhost",
         ...             config_rootdir=pathlib.Path("."),
         ...             cycle_point=DateCyclePoint(
-        ...                 start_date=datetime(1000, 1, 1),
-        ...                 stop_date=datetime(1000, 1, 2),
-        ...                 chunk_start_date=datetime(1000, 1, 1),
-        ...                 chunk_stop_date=datetime(1000, 1, 2),
+        ...                 start_date=datetime(1000, 1, 1, tzinfo=UTC),
+        ...                 stop_date=datetime(1000, 1, 2, tzinfo=UTC),
+        ...                 chunk_start_date=datetime(1000, 1, 1, tzinfo=UTC),
+        ...                 chunk_stop_date=datetime(1000, 1, 2, tzinfo=UTC),
         ...                 period="P1D",
         ...             ),
-        ...             coordinates={"date": datetime(1000, 1, 1).date()},
+        ...             coordinates={"date": datetime(1000, 1, 1, tzinfo=UTC).date()},
         ...         )
         ...     )
         ... )

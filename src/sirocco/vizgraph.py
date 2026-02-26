@@ -244,8 +244,44 @@ class VizGraph:
         return cls(name=workflow.name, tasks=workflow.tasks, data=workflow.data, cycles=workflow.cycles)
 
     @classmethod
-    def from_config_file(cls, config_path: str) -> Self:
-        return cls.from_core_workflow(core.Workflow.from_config_file(config_path))
+    def from_config_file(
+        cls,
+        config_path: str | Path,
+        template_context: dict[str, Any] | str | Path | None = None,
+    ) -> Self:
+        """Load VizGraph from a config file.
+
+        Args:
+            config_path: Path to the config YAML file
+            template_context: Either a dict of inline context variables, path to a variables file, or None
+
+        Returns:
+            VizGraph instance
+        """
+        return cls.from_core_workflow(core.Workflow.from_config_file(config_path, template_context=template_context))
+
+    @classmethod
+    def from_config_str(
+        cls,
+        content: str,
+        template_context: dict[str, Any] | None = None,
+        name: str | None = None,
+        rootdir: Path | None = None,
+    ) -> Self:
+        """Load VizGraph from a YAML string (for testing/programmatic use).
+
+        Args:
+            content: YAML string containing the workflow definition
+            template_context: Optional dict of context variables for Jinja2 template rendering
+            name: Optional workflow name (defaults to "workflow")
+            rootdir: Optional root directory for relative paths (defaults to cwd)
+
+        Returns:
+            VizGraph instance
+        """
+        return cls.from_core_workflow(
+            core.Workflow.from_config_str(content, template_context=template_context, name=name, rootdir=rootdir)
+        )
 
     @staticmethod
     def add_to_unique_list(item: GRAPH_ITEM_T, item_list: list[GRAPH_ITEM_T], labels: list[str]) -> None:

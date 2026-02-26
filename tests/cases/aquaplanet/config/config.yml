@@ -1,0 +1,101 @@
+name: AQUAPLANET
+start_date: &root_start_date "2000-01-01T00:00:00"
+stop_date: &root_stop_date "2000-01-01T00:10:00"
+front_depth: 1
+cycles: # <- GRAPH DEFINITION
+  - every_minute:
+      cycling:
+        start_date: *root_start_date
+        stop_date: *root_stop_date
+        period: PT1M
+      tasks:
+        - icon:
+            inputs:
+              - ecrad_data:
+                  port: ecrad_data
+              - ECHAM6_CldOptProps:
+                  port: cloud_opt_props
+              - rrtmg_lw:
+                  port: rrtmg_lw
+              - icon_grid:
+                  port: dynamics_grid_file
+              - restart:
+                  when:
+                    after: *root_start_date
+                  target_cycle:
+                    lag: -PT1M
+                  port: restart_file
+            outputs:
+              - finish:
+                  port: finish_status
+              - restart:
+                  port: latest_restart_file
+              - atm_2d:
+                  port: output_streams
+              - atm_3d_pl:
+                  port: output_streams
+        - post_proc:
+            inputs:
+              - atm_2d:
+                  port: stream
+              - atm_3d_pl:
+                  port: stream
+  - lastly:
+      tasks:
+        - cleanup:
+            inputs:
+              - finish:
+                  target_cycle:
+                    date: ['2000-01-01T00:00:00', '2000-01-01T00:01:00', '2000-01-01T00:02:00']
+                  port: positional
+tasks: # <- RUNTIME SETTINGS
+  - icon:
+      plugin: icon
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      uenv: icon/25.2:v3
+      nodes: 1
+      ntasks_per_node: 200
+      cpus_per_task: 1
+      bin: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/bin/icon
+      bin_cpu: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/bin/icon
+      bin_gpu: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_gpu_25.2-v3/bin/icon
+      namelists:
+        - ./ICON/icon_master.namelist
+        - ./ICON/NAMELIST_exclaim_ape_R02B04
+  - cleanup:
+      plugin: shell
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      uenv: icon/25.2:v3
+      view: default
+      path: scripts/cleanup.py
+      command: "python cleanup.py {PORT::positional}"
+  - post_proc:
+      plugin: shell
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      uenv: /capstor/store/cscs/userlab/cwd01/leclairm/uenvs/images/climtools_25.2_v2.sqfs
+      view: default
+      path: scripts/post_proc.sh
+      command: "post_proc.sh {PORT::stream}"
+data: # <- INPUT/OUTPUT DATA
+  available:
+    - icon_grid:
+        path: /capstor/store/cscs/userlab/cwd01/leclairm/Sirocco_test_cases/exclaim_ape_R02B04/icon_grid_0013_R02B04_R.nc
+        computer: "{{ SIROCCO_COMPUTER }}"
+    - rrtmg_lw:
+        path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/data/rrtmg_lw.nc
+        computer: "{{ SIROCCO_COMPUTER }}"
+    - ECHAM6_CldOptProps:
+        path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/data/ECHAM6_CldOptProps.nc
+        computer: "{{ SIROCCO_COMPUTER }}"
+    - ecrad_data:
+        path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/externals/ecrad/data
+        computer: "{{ SIROCCO_COMPUTER }}"
+  # NOTE: these can be empty? should we require setting paths here?
+  generated:
+    - atm_2d: {}
+    - atm_3d_pl: {}
+    - finish: {}
+    - restart: {}

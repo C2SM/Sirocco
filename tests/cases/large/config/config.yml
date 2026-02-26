@@ -94,10 +94,10 @@ cycles:
 tasks:
   - ROOT:
       # All tasks inherit the root task properties
-      computer: remote # TODO root task does not pass specs currently, see C2SM/Sirocco/issues/7
+      computer: "{{ SIROCCO_COMPUTER }}" # TODO root task does not pass specs currently, see C2SM/Sirocco/issues/7
   - extpar:
       plugin: shell  # no extpar plugin available yet
-      computer: remote
+      computer: "{{ SIROCCO_COMPUTER }}"
       path: scripts/extpar
       command: "extpar --verbose --input {PORT::obs}"
       nodes: 1
@@ -107,7 +107,7 @@ tasks:
       walltime: 00:02:00
   - preproc:
       plugin: shell
-      computer: remote
+      computer: "{{ SIROCCO_COMPUTER }}"
       path: scripts/cleanup.sh
       command: "bash cleanup.sh -p {PORT::extpar} -e {PORT::era} {PORT::grid}"
       nodes: 4
@@ -117,8 +117,8 @@ tasks:
       walltime: 00:02:00
   - icon:
       plugin: icon
-      computer: remote
-      bin: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
+      computer: "{{ SIROCCO_COMPUTER }}"
+      bin: "{{ TESTS_ROOTDIR }}/tests/cases/large/config/ICON/bin/icon"
       namelists:
         - ./ICON/icon_master.namelist:
             master_time_control_nml:
@@ -135,7 +135,7 @@ tasks:
       uenv: icon/25.2:v3
   - postproc_1:
       plugin: shell
-      computer: remote
+      computer: "{{ SIROCCO_COMPUTER }}"
       path: scripts/main_script_ocn.sh
       command: "bash main_script_ocn.sh {PORT::None}"
       nodes: 2
@@ -144,7 +144,7 @@ tasks:
       walltime: 00:05:00
   - postproc_2:
       plugin: shell
-      computer: remote
+      computer: "{{ SIROCCO_COMPUTER }}"
       command: "bash main_script_atm.sh --input {PORT::streams}"
       multi_arg_sep: ","
       nodes: 2
@@ -153,7 +153,7 @@ tasks:
       walltime: 00:05:00
   - store_and_clean_1:
       plugin: shell
-      computer: remote
+      computer: "{{ SIROCCO_COMPUTER }}"
       path: scripts/post_clean.sh
       command: "bash post_clean.sh {PORT::postout} {PORT::streams} {PORT::icon_input}"
       nodes: 1
@@ -162,7 +162,7 @@ tasks:
       walltime: 00:01:00
   - store_and_clean_2:
       plugin: shell
-      computer: remote
+      computer: "{{ SIROCCO_COMPUTER }}"
       path: scripts/post_clean.sh
       command: "bash post_clean.sh --archive {PORT::archive} --clean {PORT::clean}"
       nodes: 1
@@ -172,14 +172,14 @@ tasks:
 data:
   available:
     - grid_file:
-        computer: remote
-        path: /TESTS_ROOTDIR/tests/cases/large/config/data/grid
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ TESTS_ROOTDIR }}/tests/cases/large/config/data/grid"
     - obs_data:
-        computer: remote
-        path: /TESTS_ROOTDIR/tests/cases/large/config/data/obs_data
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ TESTS_ROOTDIR }}/tests/cases/large/config/data/obs_data"
     - ERA5:
-        computer: remote
-        path: /TESTS_ROOTDIR/tests/cases/large/config/data/era5
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ TESTS_ROOTDIR }}/tests/cases/large/config/data/era5"
   generated:
     - extpar_file:
         path: output

@@ -1,0 +1,6 @@
+---
+# Variables for the Jinja2 template
+
+# Compute configuration
+SLURM_ACCOUNT: "cwd01"
+SIROCCO_COMPUTER: "santis-ssh"

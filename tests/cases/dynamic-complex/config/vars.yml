@@ -1,0 +1,13 @@
+---
+# Variables for the Jinja2 template
+
+# Compute configuration
+SIROCCO_COMPUTER: "santis-async-ssh"
+SIROCCO_SCRIPTS_DIR: "scripts"
+SLURM_ACCOUNT: "cwd01"
+SLURM_QUEUE: "normal"
+
+# Task durations
+FAST_TIME: 10
+MEDIUM_TIME: 30
+SLOW_TIME: 60

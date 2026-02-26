@@ -1,0 +1,6 @@
+---
+# Variables for the Jinja2 template
+
+# Compute configuration
+SIROCCO_COMPUTER: "santis-async-ssh"
+SLURM_ACCOUNT: "cwd01"

@@ -173,7 +173,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     def output_data_nodes(self) -> Iterator[GeneratedData]:
         yield from chain(*self.outputs.values())
 
-    def output_data_items(self) -> Iterator[tuple[str | None, Data]]:
+    def output_data_items(self) -> Iterator[tuple[str | None, GeneratedData]]:
         yield from ((key, value) for key, values in self.outputs.items() for value in values)
 
     @classmethod
@@ -212,9 +212,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
         )
 
         # Store for actual linking in link_wait_on_tasks() once all tasks are created
-        new._wait_on_specs = graph_spec.wait_on  # noqa: SLF001 we don't have access to self in a dataclass
-        #                                                and setting an underscored attribute from
-        #                                                the class itself raises SLF001
+        new._wait_on_specs = graph_spec.wait_on
 
         # Link new task to input and output data nodes
         for data in new.input_data_nodes():
@@ -287,7 +285,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
 
 @dataclass(kw_only=True)
 class Cycle(GraphItem):
-    """Internal reprenstation of a cycle"""
+    """Internal representation of a cycle"""
 
     color: ClassVar[str] = field(default="light_green", repr=False)
 
@@ -299,7 +297,7 @@ class Cycle(GraphItem):
             task.cycle = self
 
 
-class Array[GRAPH_ITEM_T]:
+class Array[GRAPH_ITEM_T: GraphItem]:
     """Dictionnary of GRAPH_ITEM_T objects accessed by arbitrary dimensions"""
 
     def __init__(self, name: str) -> None:
@@ -371,7 +369,7 @@ class Array[GRAPH_ITEM_T]:
         yield from self._dict.values()
 
 
-class Store[GRAPH_ITEM_T]:
+class Store[GRAPH_ITEM_T: GraphItem]:
     """Container for GRAPH_ITEM_T Arrays"""
 
     def __init__(self) -> None:

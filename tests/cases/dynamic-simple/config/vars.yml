@@ -1,0 +1,9 @@
+# Compute configuration
+SIROCCO_COMPUTER: "santis-firecrest"
+SIROCCO_SCRIPTS_DIR: "scripts"
+SLURM_ACCOUNT: "cwd01"
+SLURM_QUEUE: "normal"
+
+# Task durations
+FAST_TIME: 10
+SLOW_TIME: 60

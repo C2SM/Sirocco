@@ -28,6 +28,7 @@ jobs:
       run: |
         pip install --upgrade pip
         pip install "click<8.3.0"  # NOTE: click 8.2 -> 8.3 is backwards incompatible
+        pip install "virtualenv<21.0.0"  # NOTE: virtualenv 21.0.0 has breaking changes incompatible with hatch
         pip install hatch
     - name: Install Graphviz
       run: sudo apt-get install graphviz graphviz-dev
@@ -53,7 +54,7 @@ jobs:
       env:
         PYTEST_ADDOPTS: "--durations=0"
       run: |
-        hatch test --cover --parallel -- -m "not requires_icon" --remote localhost-ssh
+        hatch test --cover --parallel -- -n auto --remote localhost-ssh
 
   docs:
     runs-on: ubuntu-latest
@@ -68,6 +69,7 @@ jobs:
       run: |
         pip install --upgrade pip
         pip install "click<8.3.0"  # NOTE: click 8.2 -> 8.3 is backwards incompatible
+        pip install "virtualenv<21.0.0"  # NOTE: virtualenv 21.0.0 has breaking changes incompatible with hatch
         pip install hatch
     - name: Install Graphviz
       run: sudo apt-get install graphviz graphviz-dev
@@ -91,6 +93,7 @@ jobs:
       run: |
         pip install --upgrade pip
         pip install "click<8.3.0"  # NOTE: click 8.2 -> 8.3 is backwards incompatible
+        pip install "virtualenv<21.0.0"  # NOTE: virtualenv 21.0.0 has breaking changes incompatible with hatch
         pip install hatch
     - name: Install Graphviz
       run: sudo apt-get install graphviz graphviz-dev
@@ -114,6 +117,7 @@ jobs:
       run: |
         pip install --upgrade pip
         pip install "click<8.3.0"  # NOTE: click 8.2 -> 8.3 is backwards incompatible
+        pip install "virtualenv<21.0.0"  # NOTE: virtualenv 21.0.0 has breaking changes incompatible with hatch
         pip install hatch
     - name: Install Graphviz
       run: sudo apt-get install graphviz graphviz-dev

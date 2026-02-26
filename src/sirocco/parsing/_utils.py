@@ -1,5 +1,5 @@
 from collections.abc import Iterator
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from isoduration import parse_duration
@@ -9,20 +9,23 @@ from isoduration.types import Duration
 class TimeUtils:
     @staticmethod
     def duration_is_less_equal_zero(duration: Duration) -> bool:
-        return (
-            duration.date.years == 0
-            and duration.date.months == 0
-            and duration.date.days == 0
-            and duration.time.hours == 0
-            and duration.time.minutes == 0
-            and duration.time.seconds == 0
-        ) or (
-            duration.date.years < 0
-            or duration.date.months < 0
-            or duration.date.days < 0
-            or duration.time.hours < 0
-            or duration.time.minutes < 0
-            or duration.time.seconds < 0
+        return bool(
+            (
+                duration.date.years == 0
+                and duration.date.months == 0
+                and duration.date.days == 0
+                and duration.time.hours == 0
+                and duration.time.minutes == 0
+                and duration.time.seconds == 0
+            )
+            or (
+                duration.date.years < 0
+                or duration.date.months < 0
+                or duration.date.days < 0
+                or duration.time.hours < 0
+                or duration.time.minutes < 0
+                or duration.time.seconds < 0
+            )
         )
 
     @staticmethod
@@ -44,11 +47,29 @@ class TimeUtils:
 
 
 def convert_to_date(value: Any) -> datetime:
+    """Convert value to timezone-aware datetime (UTC).
+
+    All datetimes in Sirocco are assumed to be UTC. If a naive datetime
+    is provided (either as datetime object or ISO string), UTC timezone
+    is added.
+
+    Args:
+        value: datetime object or ISO format string
+
+    Returns:
+        Timezone-aware datetime in UTC
+
+    Raises:
+        TypeError: If value is not datetime or string
+    """
     match value:
         case datetime():
-            return value
+            # If already timezone-aware, return as-is; otherwise add UTC
+            return value if value.tzinfo else value.replace(tzinfo=UTC)
         case str():
-            return datetime.fromisoformat(value)
+            dt = datetime.fromisoformat(value)
+            # If parsed datetime is naive, assume UTC
+            return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
         case _:
             raise TypeError
 

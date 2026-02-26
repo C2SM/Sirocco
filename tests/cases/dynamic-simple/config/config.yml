@@ -1,0 +1,122 @@
+---
+name: dynamic_deps_simple
+start_date: &root_start_date '2026-01-01T00:00'
+stop_date: &root_stop_date '2026-01-02T00:00'
+front_depth: 1
+
+cycles:
+  - single_cycle:
+      cycling:
+        start_date: *root_start_date
+        stop_date: *root_stop_date
+        period: P1D
+      tasks:
+        - root:
+            outputs: [root_output]
+        - fast_1:
+            inputs:
+              - root_output:
+                  port: root_data
+            outputs: [fast_1_output]
+        - fast_2:
+            inputs:
+              - fast_1_output:
+                  port: fast_1_data
+            outputs: [fast_2_output]
+        - fast_3:
+            inputs:
+              - fast_2_output:
+                  port: fast_2_data
+            outputs: [fast_3_output]
+        - slow_1:
+            inputs:
+              - root_output:
+                  port: root_data
+            outputs: [slow_1_output]
+        - slow_2:
+            inputs:
+              - slow_1_output:
+                  port: slow_1_data
+            outputs: [slow_2_output]
+        - slow_3:
+            inputs:
+              - slow_2_output:
+                  port: slow_2_data
+            outputs: [slow_3_output]
+
+tasks:
+
+  - root:
+      plugin: shell
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      partition: "{{ SLURM_QUEUE }}"
+      walltime: "00:30:00"
+      path: "{{ SIROCCO_SCRIPTS_DIR | default('scripts') }}/fast_task.sh"
+      command: "bash fast_task.sh root {{ FAST_TIME }}"
+  - fast_1:
+      plugin: shell
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      partition: "{{ SLURM_QUEUE }}"
+      walltime: "00:30:00"
+      path: "{{ SIROCCO_SCRIPTS_DIR | default('scripts') }}/fast_task.sh"
+      command: "bash fast_task.sh fast_1 {{ FAST_TIME }}"
+  - fast_2:
+      plugin: shell
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      partition: "{{ SLURM_QUEUE }}"
+      walltime: "00:30:00"
+      path: "{{ SIROCCO_SCRIPTS_DIR | default('scripts') }}/fast_task.sh"
+      command: "bash fast_task.sh fast_2 {{ FAST_TIME }}"
+  - fast_3:
+      plugin: shell
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      partition: "{{ SLURM_QUEUE }}"
+      walltime: "00:30:00"
+      path: "{{ SIROCCO_SCRIPTS_DIR | default('scripts') }}/fast_task.sh"
+      command: "bash fast_task.sh fast_3 {{ FAST_TIME }}"
+  - slow_1:
+      plugin: shell
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      partition: "{{ SLURM_QUEUE }}"
+      walltime: "00:30:00"
+      path: "{{ SIROCCO_SCRIPTS_DIR | default('scripts') }}/slow_task.sh"
+      command: "bash slow_task.sh slow_1 {{ SLOW_TIME }}"
+  - slow_2:
+      plugin: shell
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      partition: "{{ SLURM_QUEUE }}"
+      walltime: "00:30:00"
+      path: "{{ SIROCCO_SCRIPTS_DIR | default('scripts') }}/slow_task.sh"
+      command: "bash slow_task.sh slow_2 {{ SLOW_TIME }}"
+  - slow_3:
+      plugin: shell
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      partition: "{{ SLURM_QUEUE }}"
+      walltime: "00:30:00"
+      path: "{{ SIROCCO_SCRIPTS_DIR | default('scripts') }}/slow_task.sh"
+      command: "bash slow_task.sh slow_3 {{ SLOW_TIME }}"
+
+data:
+
+  generated:
+    - root_output:
+        path: root_output
+    - fast_1_output:
+        path: fast_1_output
+    - fast_2_output:
+        path: fast_2_output
+    - fast_3_output:
+        path: fast_3_output
+    - slow_1_output:
+        path: slow_1_output
+    - slow_2_output:
+        path: slow_2_output
+    - slow_3_output:
+        path: slow_3_output

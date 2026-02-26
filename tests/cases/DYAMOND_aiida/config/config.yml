@@ -1,0 +1,166 @@
+---
+name: DYAMOND_short
+start_date: &root_start_date '2020-01-20T00:00:00'
+stop_date: &root_stop_date '2020-01-20T00:01:30'
+# stop_date: &root_stop_date '2021-01-20T00:00:00'
+# scheduler: slurm
+front_depth: 1
+
+cycles:
+  - icon:
+      cycling:
+        start_date: *root_start_date
+        stop_date: *root_stop_date
+        # period: PT6H
+        period: PT30S
+      tasks:
+        - prepare_input:
+            inputs:
+              - tmp_data_pool:
+                  port: data_pool
+              - sst_ice_dir:
+                  port: sst_ice_dir
+              - ozone_dir:
+                  port: ozone_dir
+              - aero_kinne_dir:
+                  port: aero_kine_dir
+            outputs:
+              - icon_link_input:
+                  port: icon_input
+            wait_on:
+              - icon:
+                  when:
+                    # after: '2020-01-20T06:00:00'
+                    after: '2020-02-20T00:00:30'
+                  target_cycle:
+                    # lag: '-PT12H'
+                    lag: '-PT1M'
+        - icon:
+            inputs:
+              - icon_link_input:
+                  port: link_dir_contents
+              - ecrad_data:
+                  port: ecrad_data
+              - ECHAM6_CldOptProps:
+                  port: cloud_opt_props
+              - rrtmg_lw:
+                  port: rrtmg_lw
+              - icon_grid:
+                  port: dynamics_grid_file
+              - extpar_file:
+                  port: extpar_file
+              - analysis_file:
+                  port: ifs2icon
+              - restart:
+                  when:
+                    after: *root_start_date
+                  target_cycle:
+                    # lag: -PT6H
+                    lag: -PT30S
+                  port: restart_file
+            outputs:
+              - restart:
+                  port: latest_restart_file
+              - stream_1:
+                  port: output_streams
+              - stream_2:
+                  port: output_streams
+        - post_proc:
+            inputs:
+              - stream_1:
+                  port: stream
+              - stream_2:
+                  port: stream
+
+tasks:
+  # - ROOT:
+  #     computer: "{{ SIROCCO_COMPUTER }}"
+  #     account: "{{ SLURM_ACCOUNT }}"
+  - prepare_input:
+      plugin: shell
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      walltime: 00:05:00
+      nodes: 1
+      ntasks_per_node: 4
+      cpus_per_task: 72
+      path: ./scripts/prepare_input.sh
+      command: ./prepare_input.sh --pool={PORT::data_pool}  --sst-ice={PORT::sst_ice_dir} --ozone={PORT::ozone_dir} --aero-kine={PORT::aero_kine_dir} --icon-input={PORT::icon_input}
+  - icon:
+      plugin: icon
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      bin: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/bin/icon
+      uenv: icon/25.2:v3
+      walltime: 01:00:00
+      nodes: 1
+      # TODO: Unify this between workgraph & aiida-icon and standalone
+      ntasks_per_node: 3  # Reduced from 4: 2 compute + 1 I/O  # NOTE: this should be set to 4 for GPUs
+      cpus_per_task: 72  # NOTE: this should be set to 1 for GPUs
+      mem: 240000  # Increased memory for R02B06 grid
+      # target: santis_gpu  # NOTE: This would be the AiiDA computer?
+      # NOTE: Still working with `bin` entry currently
+      # bin_cpu: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/bin/icon
+      # bin_gpu: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_gpu_25.2-v3/bin/icon
+      namelists:
+        - ../ICON/icon_master.namelist
+        - ../ICON/NAMELIST_DYAMOND_R02B06L120:
+            radiation_nml:
+              ecrad_isolver: 0  # 0 for cpu, 2 for gpu
+            parallel_nml:
+              num_io_procs: 1  # Re-enabled: needed to avoid ICON bug with synchronous I/O
+  - post_proc:
+      plugin: shell
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+      # Below not needed
+      # uenv: /capstor/store/cscs/userlab/cws01/uenvs/climtools_25.2_v2.sqfs
+      # view: default
+      # NOTE: if this is a directory, copy the whole directory over
+      # NOTE: This leads to a `uenv` AiiDA Code
+
+      # TODO: Enforce that path is relative, if given
+      path: ./scripts/post_proc.sh
+      command: "post_proc.sh {PORT::stream}"
+
+data:
+  available:
+     - icon_grid:
+         computer: "{{ SIROCCO_COMPUTER }}"
+         path: /capstor/store/cscs/userlab/cwd01/leclairm/Sirocco_test_data/R02B06/icon_grid_0021_R02B06_G.nc
+     - analysis_file:
+         computer: "{{ SIROCCO_COMPUTER }}"
+         path: /capstor/store/cscs/userlab/cwd01/leclairm/Sirocco_test_data/R02B06/initial_conditions/ifs2icon_2020012000_0021_R02B06_G.nc
+     - sst_ice_dir:
+         computer: "{{ SIROCCO_COMPUTER }}"
+         path: /capstor/store/cscs/userlab/cwd01/leclairm/Sirocco_test_data/R02B06/sst_and_seaice/r0001
+     - ozone_dir:
+         computer: "{{ SIROCCO_COMPUTER }}"
+         path: /capstor/store/cscs/userlab/cwd01/leclairm/Sirocco_test_data/R02B06/ozone/r0001
+     - aero_kinne_dir:
+         computer: "{{ SIROCCO_COMPUTER }}"
+         path: /capstor/store/cscs/userlab/cwd01/leclairm/Sirocco_test_data/R02B06/aerosol_kinne/r0001
+     - extpar_file:
+         computer: "{{ SIROCCO_COMPUTER }}"
+        # TODO: Use this, instead of retrieving from namelist in aiida-icon (or at least as deafult)
+         path: /capstor/store/cscs/userlab/cwd01/leclairm/Sirocco_test_data/R02B06/external_parameter/external_parameter_icon_0021_R02B06_G_tiles.nc
+     - rrtmg_lw:
+         computer: "{{ SIROCCO_COMPUTER }}"
+         path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/data/rrtmg_lw.nc
+     - ECHAM6_CldOptProps:
+         computer: "{{ SIROCCO_COMPUTER }}"
+         path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/data/ECHAM6_CldOptProps.nc
+     - ecrad_data:
+         computer: "{{ SIROCCO_COMPUTER }}"
+         path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/externals/ecrad/data
+     - tmp_data_pool:
+         computer: "{{ SIROCCO_COMPUTER }}"
+         # TODO: Put anything here
+         # Don't just symlink always from /store, but use this tmp_data_pool instead
+         path: /capstor/scratch/cscs/jgeiger/DYAMOND_input
+  generated:
+     - icon_link_input:
+         path: 'icon_input'
+     - stream_1: {}
+     - stream_2: {}
+     - restart: {}
