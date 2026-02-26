@@ -9,7 +9,7 @@
 name: dynamic_deps_complex
 start_date: &cycle_start '2026-01-01T00:00'
 stop_date: &cycle_stop '2026-03-01T00:00'
-front_depth: 1
+front_depth: 2
 
 cycles:
   # Initialization cycle (runs once)

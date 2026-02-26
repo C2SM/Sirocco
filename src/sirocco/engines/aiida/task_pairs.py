@@ -190,6 +190,7 @@ class TaskPairContext:
         # Store the outputs namespace for dependent tasks
         self._dependency_outputs[task_label] = dep_task.outputs
 
+        # NOTE: Verify this myself again!!
         # Chain with previous dependency tasks
         for dep_label in dependencies.task_folders:
             if dep_label in self._dependency_tasks:
