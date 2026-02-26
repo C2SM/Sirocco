@@ -1012,6 +1012,9 @@ class ConfigWorkflow(BaseModel):
         if template_context:
             context.update(template_context)
 
+        # Store original content to detect if templating actually changed anything
+        original_content = content
+
         # Render the template
         try:
             content = resolver.render(content, context)
@@ -1020,9 +1023,12 @@ class ConfigWorkflow(BaseModel):
             msg = f"Failed to render Jinja2 template {config_resolved_path}: {e.args[0].split(': ', 1)[-1]}"
             raise ValueError(msg) from e.__cause__
 
-        # Write resolved config to disk for reproducibility
-        resolved_config_path = config_resolved_path.parent / f"{config_resolved_path.stem}.resolved.yml"
-        resolved_config_path.write_text(content)
+        # Only write resolved config if templating actually changed the content
+        resolved_config_path_str: str | None = None
+        if content != original_content:
+            resolved_config_path = config_resolved_path.parent / f"{config_resolved_path.stem}.resolved.yml"
+            resolved_config_path.write_text(content)
+            resolved_config_path_str = str(resolved_config_path)
 
         # Parse YAML and validate
         reader = YAML(typ="safe", pure=True)
@@ -1031,7 +1037,7 @@ class ConfigWorkflow(BaseModel):
             object_["name"] = config_filename
         object_["rootdir"] = config_resolved_path.parent
         object_["config_filename"] = Path(config_path).name
-        object_["resolved_config_path"] = str(resolved_config_path)  # Store path to resolved config
+        object_["resolved_config_path"] = resolved_config_path_str
         adapter = TypeAdapter(cls)
         return adapter.validate_python(object_)
 
