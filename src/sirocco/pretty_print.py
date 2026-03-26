@@ -1,11 +1,13 @@
 import dataclasses
 import functools
 import textwrap
-from typing import Any
+from dataclasses import is_dataclass
+from typing import Any, Literal
 
 from termcolor import colored
 
 from sirocco import core
+from sirocco.parsing.cycling import CyclePoint
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -21,71 +23,21 @@ class PrettyPrinter:
     indentation: int = 2  # how many spaces to indent block content by
     colors: bool = False  # True for color output (term control chars)
 
-    def indent(self, string: str) -> str:
+    def indent(self, string: str, offset: int = 0) -> str:
         """Indent by the amount set on the instance"""
-        return textwrap.indent(string, prefix=" " * self.indentation)
+        return textwrap.indent(string, prefix=" " * (self.indentation + offset))
 
-    def as_block(self, header: str, body: str) -> str:
-        """
-        Format as a block with a header line and indented lines of block body text.
+    def dataclass_to_dict(self, obj: Any, exclude: list[str] | None = None) -> dict[str, Any]:
+        """Convert dataclass to dict before formatting"""
+        if exclude is None:
+            exclude = []
+        return {
+            field_name: getattr(obj, field_name)
+            for field_name, field in obj.__dataclass_fields__.items()
+            if field.repr and field_name not in exclude
+        }
 
-        Example:
-
-        >>> print(PrettyPrinter().as_block("header", "foo\\nbar"))
-        header:
-          foo
-          bar
-        """
-        return f"{header}:\n{self.indent(body)}" if body else f"{header}:"
-
-    def as_item(self, content: str) -> str:
-        """
-        Format as an item in an unordered list.
-
-        Works for single lines as well as multi line (block) content.
-
-        Example:
-
-        >>> print(PrettyPrinter().as_item("foo"))
-        - foo
-
-        >>> pp = PrettyPrinter()
-        >>> print(pp.as_item(pp.as_block("header", "multiple\\nlines\\nof text")))
-        - header:
-            multiple
-            lines
-            of text
-        """
-        if not content:
-            return "- "
-        lines = content.splitlines()
-        if len(lines) == 1:
-            return f"- {content}"
-        header = lines[0]
-        body = textwrap.indent("\n".join(lines[1:]), prefix="  ")
-        return f"- {header}\n{body}"
-
-    @functools.singledispatchmethod
-    def format(self, obj: Any) -> str:
-        """
-        Dispatch formatting based on node type.
-
-        Default implementation simply calls str()
-        """
-        from datetime import datetime
-
-        # Format dicts with datetime values as ISO strings for readability
-        if isinstance(obj, dict):
-            formatted_items = []
-            for key, value in obj.items():
-                formatted_value = str(value) if isinstance(value, datetime) else repr(value)
-                formatted_items.append(f"{key!r}: {formatted_value}")
-            return "{" + ", ".join(formatted_items) + "}"
-        # this prevents empty strings being not visibly displayed
-        return repr(obj) if isinstance(obj, str) else str(obj)
-
-    @format.register
-    def format_basic(self, obj: core.GraphItem) -> str:
+    def graphitem_label(self, obj: core.GraphItem) -> str:
         """
         Default formatting for GraphItem.
 
@@ -96,26 +48,26 @@ class PrettyPrinter:
         >>> from datetime import datetime
         >>> import pathlib
         >>> from sirocco.parsing.cycling import DateCyclePoint
-        >>> from datetime import UTC, datetime
         >>> print(
-        ...     PrettyPrinter().format_basic(
+        ...     PrettyPrinter().graphitem_label(
         ...         core.Task(
         ...             name="foo",
         ...             computer="localhost",
         ...             config_rootdir=pathlib.Path("."),
         ...             cycle_point=DateCyclePoint(
-        ...                 start_date=datetime(1000, 1, 1, tzinfo=UTC),
-        ...                 stop_date=datetime(1000, 1, 2, tzinfo=UTC),
-        ...                 chunk_start_date=datetime(1000, 1, 1, tzinfo=UTC),
-        ...                 chunk_stop_date=datetime(1000, 1, 2, tzinfo=UTC),
+        ...                 start_date=datetime(1000, 1, 1),
+        ...                 stop_date=datetime(1000, 1, 2),
+        ...                 chunk_start_date=datetime(1000, 1, 1),
+        ...                 chunk_stop_date=datetime(1000, 1, 2),
         ...                 period="P1D",
         ...             ),
-        ...             coordinates={"date": datetime(1000, 1, 1, tzinfo=UTC).date()},
+        ...             coordinates={"date": datetime(1000, 1, 1).date()},
         ...         )
         ...     )
         ... )
         foo [date: 1000-01-01]
         """
+
         name = obj.name
         if obj.coordinates:
             coords = ", ".join([f"{name}: {value}" for name, value in obj.coordinates.items()])
@@ -127,80 +79,112 @@ class PrettyPrinter:
             coords = colored(coords, obj.color) if coords else None
         return f"{name} {coords}" if coords else name
 
+    @functools.singledispatchmethod
+    def format(
+        self,
+        obj: Any,
+        parent: Literal["none", "list", "dict", "list_first_dict_item"],
+        exclude: list[str] | None = None,
+    ) -> str:
+        """
+        Dispatch formatting based on node type.
+
+        Default implementation:
+        - turn dataclasses into dicts
+        - otherwise simply call str()
+        """
+        if is_dataclass(obj):
+            return self.format_dict(self.dataclass_to_dict(obj, exclude=exclude), parent=parent)
+        if isinstance(obj, str) and "\x1b[" not in obj:
+            return " " + repr(obj)
+        else:
+            return " " + str(obj)
+
+    @format.register
+    def format_dict(
+        self,
+        obj: dict,
+        parent: Literal["none", "list", "dict", "list_first_dict_item"],
+        exclude: list[str] | None = None,
+    ) -> str:
+        """
+        Format dictionnaries
+        """
+
+        if exclude is None:
+            exclude = []
+        dict_to_format = {k: v for k, v in obj.items() if k not in exclude and v is not None}
+        if len(dict_to_format) == 0:
+            return " {}"
+        match parent:
+            case "none" | "dict" | "list_first_dict_item":
+                sections = (f"{key}:{self.format(value, parent='dict')}" for key, value in dict_to_format.items())
+                match parent:
+                    case "none":
+                        return "\n".join(sections)
+                    case "dict":
+                        return "\n" + self.indent("\n".join(sections))
+                    case "list_first_dict_item":
+                        return "\n" + self.indent("\n".join(sections), offset=2)
+            case "list":
+                iter_items = iter(obj.items())
+                key, value = next(iter_items)
+                first_section = f" {key}:{self.format(value, parent='list_first_dict_item')}"
+                if len(dict_to_format) == 1:
+                    return first_section
+                next_sections = (f"{key}:{self.format(value, parent='dict')}" for key, value in iter_items)
+                return "\n".join((first_section, self.indent("\n".join(next_sections))))
+
+    @format.register
+    def format_list(self, obj: list, parent: Literal["none", "list", "dict", "list_first_dict_item"]) -> str:
+        """
+        Format lists
+        """
+
+        if len(obj) == 0:
+            return " []"
+        sections = (f"-{self.format(item, parent='list')}" for item in obj)
+        match parent:
+            case "none":
+                return "\n".join(sections)
+            case "list" | "dict":
+                return "\n" + self.indent("\n".join(sections))
+            case "list_first_dict_item":
+                return "\n" + self.indent("\n".join(sections), offset=2)
+
     @format.register
     def format_workflow(self, obj: core.Workflow) -> str:
-        cycles = "\n".join(self.format(cycle) for cycle in obj.cycles)
-        return self.as_block("cycles", cycles)
+        return self.format({"cycles": list(obj.cycles)}, parent="none")
 
     @format.register
-    def format_cycle(self, obj: core.Cycle) -> str:
-        tasks = self.as_block("tasks", "\n".join(self.format(task) for task in obj.tasks))
-        return self.as_item(self.as_block(self.format_basic(obj), tasks))
+    def format_cycle(self, obj: core.Cycle, parent: Literal["none", "list", "dict", "list_first_dict_item"]) -> str:
+        return self.format(
+            {self.graphitem_label(obj): self.dataclass_to_dict(obj, exclude=["name", "coordinates"])}, parent=parent
+        )
 
     @format.register
-    def format_component(self, obj: core.TaskComponent) -> str:
-        sections: list[str] = []
-        sections.append(
-            self.as_block(
-                "inputs",
-                "\n".join(
-                    self.as_block(
-                        port,
-                        "\n".join(self.as_item(self.format_basic(data)) for data in data_list) if data_list else "",
-                    )
-                    for port, data_list in obj.inputs.items()
-                ),
-            )
-        )
-        sections.append(
-            self.as_block(
-                "outputs",
-                "\n".join(
-                    self.as_block(
-                        port,
-                        "\n".join(self.as_item(self.format_basic(data)) for data in data_list) if data_list else "",
-                    )
-                    for port, data_list in obj.outputs.items()
-                ),
-            ),
-        )
-        return "\n".join(sections)
-
-    @format.register
-    def format_task(self, obj: core.Task) -> str:
-        sections: list[str] = []
-        sections.append(
-            self.as_block(
-                "components", "\n".join(self.as_block(name, self.format(comp)) for name, comp in obj.components.items())
-            )
-        )
+    def format_task(self, obj: core.Task, parent: Literal["none", "list", "dict", "list_first_dict_item"]) -> str:
+        obj_dict = self.dataclass_to_dict(obj, exclude=["name", "coordinates", "config_rootdir", "RUN_ROOT"])
         if obj.wait_on:
-            sections.append(
-                self.as_block(
-                    "wait on",
-                    "\n".join(self.as_item(self.format_basic(waiton)) for waiton in obj.wait_on),
-                )
-            )
+            obj_dict["wait_on"] = [self.graphitem_label(task) for task in obj.wait_on]
+        else:
+            del(obj_dict["wait_on"])
+        return self.format({self.graphitem_label(obj): obj_dict}, parent=parent)
 
-        # Handling remaining member variables
-        repr_attrs = [field_name for field_name, field in obj.__dataclass_fields__.items() if field.repr]
-        # removing attributs that are specifically handled above
-        repr_attrs.remove("components")
-        repr_attrs.remove("wait_on")
-        repr_attrs.remove("config_rootdir")
-        repr_attrs.remove("RUN_ROOT")
+    @format.register
+    def format_data(self, obj: core.Data, parent: Literal["none", "list", "dict", "list_first_dict_item"]) -> str:  # noqa: ARG002
+        return " " + self.graphitem_label(obj)
 
-        for attr_name in repr_attrs:
-            attr = getattr(obj, attr_name)
-            if attr is None:
-                continue
-            formatted_attr = self.format(attr)
-            formatted_attr_name = attr_name.replace("_", " ")
-            sections.append(f"{formatted_attr_name}: {formatted_attr}")
+    @format.register
+    def format_namelist(
+        self,
+        obj: core.NamelistFile,
+        parent: Literal["none", "list", "dict", "list_first_dict_item"],  # noqa: ARG002
+    ) -> str:
+        return " " + obj.name
 
-        return self.as_item(
-            self.as_block(
-                self.format_basic(obj),
-                "\n".join(sections),
-            )
-        )
+    @format.register
+    def format_cycle_point(
+        self, obj: CyclePoint, parent: Literal["none", "list", "dict", "list_first_dict_item"]
+    ) -> str:  # noqa: ARG002
+        return " " + str(obj)

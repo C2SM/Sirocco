@@ -661,18 +661,38 @@ class ConfigNamelistFile(BaseModel, ConfigNamelistFileSpec):
 
 
 @dataclass(kw_only=True)
+class ConfigIconTaskDistribution:
+    cpu: ConfigIconTaskExe | None = None
+    gpu: ConfigIconTaskExe | None = None
+    sperate_io_nodes: bool = True
+    io_tasks_per_node: int = 0
+
+
+@dataclass(kw_only=True)
+class ConfigIconTaskExe:
+    compute_weights: dict[str, int] = field(default_factory=dict)
+    prefetch: int = 0
+    restart: int = 0
+    streams: int | Literal["one_per_stream"] = 0
+    compute_tasks_per_node: int = 0
+    compute_layout: Literal["block", "load_balanced"] = "block"
+
+
+@dataclass(kw_only=True)
 class ConfigIconTaskSpecs:
     plugin: ClassVar[Literal["icon"]] = "icon"
-    bin: Path | None = field(repr=True, default=None)
-    bin_cpu: Path | None = field(repr=True, default=None)
-    bin_gpu: Path | None = field(repr=True, default=None)
+    # NOTE: remove bin, only kept for compatibility with AiiDA for now
+    bin: Annotated[Path | None, AfterValidator(is_absolute_path)] = field(repr=True, default=None)
+    bin_cpu: Annotated[Path | None, AfterValidator(is_absolute_path)] = field(repr=True, default=None)
+    bin_gpu: Annotated[Path | None, AfterValidator(is_absolute_path)] = field(repr=True, default=None)
+    # NOTE: remove wrapper_script, only kept for compatibility with AiiDA for now
     wrapper_script: Path | None = field(
         default=None,
         repr=False,
         metadata={"description": "Path to wrapper script file relative to the config directory or absolute."},
     )
-    # NOTE: This is hard-coded still to CSCS...
-    target: Literal["santis_cpu", "santis_gpu"] | None = field(
+    # FIXME: remove "santis_" from target name, use computer as prefix
+    target: Literal["santis_cpu", "santis_gpu", "santis_hybrid"] | None = field(
         default=None,
         metadata={
             "description": "Use a predefined setup for the target machine. Ignore mpi_command, wrapper_script and env"
@@ -685,6 +705,7 @@ class ConfigIconTaskSpecs:
             "description": "Path relative to config dir containing runtime files (environment setup, mpi command, etc...)"
         },
     )
+    task_distribution: ConfigIconTaskDistribution | None = None
 
 
 class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
@@ -713,6 +734,8 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
 
     # We need to loosen up the extra='forbid' flag because of the plugin class var
     model_config = ConfigDict(**ConfigBaseTask.model_config | {"extra": "ignore"})
+    # Keep namelists here and not in ConfigIconTaskSpecs as the namelists attribute
+    # gets also defined in core.IconTask which inherits from ConfigIconTaskSpecs
     namelists: list[ConfigNamelistFile]
 
     @field_validator("namelists", mode="after")
@@ -724,11 +747,6 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
             msg = "icon_master.namelist not found"
             raise ValueError(msg)
         return nmls
-
-    @field_validator("bin", "bin_cpu", "bin_gpu", mode="after")
-    @classmethod
-    def check_is_absolute_path(cls, value: Path | None) -> Path | None:
-        return is_absolute_path(value)
 
     @model_validator(mode="after")
     def check_bin_present(self) -> ConfigIconTask:

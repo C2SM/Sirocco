@@ -84,7 +84,8 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
             self.wrapper_script = self._validate_wrapper_script(self.wrapper_script, self.config_rootdir)
 
         # Set default MPI variables
-        self.nodes = 1 if self.nodes is None else self.nodes
+        if self.nodes is None:
+            self.nodes = 1
         if self.ntasks_per_node is None:
             match self.target:
                 case "santis_cpu":
@@ -266,6 +267,8 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         self.update_icon_namelists_from_workflow()
         return self
 
+    # FIXME: remove this validation. If provided, the wrapper script can only be part of the config.
+    #        Or move it to the parsing with a check for relative path + existence
     def _validate_wrapper_script(self, wrapper_script: Path, config_rootdir: Path) -> Path:
         """Validate and resolve wrapper script path"""
         resolved_path = wrapper_script if wrapper_script.is_absolute() else config_rootdir / wrapper_script

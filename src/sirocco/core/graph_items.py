@@ -127,7 +127,6 @@ class GeneratedData(Data, ConfigGeneratedDataSpecs):
 class TaskComponent:
     """Internal representation of a task component"""
 
-    name: str
     inputs: dict[str, list[Data]]
     outputs: dict[str, list[GeneratedData]]
 
@@ -216,7 +215,6 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
             cycle_point=cycle_point,
             components={
                 comp_name: TaskComponent(
-                    name=comp_name,
                     inputs={
                         port: [
                             *chain(*(datastore.iter_from_cycle_spec(data_spec, coordinates) for data_spec in data_list))

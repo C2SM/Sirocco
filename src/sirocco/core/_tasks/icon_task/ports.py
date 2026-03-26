@@ -1,6 +1,6 @@
 import enum
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import ClassVar, Self
 
@@ -22,6 +22,7 @@ class IconModel:
     task_label: str
     namelist: NamelistFile
     model_type: ModelType
+    n_tasks: int = field(init=False)
 
     @property
     def inputs(self) -> dict[str, list[Data]]:
@@ -190,6 +191,7 @@ def finish_status_handler_callable(port_name: str, model: IconModel) -> None:  #
         msg = "port finish_status accepts one and only one data object"
         raise ValueError(msg)
     model.outputs["finish_status"][0].resolved_path = model.task_run_dir / f"finish_{model.name}.status"
+
 
 finish_status_handler = PortHandler(
     port_name="finish_status",

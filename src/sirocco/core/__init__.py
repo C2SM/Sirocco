@@ -9,6 +9,7 @@ from .graph_items import (
     Task,
     TaskComponent,
 )
+from .namelistfile import NamelistFile
 from .workflow import Workflow
 
 __all__ = [
@@ -19,6 +20,7 @@ __all__ = [
     "GraphItem",
     "IconTask",
     "MpiCmdPlaceholder",
+    "NamelistFile",
     "ShellTask",
     "SiroccoContinueTask",
     "Task",
