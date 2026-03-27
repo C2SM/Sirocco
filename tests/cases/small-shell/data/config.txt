@@ -15,7 +15,7 @@ cycles:
             cycle point: [2026-01-01 00:00:00+00:00 -- 2026-03-01 00:00:00+00:00]
             plugin: 'shell'
             command: 'python icon.py [--restart {PORT::restart_in}] [--init {PORT::init}]'
-  - bimonthly_tasks [date: 2026-03-01 00:00:00]:
+  - bimonthly_tasks [date: 2026-03-01 00:00:00+00:00]:
       tasks:
         - icon [date: 2026-03-01 00:00:00+00:00]:
             input:
@@ -31,7 +31,7 @@ cycles:
             cycle point: [2026-03-01 00:00:00+00:00 -- 2026-05-01 00:00:00+00:00]
             plugin: 'shell'
             command: 'python icon.py [--restart {PORT::restart_in}] [--init {PORT::init}]'
-  - bimonthly_tasks [date: 2026-05-01 00:00:00]:
+  - bimonthly_tasks [date: 2026-05-01 00:00:00+00:00]:
       tasks:
         - icon [date: 2026-05-01 00:00:00+00:00]:
             input:

@@ -58,26 +58,28 @@ cycles:
               out: [yearly_analysis]
 
 tasks:
+  - ROOT:
+      computer: "{{ SIROCCO_COMPUTER }}"
   - icon:
       plugin: shell
-      computer: "{{ SIROCCO_COMPUTER }}"
+      # computer: "{{ SIROCCO_COMPUTER }}"
       path: scripts/icon.py
       command: "python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}"
       parameters: [foo, bar]
   - statistics_foo:
       plugin: shell
-      computer: "{{ SIROCCO_COMPUTER }}"
+      # computer: "{{ SIROCCO_COMPUTER }}"
       path: scripts/statistics.py
       command: "python statistics.py {PORT::dummy}"
       parameters: [bar]
   - statistics_foo_bar:
       plugin: shell
-      computer: "{{ SIROCCO_COMPUTER }}"
+      # computer: "{{ SIROCCO_COMPUTER }}"
       path: scripts/statistics.py
       command: "python statistics.py {PORT::dummy}"
   - merge:
       plugin: shell
-      computer: "{{ SIROCCO_COMPUTER }}"
+      # computer: "{{ SIROCCO_COMPUTER }}"
       path: scripts/merge.py
       command: "python merge.py {PORT::dummy}"
 

@@ -25,7 +25,7 @@ def test_invert_task_io_workflow(minimal_invert_task_io_config):
 
 def test_parse_config_file(config_paths, pprinter):
     """Test parsing workflow from YAML config file and comparing with reference output."""
-    reference_str = config_paths["txt"].read_text()
+    reference_str = config_paths["txt"].read_text().rstrip()
     test_str = pprinter.format(
         Workflow.from_config_file(config_paths["yml"], template_context=config_paths["variables"])
     )

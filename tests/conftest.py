@@ -434,15 +434,15 @@ def workflow_with_dependencies(tmp_path):
               tasks:
                 - task_a:
                     outputs:
-                      - output_a
+                      dummy: [output_a]
                 - task_b:
                     inputs:
-                      - output_a: {port: input_file}
+                      input_file: [output_a]
                     outputs:
-                      - output_b
+                      dummy: [output_b]
                 - task_c:
                     inputs:
-                      - output_b: {port: data_file}
+                      data_file: [output_b]
         tasks:
           - task_a:
               plugin: shell

@@ -12,37 +12,38 @@ cycles:
         period: P1D
       tasks:
         - root:
-            outputs: [root_output]
+            outputs:
+              dummy: [root_output]
         - fast_1:
             inputs:
-              - root_output:
-                  port: root_data
-            outputs: [fast_1_output]
+              root_data: [root_output]
+            outputs:
+              dummy: [fast_1_output]
         - fast_2:
             inputs:
-              - fast_1_output:
-                  port: fast_1_data
-            outputs: [fast_2_output]
+              fast_1_data: [fast_1_output]
+            outputs:
+              dummy: [fast_2_output]
         - fast_3:
             inputs:
-              - fast_2_output:
-                  port: fast_2_data
-            outputs: [fast_3_output]
+              fast_2_data: [fast_2_output]
+            outputs:
+              dummy: [fast_3_output]
         - slow_1:
             inputs:
-              - root_output:
-                  port: root_data
-            outputs: [slow_1_output]
+              root_data: [root_output]
+            outputs:
+              dummy: [slow_1_output]
         - slow_2:
             inputs:
-              - slow_1_output:
-                  port: slow_1_data
-            outputs: [slow_2_output]
+              slow_1_data: [slow_1_output]
+            outputs:
+              dummy: [slow_2_output]
         - slow_3:
             inputs:
-              - slow_2_output:
-                  port: slow_2_data
-            outputs: [slow_3_output]
+              slow_2_data: [slow_2_output] 
+            outputs:
+              dummy: [slow_3_output]
 
 tasks:
 

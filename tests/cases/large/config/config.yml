@@ -84,10 +84,7 @@ tasks:
       # All tasks inherit the root task properties
       computer: "{{ SIROCCO_COMPUTER }}" # TODO root task does not pass specs currently, see C2SM/Sirocco/issues/7
   - extpar:
-      plugin: shell  # no extpar plugin available yet
-  - extpar:
       plugin: shell
-      computer: remote
       path: scripts/extpar
       command: "extpar --verbose --in {PORT::obs} --out {PORT::out}"
       nodes: 1
