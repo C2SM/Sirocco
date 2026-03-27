@@ -34,15 +34,15 @@ cycles:
                   target_cycle:
                     date: 2026-05-01T00:00
 tasks:
+  - ROOT:
+      computer: "{{ SIROCCO_COMPUTER }}"
   - icon:
       plugin: shell
-      computer: "{{ SIROCCO_COMPUTER }}"
       path: scripts/icon.py
       command: "python icon.py [--restart {PORT::restart_in}] [--init {PORT::init}]"
       uenv: "icon-wcp/v1:rc4"
   - cleanup:
       plugin: shell
-      computer: "{{ SIROCCO_COMPUTER }}"
       path: scripts/cleanup.py
       command: "python cleanup.py"
 data:

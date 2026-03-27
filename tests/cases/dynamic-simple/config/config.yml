@@ -47,59 +47,42 @@ cycles:
 
 tasks:
 
-  - root:
-      plugin: shell
+  - ROOT:
       computer: "{{ SIROCCO_COMPUTER }}"
       account: "{{ SLURM_ACCOUNT }}"
       partition: "{{ SLURM_QUEUE }}"
+  - root:
+      plugin: shell
       walltime: "00:30:00"
       path: "{{ SIROCCO_SCRIPTS_DIR | default('scripts') }}/fast_task.sh"
       command: "bash fast_task.sh root {{ FAST_TIME }}"
   - fast_1:
       plugin: shell
-      computer: "{{ SIROCCO_COMPUTER }}"
-      account: "{{ SLURM_ACCOUNT }}"
-      partition: "{{ SLURM_QUEUE }}"
       walltime: "00:30:00"
       path: "{{ SIROCCO_SCRIPTS_DIR | default('scripts') }}/fast_task.sh"
       command: "bash fast_task.sh fast_1 {{ FAST_TIME }}"
   - fast_2:
       plugin: shell
-      computer: "{{ SIROCCO_COMPUTER }}"
-      account: "{{ SLURM_ACCOUNT }}"
-      partition: "{{ SLURM_QUEUE }}"
       walltime: "00:30:00"
       path: "{{ SIROCCO_SCRIPTS_DIR | default('scripts') }}/fast_task.sh"
       command: "bash fast_task.sh fast_2 {{ FAST_TIME }}"
   - fast_3:
       plugin: shell
-      computer: "{{ SIROCCO_COMPUTER }}"
-      account: "{{ SLURM_ACCOUNT }}"
-      partition: "{{ SLURM_QUEUE }}"
       walltime: "00:30:00"
       path: "{{ SIROCCO_SCRIPTS_DIR | default('scripts') }}/fast_task.sh"
       command: "bash fast_task.sh fast_3 {{ FAST_TIME }}"
   - slow_1:
       plugin: shell
-      computer: "{{ SIROCCO_COMPUTER }}"
-      account: "{{ SLURM_ACCOUNT }}"
-      partition: "{{ SLURM_QUEUE }}"
       walltime: "00:30:00"
       path: "{{ SIROCCO_SCRIPTS_DIR | default('scripts') }}/slow_task.sh"
       command: "bash slow_task.sh slow_1 {{ SLOW_TIME }}"
   - slow_2:
       plugin: shell
-      computer: "{{ SIROCCO_COMPUTER }}"
-      account: "{{ SLURM_ACCOUNT }}"
-      partition: "{{ SLURM_QUEUE }}"
       walltime: "00:30:00"
       path: "{{ SIROCCO_SCRIPTS_DIR | default('scripts') }}/slow_task.sh"
       command: "bash slow_task.sh slow_2 {{ SLOW_TIME }}"
   - slow_3:
       plugin: shell
-      computer: "{{ SIROCCO_COMPUTER }}"
-      account: "{{ SLURM_ACCOUNT }}"
-      partition: "{{ SLURM_QUEUE }}"
       walltime: "00:30:00"
       path: "{{ SIROCCO_SCRIPTS_DIR | default('scripts') }}/slow_task.sh"
       command: "bash slow_task.sh slow_3 {{ SLOW_TIME }}"
