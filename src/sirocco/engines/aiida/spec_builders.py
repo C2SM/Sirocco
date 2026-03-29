@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import io
+from itertools import chain
 import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -386,7 +387,9 @@ class IconTaskSpecBuilder(TaskSpecBuilder):
             Dict mapping data names (labels) to their ICON output port names
         """
         mapper = PortLabelMapper()
-        for port_name, output_list in self.task.outputs.items():
+        # NOTE: ports can be dupplicated accross components (e.g. restart, output_streams).
+        #       This is a temporary workaround until aiida-icon implements components
+        for port_name, output_list in chain(*(comp.outputs.items() for comp in self.task.components.values())):
             if port_name is not None:
                 for data in output_list:
                     mapper.add(port_name, data.name)

@@ -1,9 +1,9 @@
 cycles:
-  - bimonthly_tasks [date: 2026-01-01 00:00:00]:
+  - bimonthly_tasks [date: 2026-01-01 00:00:00+00:00]:
       tasks:
-        - icon [foo: 0, bar: 3.0, date: 2026-01-01 00:00:00]:
+        - icon [foo: 0, bar: 3.0, date: 2026-01-01 00:00:00+00:00]:
             computer: 'remote'
-            cycle_point: [2026-01-01 00:00:00 -- 2026-07-01 00:00:00]
+            cycle_point: [2026-01-01 00:00:00+00:00 -- 2026-07-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
                 inputs:
@@ -14,14 +14,14 @@ cycles:
                     - forcing
                 outputs:
                   out:
-                    - icon_output [foo: 0, bar: 3.0, date: 2026-01-01 00:00:00]
+                    - icon_output [foo: 0, bar: 3.0, date: 2026-01-01 00:00:00+00:00]
                   restart_out:
-                    - icon_restart [foo: 0, bar: 3.0, date: 2026-01-01 00:00:00]
+                    - icon_restart [foo: 0, bar: 3.0, date: 2026-01-01 00:00:00+00:00]
             plugin: 'shell'
             command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
-        - icon [foo: 1, bar: 3.0, date: 2026-01-01 00:00:00]:
+        - icon [foo: 1, bar: 3.0, date: 2026-01-01 00:00:00+00:00]:
             computer: 'remote'
-            cycle_point: [2026-01-01 00:00:00 -- 2026-07-01 00:00:00]
+            cycle_point: [2026-01-01 00:00:00+00:00 -- 2026-07-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
                 inputs:
@@ -32,262 +32,262 @@ cycles:
                     - forcing
                 outputs:
                   out:
-                    - icon_output [foo: 1, bar: 3.0, date: 2026-01-01 00:00:00]
+                    - icon_output [foo: 1, bar: 3.0, date: 2026-01-01 00:00:00+00:00]
                   restart_out:
-                    - icon_restart [foo: 1, bar: 3.0, date: 2026-01-01 00:00:00]
+                    - icon_restart [foo: 1, bar: 3.0, date: 2026-01-01 00:00:00+00:00]
             plugin: 'shell'
             command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
-        - statistics_foo [bar: 3.0, date: 2026-01-01 00:00:00]:
+        - statistics_foo [bar: 3.0, date: 2026-01-01 00:00:00+00:00]:
             computer: 'remote'
-            cycle_point: [2026-01-01 00:00:00 -- 2026-07-01 00:00:00]
+            cycle_point: [2026-01-01 00:00:00+00:00 -- 2026-07-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
                 inputs:
                   dummy:
-                    - icon_output [foo: 0, bar: 3.0, date: 2026-01-01 00:00:00]
-                    - icon_output [foo: 1, bar: 3.0, date: 2026-01-01 00:00:00]
+                    - icon_output [foo: 0, bar: 3.0, date: 2026-01-01 00:00:00+00:00]
+                    - icon_output [foo: 1, bar: 3.0, date: 2026-01-01 00:00:00+00:00]
                 outputs:
                   out:
-                    - analysis_foo [bar: 3.0, date: 2026-01-01 00:00:00]
+                    - analysis_foo [bar: 3.0, date: 2026-01-01 00:00:00+00:00]
             plugin: 'shell'
             command: 'python statistics.py {PORT::dummy}'
-        - statistics_foo_bar [date: 2026-01-01 00:00:00]:
+        - statistics_foo_bar [date: 2026-01-01 00:00:00+00:00]:
             computer: 'remote'
-            cycle_point: [2026-01-01 00:00:00 -- 2026-07-01 00:00:00]
+            cycle_point: [2026-01-01 00:00:00+00:00 -- 2026-07-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
                 inputs:
                   dummy:
-                    - analysis_foo [bar: 3.0, date: 2026-01-01 00:00:00]
+                    - analysis_foo [bar: 3.0, date: 2026-01-01 00:00:00+00:00]
                 outputs:
                   out:
-                    - analysis_foo_bar [date: 2026-01-01 00:00:00]
+                    - analysis_foo_bar [date: 2026-01-01 00:00:00+00:00]
             plugin: 'shell'
             command: 'python statistics.py {PORT::dummy}'
-  - bimonthly_tasks [date: 2026-07-01 00:00:00]:
+  - bimonthly_tasks [date: 2026-07-01 00:00:00+00:00]:
       tasks:
-        - icon [foo: 0, bar: 3.0, date: 2026-07-01 00:00:00]:
+        - icon [foo: 0, bar: 3.0, date: 2026-07-01 00:00:00+00:00]:
             computer: 'remote'
-            cycle_point: [2026-07-01 00:00:00 -- 2027-01-01 00:00:00]
+            cycle_point: [2026-07-01 00:00:00+00:00 -- 2027-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
                 inputs:
                   init: []
                   restart:
-                    - icon_restart [foo: 0, bar: 3.0, date: 2026-01-01 00:00:00]
+                    - icon_restart [foo: 0, bar: 3.0, date: 2026-01-01 00:00:00+00:00]
                   forcing:
                     - forcing
                 outputs:
                   out:
-                    - icon_output [foo: 0, bar: 3.0, date: 2026-07-01 00:00:00]
+                    - icon_output [foo: 0, bar: 3.0, date: 2026-07-01 00:00:00+00:00]
                   restart_out:
-                    - icon_restart [foo: 0, bar: 3.0, date: 2026-07-01 00:00:00]
+                    - icon_restart [foo: 0, bar: 3.0, date: 2026-07-01 00:00:00+00:00]
             plugin: 'shell'
             command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
-        - icon [foo: 1, bar: 3.0, date: 2026-07-01 00:00:00]:
+        - icon [foo: 1, bar: 3.0, date: 2026-07-01 00:00:00+00:00]:
             computer: 'remote'
-            cycle_point: [2026-07-01 00:00:00 -- 2027-01-01 00:00:00]
+            cycle_point: [2026-07-01 00:00:00+00:00 -- 2027-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
                 inputs:
                   init: []
                   restart:
-                    - icon_restart [foo: 1, bar: 3.0, date: 2026-01-01 00:00:00]
+                    - icon_restart [foo: 1, bar: 3.0, date: 2026-01-01 00:00:00+00:00]
                   forcing:
                     - forcing
                 outputs:
                   out:
-                    - icon_output [foo: 1, bar: 3.0, date: 2026-07-01 00:00:00]
+                    - icon_output [foo: 1, bar: 3.0, date: 2026-07-01 00:00:00+00:00]
                   restart_out:
-                    - icon_restart [foo: 1, bar: 3.0, date: 2026-07-01 00:00:00]
+                    - icon_restart [foo: 1, bar: 3.0, date: 2026-07-01 00:00:00+00:00]
             plugin: 'shell'
             command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
-        - statistics_foo [bar: 3.0, date: 2026-07-01 00:00:00]:
+        - statistics_foo [bar: 3.0, date: 2026-07-01 00:00:00+00:00]:
             computer: 'remote'
-            cycle_point: [2026-07-01 00:00:00 -- 2027-01-01 00:00:00]
+            cycle_point: [2026-07-01 00:00:00+00:00 -- 2027-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
                 inputs:
                   dummy:
-                    - icon_output [foo: 0, bar: 3.0, date: 2026-07-01 00:00:00]
-                    - icon_output [foo: 1, bar: 3.0, date: 2026-07-01 00:00:00]
+                    - icon_output [foo: 0, bar: 3.0, date: 2026-07-01 00:00:00+00:00]
+                    - icon_output [foo: 1, bar: 3.0, date: 2026-07-01 00:00:00+00:00]
                 outputs:
                   out:
-                    - analysis_foo [bar: 3.0, date: 2026-07-01 00:00:00]
+                    - analysis_foo [bar: 3.0, date: 2026-07-01 00:00:00+00:00]
             plugin: 'shell'
             command: 'python statistics.py {PORT::dummy}'
-        - statistics_foo_bar [date: 2026-07-01 00:00:00]:
+        - statistics_foo_bar [date: 2026-07-01 00:00:00+00:00]:
             computer: 'remote'
-            cycle_point: [2026-07-01 00:00:00 -- 2027-01-01 00:00:00]
+            cycle_point: [2026-07-01 00:00:00+00:00 -- 2027-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
                 inputs:
                   dummy:
-                    - analysis_foo [bar: 3.0, date: 2026-07-01 00:00:00]
+                    - analysis_foo [bar: 3.0, date: 2026-07-01 00:00:00+00:00]
                 outputs:
                   out:
-                    - analysis_foo_bar [date: 2026-07-01 00:00:00]
+                    - analysis_foo_bar [date: 2026-07-01 00:00:00+00:00]
             plugin: 'shell'
             command: 'python statistics.py {PORT::dummy}'
-  - bimonthly_tasks [date: 2027-01-01 00:00:00]:
+  - bimonthly_tasks [date: 2027-01-01 00:00:00+00:00]:
       tasks:
-        - icon [foo: 0, bar: 3.0, date: 2027-01-01 00:00:00]:
+        - icon [foo: 0, bar: 3.0, date: 2027-01-01 00:00:00+00:00]:
             computer: 'remote'
-            cycle_point: [2027-01-01 00:00:00 -- 2027-07-01 00:00:00]
+            cycle_point: [2027-01-01 00:00:00+00:00 -- 2027-07-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
                 inputs:
                   init: []
                   restart:
-                    - icon_restart [foo: 0, bar: 3.0, date: 2026-07-01 00:00:00]
+                    - icon_restart [foo: 0, bar: 3.0, date: 2026-07-01 00:00:00+00:00]
                   forcing:
                     - forcing
                 outputs:
                   out:
-                    - icon_output [foo: 0, bar: 3.0, date: 2027-01-01 00:00:00]
+                    - icon_output [foo: 0, bar: 3.0, date: 2027-01-01 00:00:00+00:00]
                   restart_out:
-                    - icon_restart [foo: 0, bar: 3.0, date: 2027-01-01 00:00:00]
+                    - icon_restart [foo: 0, bar: 3.0, date: 2027-01-01 00:00:00+00:00]
             plugin: 'shell'
             command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
-        - icon [foo: 1, bar: 3.0, date: 2027-01-01 00:00:00]:
+        - icon [foo: 1, bar: 3.0, date: 2027-01-01 00:00:00+00:00]:
             computer: 'remote'
-            cycle_point: [2027-01-01 00:00:00 -- 2027-07-01 00:00:00]
+            cycle_point: [2027-01-01 00:00:00+00:00 -- 2027-07-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
                 inputs:
                   init: []
                   restart:
-                    - icon_restart [foo: 1, bar: 3.0, date: 2026-07-01 00:00:00]
+                    - icon_restart [foo: 1, bar: 3.0, date: 2026-07-01 00:00:00+00:00]
                   forcing:
                     - forcing
                 outputs:
                   out:
-                    - icon_output [foo: 1, bar: 3.0, date: 2027-01-01 00:00:00]
+                    - icon_output [foo: 1, bar: 3.0, date: 2027-01-01 00:00:00+00:00]
                   restart_out:
-                    - icon_restart [foo: 1, bar: 3.0, date: 2027-01-01 00:00:00]
+                    - icon_restart [foo: 1, bar: 3.0, date: 2027-01-01 00:00:00+00:00]
             plugin: 'shell'
             command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
-        - statistics_foo [bar: 3.0, date: 2027-01-01 00:00:00]:
+        - statistics_foo [bar: 3.0, date: 2027-01-01 00:00:00+00:00]:
             computer: 'remote'
-            cycle_point: [2027-01-01 00:00:00 -- 2027-07-01 00:00:00]
+            cycle_point: [2027-01-01 00:00:00+00:00 -- 2027-07-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
                 inputs:
                   dummy:
-                    - icon_output [foo: 0, bar: 3.0, date: 2027-01-01 00:00:00]
-                    - icon_output [foo: 1, bar: 3.0, date: 2027-01-01 00:00:00]
+                    - icon_output [foo: 0, bar: 3.0, date: 2027-01-01 00:00:00+00:00]
+                    - icon_output [foo: 1, bar: 3.0, date: 2027-01-01 00:00:00+00:00]
                 outputs:
                   out:
-                    - analysis_foo [bar: 3.0, date: 2027-01-01 00:00:00]
+                    - analysis_foo [bar: 3.0, date: 2027-01-01 00:00:00+00:00]
             plugin: 'shell'
             command: 'python statistics.py {PORT::dummy}'
-        - statistics_foo_bar [date: 2027-01-01 00:00:00]:
+        - statistics_foo_bar [date: 2027-01-01 00:00:00+00:00]:
             computer: 'remote'
-            cycle_point: [2027-01-01 00:00:00 -- 2027-07-01 00:00:00]
+            cycle_point: [2027-01-01 00:00:00+00:00 -- 2027-07-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
                 inputs:
                   dummy:
-                    - analysis_foo [bar: 3.0, date: 2027-01-01 00:00:00]
+                    - analysis_foo [bar: 3.0, date: 2027-01-01 00:00:00+00:00]
                 outputs:
                   out:
-                    - analysis_foo_bar [date: 2027-01-01 00:00:00]
+                    - analysis_foo_bar [date: 2027-01-01 00:00:00+00:00]
             plugin: 'shell'
             command: 'python statistics.py {PORT::dummy}'
-  - bimonthly_tasks [date: 2027-07-01 00:00:00]:
+  - bimonthly_tasks [date: 2027-07-01 00:00:00+00:00]:
       tasks:
-        - icon [foo: 0, bar: 3.0, date: 2027-07-01 00:00:00]:
+        - icon [foo: 0, bar: 3.0, date: 2027-07-01 00:00:00+00:00]:
             computer: 'remote'
-            cycle_point: [2027-07-01 00:00:00 -- 2028-01-01 00:00:00]
+            cycle_point: [2027-07-01 00:00:00+00:00 -- 2028-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
                 inputs:
                   init: []
                   restart:
-                    - icon_restart [foo: 0, bar: 3.0, date: 2027-01-01 00:00:00]
+                    - icon_restart [foo: 0, bar: 3.0, date: 2027-01-01 00:00:00+00:00]
                   forcing:
                     - forcing
                 outputs:
                   out:
-                    - icon_output [foo: 0, bar: 3.0, date: 2027-07-01 00:00:00]
+                    - icon_output [foo: 0, bar: 3.0, date: 2027-07-01 00:00:00+00:00]
                   restart_out:
-                    - icon_restart [foo: 0, bar: 3.0, date: 2027-07-01 00:00:00]
+                    - icon_restart [foo: 0, bar: 3.0, date: 2027-07-01 00:00:00+00:00]
             plugin: 'shell'
             command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
-        - icon [foo: 1, bar: 3.0, date: 2027-07-01 00:00:00]:
+        - icon [foo: 1, bar: 3.0, date: 2027-07-01 00:00:00+00:00]:
             computer: 'remote'
-            cycle_point: [2027-07-01 00:00:00 -- 2028-01-01 00:00:00]
+            cycle_point: [2027-07-01 00:00:00+00:00 -- 2028-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
                 inputs:
                   init: []
                   restart:
-                    - icon_restart [foo: 1, bar: 3.0, date: 2027-01-01 00:00:00]
+                    - icon_restart [foo: 1, bar: 3.0, date: 2027-01-01 00:00:00+00:00]
                   forcing:
                     - forcing
                 outputs:
                   out:
-                    - icon_output [foo: 1, bar: 3.0, date: 2027-07-01 00:00:00]
+                    - icon_output [foo: 1, bar: 3.0, date: 2027-07-01 00:00:00+00:00]
                   restart_out:
-                    - icon_restart [foo: 1, bar: 3.0, date: 2027-07-01 00:00:00]
+                    - icon_restart [foo: 1, bar: 3.0, date: 2027-07-01 00:00:00+00:00]
             plugin: 'shell'
             command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
-        - statistics_foo [bar: 3.0, date: 2027-07-01 00:00:00]:
+        - statistics_foo [bar: 3.0, date: 2027-07-01 00:00:00+00:00]:
             computer: 'remote'
-            cycle_point: [2027-07-01 00:00:00 -- 2028-01-01 00:00:00]
+            cycle_point: [2027-07-01 00:00:00+00:00 -- 2028-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
                 inputs:
                   dummy:
-                    - icon_output [foo: 0, bar: 3.0, date: 2027-07-01 00:00:00]
-                    - icon_output [foo: 1, bar: 3.0, date: 2027-07-01 00:00:00]
+                    - icon_output [foo: 0, bar: 3.0, date: 2027-07-01 00:00:00+00:00]
+                    - icon_output [foo: 1, bar: 3.0, date: 2027-07-01 00:00:00+00:00]
                 outputs:
                   out:
-                    - analysis_foo [bar: 3.0, date: 2027-07-01 00:00:00]
+                    - analysis_foo [bar: 3.0, date: 2027-07-01 00:00:00+00:00]
             plugin: 'shell'
             command: 'python statistics.py {PORT::dummy}'
-        - statistics_foo_bar [date: 2027-07-01 00:00:00]:
+        - statistics_foo_bar [date: 2027-07-01 00:00:00+00:00]:
             computer: 'remote'
-            cycle_point: [2027-07-01 00:00:00 -- 2028-01-01 00:00:00]
+            cycle_point: [2027-07-01 00:00:00+00:00 -- 2028-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
                 inputs:
                   dummy:
-                    - analysis_foo [bar: 3.0, date: 2027-07-01 00:00:00]
+                    - analysis_foo [bar: 3.0, date: 2027-07-01 00:00:00+00:00]
                 outputs:
                   out:
-                    - analysis_foo_bar [date: 2027-07-01 00:00:00]
+                    - analysis_foo_bar [date: 2027-07-01 00:00:00+00:00]
             plugin: 'shell'
             command: 'python statistics.py {PORT::dummy}'
-  - yearly [date: 2026-01-01 00:00:00]:
+  - yearly [date: 2026-01-01 00:00:00+00:00]:
       tasks:
-        - merge [date: 2026-01-01 00:00:00]:
+        - merge [date: 2026-01-01 00:00:00+00:00]:
             computer: 'remote'
-            cycle_point: [2026-01-01 00:00:00 -- 2027-01-01 00:00:00]
+            cycle_point: [2026-01-01 00:00:00+00:00 -- 2027-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
                 inputs:
                   dummy:
-                    - analysis_foo_bar [date: 2026-01-01 00:00:00]
-                    - analysis_foo_bar [date: 2026-07-01 00:00:00]
+                    - analysis_foo_bar [date: 2026-01-01 00:00:00+00:00]
+                    - analysis_foo_bar [date: 2026-07-01 00:00:00+00:00]
                 outputs:
                   out:
-                    - yearly_analysis [date: 2026-01-01 00:00:00]
+                    - yearly_analysis [date: 2026-01-01 00:00:00+00:00]
             plugin: 'shell'
             command: 'python merge.py {PORT::dummy}'
-  - yearly [date: 2027-01-01 00:00:00]:
+  - yearly [date: 2027-01-01 00:00:00+00:00]:
       tasks:
-        - merge [date: 2027-01-01 00:00:00]:
+        - merge [date: 2027-01-01 00:00:00+00:00]:
             computer: 'remote'
-            cycle_point: [2027-01-01 00:00:00 -- 2028-01-01 00:00:00]
+            cycle_point: [2027-01-01 00:00:00+00:00 -- 2028-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
                 inputs:
                   dummy:
-                    - analysis_foo_bar [date: 2027-01-01 00:00:00]
-                    - analysis_foo_bar [date: 2027-07-01 00:00:00]
+                    - analysis_foo_bar [date: 2027-01-01 00:00:00+00:00]
+                    - analysis_foo_bar [date: 2027-07-01 00:00:00+00:00]
                 outputs:
                   out:
-                    - yearly_analysis [date: 2027-01-01 00:00:00]
+                    - yearly_analysis [date: 2027-01-01 00:00:00+00:00]
             plugin: 'shell'
             command: 'python merge.py {PORT::dummy}'
