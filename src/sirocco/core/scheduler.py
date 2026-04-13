@@ -5,6 +5,7 @@ import subprocess
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Literal, assert_never
+from abc import ABC, abstractmethod
 
 from sirocco.core.graph_items import Task, TaskStatus
 
@@ -25,12 +26,12 @@ def ignore_env(*args: str):
 
 
 @dataclass(kw_only=True)
-class Scheduler:
+class Scheduler(ABC):
     def submit(
         self,
         task: Task,
         output_mode: Literal["overwrite", "append"] = "overwrite",
-        dependency_type: Literal["ALL_COMPLETED", "ANY"] = "ALL_COMPLETED",
+        dependency_type: Literal["ALL_COMPLETED", "ANY", "NONE"] = "ALL_COMPLETED",
     ):
         """Submit a task"""
 
@@ -87,25 +88,29 @@ class Scheduler:
             )
         return link_list
 
+    @abstractmethod
     def header_lines(
         self,
         task: Task,
         output_mode: Literal["overwrite", "append"] = "overwrite",
     ) -> list[str]:
-        raise NotImplementedError
+        pass
 
+    @abstractmethod
     def submit_to_scheduler(
         self,
         task: Task,
         dependency_type: Literal["ALL_COMPLETED", "ANY", "NONE"] = "ALL_COMPLETED",
     ) -> str:
-        raise NotImplementedError
+        pass
 
+    @abstractmethod
     def get_status(self, task: Task) -> TaskStatus:
-        raise NotImplementedError
+        pass
 
+    @abstractmethod
     def cancel(self, task: Task) -> None:
-        raise NotImplementedError
+        pass
 
     @classmethod
     def create(cls, key: str) -> "Scheduler":
