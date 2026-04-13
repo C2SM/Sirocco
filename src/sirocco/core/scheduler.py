@@ -75,6 +75,7 @@ class Scheduler(ABC):
         (task.run_dir / task.SUBMIT_FILENAME).write_text("\n".join(script_lines))
         task.jobid = self.submit_to_scheduler(task, dependency_type=dependency_type)
 
+    @abstractmethod
     def header_lines(
         self,
         task: Task,
