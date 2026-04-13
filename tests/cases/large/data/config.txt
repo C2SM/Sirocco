@@ -88,7 +88,7 @@ cycles:
             cpus per task: 1
             cycle point: [2025-01-01 00:00:00+00:00 -- 2025-03-01 00:00:00+00:00]
             plugin: 'shell'
-            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive{PORT::archive}'
+            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive={PORT::archive}'
   - icon_bimonthly [date: 2025-03-01 00:00:00+00:00]:
       tasks:
         - preproc [date: 2025-03-01 00:00:00+00:00]:
@@ -161,7 +161,7 @@ cycles:
             cpus per task: 1
             cycle point: [2025-03-01 00:00:00+00:00 -- 2025-05-01 00:00:00+00:00]
             plugin: 'shell'
-            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive{PORT::archive}'
+            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive={PORT::archive}'
   - icon_bimonthly [date: 2025-05-01 00:00:00+00:00]:
       tasks:
         - preproc [date: 2025-05-01 00:00:00+00:00]:
@@ -236,7 +236,7 @@ cycles:
             cpus per task: 1
             cycle point: [2025-05-01 00:00:00+00:00 -- 2025-07-01 00:00:00+00:00]
             plugin: 'shell'
-            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive{PORT::archive}'
+            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive={PORT::archive}'
   - icon_bimonthly [date: 2025-07-01 00:00:00+00:00]:
       tasks:
         - preproc [date: 2025-07-01 00:00:00+00:00]:
@@ -311,7 +311,7 @@ cycles:
             cpus per task: 1
             cycle point: [2025-07-01 00:00:00+00:00 -- 2025-09-01 00:00:00+00:00]
             plugin: 'shell'
-            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive{PORT::archive}'
+            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive={PORT::archive}'
   - icon_bimonthly [date: 2025-09-01 00:00:00+00:00]:
       tasks:
         - preproc [date: 2025-09-01 00:00:00+00:00]:
@@ -386,7 +386,7 @@ cycles:
             cpus per task: 1
             cycle point: [2025-09-01 00:00:00+00:00 -- 2025-11-01 00:00:00+00:00]
             plugin: 'shell'
-            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive{PORT::archive}'
+            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive={PORT::archive}'
   - icon_bimonthly [date: 2025-11-01 00:00:00+00:00]:
       tasks:
         - preproc [date: 2025-11-01 00:00:00+00:00]:
@@ -461,7 +461,7 @@ cycles:
             cpus per task: 1
             cycle point: [2025-11-01 00:00:00+00:00 -- 2026-01-01 00:00:00+00:00]
             plugin: 'shell'
-            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive{PORT::archive}'
+            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive={PORT::archive}'
   - icon_bimonthly [date: 2026-01-01 00:00:00+00:00]:
       tasks:
         - preproc [date: 2026-01-01 00:00:00+00:00]:
@@ -536,7 +536,7 @@ cycles:
             cpus per task: 1
             cycle point: [2026-01-01 00:00:00+00:00 -- 2026-03-01 00:00:00+00:00]
             plugin: 'shell'
-            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive{PORT::archive}'
+            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive={PORT::archive}'
   - icon_bimonthly [date: 2026-03-01 00:00:00+00:00]:
       tasks:
         - preproc [date: 2026-03-01 00:00:00+00:00]:
@@ -611,7 +611,7 @@ cycles:
             cpus per task: 1
             cycle point: [2026-03-01 00:00:00+00:00 -- 2026-05-01 00:00:00+00:00]
             plugin: 'shell'
-            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive{PORT::archive}'
+            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive={PORT::archive}'
   - icon_bimonthly [date: 2026-05-01 00:00:00+00:00]:
       tasks:
         - preproc [date: 2026-05-01 00:00:00+00:00]:
@@ -686,7 +686,7 @@ cycles:
             cpus per task: 1
             cycle point: [2026-05-01 00:00:00+00:00 -- 2026-07-01 00:00:00+00:00]
             plugin: 'shell'
-            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive{PORT::archive}'
+            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive={PORT::archive}'
   - icon_bimonthly [date: 2026-07-01 00:00:00+00:00]:
       tasks:
         - preproc [date: 2026-07-01 00:00:00+00:00]:
@@ -761,7 +761,7 @@ cycles:
             cpus per task: 1
             cycle point: [2026-07-01 00:00:00+00:00 -- 2026-09-01 00:00:00+00:00]
             plugin: 'shell'
-            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive{PORT::archive}'
+            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive={PORT::archive}'
   - icon_bimonthly [date: 2026-09-01 00:00:00+00:00]:
       tasks:
         - preproc [date: 2026-09-01 00:00:00+00:00]:
@@ -836,7 +836,7 @@ cycles:
             cpus per task: 1
             cycle point: [2026-09-01 00:00:00+00:00 -- 2026-11-01 00:00:00+00:00]
             plugin: 'shell'
-            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive{PORT::archive}'
+            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive={PORT::archive}'
   - icon_bimonthly [date: 2026-11-01 00:00:00+00:00]:
       tasks:
         - preproc [date: 2026-11-01 00:00:00+00:00]:
@@ -911,7 +911,7 @@ cycles:
             cpus per task: 1
             cycle point: [2026-11-01 00:00:00+00:00 -- 2027-01-01 00:00:00+00:00]
             plugin: 'shell'
-            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive{PORT::archive}'
+            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive={PORT::archive}'
   - yearly [date: 2025-01-01 00:00:00+00:00]:
       tasks:
         - postproc_2 [date: 2025-01-01 00:00:00+00:00]:
@@ -954,7 +954,7 @@ cycles:
             cpus per task: 1
             cycle point: [2025-01-01 00:00:00+00:00 -- 2026-01-01 00:00:00+00:00]
             plugin: 'shell'
-            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::clean} --archive{PORT::archive}'
+            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::clean} --archive={PORT::archive}'
   - yearly [date: 2026-01-01 00:00:00+00:00]:
       tasks:
         - postproc_2 [date: 2026-01-01 00:00:00+00:00]:
@@ -997,4 +997,4 @@ cycles:
             cpus per task: 1
             cycle point: [2026-01-01 00:00:00+00:00 -- 2027-01-01 00:00:00+00:00]
             plugin: 'shell'
-            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::clean} --archive{PORT::archive}'
+            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::clean} --archive={PORT::archive}'
