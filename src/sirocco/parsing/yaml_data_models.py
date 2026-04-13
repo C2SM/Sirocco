@@ -24,6 +24,7 @@ from pydantic import (
 )
 from ruamel.yaml import YAML
 
+from sirocco.parsing._utils import validate_walltime_format
 from sirocco.parsing.cycling import Cycling, DateCycling, OneOff
 from sirocco.parsing.target_cycle import DateList, LagList, NoTargetCycle, TargetCycle
 from sirocco.parsing.when import AnyWhen, AtDate, BeforeAfterDate, When
@@ -406,7 +407,7 @@ class ConfigBaseTaskSpecs:
     uenv: str | None = None
     view: str | None = None
     nodes: int | None = None  # SLURM option `--nodes`, AiiDA option `num_machines`
-    walltime: str | None = None
+    walltime: Annotated[str | None, BeforeValidator(validate_walltime_format)] = None
     ntasks_per_node: int | None = None  # SLURM option `--ntasks-per-node`, AiiDA option `num_mpiprocs_per_machine`
     mem: int | None = None  # SLURM option `--mem` in MB, AiiDA option `max_memory_kb` in KB
     cpus_per_task: int | None = None  # SLURM option `--cpus_per_task`, AiiDA option `num_cores_per_mpiproc`
@@ -419,22 +420,6 @@ class ConfigBaseTask(_NamedBaseModel, ConfigBaseTaskSpecs):
     """
 
     parameters: list[str] = Field(default_factory=list)
-
-    @field_validator("walltime")
-    @classmethod
-    def validate_walltime_format(cls, value: str | None) -> str | None:
-        """Validates that walltime string adheres to "%H:%M:%S" format"""
-        if value is None:
-            return None
-
-        try:
-            # This will raise ValueError if format is invalid
-            time.strptime(value, "%H:%M:%S")
-            # Return the original string, not the parsed time object
-            return value  # noqa: TRY300
-        except ValueError as e:
-            msg = f"walltime must be in HH:MM:SS format, got '{value}'"
-            raise ValueError(msg) from e
 
 
 class ConfigRootTask(ConfigBaseTask):
@@ -465,7 +450,7 @@ class ConfigShellTaskSpecs:
 
     command: str
     # TODO: change "path" for "src"
-    path: Path | None = field(
+    path: Annotated[Path | None, AfterValidator(is_relative_path)] = field(
         default=None,
         repr=False,
         metadata={"description": ("Script file relative to the config directory.")},
@@ -604,11 +589,6 @@ class ConfigShellTask(ConfigBaseTask, ConfigShellTaskSpecs):
 
     # We need to loosen up the extra='forbid' flag because of the plugin class var
     model_config = ConfigDict(**ConfigBaseTask.model_config | {"extra": "ignore"})
-
-    @field_validator("path", mode="after")
-    @classmethod
-    def check_is_relative_path(cls, value: Path | None) -> Path | None:
-        return is_relative_path(value)
 
 
 @dataclass(kw_only=True)
