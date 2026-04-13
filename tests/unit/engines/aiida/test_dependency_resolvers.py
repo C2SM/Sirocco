@@ -847,12 +847,15 @@ def test_resolve_icon_output_stream_paths():
 
     # Create mock ICON task with output streams
     icon_task = Mock(spec=core.IconTask)
+    atm = Mock(spec=core.TaskComponent)
 
     # Create output data objects
     atm_2d_output = create_generated_data(name="atm_2d", path=None)
     atm_3d_pl_output = create_generated_data(name="atm_3d_pl", path=None)
 
-    icon_task.outputs = {"output_streams": [atm_2d_output, atm_3d_pl_output]}
+    atm.inputs = []
+    atm.outputs = {"output_streams": [atm_2d_output, atm_3d_pl_output]}
+    icon_task.components = {"atm": atm}
 
     # Create a realistic ICON namelist with output_nml sections
     # Note: filename_format includes the directory path (e.g., ./atm_2d/...)

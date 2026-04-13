@@ -368,8 +368,8 @@ def create_icon_task_with_model_namelists(
 
 
 def create_generated_data(
-    name="output_data",
-    path="output.txt",
+    name: str = "output_data",
+    path: str | None = "output.txt",
     coordinates=None,
 ):
     """Create a real GeneratedData object directly.

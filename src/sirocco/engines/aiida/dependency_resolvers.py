@@ -116,12 +116,13 @@ def _resolve_icon_output_stream_paths(icon_task: core.IconTask) -> dict[str, str
             dir_name = str(stream_info.path).strip("./")
 
             # Find matching output data by name
-            for port, outputs in icon_task.outputs.items():
-                if port == "output_streams":
-                    for out_data in outputs:
-                        # Match by name (e.g., 'atm_2d' matches 'atm_2d')
-                        if out_data.name == dir_name or out_data.name in dir_name:
-                            stream_paths[out_data.name] = dir_name
+            for comp in icon_task.components.values():
+                for port, outputs in comp.outputs.items():
+                    if port == "output_streams":
+                        for out_data in outputs:
+                            # Match by name (e.g., 'atm_2d' matches 'atm_2d')
+                            if out_data.name == dir_name or out_data.name in dir_name:
+                                stream_paths[out_data.name] = dir_name
 
     return stream_paths
 
@@ -438,12 +439,13 @@ def build_dependency_mapping(
 
             if producer_task is not None and isinstance(producer_task, core.IconTask):
                 # Check if this output is on the output_streams port
-                for port_, outputs in producer_task.outputs.items():
-                    if port_ == "output_streams" and out_data in outputs:
-                        # Extract output paths from ICON namelist
-                        stream_paths = _resolve_icon_output_stream_paths(producer_task)
-                        filename = stream_paths.get(out_data.name)
-                        break
+                for comp in producer_task.components.values():
+                    for port_, outputs in comp.outputs.items():
+                        if port_ == "output_streams" and out_data in outputs:
+                            # Extract output paths from ICON namelist
+                            stream_paths = _resolve_icon_output_stream_paths(producer_task)
+                            filename = stream_paths.get(out_data.name)
+                            break
 
         # Only record dependencies if this producer has completed metadata
         if prev_label not in task_output_mapping:
