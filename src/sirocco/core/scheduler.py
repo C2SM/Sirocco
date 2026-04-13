@@ -6,7 +6,6 @@ from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Literal, assert_never
-from abc import ABC, abstractmethod
 
 from sirocco.core.graph_items import Task, TaskStatus
 
