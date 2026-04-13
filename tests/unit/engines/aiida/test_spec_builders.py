@@ -849,7 +849,7 @@ class TestBuildIconTaskSpecOutputs:
         spec = IconTaskSpecBuilder(task).build_spec()
 
         print("\n=== ICON task output port mapping ===")
-        print(f"Task outputs: {task.components["atm"].outputs}")
+        print(f"Task outputs: {task.components['atm'].outputs}")
         print("Output port mapping:")
         pprint(spec.output_port_mapping)
 

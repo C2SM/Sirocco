@@ -97,8 +97,7 @@ class PrettyPrinter:
             return self.format_dict(self.dataclass_to_dict(obj, exclude=exclude), parent=parent)
         if isinstance(obj, str) and "\x1b[" not in obj:
             return " " + repr(obj)
-        else:
-            return " " + str(obj)
+        return " " + str(obj)
 
     @format.register
     def format_dict(
@@ -168,7 +167,7 @@ class PrettyPrinter:
         if obj.wait_on:
             obj_dict["wait_on"] = [self.graphitem_label(task) for task in obj.wait_on]
         else:
-            del(obj_dict["wait_on"])
+            del obj_dict["wait_on"]
         return self.format({self.graphitem_label(obj): obj_dict}, parent=parent)
 
     @format.register
@@ -185,6 +184,8 @@ class PrettyPrinter:
 
     @format.register
     def format_cycle_point(
-        self, obj: CyclePoint, parent: Literal["none", "list", "dict", "list_first_dict_item"]
-    ) -> str:  # noqa: ARG002
+        self,
+        obj: CyclePoint,
+        parent: Literal["none", "list", "dict", "list_first_dict_item"],  # noqa: ARG002
+    ) -> str:
         return " " + str(obj)

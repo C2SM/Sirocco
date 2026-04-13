@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import io
-from itertools import chain
 import logging
 from abc import ABC, abstractmethod
+from itertools import chain
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 

@@ -331,7 +331,9 @@ def create_icon_task_with_model_namelists(
         f"- {path}" if i == 0 else f"                - {path}" for i, path in enumerate(namelist_paths)
     )
 
-    components = "\n" + "\n".join((textwrap.indent(f"{model}:\n  inputs: {{}}\n  outputs: {{}}", prefix=" "*22) for model in models))
+    components = "\n" + "\n".join(
+        textwrap.indent(f"{model}:\n  inputs: {{}}\n  outputs: {{}}", prefix=" " * 22) for model in models
+    )
     config_yaml = textwrap.dedent(
         f"""
         name: test_workflow
@@ -360,7 +362,7 @@ def create_icon_task_with_model_namelists(
           generated: []
         """
     )
-    
+
     wf = workflow.Workflow.from_config_str(config_yaml, rootdir=tmp_path)
     return next(iter(wf.tasks))
 
