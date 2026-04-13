@@ -445,12 +445,11 @@ class ConfigShellTaskSpecs:
         metadata={"description": ("Script file relative to the config directory.")},
     )
 
-    # TODO: move str | None in the signature to str once ports are compulsery everywhere (also for output)
-    def resolve_ports(self, input_labels: dict[str, list[str]]) -> str:
+    def resolve_ports(self, port_labels: dict[str, list[str]]) -> str:
         """Replace port placeholders in command string with provided input labels.
 
         Returns a string corresponding to self.command with "{PORT::port_name}"
-        placeholders replaced by the content provided in the input_labels dict.
+        placeholders replaced by the content provided in the port_labels dict.
         When multiple input nodes are linked to a single port (e.g. with
         parameterized data or if the `when` keyword specifies a list of lags or
         dates), the provided input labels are inserted with a separator
@@ -531,14 +530,19 @@ class ConfigShellTaskSpecs:
                 if (opt := match_obj.group("opt")) is None:
                     msg = f"Wrong port specification: {full_match}"
                     raise ValueError(msg)
-                if not input_labels.get(port):
+                if not port_labels.get(port):
                     return cmd.replace(full_match, "")
-                return cmd.replace(full_match, opt + sep.join(input_labels[port]))
+                return cmd.replace(full_match, opt + sep.join(port_labels[port]))
 
-            if port not in input_labels:
-                msg = f"The input_labels dictionnary doesn't have the {port} key. If the port has a when condition, enclose the whole dedicated command line part in square brackets e.g. command: ... [--arg={{PORT::my_port}}] ..."
+            if port not in port_labels:
+                msg = (
+                    f"The port_labels dictionary doesn't have the {port} key. "
+                    "If the port has a when condition, enclose the whole dedicated "
+                    "command line part in square brackets "
+                    "e.g. command: ... [--arg={{PORT::my_port}}] ..."
+                )
                 raise KeyError(msg)
-            return cmd.replace(full_match, sep.join(input_labels[port]))
+            return cmd.replace(full_match, sep.join(port_labels[port]))
 
         cmd = self.command
         for when_port_match in self.when_port_pattern.finditer(cmd):

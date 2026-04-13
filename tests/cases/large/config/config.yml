@@ -137,7 +137,7 @@ tasks:
   - store_and_clean_1:
       plugin: shell
       path: scripts/post_clean.sh
-      command: "bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive{PORT::archive}"
+      command: "bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive={PORT::archive}"
       nodes: 1
       ntasks_per_node: 1
       cpus_per_task: 1
@@ -145,7 +145,7 @@ tasks:
   - store_and_clean_2:
       plugin: shell
       path: scripts/post_clean.sh
-      command: "bash post_clean.sh --processed={PORT::postout} --original={PORT::clean} --archive{PORT::archive}"
+      command: "bash post_clean.sh --processed={PORT::postout} --original={PORT::clean} --archive={PORT::archive}"
       nodes: 1
       ntasks_per_node: 1
       cpus_per_task: 1
