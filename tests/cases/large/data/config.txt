@@ -954,7 +954,7 @@ cycles:
             cpus per task: 1
             cycle point: [2025-01-01 00:00:00+00:00 -- 2026-01-01 00:00:00+00:00]
             plugin: 'shell'
-            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::clean} --archive={PORT::archive}'
+            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --archive={PORT::archive}'
   - yearly [date: 2026-01-01 00:00:00+00:00]:
       tasks:
         - postproc_2 [date: 2026-01-01 00:00:00+00:00]:
@@ -997,4 +997,4 @@ cycles:
             cpus per task: 1
             cycle point: [2026-01-01 00:00:00+00:00 -- 2027-01-01 00:00:00+00:00]
             plugin: 'shell'
-            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::clean} --archive={PORT::archive}'
+            command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --archive={PORT::archive}'
