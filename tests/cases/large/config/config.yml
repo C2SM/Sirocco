@@ -121,7 +121,7 @@ tasks:
   - postproc_1:
       plugin: shell
       path: scripts/main_script_ocn.sh
-      command: "bash main_script_ocn.sh {PORT::None}"
+      command: "bash main_script_ocn.sh {PORT::dummy}"
       nodes: 2
       ntasks_per_node: 1
       cpus_per_task: 1
