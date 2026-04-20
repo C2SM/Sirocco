@@ -71,7 +71,7 @@ cycles:
             cpus per task: 1
             cycle point: [2025-01-01 00:00:00+00:00 -- 2025-03-01 00:00:00+00:00]
             plugin: 'shell'
-            command: 'bash main_script_ocn.sh {PORT::None}'
+            command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2025-01-01 00:00:00+00:00]:
             input:
               - postout_1 [date: 2025-01-01 00:00:00+00:00]
@@ -144,7 +144,7 @@ cycles:
             cpus per task: 1
             cycle point: [2025-03-01 00:00:00+00:00 -- 2025-05-01 00:00:00+00:00]
             plugin: 'shell'
-            command: 'bash main_script_ocn.sh {PORT::None}'
+            command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2025-03-01 00:00:00+00:00]:
             input:
               - postout_1 [date: 2025-03-01 00:00:00+00:00]
@@ -219,7 +219,7 @@ cycles:
             cpus per task: 1
             cycle point: [2025-05-01 00:00:00+00:00 -- 2025-07-01 00:00:00+00:00]
             plugin: 'shell'
-            command: 'bash main_script_ocn.sh {PORT::None}'
+            command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2025-05-01 00:00:00+00:00]:
             input:
               - postout_1 [date: 2025-05-01 00:00:00+00:00]
@@ -294,7 +294,7 @@ cycles:
             cpus per task: 1
             cycle point: [2025-07-01 00:00:00+00:00 -- 2025-09-01 00:00:00+00:00]
             plugin: 'shell'
-            command: 'bash main_script_ocn.sh {PORT::None}'
+            command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2025-07-01 00:00:00+00:00]:
             input:
               - postout_1 [date: 2025-07-01 00:00:00+00:00]
@@ -369,7 +369,7 @@ cycles:
             cpus per task: 1
             cycle point: [2025-09-01 00:00:00+00:00 -- 2025-11-01 00:00:00+00:00]
             plugin: 'shell'
-            command: 'bash main_script_ocn.sh {PORT::None}'
+            command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2025-09-01 00:00:00+00:00]:
             input:
               - postout_1 [date: 2025-09-01 00:00:00+00:00]
@@ -444,7 +444,7 @@ cycles:
             cpus per task: 1
             cycle point: [2025-11-01 00:00:00+00:00 -- 2026-01-01 00:00:00+00:00]
             plugin: 'shell'
-            command: 'bash main_script_ocn.sh {PORT::None}'
+            command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2025-11-01 00:00:00+00:00]:
             input:
               - postout_1 [date: 2025-11-01 00:00:00+00:00]
@@ -519,7 +519,7 @@ cycles:
             cpus per task: 1
             cycle point: [2026-01-01 00:00:00+00:00 -- 2026-03-01 00:00:00+00:00]
             plugin: 'shell'
-            command: 'bash main_script_ocn.sh {PORT::None}'
+            command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2026-01-01 00:00:00+00:00]:
             input:
               - postout_1 [date: 2026-01-01 00:00:00+00:00]
@@ -594,7 +594,7 @@ cycles:
             cpus per task: 1
             cycle point: [2026-03-01 00:00:00+00:00 -- 2026-05-01 00:00:00+00:00]
             plugin: 'shell'
-            command: 'bash main_script_ocn.sh {PORT::None}'
+            command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2026-03-01 00:00:00+00:00]:
             input:
               - postout_1 [date: 2026-03-01 00:00:00+00:00]
@@ -669,7 +669,7 @@ cycles:
             cpus per task: 1
             cycle point: [2026-05-01 00:00:00+00:00 -- 2026-07-01 00:00:00+00:00]
             plugin: 'shell'
-            command: 'bash main_script_ocn.sh {PORT::None}'
+            command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2026-05-01 00:00:00+00:00]:
             input:
               - postout_1 [date: 2026-05-01 00:00:00+00:00]
@@ -744,7 +744,7 @@ cycles:
             cpus per task: 1
             cycle point: [2026-07-01 00:00:00+00:00 -- 2026-09-01 00:00:00+00:00]
             plugin: 'shell'
-            command: 'bash main_script_ocn.sh {PORT::None}'
+            command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2026-07-01 00:00:00+00:00]:
             input:
               - postout_1 [date: 2026-07-01 00:00:00+00:00]
@@ -819,7 +819,7 @@ cycles:
             cpus per task: 1
             cycle point: [2026-09-01 00:00:00+00:00 -- 2026-11-01 00:00:00+00:00]
             plugin: 'shell'
-            command: 'bash main_script_ocn.sh {PORT::None}'
+            command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2026-09-01 00:00:00+00:00]:
             input:
               - postout_1 [date: 2026-09-01 00:00:00+00:00]
@@ -894,7 +894,7 @@ cycles:
             cpus per task: 1
             cycle point: [2026-11-01 00:00:00+00:00 -- 2027-01-01 00:00:00+00:00]
             plugin: 'shell'
-            command: 'bash main_script_ocn.sh {PORT::None}'
+            command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2026-11-01 00:00:00+00:00]:
             input:
               - postout_1 [date: 2026-11-01 00:00:00+00:00]
