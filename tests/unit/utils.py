@@ -180,7 +180,7 @@ def create_icon_task_from_workflow(
     tmp_path,
     name="test_icon",
     computer="localhost",
-    bin_path=None,
+    exe_cpu_path=None,
     walltime="01:00:00",
     nodes=1,
     ntasks_per_node=12,
@@ -232,8 +232,8 @@ def create_icon_task_from_workflow(
     """)
     )
 
-    bin_path = bin_path or tmp_path / "icon"
-    bin_path.touch(exist_ok=True)
+    exe_cpu_path = exe_cpu_path or tmp_path / "icon"
+    exe_cpu_path.touch(exist_ok=True)
 
     # Build additional task config lines with proper indentation
     extra_config = ""
@@ -259,7 +259,7 @@ def create_icon_task_from_workflow(
           - {name}:
               plugin: icon
               computer: {computer}
-              bin: {bin_path}
+              exe: {{cpu: {{path: {exe_cpu_path}}}}}
               namelists:
                 - ./ICON/icon_master.namelist
                 - ./ICON/model.namelist
@@ -321,8 +321,8 @@ def create_icon_task_with_model_namelists(
         namelist_paths.append(f"./ICON/{model}.namelist")
 
     # Create bin path
-    bin_path = tmp_path / "icon"
-    bin_path.touch()
+    exe_cpu_path = tmp_path / "icon"
+    exe_cpu_path.touch()
 
     # Hardcoded YAML config with model namelists
     # Build with proper indentation: first item aligns with f-string indentation,
@@ -351,7 +351,7 @@ def create_icon_task_with_model_namelists(
           - {name}:
               plugin: icon
               computer: {computer}
-              bin: {bin_path}
+              exe: {{cpu: {{path: {exe_cpu_path}}}}}
               namelists:
                 {namelist_yaml}
               walltime: 01:00:00

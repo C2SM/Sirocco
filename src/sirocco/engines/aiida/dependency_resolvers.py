@@ -99,9 +99,9 @@ def _resolve_icon_output_stream_paths(icon_task: core.IconTask) -> dict[str, str
     stream_paths = {}
 
     # Iterate through all model namelists to find output_nml sections
-    for model_namelist in icon_task.model_namelists.values():
+    for model in icon_task.models.values():
         # Get namelist data - handle both SinglefileData nodes and raw dicts
-        nml_data = model_namelist.namelist if hasattr(model_namelist, "namelist") else model_namelist
+        nml_data = model.namelist.namelist if hasattr(model.namelist, "namelist") else model.namelist
 
         # Use aiida-icon's parser to extract output stream information
         try:

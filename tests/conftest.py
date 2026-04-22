@@ -154,7 +154,7 @@ def pprinter() -> pretty_print.PrettyPrinter:
     return pretty_print.PrettyPrinter()
 
 
-def generate_config_paths(test_case: str):
+def generate_config_paths(test_case: str) -> dict[str, pathlib.Path | dict[str, str]]:
     return {
         "yml": pathlib.Path(f"tests/cases/{test_case}/config/config.yml"),
         "txt": pathlib.Path(f"tests/cases/{test_case}/data/config.txt"),
@@ -163,7 +163,7 @@ def generate_config_paths(test_case: str):
 
 
 @pytest.fixture
-def config_paths(config_case, tmp_path, test_rootdir) -> dict[str, pathlib.Path]:
+def config_paths(config_case, tmp_path, test_rootdir) -> dict[str, pathlib.Path | dict[t.Any, t.Any]]:
     config = generate_config_paths(config_case)
     # Copy test directory to tmp path and adapt config
     shutil.copytree(

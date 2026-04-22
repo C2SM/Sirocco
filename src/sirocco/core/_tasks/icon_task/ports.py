@@ -1,5 +1,5 @@
 import enum
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import ClassVar, Self
@@ -22,7 +22,8 @@ class IconModel:
     task_label: str
     namelist: NamelistFile
     model_type: ModelType
-    n_tasks: int = field(init=False)
+    min_rank: int = field(init=False)
+    max_rank: int = field(init=False)
 
     @property
     def inputs(self) -> dict[str, list[Data]]:
@@ -31,6 +32,10 @@ class IconModel:
     @property
     def outputs(self) -> dict[str, list[GeneratedData]]:
         return self.core_component.outputs
+
+    @property
+    def n_tasks(self) -> int:
+        return self.max_rank - self.min_rank + 1
 
 
 @dataclass(kw_only=True)

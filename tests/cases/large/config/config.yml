@@ -105,7 +105,9 @@ tasks:
       walltime: 00:02:00
   - icon:
       plugin: icon
-      bin: "{{ TESTS_ROOTDIR }}/tests/cases/large/config/ICON/bin/icon"
+      exe:
+        cpu:
+          path: "{{ TESTS_ROOTDIR }}/tests/cases/large/config/ICON/bin/icon"
       namelists:
         - ./ICON/icon_master.namelist:
             master_time_control_nml:

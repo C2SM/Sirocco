@@ -417,11 +417,11 @@ class IconTaskSpecBuilder(TaskSpecBuilder):
 
         # Model namelists - store as PKs with parsed content
         model_namelist_pks = {}
-        for model_name, model_nml in self.task.model_namelists.items():
+        for model_name, model in self.task.models.items():
             with io.StringIO() as buffer:
-                model_nml.namelist.write(buffer)
+                model.namelist.namelist.write(buffer)
                 content = buffer.getvalue()
-                model_node = create_namelist_singlefiledata_from_content(content, model_nml.name, store=True)
+                model_node = create_namelist_singlefiledata_from_content(content, model.namelist.name, store=True)
                 model_namelist_pks[model_name] = model_node.pk
 
         # Wrapper script - store as PK if present

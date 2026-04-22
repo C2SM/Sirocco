@@ -844,6 +844,9 @@ class TestBuildIconTaskSpecOutputs:
         output1 = create_generated_data(name="atm_output", path=None)
         output2 = create_generated_data(name="oce_output", path=None)
         task.components = {"atm": core.TaskComponent(inputs={}, outputs={"restart_data": [output1, output2]})}
+        task.models = {}
+
+        task.update_icon_namelists_from_workflow = Mock()
 
         # Build spec
         spec = IconTaskSpecBuilder(task).build_spec()

@@ -19,7 +19,6 @@ from pydantic import (
     Field,
     Tag,
     TypeAdapter,
-    field_validator,
     model_validator,
 )
 from ruamel.yaml import YAML
@@ -400,7 +399,7 @@ class ConfigBaseTaskSpecs:
     Any of these keys can be None, in which case they are inherited from the root task.
     """
 
-    computer: str | None = None
+    computer: str
     host: str | None = None
     account: str | None = None
     partition: str | None = None
@@ -641,42 +640,49 @@ class ConfigNamelistFile(BaseModel, ConfigNamelistFileSpec):
 
 
 @dataclass(kw_only=True)
-class ConfigIconTaskDistribution:
-    cpu: ConfigIconTaskExe | None = None
-    gpu: ConfigIconTaskExe | None = None
+class ConfigIconExecutabes:
+    cpu: ConfigIconExe | None = None
+    gpu: ConfigIconExe | None = None
+    hiopy: ConfigHiopyExe | None = None
     sperate_io_nodes: bool = True
     io_tasks_per_node: int = 0
 
+    def __post_init__(self) -> None:
+        if self.cpu is None and self.gpu is None:
+            msg = "at least one of 'cpu' or 'gpu' must be set"
+            raise ValueError(msg)
+
 
 @dataclass(kw_only=True)
-class ConfigIconTaskExe:
+class ConfigIconExe:
+    path: Path
+    icon4py_venv: Path | None = None
     compute_weights: dict[str, int] = field(default_factory=dict)
+    compute_layout: Literal["block", "load_balanced"] = "block"
     prefetch: int = 0
     restart: int = 0
-    streams: int | Literal["one_per_stream"] = 0
+    streams: int = 0
     compute_tasks_per_node: int = 0
-    compute_layout: Literal["block", "load_balanced"] = "block"
+
+
+@dataclass(kw_only=True)
+class ConfigHiopyExe:
+    venv: Path
+    tasks: int = 0
+    tasks_per_node: int = 0
 
 
 @dataclass(kw_only=True)
 class ConfigIconTaskSpecs:
     plugin: ClassVar[Literal["icon"]] = "icon"
-    # NOTE: remove bin, only kept for compatibility with AiiDA for now
+    exe: ConfigIconExecutabes
+    # TODO: remove bin, only kept for compatibility with AiiDA for now
     bin: Annotated[Path | None, AfterValidator(is_absolute_path)] = field(repr=True, default=None)
-    bin_cpu: Annotated[Path | None, AfterValidator(is_absolute_path)] = field(repr=True, default=None)
-    bin_gpu: Annotated[Path | None, AfterValidator(is_absolute_path)] = field(repr=True, default=None)
-    # NOTE: remove wrapper_script, only kept for compatibility with AiiDA for now
+    # TODO: remove wrapper_script, only kept for compatibility with AiiDA for now
     wrapper_script: Path | None = field(
         default=None,
         repr=False,
         metadata={"description": "Path to wrapper script file relative to the config directory or absolute."},
-    )
-    # FIXME: remove "santis_" from target name, use computer as prefix
-    target: Literal["santis_cpu", "santis_gpu", "santis_hybrid"] | None = field(
-        default=None,
-        metadata={
-            "description": "Use a predefined setup for the target machine. Ignore mpi_command, wrapper_script and env"
-        },
     )
     runtime: Path | None = field(
         default=None,
@@ -685,7 +691,13 @@ class ConfigIconTaskSpecs:
             "description": "Path relative to config dir containing runtime files (environment setup, mpi command, etc...)"
         },
     )
-    task_distribution: ConfigIconTaskDistribution | None = None
+
+
+def check_icon_mater_namelist(namelists: list[ConfigNamelistFile]) -> list[ConfigNamelistFile]:
+    if "icon_master.namelist" not in (nml.path.name for nml in namelists):
+        msg = "icon_master.namelist not found"
+        raise ValueError(msg)
+    return namelists
 
 
 class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
@@ -706,7 +718,9 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
         ...           - path/to/case_nml:
         ...               block_1:
         ...                 param_name: param_value
-        ...         bin: /path/to/icon
+        ...         exe:
+        ...           cpu:
+        ...             path: /path/to/icon
         ...     '''
         ... )
         >>> icon_task_cfg = validate_yaml_content(ConfigIconTask, snippet)
@@ -716,40 +730,7 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
     model_config = ConfigDict(**ConfigBaseTask.model_config | {"extra": "ignore"})
     # Keep namelists here and not in ConfigIconTaskSpecs as the namelists attribute
     # gets also defined in core.IconTask which inherits from ConfigIconTaskSpecs
-    namelists: list[ConfigNamelistFile]
-
-    @field_validator("namelists", mode="after")
-    @classmethod
-    def check_nmls(cls, nmls: list[ConfigNamelistFile]) -> list[ConfigNamelistFile]:
-        # Make validator idempotent even if not used yet
-        names = [nml.path.name for nml in nmls]
-        if "icon_master.namelist" not in names:
-            msg = "icon_master.namelist not found"
-            raise ValueError(msg)
-        return nmls
-
-    @model_validator(mode="after")
-    def check_bin_present(self) -> ConfigIconTask:
-        match self.target:
-            case None:
-                if self.bin is None and self.bin_cpu is None and self.bin_gpu is None:
-                    msg = "No ICON binary specified. If target is unset, specify at least one of 'bin', 'bin_cpu' or 'bin_gpu'"
-                    raise ValueError(msg)
-            case "santis_cpu":
-                if self.bin is None and self.bin_cpu is None:
-                    msg = f"{self.name}: target set to 'santis_cpu', specify one of 'bin' or 'bin_cpu'"
-                    raise ValueError(msg)
-                if self.bin is not None and self.bin_cpu is not None:
-                    msg = f"{self.name}: target set to 'santis_cpu', 'bin' and 'bin_cpu' specified, ignoring 'bin'"
-                    LOGGER.warning(msg)
-            case "santis_gpu":
-                if self.bin is None and self.bin_gpu is None:
-                    msg = f"{self.name}: target set to 'santis_gpu', specify one of 'bin' or 'bin_gpu'"
-                    raise ValueError(msg)
-                if self.bin is not None and self.bin_gpu is not None:
-                    msg = f"{self.name}: target set to 'santis_gpu', 'bin' and 'bin_gpu' specified, ignoring 'bin'"
-                    LOGGER.warning(msg)
-        return self
+    namelists: Annotated[list[ConfigNamelistFile], AfterValidator(check_icon_mater_namelist)]
 
 
 @dataclass(kw_only=True)
@@ -879,6 +860,47 @@ def check_parameters_lists(data: Any) -> dict[str, list]:
     return data
 
 
+def propagate_root_task_specs(config_task_list: list[ConfigTask | dict[str, dict]]) -> list[ConfigTask]:
+    """propagate ROOT task specs and returns the list of updated ConfigTask"""
+
+    if not config_task_list:
+        msg = "At least one task is required."
+        raise ValueError(msg)
+
+    updated_config_task_list: list[ConfigTask] = []
+
+    # Gat root specs if any
+    root_specs: dict = {}
+    for config_task in config_task_list:
+        if root_specs:
+            msg = "root specs already found, only one root task allowed"
+            raise ValueError(msg)
+        if isinstance(config_task, dict):
+            name_and_specs: dict = extract_merge_key_as_value(config_task)
+            if name_and_specs["name"] == "ROOT":
+                root_specs = name_and_specs
+                break
+        if isinstance(config_task, ConfigRootTask):
+            root_specs = dict(config_task)
+            break
+
+    # Propagate root specs
+    root_specs.pop("name", None)
+    root_specs.pop("parameters", None)
+    for config_task in config_task_list:
+        if isinstance(config_task, dict):
+            name_and_specs = extract_merge_key_as_value(config_task)
+            if name_and_specs["name"] != "ROOT":
+                name_and_specs.update(root_specs)
+                updated_config_task_list.append(TypeAdapter(ConfigTask).validate_python(name_and_specs))
+        if isinstance(config_task, ConfigShellTask | ConfigIconTask):
+            for root_key, root_value in root_specs.items():
+                setattr(config_task, root_key, root_value)
+            updated_config_task_list.append(config_task)
+
+    return updated_config_task_list
+
+
 class ConfigWorkflow(BaseModel):
     """
     The root of the configuration tree.
@@ -962,7 +984,9 @@ class ConfigWorkflow(BaseModel):
     scheduler: Literal["slurm"] = "slurm"
     name: str
     cycles: Annotated[list[ConfigCycle], BeforeValidator(list_not_empty)]
-    tasks: Annotated[list[ConfigTask], BeforeValidator(list_not_empty)]
+    # TODO: Implement ROOT task specs propagation in this before validator to allow for compulsory specs only given through ROOT task
+    # tasks: Annotated[list[ConfigTask], BeforeValidator(list_not_empty)]
+    tasks: Annotated[list[ConfigTask], BeforeValidator(propagate_root_task_specs)]
     data: ConfigData
     parameters: Annotated[dict[str, list], BeforeValidator(check_parameters_lists)] = {}
     front_depth: int = Field(
@@ -979,22 +1003,6 @@ class ConfigWorkflow(BaseModel):
                 if param_name not in self.parameters:
                     msg = f"parameter {param_name} in {item.name} specification not declared in parameters section"
                     raise ValueError(msg)
-        return self
-
-    @model_validator(mode="after")
-    def propagate_root_task(self) -> ConfigWorkflow:
-        root_task: ConfigRootTask | None = None
-        for task in self.tasks:
-            if isinstance(task, ConfigRootTask):
-                if root_task is not None:
-                    msg = "Only one root task can be provided"
-                    raise ValueError(msg)
-                root_task = task
-        if root_task is not None:
-            for root_key, root_value in dict(root_task).items():
-                for task in self.tasks:
-                    if not isinstance(task, ConfigRootTask) and getattr(task, root_key, None) is None:
-                        setattr(task, root_key, root_value)
         return self
 
     @classmethod

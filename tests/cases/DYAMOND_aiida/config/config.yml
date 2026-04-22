@@ -67,7 +67,9 @@ tasks:
       command: ./prepare_input.sh --pool={PORT::data_pool}  --sst-ice={PORT::sst_ice_dir} --ozone={PORT::ozone_dir} --aero-kine={PORT::aero_kine_dir} --icon-input={PORT::icon_input}
   - icon:
       plugin: icon
-      bin: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/bin/icon
+      exe:
+        cpu:
+          path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/bin/icon
       uenv: icon/25.2:v3
       walltime: 01:00:00
       nodes: 1

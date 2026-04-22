@@ -1,4 +1,4 @@
-from ._tasks import IconTask, ShellTask, SiroccoContinueTask
+from ._tasks import IconModel, IconTask, ShellTask, SiroccoContinueTask
 from .graph_items import (
     AvailableData,
     Cycle,
@@ -18,6 +18,7 @@ __all__ = [
     "Data",
     "GeneratedData",
     "GraphItem",
+    "IconModel",
     "IconTask",
     "MpiCmdPlaceholder",
     "NamelistFile",
