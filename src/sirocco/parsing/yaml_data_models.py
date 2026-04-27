@@ -3,12 +3,11 @@ from __future__ import annotations
 import itertools
 import logging
 import re
-import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from io import StringIO
 from pathlib import Path
-from typing import Annotated, Any, ClassVar, Literal, Self, TypeVar, overload
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, Self, TypeVar, overload
 
 from pydantic import (
     AfterValidator,
@@ -27,6 +26,10 @@ from sirocco.parsing._utils import validate_walltime_format
 from sirocco.parsing.cycling import Cycling, DateCycling, OneOff
 from sirocco.parsing.target_cycle import DateList, LagList, NoTargetCycle, TargetCycle
 from sirocco.parsing.when import AnyWhen, AtDate, BeforeAfterDate, When
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -405,7 +408,7 @@ class ConfigBaseTaskSpecs:
     partition: str | None = None
     uenv: str | None = None
     view: str | None = None
-    nodes: int | None = None  # SLURM option `--nodes`, AiiDA option `num_machines`
+    nodes: int = 1  # SLURM option `--nodes`, AiiDA option `num_machines`
     walltime: Annotated[str | None, BeforeValidator(validate_walltime_format)] = None
     ntasks_per_node: int | None = None  # SLURM option `--ntasks-per-node`, AiiDA option `num_mpiprocs_per_machine`
     mem: int | None = None  # SLURM option `--mem` in MB, AiiDA option `max_memory_kb` in KB
@@ -640,42 +643,93 @@ class ConfigNamelistFile(BaseModel, ConfigNamelistFileSpec):
 
 
 @dataclass(kw_only=True)
-class ConfigIconExecutabes:
+class ConfigIconExecutables:
     cpu: ConfigIconExe | None = None
     gpu: ConfigIconExe | None = None
     hiopy: ConfigHiopyExe | None = None
-    sperate_io_nodes: bool = True
-    io_tasks_per_node: int = 0
+    procs_per_io_node: int = 0
 
     def __post_init__(self) -> None:
         if self.cpu is None and self.gpu is None:
             msg = "at least one of 'cpu' or 'gpu' must be set"
             raise ValueError(msg)
 
+    @property
+    def tot_io_procs(self) -> int:
+        return (
+            self.gpu.tot_io_procs
+            if self.gpu
+            else 0 + self.cpu.tot_io_procs
+            if self.cpu
+            else 0 + self.hiopy.procs
+            if self.hiopy
+            else 0
+        )
+
 
 @dataclass(kw_only=True)
 class ConfigIconExe:
     path: Path
+    procs: dict[str, ConfigIconExeProc]
     icon4py_venv: Path | None = None
-    compute_weights: dict[str, int] = field(default_factory=dict)
-    compute_layout: Literal["block", "load_balanced"] = "block"
+    compute_tasks_per_node: int | None = None
+
+    @property
+    def tot_io_procs(self) -> int:
+        return sum(proc.tot_io_procs for proc in self.procs.values())
+
+    def model_names(self) -> Iterator[str]:
+        yield from self.procs
+
+
+@dataclass(kw_only=True)
+class ConfigIconExeProc:
+    compute_weight: int = 1
     prefetch: int = 0
     restart: int = 0
     streams: int = 0
-    compute_tasks_per_node: int = 0
+
+    @property
+    def tot_io_procs(self) -> int:
+        return self.prefetch + self.restart + self.streams
 
 
 @dataclass(kw_only=True)
 class ConfigHiopyExe:
     venv: Path
-    tasks: int = 0
-    tasks_per_node: int = 0
+    procs: int = 0
+    min_rank: int = field(init=False, repr=False)
+    max_rank: int = field(init=False, repr=False)
+
+
+def validate_executables(exes: ConfigIconExecutables) -> ConfigIconExecutables:
+    if exes.cpu is None and exes.gpu is None:
+        msg = "At least one of cpu or gpu executable must be specified"
+        raise ValueError(msg)
+
+    gpu_models = set(exes.gpu.model_names()) if exes.gpu else set()
+    cpu_models = set(exes.cpu.model_names()) if exes.cpu else set()
+    if common_models := gpu_models & cpu_models:
+        msg = f"{common_models} sepcified for both cpu and gpu executables"
+        raise ValueError(msg)
+
+    if exes.tot_io_procs > 0 and exes.procs_per_io_node == 0:
+        msg = "io_tasks_per_node must be > 0 when using io tasks (prefetch, restart or streams)"
+        raise ValueError(msg)
+
+    gpu_tot_stream_procs = sum(proc.streams for proc in exes.gpu.procs.values()) if exes.gpu else 0
+    cpu_tot_stream_procs = sum(proc.streams for proc in exes.cpu.procs.values()) if exes.cpu else 0
+    if exes.hiopy and (gpu_tot_stream_procs + cpu_tot_stream_procs > 0):
+        msg = "hiopy is not compatible with icon async output streams"
+        raise ValueError(msg)
+
+    return exes
 
 
 @dataclass(kw_only=True)
 class ConfigIconTaskSpecs:
     plugin: ClassVar[Literal["icon"]] = "icon"
-    exe: ConfigIconExecutabes
+    exe: Annotated[ConfigIconExecutables, AfterValidator(validate_executables)]
     # TODO: remove bin, only kept for compatibility with AiiDA for now
     bin: Annotated[Path | None, AfterValidator(is_absolute_path)] = field(repr=True, default=None)
     # TODO: remove wrapper_script, only kept for compatibility with AiiDA for now
@@ -713,6 +767,7 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
         ...       ICON:
         ...         plugin: icon
         ...         computer: localhost
+        ...         ntasks_per_node: 288
         ...         namelists:
         ...           - path/to/icon_master.namelist
         ...           - path/to/case_nml:
@@ -721,6 +776,8 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
         ...         exe:
         ...           cpu:
         ...             path: /path/to/icon
+        ...             procs:
+        ...               atm: {}
         ...     '''
         ... )
         >>> icon_task_cfg = validate_yaml_content(ConfigIconTask, snippet)

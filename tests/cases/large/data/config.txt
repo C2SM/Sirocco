@@ -48,7 +48,7 @@ cycles:
             uenv: 'icon/25.2:v3'
             nodes: 40
             walltime: '23:59:59'
-            ntasks_per_node: 1
+            ntasks_per_node: 288
             cpus_per_task: 1
             cycle_point: [2025-01-01 00:00:00+00:00 -- 2025-03-01 00:00:00+00:00]
             components:
@@ -69,14 +69,13 @@ cycles:
             exe:
               cpu:
                 path: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
-                compute_weights: {}
-                compute_layout: 'block'
-                prefetch: 0
-                restart: 0
-                streams: 0
-                compute_tasks_per_node: 0
-              sperate_io_nodes: True
-              io_tasks_per_node: 0
+                procs:
+                  atm:
+                    compute_weight: 1
+                    prefetch: 0
+                    restart: 0
+                    streams: 0
+              procs_per_io_node: 0
             namelists:
               - icon_master.namelist
               - NAMELIST_exclaim_ape_R02B04
@@ -147,7 +146,7 @@ cycles:
             uenv: 'icon/25.2:v3'
             nodes: 40
             walltime: '23:59:59'
-            ntasks_per_node: 1
+            ntasks_per_node: 288
             cpus_per_task: 1
             cycle_point: [2025-03-01 00:00:00+00:00 -- 2025-05-01 00:00:00+00:00]
             components:
@@ -169,14 +168,13 @@ cycles:
             exe:
               cpu:
                 path: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
-                compute_weights: {}
-                compute_layout: 'block'
-                prefetch: 0
-                restart: 0
-                streams: 0
-                compute_tasks_per_node: 0
-              sperate_io_nodes: True
-              io_tasks_per_node: 0
+                procs:
+                  atm:
+                    compute_weight: 1
+                    prefetch: 0
+                    restart: 0
+                    streams: 0
+              procs_per_io_node: 0
             namelists:
               - icon_master.namelist
               - NAMELIST_exclaim_ape_R02B04
@@ -249,7 +247,7 @@ cycles:
             uenv: 'icon/25.2:v3'
             nodes: 40
             walltime: '23:59:59'
-            ntasks_per_node: 1
+            ntasks_per_node: 288
             cpus_per_task: 1
             cycle_point: [2025-05-01 00:00:00+00:00 -- 2025-07-01 00:00:00+00:00]
             components:
@@ -271,14 +269,13 @@ cycles:
             exe:
               cpu:
                 path: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
-                compute_weights: {}
-                compute_layout: 'block'
-                prefetch: 0
-                restart: 0
-                streams: 0
-                compute_tasks_per_node: 0
-              sperate_io_nodes: True
-              io_tasks_per_node: 0
+                procs:
+                  atm:
+                    compute_weight: 1
+                    prefetch: 0
+                    restart: 0
+                    streams: 0
+              procs_per_io_node: 0
             namelists:
               - icon_master.namelist
               - NAMELIST_exclaim_ape_R02B04
@@ -351,7 +348,7 @@ cycles:
             uenv: 'icon/25.2:v3'
             nodes: 40
             walltime: '23:59:59'
-            ntasks_per_node: 1
+            ntasks_per_node: 288
             cpus_per_task: 1
             cycle_point: [2025-07-01 00:00:00+00:00 -- 2025-09-01 00:00:00+00:00]
             components:
@@ -373,14 +370,13 @@ cycles:
             exe:
               cpu:
                 path: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
-                compute_weights: {}
-                compute_layout: 'block'
-                prefetch: 0
-                restart: 0
-                streams: 0
-                compute_tasks_per_node: 0
-              sperate_io_nodes: True
-              io_tasks_per_node: 0
+                procs:
+                  atm:
+                    compute_weight: 1
+                    prefetch: 0
+                    restart: 0
+                    streams: 0
+              procs_per_io_node: 0
             namelists:
               - icon_master.namelist
               - NAMELIST_exclaim_ape_R02B04
@@ -453,7 +449,7 @@ cycles:
             uenv: 'icon/25.2:v3'
             nodes: 40
             walltime: '23:59:59'
-            ntasks_per_node: 1
+            ntasks_per_node: 288
             cpus_per_task: 1
             cycle_point: [2025-09-01 00:00:00+00:00 -- 2025-11-01 00:00:00+00:00]
             components:
@@ -475,14 +471,13 @@ cycles:
             exe:
               cpu:
                 path: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
-                compute_weights: {}
-                compute_layout: 'block'
-                prefetch: 0
-                restart: 0
-                streams: 0
-                compute_tasks_per_node: 0
-              sperate_io_nodes: True
-              io_tasks_per_node: 0
+                procs:
+                  atm:
+                    compute_weight: 1
+                    prefetch: 0
+                    restart: 0
+                    streams: 0
+              procs_per_io_node: 0
             namelists:
               - icon_master.namelist
               - NAMELIST_exclaim_ape_R02B04
@@ -555,7 +550,7 @@ cycles:
             uenv: 'icon/25.2:v3'
             nodes: 40
             walltime: '23:59:59'
-            ntasks_per_node: 1
+            ntasks_per_node: 288
             cpus_per_task: 1
             cycle_point: [2025-11-01 00:00:00+00:00 -- 2026-01-01 00:00:00+00:00]
             components:
@@ -577,14 +572,13 @@ cycles:
             exe:
               cpu:
                 path: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
-                compute_weights: {}
-                compute_layout: 'block'
-                prefetch: 0
-                restart: 0
-                streams: 0
-                compute_tasks_per_node: 0
-              sperate_io_nodes: True
-              io_tasks_per_node: 0
+                procs:
+                  atm:
+                    compute_weight: 1
+                    prefetch: 0
+                    restart: 0
+                    streams: 0
+              procs_per_io_node: 0
             namelists:
               - icon_master.namelist
               - NAMELIST_exclaim_ape_R02B04
@@ -657,7 +651,7 @@ cycles:
             uenv: 'icon/25.2:v3'
             nodes: 40
             walltime: '23:59:59'
-            ntasks_per_node: 1
+            ntasks_per_node: 288
             cpus_per_task: 1
             cycle_point: [2026-01-01 00:00:00+00:00 -- 2026-03-01 00:00:00+00:00]
             components:
@@ -679,14 +673,13 @@ cycles:
             exe:
               cpu:
                 path: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
-                compute_weights: {}
-                compute_layout: 'block'
-                prefetch: 0
-                restart: 0
-                streams: 0
-                compute_tasks_per_node: 0
-              sperate_io_nodes: True
-              io_tasks_per_node: 0
+                procs:
+                  atm:
+                    compute_weight: 1
+                    prefetch: 0
+                    restart: 0
+                    streams: 0
+              procs_per_io_node: 0
             namelists:
               - icon_master.namelist
               - NAMELIST_exclaim_ape_R02B04
@@ -759,7 +752,7 @@ cycles:
             uenv: 'icon/25.2:v3'
             nodes: 40
             walltime: '23:59:59'
-            ntasks_per_node: 1
+            ntasks_per_node: 288
             cpus_per_task: 1
             cycle_point: [2026-03-01 00:00:00+00:00 -- 2026-05-01 00:00:00+00:00]
             components:
@@ -781,14 +774,13 @@ cycles:
             exe:
               cpu:
                 path: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
-                compute_weights: {}
-                compute_layout: 'block'
-                prefetch: 0
-                restart: 0
-                streams: 0
-                compute_tasks_per_node: 0
-              sperate_io_nodes: True
-              io_tasks_per_node: 0
+                procs:
+                  atm:
+                    compute_weight: 1
+                    prefetch: 0
+                    restart: 0
+                    streams: 0
+              procs_per_io_node: 0
             namelists:
               - icon_master.namelist
               - NAMELIST_exclaim_ape_R02B04
@@ -861,7 +853,7 @@ cycles:
             uenv: 'icon/25.2:v3'
             nodes: 40
             walltime: '23:59:59'
-            ntasks_per_node: 1
+            ntasks_per_node: 288
             cpus_per_task: 1
             cycle_point: [2026-05-01 00:00:00+00:00 -- 2026-07-01 00:00:00+00:00]
             components:
@@ -883,14 +875,13 @@ cycles:
             exe:
               cpu:
                 path: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
-                compute_weights: {}
-                compute_layout: 'block'
-                prefetch: 0
-                restart: 0
-                streams: 0
-                compute_tasks_per_node: 0
-              sperate_io_nodes: True
-              io_tasks_per_node: 0
+                procs:
+                  atm:
+                    compute_weight: 1
+                    prefetch: 0
+                    restart: 0
+                    streams: 0
+              procs_per_io_node: 0
             namelists:
               - icon_master.namelist
               - NAMELIST_exclaim_ape_R02B04
@@ -963,7 +954,7 @@ cycles:
             uenv: 'icon/25.2:v3'
             nodes: 40
             walltime: '23:59:59'
-            ntasks_per_node: 1
+            ntasks_per_node: 288
             cpus_per_task: 1
             cycle_point: [2026-07-01 00:00:00+00:00 -- 2026-09-01 00:00:00+00:00]
             components:
@@ -985,14 +976,13 @@ cycles:
             exe:
               cpu:
                 path: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
-                compute_weights: {}
-                compute_layout: 'block'
-                prefetch: 0
-                restart: 0
-                streams: 0
-                compute_tasks_per_node: 0
-              sperate_io_nodes: True
-              io_tasks_per_node: 0
+                procs:
+                  atm:
+                    compute_weight: 1
+                    prefetch: 0
+                    restart: 0
+                    streams: 0
+              procs_per_io_node: 0
             namelists:
               - icon_master.namelist
               - NAMELIST_exclaim_ape_R02B04
@@ -1065,7 +1055,7 @@ cycles:
             uenv: 'icon/25.2:v3'
             nodes: 40
             walltime: '23:59:59'
-            ntasks_per_node: 1
+            ntasks_per_node: 288
             cpus_per_task: 1
             cycle_point: [2026-09-01 00:00:00+00:00 -- 2026-11-01 00:00:00+00:00]
             components:
@@ -1087,14 +1077,13 @@ cycles:
             exe:
               cpu:
                 path: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
-                compute_weights: {}
-                compute_layout: 'block'
-                prefetch: 0
-                restart: 0
-                streams: 0
-                compute_tasks_per_node: 0
-              sperate_io_nodes: True
-              io_tasks_per_node: 0
+                procs:
+                  atm:
+                    compute_weight: 1
+                    prefetch: 0
+                    restart: 0
+                    streams: 0
+              procs_per_io_node: 0
             namelists:
               - icon_master.namelist
               - NAMELIST_exclaim_ape_R02B04
@@ -1167,7 +1156,7 @@ cycles:
             uenv: 'icon/25.2:v3'
             nodes: 40
             walltime: '23:59:59'
-            ntasks_per_node: 1
+            ntasks_per_node: 288
             cpus_per_task: 1
             cycle_point: [2026-11-01 00:00:00+00:00 -- 2027-01-01 00:00:00+00:00]
             components:
@@ -1189,14 +1178,13 @@ cycles:
             exe:
               cpu:
                 path: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
-                compute_weights: {}
-                compute_layout: 'block'
-                prefetch: 0
-                restart: 0
-                streams: 0
-                compute_tasks_per_node: 0
-              sperate_io_nodes: True
-              io_tasks_per_node: 0
+                procs:
+                  atm:
+                    compute_weight: 1
+                    prefetch: 0
+                    restart: 0
+                    streams: 0
+              procs_per_io_node: 0
             namelists:
               - icon_master.namelist
               - NAMELIST_exclaim_ape_R02B04

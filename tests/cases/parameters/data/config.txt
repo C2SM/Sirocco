@@ -3,6 +3,7 @@ cycles:
       tasks:
         - icon [foo: 0, bar: 3.0, date: 2026-01-01 00:00:00+00:00]:
             computer: 'remote'
+            nodes: 1
             cycle_point: [2026-01-01 00:00:00+00:00 -- 2026-07-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -21,6 +22,7 @@ cycles:
             command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
         - icon [foo: 1, bar: 3.0, date: 2026-01-01 00:00:00+00:00]:
             computer: 'remote'
+            nodes: 1
             cycle_point: [2026-01-01 00:00:00+00:00 -- 2026-07-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -39,6 +41,7 @@ cycles:
             command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
         - statistics_foo [bar: 3.0, date: 2026-01-01 00:00:00+00:00]:
             computer: 'remote'
+            nodes: 1
             cycle_point: [2026-01-01 00:00:00+00:00 -- 2026-07-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -53,6 +56,7 @@ cycles:
             command: 'python statistics.py {PORT::dummy}'
         - statistics_foo_bar [date: 2026-01-01 00:00:00+00:00]:
             computer: 'remote'
+            nodes: 1
             cycle_point: [2026-01-01 00:00:00+00:00 -- 2026-07-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -68,6 +72,7 @@ cycles:
       tasks:
         - icon [foo: 0, bar: 3.0, date: 2026-07-01 00:00:00+00:00]:
             computer: 'remote'
+            nodes: 1
             cycle_point: [2026-07-01 00:00:00+00:00 -- 2027-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -86,6 +91,7 @@ cycles:
             command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
         - icon [foo: 1, bar: 3.0, date: 2026-07-01 00:00:00+00:00]:
             computer: 'remote'
+            nodes: 1
             cycle_point: [2026-07-01 00:00:00+00:00 -- 2027-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -104,6 +110,7 @@ cycles:
             command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
         - statistics_foo [bar: 3.0, date: 2026-07-01 00:00:00+00:00]:
             computer: 'remote'
+            nodes: 1
             cycle_point: [2026-07-01 00:00:00+00:00 -- 2027-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -118,6 +125,7 @@ cycles:
             command: 'python statistics.py {PORT::dummy}'
         - statistics_foo_bar [date: 2026-07-01 00:00:00+00:00]:
             computer: 'remote'
+            nodes: 1
             cycle_point: [2026-07-01 00:00:00+00:00 -- 2027-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -133,6 +141,7 @@ cycles:
       tasks:
         - icon [foo: 0, bar: 3.0, date: 2027-01-01 00:00:00+00:00]:
             computer: 'remote'
+            nodes: 1
             cycle_point: [2027-01-01 00:00:00+00:00 -- 2027-07-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -151,6 +160,7 @@ cycles:
             command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
         - icon [foo: 1, bar: 3.0, date: 2027-01-01 00:00:00+00:00]:
             computer: 'remote'
+            nodes: 1
             cycle_point: [2027-01-01 00:00:00+00:00 -- 2027-07-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -169,6 +179,7 @@ cycles:
             command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
         - statistics_foo [bar: 3.0, date: 2027-01-01 00:00:00+00:00]:
             computer: 'remote'
+            nodes: 1
             cycle_point: [2027-01-01 00:00:00+00:00 -- 2027-07-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -183,6 +194,7 @@ cycles:
             command: 'python statistics.py {PORT::dummy}'
         - statistics_foo_bar [date: 2027-01-01 00:00:00+00:00]:
             computer: 'remote'
+            nodes: 1
             cycle_point: [2027-01-01 00:00:00+00:00 -- 2027-07-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -198,6 +210,7 @@ cycles:
       tasks:
         - icon [foo: 0, bar: 3.0, date: 2027-07-01 00:00:00+00:00]:
             computer: 'remote'
+            nodes: 1
             cycle_point: [2027-07-01 00:00:00+00:00 -- 2028-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -216,6 +229,7 @@ cycles:
             command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
         - icon [foo: 1, bar: 3.0, date: 2027-07-01 00:00:00+00:00]:
             computer: 'remote'
+            nodes: 1
             cycle_point: [2027-07-01 00:00:00+00:00 -- 2028-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -234,6 +248,7 @@ cycles:
             command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
         - statistics_foo [bar: 3.0, date: 2027-07-01 00:00:00+00:00]:
             computer: 'remote'
+            nodes: 1
             cycle_point: [2027-07-01 00:00:00+00:00 -- 2028-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -248,6 +263,7 @@ cycles:
             command: 'python statistics.py {PORT::dummy}'
         - statistics_foo_bar [date: 2027-07-01 00:00:00+00:00]:
             computer: 'remote'
+            nodes: 1
             cycle_point: [2027-07-01 00:00:00+00:00 -- 2028-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -263,6 +279,7 @@ cycles:
       tasks:
         - merge [date: 2026-01-01 00:00:00+00:00]:
             computer: 'remote'
+            nodes: 1
             cycle_point: [2026-01-01 00:00:00+00:00 -- 2027-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -279,6 +296,7 @@ cycles:
       tasks:
         - merge [date: 2027-01-01 00:00:00+00:00]:
             computer: 'remote'
+            nodes: 1
             cycle_point: [2027-01-01 00:00:00+00:00 -- 2028-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:

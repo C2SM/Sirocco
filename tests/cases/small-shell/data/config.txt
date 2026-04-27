@@ -4,6 +4,7 @@ cycles:
         - icon [date: 2026-01-01 00:00:00+00:00]:
             computer: 'remote'
             uenv: 'icon-wcp/v1:rc4'
+            nodes: 1
             cycle_point: [2026-01-01 00:00:00+00:00 -- 2026-03-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -25,6 +26,7 @@ cycles:
         - icon [date: 2026-03-01 00:00:00+00:00]:
             computer: 'remote'
             uenv: 'icon-wcp/v1:rc4'
+            nodes: 1
             cycle_point: [2026-03-01 00:00:00+00:00 -- 2026-05-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -46,6 +48,7 @@ cycles:
         - icon [date: 2026-05-01 00:00:00+00:00]:
             computer: 'remote'
             uenv: 'icon-wcp/v1:rc4'
+            nodes: 1
             cycle_point: [2026-05-01 00:00:00+00:00 -- 2026-06-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -66,6 +69,7 @@ cycles:
       tasks:
         - cleanup:
             computer: 'remote'
+            nodes: 1
             cycle_point: []
             components:
               __SINGLE_COMPONENT__:

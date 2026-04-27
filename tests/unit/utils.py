@@ -229,6 +229,8 @@ def create_icon_task_from_workflow(
         &run_nml
          num_lev = 90
         /
+        &parallel_nml
+        /
     """)
     )
 
@@ -259,7 +261,11 @@ def create_icon_task_from_workflow(
           - {name}:
               plugin: icon
               computer: {computer}
-              exe: {{cpu: {{path: {exe_cpu_path}}}}}
+              exe:
+                cpu:
+                  path: {exe_cpu_path}
+                  procs:
+                    atm: {{}}
               namelists:
                 - ./ICON/icon_master.namelist
                 - ./ICON/model.namelist
@@ -317,7 +323,7 @@ def create_icon_task_with_model_namelists(
     namelist_paths = ["./ICON/icon_master.namelist"]
     for model in models:
         model_nml = icon_dir / f"{model}.namelist"
-        model_nml.write_text("&run_nml\n num_lev = 90\n/\n")
+        model_nml.write_text("&run_nml\n num_lev = 90\n/\n&parallel_nml\n/\n")
         namelist_paths.append(f"./ICON/{model}.namelist")
 
     # Create bin path
@@ -351,7 +357,12 @@ def create_icon_task_with_model_namelists(
           - {name}:
               plugin: icon
               computer: {computer}
-              exe: {{cpu: {{path: {exe_cpu_path}}}}}
+              exe:
+                cpu:
+                  path: {exe_cpu_path}
+                  procs:
+                    atm: {{}}
+                    oce: {{}}
               namelists:
                 {namelist_yaml}
               walltime: 01:00:00

@@ -1,5 +1,5 @@
 import enum
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import ClassVar, Self
@@ -36,6 +36,30 @@ class IconModel:
     @property
     def n_tasks(self) -> int:
         return self.max_rank - self.min_rank + 1
+
+    @property
+    def num_io_procs(self) -> int:
+        return self.namelist["parallel_nml"]["num_io_procs"]
+
+    @num_io_procs.setter
+    def num_io_procs(self, value: int) -> None:
+        self.namelist["parallel_nml"]["num_io_procs"] = value
+
+    @property
+    def num_prefetch_proc(self) -> int:
+        return self.namelist["parallel_nml"]["num_prefetch_proc"]
+
+    @num_prefetch_proc.setter
+    def num_prefetch_proc(self, value: int) -> None:
+        self.namelist["parallel_nml"]["num_prefetch_proc"] = value
+
+    @property
+    def num_restart_procs(self) -> int:
+        return self.namelist["parallel_nml"]["num_restart_procs"]
+
+    @num_restart_procs.setter
+    def num_restart_procs(self, value: int) -> None:
+        self.namelist["parallel_nml"]["num_restart_procs"] = value
 
 
 @dataclass(kw_only=True)
