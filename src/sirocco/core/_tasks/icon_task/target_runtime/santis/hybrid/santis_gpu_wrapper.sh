@@ -16,7 +16,6 @@ source wrapper_tools.sh
 
 # Load environment 
 source santis_common_run_environment.sh
-source santis_gpu_run_environment.sh
 
 # Check if all compulsory environment variables are defined
 check_required_vars
@@ -24,6 +23,7 @@ check_required_vars
 # Compute NUMA_NODE and set some env vars for compute ranks
 if [ "$(is_compute ${SLURM_PROCID})" == "true" ]; then
     get_numa_node "gpu"
+    source santis_gpu_run_environment.sh
     export CUDA_VISIBLE_DEVICES=$NUMA_NODE
 else  # => IO rank
     get_numa_node "io"

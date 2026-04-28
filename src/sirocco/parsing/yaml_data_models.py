@@ -672,6 +672,7 @@ class ConfigIconExe:
     path: Path
     procs: dict[str, ConfigIconExeProc]
     icon4py_venv: Path | None = None
+    gt4py_build_cache_dir: Path | None = None
     compute_tasks_per_node: int | None = None
 
     @property

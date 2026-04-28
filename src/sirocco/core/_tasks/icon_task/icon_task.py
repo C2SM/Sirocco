@@ -382,7 +382,12 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         lines: list[str] = []
         if self.target == "hybrid":
             # Total number of tasks
-            lines.append(f"N_TASKS={self.n_procs}")
+            lines.append(f"export N_TASKS={self.n_procs}")
+            if self.exe.gpu:
+                if self.exe.gpu.icon4py_venv:
+                    lines.append(f"export ICON4PY_VENV={self.exe.gpu.icon4py_venv}")
+                if self.exe.gpu.gt4py_build_cache_dir:
+                    lines.append(f"export GT4PY_BUILD_CACHE_DIR={self.exe.gpu.gt4py_build_cache_dir}")
             # IO_RANKS env var (bash array of all io ranks)
             io_ranks: list[int] = list(
                 chain(*(range(min_rank, max_rank + 1) for min_rank, max_rank in self.io_rank_bounds))
