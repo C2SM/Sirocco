@@ -310,12 +310,12 @@ def make_named_model_list_converter[NAMED_BASE_T: _NamedBaseModel](
 def make_named_model_list_dict_converter[NAMED_BASE_T: _NamedBaseModel](
     cls: type[NAMED_BASE_T],
 ) -> typing.Callable[[dict[str, list[NAMED_BASE_T | str | dict]] | None], dict[str, list[NAMED_BASE_T]]]:
+    named_model_list_converter = make_named_model_list_converter(cls)
     def convert_named_model_list_dict(
         values: dict[str, list[NAMED_BASE_T | str | dict]] | None,
     ) -> dict[str, list[NAMED_BASE_T]]:
         if values is None:
             return {}
-        named_model_list_converter = make_named_model_list_converter(cls)
         return {port: named_model_list_converter(data_list) for port, data_list in values.items()}
 
     return convert_named_model_list_dict
