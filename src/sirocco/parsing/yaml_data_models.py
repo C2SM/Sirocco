@@ -321,7 +321,6 @@ def make_named_model_dict_converter[NAMED_BASE_T: _NamedBaseModel](cls: type[NAM
     ) -> dict[str, list[NAMED_BASE_T]]:
         if values is None:
             return {}
-        named_model_list_converter = make_named_model_list_converter(cls)
         return {port: named_model_list_converter(data_list) for port, data_list in values.items()}
 
     return convert_named_model_list_dict
