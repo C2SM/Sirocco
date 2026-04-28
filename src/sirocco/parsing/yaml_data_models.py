@@ -4,11 +4,11 @@ import itertools
 import logging
 import re
 import time
-import typing
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from io import StringIO
 from pathlib import Path
-from typing import Annotated, Any, ClassVar, Literal, Self
+from typing import Annotated, Any, ClassVar, Literal, Self, TypeVar, overload
 
 from pydantic import (
     AfterValidator,
@@ -120,11 +120,11 @@ def list_not_empty[ITEM_T](value: list[ITEM_T]) -> list[ITEM_T]:
     return value
 
 
-@typing.overload
+@overload
 def is_absolute_path(value: None) -> None: ...
 
 
-@typing.overload
+@overload
 def is_absolute_path(value: Path) -> Path: ...
 
 
@@ -135,11 +135,11 @@ def is_absolute_path(value: Path | None) -> Path | None:
     return value
 
 
-@typing.overload
+@overload
 def is_relative_path(value: None) -> None: ...
 
 
-@typing.overload
+@overload
 def is_relative_path(value: Path) -> Path: ...
 
 
@@ -283,9 +283,10 @@ class ConfigCycleTaskWaitOn(TargetNodesBaseModel): ...
 class ConfigCycleTaskOutput(_NamedBaseModel): ...
 
 
-def make_named_model_list_converter[NAMED_BASE_T: _NamedBaseModel](
-    cls: type[NAMED_BASE_T],
-) -> typing.Callable[[list[NAMED_BASE_T | str | dict] | None], list[NAMED_BASE_T]]:
+type NamedModelListConverter[T: _NamedBaseModel] = Callable[[list[T | str | dict] | None], list[T]]
+
+
+def make_named_model_list_converter[NAMED_BASE_T: _NamedBaseModel](cls: type[NAMED_BASE_T]) -> NamedModelListConverter:
     def convert_named_model_list(
         values: list[NAMED_BASE_T | str | dict] | None,
     ) -> list[NAMED_BASE_T]:
@@ -307,18 +308,22 @@ def make_named_model_list_converter[NAMED_BASE_T: _NamedBaseModel](
     return convert_named_model_list
 
 
-def make_named_model_list_dict_converter[NAMED_BASE_T: _NamedBaseModel](
-    cls: type[NAMED_BASE_T],
-) -> typing.Callable[[dict[str, list[NAMED_BASE_T | str | dict]] | None], dict[str, list[NAMED_BASE_T]]]:
+type NamedModelDictConverter[T: _NamedBaseModel] = Callable[
+    [dict[str, list[T | str | dict]] | None], dict[str, list[T]]
+]
+
+
+def make_named_model_dict_converter[NAMED_BASE_T: _NamedBaseModel](cls: type[NAMED_BASE_T]) -> NamedModelDictConverter:
     named_model_list_converter = make_named_model_list_converter(cls)
-    def convert_named_model_list_dict(
+
+    def convert_named_model_dict(
         values: dict[str, list[NAMED_BASE_T | str | dict]] | None,
     ) -> dict[str, list[NAMED_BASE_T]]:
         if values is None:
             return {}
         return {port: named_model_list_converter(data_list) for port, data_list in values.items()}
 
-    return convert_named_model_list_dict
+    return convert_named_model_dict
 
 
 class ConfigCycleTask(_NamedBaseModel):
@@ -328,11 +333,11 @@ class ConfigCycleTask(_NamedBaseModel):
 
     inputs: Annotated[
         dict[str, list[ConfigCycleTaskInput]],
-        BeforeValidator(make_named_model_list_dict_converter(ConfigCycleTaskInput)),
+        BeforeValidator(make_named_model_dict_converter(ConfigCycleTaskInput)),
     ] = {}
     outputs: Annotated[
         dict[str, list[ConfigCycleTaskOutput]],
-        BeforeValidator(make_named_model_list_dict_converter(ConfigCycleTaskOutput)),
+        BeforeValidator(make_named_model_dict_converter(ConfigCycleTaskOutput)),
     ] = {}
     wait_on: Annotated[
         list[ConfigCycleTaskWaitOn],
@@ -1113,7 +1118,7 @@ class ConfigWorkflow(BaseModel):
         return adapter.validate_python(object_)
 
 
-OBJECT_T = typing.TypeVar("OBJECT_T")
+OBJECT_T = TypeVar("OBJECT_T")
 
 
 def validate_yaml_content[OBJECT_T](cls: type[OBJECT_T], content: str) -> OBJECT_T:
