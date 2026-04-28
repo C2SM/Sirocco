@@ -354,9 +354,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
             namelist.dump(directory / filename)
 
     def prepare_for_submission(self) -> None:
-        # Ensure either target or runscript is set
-        # NOTE: Some validation code is there as it is the first available place where we know the standalone orchestrator is used
-        # TODO: unify `runtime` spec with aiida-icon and move validation code to parsing if possible
+        """Generate or copy any file required at runtime to task run_dir"""
 
         # Check supported machine and set target
         if self.computer not in self.SUPPORTED_MACHINES:
@@ -382,11 +380,6 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         # Dump namelists
         self.dump_namelists(directory=self.run_dir, filename_mode="raw")
 
-        # Hybrid target auxiliary files
-        if self.target == "hybrid":
-            self.generate_multi_prog_config()
-            self.distribute_ranks()
-
         # Copy required runtime files
         if self.runtime is None:
             runtime_dir = Path(__file__).parent / self.computer / self.target
@@ -402,6 +395,11 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                 msg = f"{self._MAIN} not found in runtime at {runtime_dir}"
                 raise ValueError(msg)
         shutil.copytree(runtime_dir, self.run_dir, dirs_exist_ok=True)
+
+        # Hybrid target auxiliary files
+        if self.target == "hybrid":
+            self.generate_multi_prog_config()
+            self.distribute_ranks()
 
     def runscript_lines(self) -> list[str]:
         lines: list[str] = []
