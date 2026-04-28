@@ -33,7 +33,6 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
     namelists: list[NamelistFile]
     master_namelist: NamelistFile = field(init=False, repr=False)
     models: dict[str, IconModel] = field(default_factory=dict, repr=False)
-    target: Literal["cpu", "gpu", "hybrid"] = field(init=False, repr=False)
     compute_nodes: int = field(init=False, repr=False)
     io_nodes: int = field(init=False, repr=False)
     n_procs: int = field(init=False, repr=False)
@@ -41,12 +40,6 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
 
     def __post_init__(self) -> None:
         super().__post_init__()
-
-        # Set target
-        self.set_target()
-
-        # Set defaults
-        self.set_defaults()
 
         # Set component models and namelists
         self.set_components_and_namelists()
@@ -64,26 +57,6 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
             if not self.wrapper_script.is_file():
                 msg = f"Wrapper script in path {self.wrapper_script} is not a file."
                 raise OSError(msg)
-
-    def set_target(self) -> None:
-        if self.exe.gpu and not self.exe.cpu:
-            self.target = "gpu"
-        elif self.exe.cpu and not self.exe.gpu:
-            self.target = "cpu"
-        else:
-            self.target = "hybrid"
-
-    def set_defaults(self) -> None:
-        match self.computer:
-            case "santis":
-                if self.target == "cpu" and not self.ntasks_per_node:
-                    self.ntasks_per_node = 288
-                    if self.cpus_per_task:
-                        self.ntasks_per_node = self.ntasks_per_node // self.cpus_per_task
-                if self.target == "gpu" and not self.ntasks_per_node:
-                    self.ntasks_per_node = 4
-                    if self.cpus_per_task:
-                        self.ntasks_per_node = self.ntasks_per_node // self.cpus_per_task
 
     def set_components_and_namelists(self) -> None:
         # Detect and set master namelist
@@ -184,6 +157,10 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                                     msg = "compute_tasks_per_node must be set hybrid targets"
                                     raise ValueError(msg)
                                 compute_tasks = self.compute_nodes * exe.compute_tasks_per_node
+                            case _:
+                                # NOTE: cannot use assert_never with Literal["__none__"]
+                                msg = f"target unset, got {self.target}"
+                                raise ValueError(msg)
                         for model_name, n_tasks in allocate_tasks_from_weights(compute_tasks, compute_weights).items():
                             self.models[model_name].min_rank = min_rank
                             min_rank += n_tasks + exe.procs[model_name].tot_io_procs
@@ -382,7 +359,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
 
         # Copy required runtime files
         if self.runtime is None:
-            runtime_dir = Path(__file__).parent / self.computer / self.target
+            runtime_dir = Path(__file__).parent / "target_runtime" / self.computer / self.target
             if not runtime_dir.exists():
                 msg = f"target {self.target} not defined for computer {self.computer}"
                 raise ValueError(msg)

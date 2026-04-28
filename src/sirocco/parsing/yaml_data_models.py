@@ -713,10 +713,6 @@ def validate_executables(exes: ConfigIconExecutables) -> ConfigIconExecutables:
         msg = f"{common_models} sepcified for both cpu and gpu executables"
         raise ValueError(msg)
 
-    if exes.tot_io_procs > 0 and exes.procs_per_io_node == 0:
-        msg = "io_tasks_per_node must be > 0 when using io tasks (prefetch, restart or streams)"
-        raise ValueError(msg)
-
     gpu_tot_stream_procs = sum(proc.streams for proc in exes.gpu.procs.values()) if exes.gpu else 0
     cpu_tot_stream_procs = sum(proc.streams for proc in exes.cpu.procs.values()) if exes.cpu else 0
     if exes.hiopy and (gpu_tot_stream_procs + cpu_tot_stream_procs > 0):
@@ -745,6 +741,9 @@ class ConfigIconTaskSpecs:
             "description": "Path relative to config dir containing runtime files (environment setup, mpi command, etc...)"
         },
     )
+    # NOTE: Cannot use init=False as ConfigIconTask inherits from BaseModel which does not support it (yet?)
+    #       Se possible workaround there: https://github.com/pydantic/pydantic/discussions/5929#discussioncomment-12936754
+    target: Literal["cpu", "gpu", "hybrid", "__none__"] = field(repr=False, default="__none__")
 
 
 def check_icon_mater_namelist(namelists: list[ConfigNamelistFile]) -> list[ConfigNamelistFile]:
@@ -788,6 +787,36 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
     # Keep namelists here and not in ConfigIconTaskSpecs as the namelists attribute
     # gets also defined in core.IconTask which inherits from ConfigIconTaskSpecs
     namelists: Annotated[list[ConfigNamelistFile], AfterValidator(check_icon_mater_namelist)]
+
+    @model_validator(mode="after")
+    def set_target(self) -> ConfigIconTask:
+        if self.exe.gpu and not self.exe.cpu and not self.exe.hiopy:
+            self.target = "gpu"
+        elif self.exe.cpu and not self.exe.gpu and not self.exe.hiopy:
+            self.target = "cpu"
+        else:
+            self.target = "hybrid"
+            if self.exe.tot_io_procs > 0 and self.exe.procs_per_io_node == 0:
+                msg = "io_tasks_per_node must be > 0 when using io tasks (prefetch, restart or streams) for hybrid targets"
+                raise ValueError(msg)
+        return self
+
+    @model_validator(mode="after")
+    def set_defaults(self) -> ConfigIconTask:
+        if self.target == "__none__":
+            msg = f"error in validation order, target should be set, got {self.target}"
+            raise ValueError(msg)
+        match self.computer:
+            case "santis":
+                if self.target == "cpu" and not self.ntasks_per_node:
+                    self.ntasks_per_node = 288
+                    if self.cpus_per_task:
+                        self.ntasks_per_node = self.ntasks_per_node // self.cpus_per_task
+                if self.target == "gpu" and not self.ntasks_per_node:
+                    self.ntasks_per_node = 4
+                    if self.cpus_per_task:
+                        self.ntasks_per_node = self.ntasks_per_node // self.cpus_per_task
+        return self
 
 
 @dataclass(kw_only=True)
