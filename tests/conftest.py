@@ -100,13 +100,13 @@ def minimal_invert_task_io_config() -> models.ConfigWorkflow:
                 tasks=[
                     models.ConfigCycleTask(
                         name="task_b",
-                        inputs=[models.ConfigCycleTaskInput(name="output_a", port="None")],
-                        outputs=[models.ConfigCycleTaskOutput(name="output_b")],
+                        inputs={"port_b1": [models.ConfigCycleTaskInput(name="output_a")]},
+                        outputs={"port_b2": [models.ConfigCycleTaskOutput(name="output_b")]},
                     ),
                     models.ConfigCycleTask(
                         name="task_a",
-                        inputs=[models.ConfigCycleTaskInput(name="available", port="None")],
-                        outputs=[models.ConfigCycleTaskOutput(name="output_a")],
+                        inputs={"port_a1": [models.ConfigCycleTaskInput(name="available")]},
+                        outputs={"port_a2": [models.ConfigCycleTaskOutput(name="output_a")]},
                     ),
                 ],
             ),
@@ -434,15 +434,15 @@ def workflow_with_dependencies(tmp_path):
               tasks:
                 - task_a:
                     outputs:
-                      - output_a
+                      dummy: [output_a]
                 - task_b:
                     inputs:
-                      - output_a: {port: input_file}
+                      input_file: [output_a]
                     outputs:
-                      - output_b
+                      dummy: [output_b]
                 - task_c:
                     inputs:
-                      - output_b: {port: data_file}
+                      data_file: [output_b]
         tasks:
           - task_a:
               plugin: shell

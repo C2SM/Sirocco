@@ -16,17 +16,12 @@ cycles:
       tasks:
         - prepare_input:
             inputs:
-              - tmp_data_pool:
-                  port: data_pool
-              - sst_ice_dir:
-                  port: sst_ice_dir
-              - ozone_dir:
-                  port: ozone_dir
-              - aero_kinne_dir:
-                  port: aero_kine_dir
+              data_pool: [tmp_data_pool]
+              sst_ice_dir: [sst_ice_dir]
+              ozone_dir: [ozone_dir]
+              aero_kine_dir: [aero_kinne_dir]
             outputs:
-              - icon_link_input:
-                  port: icon_input
+              icon_input: [icon_link_input]
             wait_on:
               - icon:
                   when:
@@ -37,49 +32,33 @@ cycles:
                     lag: '-PT1M'
         - icon:
             inputs:
-              - icon_link_input:
-                  port: link_dir_contents
-              - ecrad_data:
-                  port: ecrad_data
-              - ECHAM6_CldOptProps:
-                  port: cloud_opt_props
-              - rrtmg_lw:
-                  port: rrtmg_lw
-              - icon_grid:
-                  port: dynamics_grid_file
-              - extpar_file:
-                  port: extpar_file
-              - analysis_file:
-                  port: ifs2icon
-              - restart:
-                  when:
-                    after: *root_start_date
-                  target_cycle:
-                    # lag: -PT6H
-                    lag: -PT30S
-                  port: restart_file
+              link_dir_contents: [icon_link_input]
+              ecrad_data: [ecrad_data]
+              cloud_opt_props: [ECHAM6_CldOptProps]
+              rrtmg_lw: [rrtmg_lw]
+              dynamics_grid_file: [icon_grid]
+              extpar_file: [extpar_file]
+              ifs2icon: [analysis_file]
+              restart_file:
+                - restart:
+                    when:
+                      after: *root_start_date
+                    target_cycle:
+                      # lag: -PT6H
+                      lag: -PT30S
             outputs:
-              - restart:
-                  port: latest_restart_file
-              - stream_1:
-                  port: output_streams
-              - stream_2:
-                  port: output_streams
+              latest_restart_file: [restart]
+              output_streams: [stream_1, stream_2]
         - post_proc:
             inputs:
-              - stream_1:
-                  port: stream
-              - stream_2:
-                  port: stream
+              stream: [stream_1, stream_2]
 
 tasks:
-  # - ROOT:
-  #     computer: "{{ SIROCCO_COMPUTER }}"
-  #     account: "{{ SLURM_ACCOUNT }}"
-  - prepare_input:
-      plugin: shell
+  - ROOT:
       computer: "{{ SIROCCO_COMPUTER }}"
       account: "{{ SLURM_ACCOUNT }}"
+  - prepare_input:
+      plugin: shell
       walltime: 00:05:00
       nodes: 1
       ntasks_per_node: 4
@@ -88,8 +67,6 @@ tasks:
       command: ./prepare_input.sh --pool={PORT::data_pool}  --sst-ice={PORT::sst_ice_dir} --ozone={PORT::ozone_dir} --aero-kine={PORT::aero_kine_dir} --icon-input={PORT::icon_input}
   - icon:
       plugin: icon
-      computer: "{{ SIROCCO_COMPUTER }}"
-      account: "{{ SLURM_ACCOUNT }}"
       bin: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/bin/icon
       uenv: icon/25.2:v3
       walltime: 01:00:00
@@ -111,8 +88,6 @@ tasks:
               num_io_procs: 1  # Re-enabled: needed to avoid ICON bug with synchronous I/O
   - post_proc:
       plugin: shell
-      computer: "{{ SIROCCO_COMPUTER }}"
-      account: "{{ SLURM_ACCOUNT }}"
       # Below not needed
       # uenv: /capstor/store/cscs/userlab/cws01/uenvs/climtools_25.2_v2.sqfs
       # view: default

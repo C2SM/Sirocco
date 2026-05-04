@@ -93,10 +93,10 @@ def test_shell_filenames_nodes_arguments(config_paths):
     forcing_path = str(config_paths["yml"].parent / "data/forcing")
 
     expected_arguments_list = [
-        f"--restart --init {initial_conditions_path} --forcing {forcing_path}",
-        f"--restart --init {initial_conditions_path} --forcing {forcing_path}",
-        f"--restart {{icon_restart_foo_0___bar_3__0___date_2026__01__01__00__00__00}} --init --forcing {forcing_path}",
-        f"--restart {{icon_restart_foo_1___bar_3__0___date_2026__01__01__00__00__00}} --init --forcing {forcing_path}",
+        f"--init {initial_conditions_path} --forcing {forcing_path}",
+        f"--init {initial_conditions_path} --forcing {forcing_path}",
+        f"--restart {{icon_restart_foo_0___bar_3__0___date_2026__01__01__00__00__00}} --forcing {forcing_path}",
+        f"--restart {{icon_restart_foo_1___bar_3__0___date_2026__01__01__00__00__00}} --forcing {forcing_path}",
         "{icon_output_foo_0___bar_3__0___date_2026__01__01__00__00__00} {icon_output_foo_1___bar_3__0___date_2026__01__01__00__00__00}",
         "{icon_output_foo_0___bar_3__0___date_2026__07__01__00__00__00} {icon_output_foo_1___bar_3__0___date_2026__07__01__00__00__00}",
         "{analysis_foo_bar_3__0___date_2026__01__01__00__00__00}",
