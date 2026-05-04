@@ -46,7 +46,7 @@ def iter_tasks_block_size(n_tasks: int, n_blocks: int) -> Iterator[tuple[int, in
             yield k, base
 
 
-def distribute_tasks_by_blocks(compute_ranks: Iterable[tuple[int, int]], nodes: tuple[int, ...]) -> dict[int, int]:
+def distribute_tasks_by_blocks(rank_bounds: Iterable[tuple[int, int]], nodes: tuple[int, ...]) -> dict[int, int]:
     """distribute tasks by blocks with as even block sizes as possible
 
     inputs:
@@ -58,7 +58,7 @@ def distribute_tasks_by_blocks(compute_ranks: Iterable[tuple[int, int]], nodes: 
     distributed_ranks: dict[int, int] = {}
     n_nodes = len(nodes)
     first_index = 0
-    for min_rank, max_rank in compute_ranks:
+    for min_rank, max_rank in rank_bounds:
         n_tasks = max_rank - min_rank + 1
         current_rank = min_rank
         for node_inc, tasks_block_size in iter_tasks_block_size(n_tasks=n_tasks, n_blocks=n_nodes):
@@ -70,7 +70,7 @@ def distribute_tasks_by_blocks(compute_ranks: Iterable[tuple[int, int]], nodes: 
     return distributed_ranks
 
 
-def distribute_tasks_round_robin(io_ranks: Iterable[tuple[int, int]], nodes: tuple[int, ...]) -> dict[int, int]:
+def distribute_tasks_round_robin(rank_bounds: Iterable[tuple[int, int]], nodes: tuple[int, ...]) -> dict[int, int]:
     """distribute tasks in a round-robin way
 
     inputs:
@@ -82,7 +82,7 @@ def distribute_tasks_round_robin(io_ranks: Iterable[tuple[int, int]], nodes: tup
     distributed_ranks: dict[int, int] = {}
     n_nodes = len(nodes)
     current_index = 0
-    for rank in chain(*(range(min_rank, max_rank + 1) for min_rank, max_rank in io_ranks)):
+    for rank in chain(*(range(min_rank, max_rank + 1) for min_rank, max_rank in rank_bounds)):
         distributed_ranks[rank] = nodes[current_index]
         current_index = (current_index + 1) % n_nodes
     return distributed_ranks

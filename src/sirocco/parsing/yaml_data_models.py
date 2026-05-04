@@ -289,7 +289,7 @@ class ConfigCycleTaskOutput(_NamedBaseModel): ...
 type NamedModelListConverter[T: _NamedBaseModel] = Callable[[list[T | str | dict] | None], list[T]]
 
 
-def make_named_model_list_converter[NAMED_BASE_T: _NamedBaseModel](cls: type[NAMED_BASE_T]) -> NamedModelListConverter:
+def make_named_model_list_converter[NAMED_BASE_T: _NamedBaseModel](cls: type[NAMED_BASE_T]) -> NamedModelListConverter[NAMED_BASE_T]:
     def convert_named_model_list(
         values: list[NAMED_BASE_T | str | dict] | None,
     ) -> list[NAMED_BASE_T]:
@@ -316,7 +316,7 @@ type NamedModelDictConverter[T: _NamedBaseModel] = Callable[
 ]
 
 
-def make_named_model_dict_converter[NAMED_BASE_T: _NamedBaseModel](cls: type[NAMED_BASE_T]) -> NamedModelDictConverter:
+def make_named_model_dict_converter[NAMED_BASE_T: _NamedBaseModel](cls: type[NAMED_BASE_T]) -> NamedModelDictConverter[NAMED_BASE_T]:
     named_model_list_converter = make_named_model_list_converter(cls)
 
     def convert_named_model_dict(

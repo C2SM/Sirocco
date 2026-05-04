@@ -39,8 +39,6 @@ class NamelistFile(models.ConfigNamelistFileSpec):
                 yield nmls
             case f90nml.namelist.Cogroup():
                 yield from nmls
-            case _:
-                yield
 
     @classmethod
     def from_config(cls: type[Self], config: models.ConfigNamelistFile, config_rootdir: Path) -> Self:

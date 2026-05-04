@@ -1,4 +1,5 @@
-from ._tasks import IconModel, IconTask, ShellTask, SiroccoContinueTask
+from ._tasks import IconTask, ShellTask, SiroccoContinueTask
+from ._tasks.icon_task.models import IconModel
 from .graph_items import (
     AvailableData,
     Cycle,

@@ -1,4 +1,4 @@
 from .icon_task import IconTask
-from .ports import IconModel
+from .models import IconModel, ModelType
 
-__all__ = ["IconModel", "IconTask"]
+__all__ = ["IconModel", "IconTask", "ModelType"]

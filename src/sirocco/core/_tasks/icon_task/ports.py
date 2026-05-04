@@ -1,65 +1,10 @@
-import enum
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import ClassVar, Self
 
-from sirocco.core.graph_items import Data, GeneratedData, TaskComponent
-from sirocco.core.namelistfile import NamelistFile
-
-
-class ModelType(enum.Enum):
-    _value_: int
-    ATMOSPHERE = 1
-    OCEAN = 2
-
-
-@dataclass(kw_only=True)
-class IconModel:
-    core_component: TaskComponent
-    name: str
-    task_run_dir: Path
-    task_label: str
-    namelist: NamelistFile
-    model_type: ModelType
-    min_rank: int = field(init=False)
-    max_rank: int = field(init=False)
-
-    @property
-    def inputs(self) -> dict[str, list[Data]]:
-        return self.core_component.inputs
-
-    @property
-    def outputs(self) -> dict[str, list[GeneratedData]]:
-        return self.core_component.outputs
-
-    @property
-    def n_tasks(self) -> int:
-        return self.max_rank - self.min_rank + 1
-
-    @property
-    def num_io_procs(self) -> int:
-        return self.namelist["parallel_nml"]["num_io_procs"]
-
-    @num_io_procs.setter
-    def num_io_procs(self, value: int) -> None:
-        self.namelist["parallel_nml"]["num_io_procs"] = value
-
-    @property
-    def num_prefetch_proc(self) -> int:
-        return self.namelist["parallel_nml"]["num_prefetch_proc"]
-
-    @num_prefetch_proc.setter
-    def num_prefetch_proc(self, value: int) -> None:
-        self.namelist["parallel_nml"]["num_prefetch_proc"] = value
-
-    @property
-    def num_restart_procs(self) -> int:
-        return self.namelist["parallel_nml"]["num_restart_procs"]
-
-    @num_restart_procs.setter
-    def num_restart_procs(self, value: int) -> None:
-        self.namelist["parallel_nml"]["num_restart_procs"] = value
+from sirocco.core._tasks.icon_task.models import IconModel, ModelType
+from sirocco.core.graph_items import GeneratedData
 
 
 @dataclass(kw_only=True)
@@ -145,6 +90,12 @@ rrtmg_lw_handler = PortHandler(
     section="nwp_phy_nml",
     parameter="lrtm_filename",
     target_link_name="rrtmg_lw.nc",
+)
+ifs_jsb_handler = PortHandler(
+    port_name="ifs",
+    valid_model_types=[ModelType.LAND],
+    section="jsb_model_nml",
+    parameter="ifs_filename",
 )
 
 

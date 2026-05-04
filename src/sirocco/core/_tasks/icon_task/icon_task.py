@@ -8,7 +8,8 @@ from math import ceil
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 
-from sirocco.core._tasks.icon_task.ports import IconModel, ModelType, PortHandler, restart_in_handler
+from sirocco.core._tasks.icon_task.models import IconModel, ModelType
+from sirocco.core._tasks.icon_task.ports import PortHandler, restart_in_handler
 from sirocco.core._tasks.icon_task.task_distribution import (
     allocate_tasks_from_weights,
     distribute_tasks_by_blocks,
@@ -29,10 +30,12 @@ LOGGER = logging.getLogger(__name__)
 class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
     SUPPORTED_MACHINES: ClassVar[list[str]] = field(default=["santis"], repr=False)
     _MASTER_NAMELIST_NAME: ClassVar[str] = field(default="icon_master.namelist", repr=False)
+    _MODEL_NML_KEYS: ClassVar[list[str]] = field(default=["master_model_nml", "jsb_model_nml"], repr=False)
     _MAIN: ClassVar[str] = field(default="main.sh", repr=False)
     namelists: list[NamelistFile]
     master_namelist: NamelistFile = field(init=False, repr=False)
     models: dict[str, IconModel] = field(default_factory=dict, repr=False)
+    master_models: dict[str, IconModel] = field(default_factory=dict, repr=False)
     compute_nodes: int = field(init=False, repr=False)
     io_nodes: int = field(init=False, repr=False)
     n_procs: int = field(init=False, repr=False)
@@ -72,23 +75,31 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
 
         # Build dictionnary mapping component names to model namelists
         namelist_by_filename: dict[str, NamelistFile] = {nml.name: nml for nml in self.namelists}
+        # Gather information from namelists
         model_namelists: dict[str, NamelistFile] = {}
         model_types: dict[str, int] = {}
-        for master_model_nml in self.master_namelist.iter_nml("master_model_nml"):
-            if not isinstance((filename := master_model_nml.get("model_namelist_filename")), str):
-                msg = f"{self.name}: master_model_nml does not contain a valid 'model_namelist_filename' parameter"
-                raise KeyError(msg)
-            if filename not in namelist_by_filename:
-                msg = f"{self.name}: namelist {filename} required by {self._MASTER_NAMELIST_NAME!r} not found in provided namelists"
-                raise KeyError(msg)
-            if not isinstance(model_name := master_model_nml.get("model_name"), str):
-                msg = f"{self.name}: master_model_nml associated to {filename} does not contain a valid 'model_name' parameter"
-                raise KeyError(msg)
-            model_namelists[model_name] = namelist_by_filename[filename]
-            if not isinstance(model_type := master_model_nml.get("model_type"), int):
-                msg = f"{self.name}: master_model_nml associated to {filename} does not contain a valid 'model_type' parameter"
-                raise KeyError(msg)
-            model_types[model_name] = model_type
+        model_master: dict[str, bool] = {}
+        for key in self._MODEL_NML_KEYS:
+            for model_nml in self.master_namelist.iter_nml(key):
+                if not isinstance((filename := model_nml.get("model_namelist_filename")), str):
+                    msg = f"{self.name}: {key} does not contain a valid 'model_namelist_filename' parameter"
+                    raise KeyError(msg)
+                if filename not in namelist_by_filename:
+                    msg = f"{self.name}: namelist {filename} required by {self._MASTER_NAMELIST_NAME!r} not found in provided namelists"
+                    raise KeyError(msg)
+                if not isinstance(model_name := model_nml.get("model_name"), str):
+                    msg = f"{self.name}: {key} associated to {filename} does not contain a valid 'model_name' parameter"
+                    raise KeyError(msg)
+                model_namelists[model_name] = namelist_by_filename[filename]
+                if key == "master_model_nml":
+                    if not isinstance(model_type := model_nml.get("model_type"), int):
+                        msg = f"{self.name}: master_model_nml associated to {filename} does not contain a valid 'model_type' parameter"
+                        raise KeyError(msg)
+                    model_types[model_name] = model_type
+                    model_master[model_name] = True
+                elif key == "jsb_model_nml":
+                    model_types[model_name] = 3
+                    model_master[model_name] = False
 
         # Check if models and config component names match
         if (model_names := set(model_namelists.keys())) != (
@@ -110,12 +121,14 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
             if comp_name != "master":
                 self.models[comp_name] = IconModel(
                     name=comp_name,
+                    is_master=model_master[comp_name],
                     core_component=component,
                     task_label=self.label,
                     task_run_dir=self.run_dir,
                     namelist=model_namelists[comp_name],
                     model_type=ModelType(model_types[comp_name]),
                 )
+        self.master_models = {model_name: model for model_name, model in self.models.items() if model.is_master}
 
     def allocate_ranks(self) -> None:
         """Allocate rank ranges to icon components"""
@@ -162,12 +175,12 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                                 msg = f"target unset, got {self.target}"
                                 raise ValueError(msg)
                         for model_name, n_tasks in allocate_tasks_from_weights(compute_tasks, compute_weights).items():
-                            self.models[model_name].min_rank = min_rank
+                            self.master_models[model_name].min_rank = min_rank
                             min_rank += n_tasks + exe.procs[model_name].tot_io_procs
-                            self.models[model_name].max_rank = min_rank - 1
-                            self.models[model_name].num_io_procs = exe.procs[model_name].streams
-                            self.models[model_name].num_prefetch_proc = exe.procs[model_name].prefetch
-                            self.models[model_name].num_restart_procs = exe.procs[model_name].restart
+                            self.master_models[model_name].max_rank = min_rank - 1
+                            self.master_models[model_name].num_io_procs = exe.procs[model_name].streams
+                            self.master_models[model_name].num_prefetch_proc = exe.procs[model_name].prefetch
+                            self.master_models[model_name].num_restart_procs = exe.procs[model_name].restart
 
                 # Allocate hiopy ranks
                 if self.exe.hiopy:
@@ -183,7 +196,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                 raise NotImplementedError(msg)
 
         # Final check for rank allocation
-        for model_name, model in self.models.items():
+        for model_name, model in self.master_models.items():
             if not hasattr(model, "min_rank") or not hasattr(model, "max_rank"):
                 msg = f"{self.name}: model {model_name} missing min_rank and/or max_rank"
                 raise RuntimeError(msg)
@@ -192,6 +205,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         if not isinstance(self.cycle_point, DateCyclePoint):
             msg = f"{self.name}: icon tasks must have a DateCyclePoint"
             raise TypeError(msg)
+
         self.master_namelist.update_from_specs(
             {
                 "master_time_control_nml": {
@@ -209,25 +223,31 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                 },
             }
         )
+
+        for jsb_control_nml in self.master_namelist.iter_nml("jsb_control_nml"):
+            jsb_control_nml["restart_jsbach"] = self.is_restart
+
         for master_model_nml in self.master_namelist.iter_nml("master_model_nml"):
-            model = self.models[master_model_nml["model_name"]]  # type: ignore
+            model = self.master_models[master_model_nml["model_name"]]  # type: ignore
             master_model_nml["model_min_rank"] = model.min_rank
             master_model_nml["model_max_rank"] = model.max_rank
 
     @property
     def is_restart(self) -> bool:
         """Check if the icon task starts from restart file(s)."""
-        # Get restart status of first model
-        restart_ref = bool(next(iter(self.models.values())).inputs.get(restart_in_handler.port_name, False))
-        # Check if all models have the same restart status
-        for model in self.models.values():
+        # Get restart status of first master model
+        restart_ref = bool(next(iter(self.master_models.values())).inputs.get(restart_in_handler.port_name, False))
+        # Check if all master models have the same restart status
+        for model in self.master_models.values():
             if bool(model.inputs.get(restart_in_handler.port_name, False)) != restart_ref:
                 msg = f"{self.name}: All CON models must have the same restart status"
                 raise ValueError(msg)
         return restart_ref
 
     def get_exe_ranks_str(self, exe: yaml_data_models.ConfigIconExe) -> str:
-        return ",".join(f"{self.models[name].min_rank}-{self.models[name].max_rank}" for name in exe.model_names())
+        return ",".join(
+            f"{self.master_models[name].min_rank}-{self.master_models[name].max_rank}" for name in exe.model_names()
+        )
 
     def generate_multi_prog_config(self) -> None:
         if self.target != "hybrid":
@@ -253,15 +273,15 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                 msg = f"{self.name}: generate_multi_prog_config not implemented for machine {self.computer}"
                 raise NotImplementedError(msg)
 
-    def exe_compute_rank_bounds(self, exe: yaml_data_models.ConfigIconExe) -> Iterable[tuple[int, int]]:
+    def get_exe_compute_rank_bounds(self, exe: yaml_data_models.ConfigIconExe) -> Iterable[tuple[int, int]]:
         return (
-            (self.models[name].min_rank, self.models[name].max_rank - exe.procs[name].tot_io_procs)
+            (self.master_models[name].min_rank, self.master_models[name].max_rank - exe.procs[name].tot_io_procs)
             for name in exe.model_names()
         )
 
-    def exe_io_rank_bounds(self, exe: yaml_data_models.ConfigIconExe) -> Iterable[tuple[int, int]]:
+    def get_exe_io_rank_bounds(self, exe: yaml_data_models.ConfigIconExe) -> Iterable[tuple[int, int]]:
         return (
-            (self.models[name].max_rank - exe.procs[name].tot_io_procs + 1, self.models[name].max_rank)
+            (self.master_models[name].max_rank - exe.procs[name].tot_io_procs + 1, self.master_models[name].max_rank)
             for name in exe.model_names()
         )
 
@@ -279,10 +299,10 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                     if exe:
                         distributed_ranks.update(
                             distribute_tasks_by_blocks(
-                                self.exe_compute_rank_bounds(exe), tuple(range(self.compute_nodes))
+                                self.get_exe_compute_rank_bounds(exe), tuple(range(self.compute_nodes))
                             )
                         )
-                        self.io_rank_bounds.extend(self.exe_io_rank_bounds(exe))
+                        self.io_rank_bounds.extend(self.get_exe_io_rank_bounds(exe))
                 # Distribute io ranks to io nodes
                 if self.exe.hiopy:
                     self.io_rank_bounds.append((self.exe.hiopy.min_rank, self.exe.hiopy.max_rank))
