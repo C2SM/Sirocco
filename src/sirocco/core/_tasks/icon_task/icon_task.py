@@ -75,7 +75,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
 
         # Build dictionnary mapping component names to model namelists
         namelist_by_filename: dict[str, NamelistFile] = {nml.name: nml for nml in self.namelists}
-        # Gather information from namelists
+        # Gather temporary information from namelists to build IconModel objects thereafter
         model_namelists: dict[str, NamelistFile] = {}
         model_types: dict[str, int] = {}
         model_master: dict[str, bool] = {}
@@ -98,7 +98,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                     model_types[model_name] = model_type
                     model_master[model_name] = True
                 elif key == "jsb_model_nml":
-                    model_types[model_name] = 3
+                    model_types[model_name] = 5
                     model_master[model_name] = False
 
         # Check if models and config component names match
@@ -116,7 +116,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
             msg = f"{self.name}: model names specified for executables ({exe_model_names}) and task ({model_names}) don't match"
             raise ValueError(msg)
 
-        # Build ICON models
+        # Build IconModel objects and fill in self.models
         for comp_name, component in self.components.items():
             if comp_name != "master":
                 self.models[comp_name] = IconModel(
