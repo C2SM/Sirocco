@@ -110,6 +110,11 @@ class AvailableData(Data, ConfigAvailableDataSpecs):
 class GeneratedData(Data, ConfigGeneratedDataSpecs):
     origin_task: Task = field(init=False, repr=False)
 
+    def __post_init__(self) -> None:
+        Data.__post_init__(self)
+        if isinstance(self.path, Path) and self.path.is_absolute():
+            self.resolved_path = self.path
+
     @Data.resolved_path.getter  # type: ignore[attr-defined]
     def resolved_path(self) -> Path:
         """Make sure generated data path is resolved before returning it"""
