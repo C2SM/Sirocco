@@ -2,6 +2,8 @@ import enum
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import f90nml
+
 from sirocco.core.graph_items import Data, GeneratedData, TaskComponent
 from sirocco.core.namelistfile import NamelistFile
 
@@ -17,13 +19,14 @@ class ModelType(enum.Enum):
 class IconModel:
     core_component: TaskComponent
     name: str
-    is_master: bool
+    is_master_model: bool
     task_run_dir: Path
     task_label: str
+    master_namelist_block: f90nml.Namelist
     namelist: NamelistFile
     model_type: ModelType
-    min_rank: int = field(init=False)
-    max_rank: int = field(init=False)
+    _min_rank: int = field(init=False)
+    _max_rank: int = field(init=False)
 
     @property
     def inputs(self) -> dict[str, list[Data]]:
@@ -33,9 +36,26 @@ class IconModel:
     def outputs(self) -> dict[str, list[GeneratedData]]:
         return self.core_component.outputs
 
+    # NOTE: min_rank and max_rank cannot be set with property setters
+    #       because we don't have access to the master namelist from here.
+
     @property
-    def n_tasks(self) -> int:
-        return self.max_rank - self.min_rank + 1
+    def min_rank(self) -> int:
+        return self._min_rank
+
+    @min_rank.setter
+    def min_rank(self, value: int) -> None:
+        self._min_rank = value
+        self.master_namelist_block["model_min_rank"] = value
+
+    @property
+    def max_rank(self) -> int:
+        return self._max_rank
+
+    @max_rank.setter
+    def max_rank(self, value: int) -> None:
+        self._max_rank = value
+        self.master_namelist_block["model_max_rank"] = value
 
     @property
     def num_io_procs(self) -> int:

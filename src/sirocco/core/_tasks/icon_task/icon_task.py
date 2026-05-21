@@ -11,9 +11,10 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 from sirocco.core._tasks.icon_task.models import IconModel, ModelType
 from sirocco.core._tasks.icon_task.ports import PortHandler, restart_in_handler
 from sirocco.core._tasks.icon_task.task_distribution import (
+    RankInfo,
     allocate_tasks_from_weights,
-    distribute_tasks_by_blocks,
-    distribute_tasks_round_robin,
+    distribute_procs_cyclic,
+    distribute_procs_load_balanced,
 )
 from sirocco.core.graph_items import Task
 from sirocco.core.namelistfile import NamelistFile
@@ -22,6 +23,8 @@ from sirocco.parsing.cycling import DateCyclePoint
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+
+    import f90nml
 
 LOGGER = logging.getLogger(__name__)
 
@@ -39,7 +42,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
     compute_nodes: int = field(init=False, repr=False)
     io_nodes: int = field(init=False, repr=False)
     n_procs: int = field(init=False, repr=False)
-    io_rank_bounds: list[tuple[int, int]] = field(init=False, repr=False, default_factory=list)
+    ranks_info: dict[int, RankInfo] = field(init=False, repr=False, default_factory=dict)
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -77,6 +80,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         namelist_by_filename: dict[str, NamelistFile] = {nml.name: nml for nml in self.namelists}
         # Gather temporary information from namelists to build IconModel objects thereafter
         model_namelists: dict[str, NamelistFile] = {}
+        master_namelist_model_nml_blocks: dict[str, f90nml.Namelist] = {}
         model_types: dict[str, int] = {}
         model_master: dict[str, bool] = {}
         for key in self._MODEL_NML_KEYS:
@@ -91,6 +95,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                     msg = f"{self.name}: {key} associated to {filename} does not contain a valid 'model_name' parameter"
                     raise KeyError(msg)
                 model_namelists[model_name] = namelist_by_filename[filename]
+                master_namelist_model_nml_blocks[model_name] = model_nml
                 if key == "master_model_nml":
                     if not isinstance(model_type := model_nml.get("model_type"), int):
                         msg = f"{self.name}: master_model_nml associated to {filename} does not contain a valid 'model_type' parameter"
@@ -121,14 +126,15 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
             if comp_name != "master":
                 self.models[comp_name] = IconModel(
                     name=comp_name,
-                    is_master=model_master[comp_name],
+                    is_master_model=model_master[comp_name],
                     core_component=component,
                     task_label=self.label,
                     task_run_dir=self.run_dir,
+                    master_namelist_block=master_namelist_model_nml_blocks[comp_name],
                     namelist=model_namelists[comp_name],
                     model_type=ModelType(model_types[comp_name]),
                 )
-        self.master_models = {model_name: model for model_name, model in self.models.items() if model.is_master}
+        self.master_models = {model_name: model for model_name, model in self.models.items() if model.is_master_model}
 
     def allocate_ranks(self) -> None:
         """Allocate rank ranges to icon components"""
@@ -136,59 +142,60 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         match self.computer:
             case "santis" | "remote" | "localhost":  # "remote" and "localhost" for testing
                 # NOTE: The following code only relies on the fact that cpu and gpu executables share the same nodes,
-                #       so not it's not only santis specific.
+                #       so it's not only santis specific.
 
-                # number of IO nodes
-                if self.target == "hybrid":
-                    self.io_nodes = (
-                        ceil(self.exe.tot_io_procs / self.exe.procs_per_io_node) if self.exe.tot_io_procs else 0
-                    )
-                    if self.io_nodes >= self.nodes:
-                        msg = f"{self.name}: number of IO nodes (got {self.io_nodes}) must be < total number of nodes ({self.nodes})"
-                        raise ValueError(msg)
-                else:
-                    self.io_nodes = 0
-
-                # number of compute nodes
+                # number of compute and IO nodes
+                # ------------------------------
+                self.io_nodes = ceil(self.exe.tot_io_procs / self.exe.procs_per_io_node) if self.exe.separate_io else 0
+                if self.io_nodes >= self.nodes:
+                    msg = f"{self.name}: number of IO nodes (got {self.io_nodes}) must be < total number of nodes ({self.nodes})"
+                    raise ValueError(msg)
                 self.compute_nodes = self.nodes - self.io_nodes
 
                 # Allocate model ranks
+                # --------------------
                 min_rank = 0
-                for exe in (self.exe.gpu, self.exe.cpu):
-                    if exe:
-                        compute_weights: dict[str, int] = {
-                            name: exe_proc.compute_weight for name, exe_proc in exe.procs.items()
-                        }
-                        match self.target:
-                            case "cpu" | "gpu":
-                                if self.ntasks_per_node is None:
-                                    msg = "ntasks_per_node must be set for cpu or gpu targets"
-                                    raise ValueError(msg)
-                                compute_tasks = self.nodes * self.ntasks_per_node - exe.tot_io_procs
-                            case "hybrid":
-                                if exe.compute_tasks_per_node is None:
-                                    msg = "compute_tasks_per_node must be set hybrid targets"
-                                    raise ValueError(msg)
-                                compute_tasks = self.compute_nodes * exe.compute_tasks_per_node
-                            case _:
-                                # NOTE: cannot use assert_never with Literal["__none__"]
-                                msg = f"target unset, got {self.target}"
-                                raise ValueError(msg)
-                        for model_name, n_tasks in allocate_tasks_from_weights(compute_tasks, compute_weights).items():
-                            self.master_models[model_name].min_rank = min_rank
-                            min_rank += n_tasks + exe.procs[model_name].tot_io_procs
-                            self.master_models[model_name].max_rank = min_rank - 1
-                            self.master_models[model_name].num_io_procs = exe.procs[model_name].streams
-                            self.master_models[model_name].num_prefetch_proc = exe.procs[model_name].prefetch
-                            self.master_models[model_name].num_restart_procs = exe.procs[model_name].restart
+                # gpu executable
+                if self.exe.gpu:
+                    if self.exe.gpu.compute_procs_per_node is None:
+                        msg = "compute_procs_per_node must be set for a gpu executable"
+                        raise ValueError(msg)
+                    compute_procs = self.compute_nodes * self.exe.gpu.compute_procs_per_node
+                    min_rank = self.allocate_exe_ranks(min_rank, compute_procs, self.exe.gpu, "gpu")
+                # cpu executable
+                if self.exe.cpu:
+                    if self.exe.separate_io:
+                        if self.exe.cpu.compute_procs_per_node is None:
+                            msg = "compute_procs_per_node must be set when separate_io is True"
+                            raise ValueError(msg)
+                        compute_procs = self.compute_nodes * self.exe.cpu.compute_procs_per_node
+                    else:
+                        if self.procs_per_node is None:
+                            msg = "procs_per_node must be set when separate_io is False"
+                            raise ValueError(msg)
+                        non_gpu_compute_procs_per_node = self.procs_per_node
+                        if self.exe.gpu and self.exe.gpu.compute_procs_per_node:
+                            non_gpu_compute_procs_per_node -= self.exe.gpu.compute_procs_per_node
+                        compute_procs = self.nodes * non_gpu_compute_procs_per_node - self.exe.tot_io_procs
+                    min_rank = self.allocate_exe_ranks(min_rank, compute_procs, self.exe.cpu, "cpu")
 
                 # Allocate hiopy ranks
+                # --------------------
                 if self.exe.hiopy:
                     self.exe.hiopy.min_rank = min_rank
                     min_rank += self.exe.hiopy.procs
                     self.exe.hiopy.max_rank = min_rank - 1
+                    for rank in range(self.exe.hiopy.min_rank, self.exe.hiopy.max_rank + 1):
+                        self.ranks_info[rank] = RankInfo(
+                            node_id=-1,
+                            numa_node=-1,
+                            model="hiopy",
+                            target="hiopy",
+                            pe_type="hiopy",
+                        )
 
-                # Total number of tasks
+                # Total number of procs
+                # ---------------------
                 self.n_procs = min_rank
 
             case _:
@@ -196,10 +203,36 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                 raise NotImplementedError(msg)
 
         # Final check for rank allocation
+        # -------------------------------
         for model_name, model in self.master_models.items():
-            if not hasattr(model, "min_rank") or not hasattr(model, "max_rank"):
-                msg = f"{self.name}: model {model_name} missing min_rank and/or max_rank"
+            if model.min_rank < 0 or model.max_rank < 0:
+                msg = f"{self.name}: model {model_name}  min_rank and/or max_rank not set"
                 raise RuntimeError(msg)
+
+    def allocate_exe_ranks(
+        self, min_rank: int, compute_procs: int, exe: yaml_data_models.ConfigIconExe, target: Literal["cpu", "gpu"]
+    ) -> int:
+        compute_weights: dict[str, int] = {name: exe_proc.compute_weight for name, exe_proc in exe.procs.items()}
+
+        for model_name, n_compute_procs in allocate_tasks_from_weights(compute_procs, compute_weights).items():
+            max_rank = min_rank + n_compute_procs + exe.procs[model_name].tot_io_procs - 1
+            for rank in range(min_rank, max_rank + 1):
+                self.ranks_info[rank] = RankInfo(
+                    node_id=-1,
+                    numa_node=-1,
+                    model=model_name,
+                    target=target,
+                    pe_type="compute" if rank < min_rank + n_compute_procs else "io",
+                )
+            self.master_models[model_name].min_rank = min_rank
+            self.master_models[model_name].max_rank = max_rank
+            self.master_models[model_name].num_io_procs = exe.procs[model_name].streams
+            self.master_models[model_name].num_prefetch_proc = exe.procs[model_name].prefetch
+            self.master_models[model_name].num_restart_procs = exe.procs[model_name].restart
+
+            min_rank = max_rank + 1
+
+        return min_rank
 
     def update_icon_namelists_from_workflow(self) -> None:
         if not isinstance(self.cycle_point, DateCyclePoint):
@@ -227,11 +260,6 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         for jsb_control_nml in self.master_namelist.iter_nml("jsb_control_nml"):
             jsb_control_nml["restart_jsbach"] = self.is_restart
 
-        for master_model_nml in self.master_namelist.iter_nml("master_model_nml"):
-            model = self.master_models[master_model_nml["model_name"]]  # type: ignore
-            master_model_nml["model_min_rank"] = model.min_rank
-            master_model_nml["model_max_rank"] = model.max_rank
-
     @property
     def is_restart(self) -> bool:
         """Check if the icon task starts from restart file(s)."""
@@ -250,23 +278,20 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         )
 
     def generate_multi_prog_config(self) -> None:
-        if self.target != "hybrid":
-            msg = f"{self.name}: multi-prog config only for hybrid targets"
-            raise ValueError(msg)
         match self.computer:
             case "santis":
                 multi_prog_lines: list[str] = []
                 if self.exe.gpu:
                     multi_prog_lines.append(
-                        f"{self.get_exe_ranks_str(self.exe.gpu)} ./{self.computer}_gpu_wrapper.sh ./icon_gpu"
+                        f"{self.get_exe_ranks_str(self.exe.gpu)} ./santis_icon_wrapper.sh ./icon_gpu"
                     )
                 if self.exe.cpu:
                     multi_prog_lines.append(
-                        f"{self.get_exe_ranks_str(self.exe.cpu)} ./{self.computer}_cpu_wrapper.sh ./icon_cpu"
+                        f"{self.get_exe_ranks_str(self.exe.cpu)} ./santis_icon_wrapper.sh ./icon_cpu"
                     )
                 if self.exe.hiopy:
                     multi_prog_lines.append(
-                        f"{self.exe.hiopy.min_rank}-{self.exe.hiopy.max_rank} ./{self.computer}_hiopy_wrapper.sh"
+                        f"{self.exe.hiopy.min_rank}-{self.exe.hiopy.max_rank} ./santis_hiopy_wrapper.sh"
                     )
                 (self.run_dir / "multi-prog.conf").write_text("\n".join(multi_prog_lines))
             case _:
@@ -288,35 +313,70 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
     def distribute_ranks(self) -> None:
         """Compute task distribution and dump to template file with placeholder node names"""
 
-        if self.target != "hybrid":
-            msg = f"{self.name}: arbitrary distribution only available for hybrid targets (for now)"
-            raise ValueError(msg)
         match self.computer:
             case "santis":
-                distributed_ranks: dict[int, int] = {}
-                # Distribute compute ranks to compute nodes
-                for exe in (self.exe.gpu, self.exe.cpu):
-                    if exe:
-                        distributed_ranks.update(
-                            distribute_tasks_by_blocks(
-                                self.get_exe_compute_rank_bounds(exe), tuple(range(self.compute_nodes))
-                            )
-                        )
-                        self.io_rank_bounds.extend(self.get_exe_io_rank_bounds(exe))
-                # Distribute io ranks to io nodes
-                if self.exe.hiopy:
-                    self.io_rank_bounds.append((self.exe.hiopy.min_rank, self.exe.hiopy.max_rank))
-                if self.io_rank_bounds:
-                    distributed_ranks.update(
-                        distribute_tasks_round_robin(
-                            self.io_rank_bounds,
-                            tuple(range(self.compute_nodes + 1, self.compute_nodes + self.io_nodes + 1)),
-                        )
+                io_rank_bounds: Iterable[tuple[int, int]] = chain(
+                    self.get_exe_io_rank_bounds(self.exe.gpu) if self.exe.gpu else (),
+                    self.get_exe_io_rank_bounds(self.exe.cpu) if self.exe.cpu else (),
+                )
+
+                # Distribute gpu compute ranks to compute nodes (can be all nodes)
+                if self.exe.gpu:
+                    distribute_procs_load_balanced(
+                        ranks_info=self.ranks_info,
+                        rank_bounds=self.get_exe_compute_rank_bounds(self.exe.gpu),
+                        nodes=tuple(range(self.compute_nodes)),
+                        n_sockets=self.exe.gpu.sockets_per_node,
                     )
-                # Write node placeholders to temporary hostfile
+                if self.exe.separate_io:
+                    # Distribute cpu compute ranks to compute nodes
+                    if self.exe.cpu:
+                        distribute_procs_load_balanced(
+                            self.ranks_info,
+                            self.get_exe_compute_rank_bounds(self.exe.cpu),
+                            tuple(range(self.compute_nodes)),
+                            n_sockets=self.exe.cpu.sockets_per_node,
+                        )
+                    # Distribute io ranks to io nodes
+                    if self.exe.cpu:
+                        n_sockets = self.exe.cpu.sockets_per_node
+                    elif self.exe.gpu:
+                        n_sockets = self.exe.gpu.sockets_per_node
+                    else:
+                        n_sockets = 1
+                    distribute_procs_cyclic(
+                        ranks_info=self.ranks_info,
+                        rank_bounds=io_rank_bounds,
+                        nodes=tuple(range(self.compute_nodes + 1, self.compute_nodes + self.io_nodes + 1)),
+                        n_sockets=n_sockets,
+                    )
+                else:
+                    # Distribute cpu compute ranks + io ranks to all nodes
+                    if self.exe.cpu:
+                        n_sockets = self.exe.cpu.sockets_per_node
+                    elif self.exe.gpu:
+                        n_sockets = self.exe.gpu.sockets_per_node
+                    else:
+                        n_sockets = 1
+                    rank_bounds = chain(
+                        self.get_exe_io_rank_bounds(self.exe.cpu) if self.exe.cpu else (), io_rank_bounds
+                    )
+                    distribute_procs_load_balanced(
+                        ranks_info=self.ranks_info,
+                        rank_bounds=rank_bounds,
+                        nodes=tuple(range(self.nodes)),
+                        n_sockets=n_sockets,
+                    )
+
+                # Write annotated hostfile
                 nid_length = len(str(self.nodes - 1))
                 (self.run_dir / "hostfile-sirocco").write_text(
-                    "\n".join(f"sirocco_nid{distributed_ranks[k]:0{nid_length}}" for k in range(self.n_procs))
+                    "\n".join(
+                        "sirocco_nid{node_id:0{nid_length}} {numa_node} {pe_type} {target} {model}".format(
+                            **self.ranks_info[k], nid_length=nid_length
+                        )
+                        for k in range(self.n_procs)
+                    )
                 )
 
             case _:
@@ -379,9 +439,9 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
 
         # Copy required runtime files
         if self.runtime is None:
-            runtime_dir = Path(__file__).parent / "target_runtime" / self.computer / self.target
+            runtime_dir = Path(__file__).parent / "runtime" / self.computer
             if not runtime_dir.exists():
-                msg = f"target {self.target} not defined for computer {self.computer}"
+                msg = f"runtime not defined for computer {self.computer}"
                 raise ValueError(msg)
         else:
             runtime_dir = self.config_rootdir / self.runtime
@@ -393,27 +453,21 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                 raise ValueError(msg)
         shutil.copytree(runtime_dir, self.run_dir, dirs_exist_ok=True)
 
-        # Hybrid target auxiliary files
+        # Hostfile and multi-prog config file
+        self.distribute_ranks()
         if self.target == "hybrid":
             self.generate_multi_prog_config()
-            self.distribute_ranks()
 
     def runscript_lines(self) -> list[str]:
         lines: list[str] = []
-        if self.target == "hybrid":
-            # Total number of tasks
-            lines.append(f"export N_TASKS={self.n_procs}")
-            if self.exe.gpu:
-                if self.exe.gpu.icon4py_venv:
-                    lines.append(f"export ICON4PY_VENV={self.exe.gpu.icon4py_venv}")
-                if self.exe.gpu.gt4py_build_cache_dir:
-                    lines.append(f"export GT4PY_BUILD_CACHE_DIR={self.exe.gpu.gt4py_build_cache_dir}")
-            # IO_RANKS env var (bash array of all io ranks)
-            io_ranks: list[int] = list(
-                chain(*(range(min_rank, max_rank + 1) for min_rank, max_rank in self.io_rank_bounds))
-            )
-            io_ranks_str = " ".join(f"'{r}'" for r in io_ranks)
-            lines.append(f"IO_RANKS=({io_ranks_str})")
+        # Total number of tasks
+        lines.append(f"export N_PROCS={self.n_procs}")
+        lines.append(f"export SIROCCO_TARGET={self.target}")
+        if self.exe.gpu:
+            if self.exe.gpu.icon4py_venv:
+                lines.append(f"export ICON4PY_VENV={self.exe.gpu.icon4py_venv}")
+            if self.exe.gpu.gt4py_build_cache_dir:
+                lines.append(f"export GT4PY_BUILD_CACHE_DIR={self.exe.gpu.gt4py_build_cache_dir}")
         lines.append(f"source ./{self._MAIN}")
         return lines
 

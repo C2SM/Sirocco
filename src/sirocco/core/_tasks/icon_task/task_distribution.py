@@ -1,5 +1,14 @@
 from collections.abc import Iterable, Iterator
 from itertools import chain
+from typing import Literal, TypedDict
+
+
+class RankInfo(TypedDict):
+    node_id: int
+    numa_node: int
+    pe_type: Literal["compute", "io", "hiopy"]
+    target: Literal["cpu", "gpu", "hiopy"]
+    model: str
 
 
 def allocate_tasks_from_weights(n_tot_tasks: int, weights: dict[str, int]) -> dict[str, int]:
@@ -37,8 +46,8 @@ def iter_sorted_comp_by_delta(float_tasks: dict[str, float], int_tasks: dict[str
     yield from (t[0] for t in delta)
 
 
-def iter_tasks_block_size(n_tasks: int, n_blocks: int) -> Iterator[tuple[int, int]]:
-    base, mod = divmod(n_tasks, n_blocks)
+def iter_procs_by_blocks(n_procs: int, n_blocks: int) -> Iterator[tuple[int, int]]:
+    base, mod = divmod(n_procs, n_blocks)
     for k in range(n_blocks):
         if k < mod:
             yield k, base + 1
@@ -46,43 +55,79 @@ def iter_tasks_block_size(n_tasks: int, n_blocks: int) -> Iterator[tuple[int, in
             yield k, base
 
 
-def distribute_tasks_by_blocks(rank_bounds: Iterable[tuple[int, int]], nodes: tuple[int, ...]) -> dict[int, int]:
-    """distribute tasks by blocks with as even block sizes as possible
+def distribute_procs_load_balanced(
+    ranks_info: dict[int, RankInfo], rank_bounds: Iterable[tuple[int, int]], nodes: tuple[int, ...], n_sockets: int = 1
+) -> None:
+    """distribute procs by blocks both at the node and numa node level with as even block sizes as possible.
+
+    This is close to srun --distribution:plane=n:plane=m with n / m adjusted on each node / numa node to generate
+    an as even distribution as possible.
 
     inputs:
-    - compute_ranks: Iterable[tuple[int, int]]
-      Iterable of min and max ranks
+    - ranks_info: dict[int, RankInfo]
+      dictionnary of RankInfo to be updated with node_id and numa_node
+    - rank_bounds: Iterable[tuple[int, int]]
+      Iterable of min and max ranks (e.g. model ranks)
     - nodes: tuple[int, ...]
-      nodes over which ranks are distributed"""
+      nodes over which ranks are distributed
+    - n_sockets: int = 1
+      number of sockets per node"""
 
-    distributed_ranks: dict[int, int] = {}
-    n_nodes = len(nodes)
-    first_index = 0
+    n_nodes: int = len(nodes)
+    start_node_idx: int = 0
+    start_numa: dict[int, int] = dict.fromkeys(nodes, 0)
+    # Loop over rank ranges
     for min_rank, max_rank in rank_bounds:
-        n_tasks = max_rank - min_rank + 1
-        current_rank = min_rank
-        for node_inc, tasks_block_size in iter_tasks_block_size(n_tasks=n_tasks, n_blocks=n_nodes):
-            node = nodes[(first_index + node_inc) % n_nodes]
-            distributed_ranks.update(dict.fromkeys(range(current_rank, current_rank + tasks_block_size), node))
-            current_rank += tasks_block_size
-        first_index = (first_index + n_tasks % n_nodes) % n_nodes
+        n_procs = max_rank - min_rank + 1
+        min_block_rank = min_rank
+        # Loop over rank blocks to be distributed on each node
+        for node_inc, node_procs_block_size in iter_procs_by_blocks(n_procs=n_procs, n_blocks=n_nodes):
+            node = nodes[(start_node_idx + node_inc) % n_nodes]
+            # Loop over blocks to be distributed on each socket
+            for numa_inc, numa_procs_block_size in iter_procs_by_blocks(
+                n_procs=node_procs_block_size, n_blocks=n_sockets
+            ):
+                numa = start_numa[node] + numa_inc % n_sockets
+                for rank in range(min_block_rank, min_block_rank + numa_procs_block_size):
+                    ranks_info[rank]["node_id"] = node
+                    ranks_info[rank]["numa_node"] = numa
+                min_block_rank += numa_procs_block_size
+            start_numa[node] = (start_numa[node] + node_procs_block_size % n_sockets) % n_sockets
+        # Check that all ranks have been distributed
+        if min_block_rank != max_rank + 1:
+            msg = f"not all ranks were distributed: min_node_rank={min_block_rank} != max_rank+1={max_rank + 1}"
+            raise RuntimeError(msg)
+        for rank in range(min_rank, max_rank + 1):
+            if ranks_info[rank]["node_id"] == -1 or ranks_info[rank]["numa_node"] == -1:
+                msg = f"node_id or numa_node not set for rank {rank}"
+                raise RuntimeError(msg)
+        start_node_idx = (start_node_idx + n_procs % n_nodes) % n_nodes
 
-    return distributed_ranks
 
+def distribute_procs_cyclic(
+    ranks_info: dict[int, RankInfo], rank_bounds: Iterable[tuple[int, int]], nodes: tuple[int, ...], n_sockets: int = 1
+) -> None:
+    """distribute procs in a round-robin way both at the node and numa node level.
 
-def distribute_tasks_round_robin(rank_bounds: Iterable[tuple[int, int]], nodes: tuple[int, ...]) -> dict[int, int]:
-    """distribute tasks in a round-robin way
+    This is equivalent to srun --distribution=cyclic:cyclic.
 
     inputs:
-    - compute_ranks: Iterable[tuple[int, int]]
-      Iterable of min and max ranks
+    - ranks_info: dict[int, RankInfo]
+      dictionnary of RankInfo to be updated with node_id and numa_node
+    - rank_bounds: Iterable[tuple[int, int]]
+      Iterable of min and max ranks (e.g. model ranks)
     - nodes: tuple[int, ...]
-      nodes over which ranks are distributed"""
+      nodes over which ranks are distributed
+    - n_sockets: int = 1
+      number of sockets per node"""
 
-    distributed_ranks: dict[int, int] = {}
-    n_nodes = len(nodes)
-    current_index = 0
+    n_nodes: int = len(nodes)
+    node_idx: int = 0
+    numa: dict[int, int] = dict.fromkeys(nodes, 0)
     for rank in chain(*(range(min_rank, max_rank + 1) for min_rank, max_rank in rank_bounds)):
-        distributed_ranks[rank] = nodes[current_index]
-        current_index = (current_index + 1) % n_nodes
-    return distributed_ranks
+        # TODO: distribute over n_sockets
+        node = nodes[node_idx]
+        ranks_info[rank]["node_id"] = node
+        ranks_info[rank]["numa_node"] = numa[node]
+        node_idx = (node_idx + 1) % n_nodes
+        numa[node] = (numa[node] + 1) % n_sockets

@@ -30,19 +30,24 @@ class PortHandler:
         if self.custom_callable:
             self.custom_callable(self.port_name, model)
         else:
-            if self.section is None or self.parameter is None:
-                msg = "section and parameter are required if a custom handler is not provided"
-                raise ValueError(msg)
             if len(model.inputs[self.port_name]) != 1:
                 msg = f"port {self.port_name} accepts one and only one data object"
                 raise ValueError(msg)
             data = model.inputs[self.port_name][0]
-            if isinstance(data, GeneratedData):
-                target_link_name = self.target_link_name if self.target_link_name else data.resolved_path.name
-                model.namelist[self.section][self.parameter] = f"./{target_link_name}"
-                (model.task_run_dir / target_link_name).symlink_to(data.resolved_path)
+            # Adapt namelist and link
+            if self.section is not None and self.parameter is not None:
+                if isinstance(data, GeneratedData):
+                    target_link_name = self.target_link_name if self.target_link_name else data.resolved_path.name
+                    model.namelist[self.section][self.parameter] = f"./{target_link_name}"
+                    (model.task_run_dir / target_link_name).symlink_to(data.resolved_path)
+                else:
+                    model.namelist[self.section][self.parameter] = str(data.resolved_path)
+            # Only link
+            elif self.target_link_name is not None:
+                (model.task_run_dir / self.target_link_name).symlink_to(data.resolved_path)
             else:
-                model.namelist[self.section][self.parameter] = str(data.resolved_path)
+                msg = "wrong combination of section, parameter and target_link_name"
+                raise ValueError(msg)
 
     @classmethod
     def handle(cls: type[Self], port_name: str, model: IconModel) -> None:
@@ -52,9 +57,14 @@ class PortHandler:
         cls.registered_handlers[port_name](model)
 
 
+# TODO: Check port names with regards to:
+#       - overall consistency, e.g. across components
+#       - corresponding namelist parameters
+#       - users/scientists
+
 dynamics_grid_file_handler = PortHandler(
     port_name="dynamics_grid_file",
-    valid_model_types=[ModelType.ATMOSPHERE],
+    valid_model_types=[ModelType.ATMOSPHERE, ModelType.OCEAN],
     section="grid_nml",
     parameter="dynamics_grid_filename",
 )
@@ -91,11 +101,140 @@ rrtmg_lw_handler = PortHandler(
     parameter="lrtm_filename",
     target_link_name="rrtmg_lw.nc",
 )
-ifs_jsb_handler = PortHandler(
-    port_name="ifs",
+bc_solar_sw_handler = PortHandler(
+    port_name="bc_solar_sw",
+    valid_model_types=[ModelType.ATMOSPHERE],
+    target_link_name="bc_solar_irradiance_sw_b14.nc",
+)
+atm_plumes_handler = PortHandler(
+    port_name="atm_plumes",
+    valid_model_types=[ModelType.ATMOSPHERE],
+    target_link_name="MACv2.0-SP_v1.nc",
+)
+jsb_ifs_handler = PortHandler(
+    port_name="jsb_ifs",
     valid_model_types=[ModelType.LAND],
     section="jsb_model_nml",
     parameter="ifs_filename",
+)
+jsb_seb_bc_handler = PortHandler(
+    port_name="jsb_seb_bc",
+    valid_model_types=[ModelType.LAND],
+    section="jsb_seb_nml",
+    parameter="bc_filename",
+)
+jsb_seb_ic_handler = PortHandler(
+    port_name="jsb_seb_ic",
+    valid_model_types=[ModelType.LAND],
+    section="jsb_seb_nml",
+    parameter="ic_filename",
+)
+jsb_rad_bc_handler = PortHandler(
+    port_name="jsb_rad_bc",
+    valid_model_types=[ModelType.LAND],
+    section="jsb_rad_nml",
+    parameter="bc_filename",
+)
+jsb_rad_ic_handler = PortHandler(
+    port_name="jsb_rad_ic",
+    valid_model_types=[ModelType.LAND],
+    section="jsb_rad_nml",
+    parameter="ic_filename",
+)
+jsb_turb_bc_handler = PortHandler(
+    port_name="jsb_turb_bc",
+    valid_model_types=[ModelType.LAND],
+    section="jsb_turb_nml",
+    parameter="bc_filename",
+)
+jsb_turb_ic_handler = PortHandler(
+    port_name="jsb_turb_ic",
+    valid_model_types=[ModelType.LAND],
+    section="jsb_turb_nml",
+    parameter="ic_filename",
+)
+jsb_sse_bc_handler = PortHandler(
+    port_name="jsb_sse_bc",
+    valid_model_types=[ModelType.LAND],
+    section="jsb_sse_nml",
+    parameter="bc_filename",
+)
+jsb_sse_ic_handler = PortHandler(
+    port_name="jsb_sse_ic",
+    valid_model_types=[ModelType.LAND],
+    section="jsb_sse_nml",
+    parameter="ic_filename",
+)
+jsb_hydro_bc_handler = PortHandler(
+    port_name="jsb_hydro_bc",
+    valid_model_types=[ModelType.LAND],
+    section="jsb_hydro_nml",
+    parameter="bc_filename",
+)
+jsb_hydro_bc_sso_handler = PortHandler(
+    port_name="jsb_hydro_bc_sso",
+    valid_model_types=[ModelType.LAND],
+    section="jsb_hydro_nml",
+    parameter="bc_sso_filename",
+)
+jsb_hydro_ic_handler = PortHandler(
+    port_name="jsb_hydro_ic",
+    valid_model_types=[ModelType.LAND],
+    section="jsb_hydro_nml",
+    parameter="ic_filename",
+)
+jsb_pheno_bc_handler = PortHandler(
+    port_name="jsb_pheno_bc",
+    valid_model_types=[ModelType.LAND],
+    section="jsb_pheno_nml",
+    parameter="bc_filename",
+)
+jsb_pheno_ic_handler = PortHandler(
+    port_name="jsb_pheno_ic",
+    valid_model_types=[ModelType.LAND],
+    section="jsb_pheno_nml",
+    parameter="ic_filename",
+)
+jsb_disturb_bc_handler = PortHandler(
+    port_name="jsb_disturb_bc",
+    valid_model_types=[ModelType.LAND],
+    section="jsb_disturb_nml",
+    parameter="bc_filename",
+)
+jsb_disturb_ic_handler = PortHandler(
+    port_name="jsb_disturb_ic",
+    valid_model_types=[ModelType.LAND],
+    section="jsb_disturb_nml",
+    parameter="ic_filename",
+)
+jsb_hd_bc_handler = PortHandler(
+    port_name="jsb_hd_bc",
+    valid_model_types=[ModelType.LAND],
+    section="jsb_hd_nml",
+    parameter="bc_filename",
+)
+jsb_hd_ic_handler = PortHandler(
+    port_name="jsb_hd_ic",
+    valid_model_types=[ModelType.LAND],
+    section="jsb_hd_nml",
+    parameter="ic_filename",
+)
+jsb_fract_handler = PortHandler(
+    port_name="jsb_fract",
+    valid_model_types=[ModelType.LAND],
+    section="jsb_model_nml",
+    parameter="fract_filename",
+)
+ocean_inistate = PortHandler(
+    port_name="ocean_inistate",
+    valid_model_types=[ModelType.LAND],
+    section="ocean_initialConditions_nml",
+    parameter="InitialState_InputFileName",
+)
+ocean_initial_state_handler = PortHandler(
+    port_name="ocean_initial_state",
+    valid_model_types=[ModelType.OCEAN],
+    target_link_name="initial_state.nc",
 )
 
 

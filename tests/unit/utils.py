@@ -35,8 +35,8 @@ def create_mock_shell_task(**overrides):
         "partition": None,
         "account": None,
         "nodes": None,
-        "ntasks_per_node": None,
-        "cpus_per_task": None,
+        "procs_per_node": None,
+        "cores_per_proc": None,
         "uenv": None,
         "view": None,
         "path": None,
@@ -80,8 +80,8 @@ def create_mock_icon_task(**overrides):
         "partition": None,
         "account": None,
         "nodes": None,
-        "ntasks_per_node": None,
-        "cpus_per_task": None,
+        "procs_per_node": None,
+        "cores_per_proc": None,
         "uenv": None,
         "view": None,
         "path": None,
@@ -183,7 +183,7 @@ def create_icon_task_from_workflow(
     exe_cpu_path=None,
     walltime="01:00:00",
     nodes=1,
-    ntasks_per_node=12,
+    procs_per_node=12,
     **task_config,
 ):
     """Create a real IconTask by parsing a workflow with namelist files.
@@ -195,7 +195,7 @@ def create_icon_task_from_workflow(
         bin_path: Path to ICON binary (defaults to tmp_path/icon)
         walltime: Wall time limit
         nodes: Number of nodes
-        ntasks_per_node: Tasks per node
+        procs_per_node: Tasks per node
         **task_config: Additional task config
 
     Returns:
@@ -271,7 +271,7 @@ def create_icon_task_from_workflow(
                 - ./ICON/model.namelist
               walltime: {walltime}
               nodes: {nodes}
-              ntasks_per_node: {ntasks_per_node}{extra_config}
+              procs_per_node: {procs_per_node}{extra_config}
         data:
           available: []
           generated: []
@@ -367,7 +367,7 @@ def create_icon_task_with_model_namelists(
                 {namelist_yaml}
               walltime: 01:00:00
               nodes: 1
-              ntasks_per_node: 12
+              procs_per_node: 12
         data:
           available: []
           generated: []

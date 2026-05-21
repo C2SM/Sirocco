@@ -61,8 +61,8 @@ tasks:
       plugin: shell
       walltime: 00:05:00
       nodes: 1
-      ntasks_per_node: 4
-      cpus_per_task: 72
+      procs_per_node: 4
+      cores_per_proc: 72
       path: ./scripts/prepare_input.sh
       command: ./prepare_input.sh --pool={PORT::data_pool}  --sst-ice={PORT::sst_ice_dir} --ozone={PORT::ozone_dir} --aero-kine={PORT::aero_kine_dir} --icon-input={PORT::icon_input}
   - icon:
@@ -74,8 +74,8 @@ tasks:
       walltime: 01:00:00
       nodes: 1
       # TODO: Unify this between workgraph & aiida-icon and standalone
-      ntasks_per_node: 3  # Reduced from 4: 2 compute + 1 I/O  # NOTE: this should be set to 4 for GPUs
-      cpus_per_task: 72  # NOTE: this should be set to 1 for GPUs
+      procs_per_node: 3  # Reduced from 4: 2 compute + 1 I/O  # NOTE: this should be set to 4 for GPUs
+      cores_per_proc: 72  # NOTE: this should be set to 1 for GPUs
       mem: 240000  # Increased memory for R02B06 grid
       # target: santis_gpu  # NOTE: This would be the AiiDA computer?
       # NOTE: Still working with `bin` entry currently

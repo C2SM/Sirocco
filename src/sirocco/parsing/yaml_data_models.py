@@ -414,9 +414,9 @@ class ConfigBaseTaskSpecs:
     view: str | None = None
     nodes: int = 1  # SLURM option `--nodes`, AiiDA option `num_machines`
     walltime: Annotated[str | None, BeforeValidator(validate_walltime_format)] = None
-    ntasks_per_node: int | None = None  # SLURM option `--ntasks-per-node`, AiiDA option `num_mpiprocs_per_machine`
     mem: int | None = None  # SLURM option `--mem` in MB, AiiDA option `max_memory_kb` in KB
-    cpus_per_task: int | None = None  # SLURM option `--cpus_per_task`, AiiDA option `num_cores_per_mpiproc`
+    procs_per_node: int | None = None  # SLURM option `--ntasks-per-node`, AiiDA option `num_mpiprocs_per_machine`
+    cores_per_proc: int | None = None  # SLURM option `--cpus-per-task`, AiiDA option `num_cores_per_mpiproc`
     mpi_cmd: str | None = None
 
 
@@ -652,6 +652,7 @@ class ConfigIconExecutables:
     gpu: ConfigIconExe | None = None
     hiopy: ConfigHiopyExe | None = None
     procs_per_io_node: int = 0
+    separate_io: bool = False
 
     def __post_init__(self) -> None:
         if self.cpu is None and self.gpu is None:
@@ -677,7 +678,8 @@ class ConfigIconExe:
     procs: dict[str, ConfigIconExeProc]
     icon4py_venv: Path | None = None
     gt4py_build_cache_dir: Path | None = None
-    compute_tasks_per_node: int | None = None
+    compute_procs_per_node: int | None = None
+    sockets_per_node: int = 1
 
     @property
     def tot_io_procs(self) -> int:
@@ -718,10 +720,8 @@ def validate_executables(exes: ConfigIconExecutables) -> ConfigIconExecutables:
         msg = f"{common_models} sepcified for both cpu and gpu executables"
         raise ValueError(msg)
 
-    gpu_tot_stream_procs = sum(proc.streams for proc in exes.gpu.procs.values()) if exes.gpu else 0
-    cpu_tot_stream_procs = sum(proc.streams for proc in exes.cpu.procs.values()) if exes.cpu else 0
-    if exes.hiopy and (gpu_tot_stream_procs + cpu_tot_stream_procs > 0):
-        msg = "hiopy is not compatible with icon async output streams"
+    if exes.separate_io and exes.procs_per_io_node == 0:
+        msg = "procs_per_io_node must be > 0 when using separate_io"
         raise ValueError(msg)
 
     return exes
@@ -771,7 +771,7 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
         ...       ICON:
         ...         plugin: icon
         ...         computer: localhost
-        ...         ntasks_per_node: 288
+        ...         procs_per_node: 288
         ...         namelists:
         ...           - path/to/icon_master.namelist
         ...           - path/to/case_nml:
@@ -801,27 +801,24 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
             self.target = "cpu"
         else:
             self.target = "hybrid"
-            if self.exe.tot_io_procs > 0 and self.exe.procs_per_io_node == 0:
-                msg = "io_tasks_per_node must be > 0 when using io tasks (prefetch, restart or streams) for hybrid targets"
-                raise ValueError(msg)
         return self
 
-    @model_validator(mode="after")
-    def set_defaults(self) -> ConfigIconTask:
-        if self.target == "__none__":
-            msg = f"error in validation order, target should be set, got {self.target}"
-            raise ValueError(msg)
-        match self.computer:
-            case "santis":
-                if self.target == "cpu" and not self.ntasks_per_node:
-                    self.ntasks_per_node = 288
-                    if self.cpus_per_task:
-                        self.ntasks_per_node = self.ntasks_per_node // self.cpus_per_task
-                if self.target == "gpu" and not self.ntasks_per_node:
-                    self.ntasks_per_node = 4
-                    if self.cpus_per_task:
-                        self.ntasks_per_node = self.ntasks_per_node // self.cpus_per_task
-        return self
+    # @model_validator(mode="after")
+    # def set_defaults(self) -> ConfigIconTask:
+    #     if self.target == "__none__":
+    #         msg = f"error in validation order, target should be set, got {self.target}"
+    #         raise ValueError(msg)
+    #     match self.computer:
+    #         case "santis":
+    #             if self.target == "cpu" and not self.procs_per_node:
+    #                 self.procs_per_node = 288
+    #                 if self.cores_per_proc:
+    #                     self.procs_per_node = self.procs_per_node // self.cores_per_proc
+    #             if self.target == "gpu" and not self.procs_per_node:
+    #                 self.procs_per_node = 4
+    #                 if self.cores_per_proc:
+    #                     self.procs_per_node = self.procs_per_node // self.cores_per_proc
+    #     return self
 
 
 @dataclass(kw_only=True)
@@ -869,7 +866,7 @@ class ConfigAvailableData(ConfigBaseData, ConfigAvailableDataSpecs):
 class ConfigGeneratedDataSpecs:
     # Path is optional because certain task types (e.g., ICON tasks) compute
     # output paths programmatically at runtime based on port names
-    # (e.g., 'finish_status' -> 'finish.status', 'latest_restart_file' -> computed from namelist).
+    # (e.g., 'finish_status' -> 'finish_xxx.status', 'latest_restart_file' -> computed from namelist).
     path: Path | None = None
 
 

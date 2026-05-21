@@ -51,8 +51,8 @@ def create_mock_shell_task_for_builder(command: str = "echo test") -> core.Shell
     task.output_data_items = Mock(return_value=[])
     # Resource attributes (for build_scheduler_options)
     task.nodes = None
-    task.ntasks_per_node = None
-    task.cpus_per_task = None
+    task.procs_per_node = None
+    task.cores_per_proc = None
     task.mem = None  # Memory in MB
     task.mem_per_cpu = None
     task.account = None
@@ -829,8 +829,8 @@ class TestBuildIconTaskSpecOutputs:
             computer=aiida_localhost.label,
             walltime="01:00:00",
             nodes=1,
-            ntasks_per_node=12,
-            cpus_per_task=1,
+            procs_per_node=12,
+            cores_per_proc=1,
         )
         task.bin = Path("/path/to/icon")
         task.wrapper_script = None

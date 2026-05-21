@@ -90,8 +90,8 @@ tasks:
       path: scripts/extpar
       command: "extpar --verbose --in {PORT::obs} --out {PORT::out}"
       nodes: 1
-      ntasks_per_node: 1
-      cpus_per_task: 1
+      procs_per_node: 1
+      cores_per_proc: 1
       mem: 1024
       walltime: 00:02:00
   - preproc:
@@ -99,8 +99,8 @@ tasks:
       path: scripts/cleanup.sh
       command: "bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}"
       nodes: 4
-      ntasks_per_node: 1
-      cpus_per_task: 1
+      procs_per_node: 1
+      cores_per_proc: 1
       mem: 1024
       walltime: 00:02:00
   - icon:
@@ -120,8 +120,8 @@ tasks:
             output_nml[1]:
               output_filename: atm_2d
       nodes: 40
-      ntasks_per_node: 288
-      cpus_per_task: 1
+      procs_per_node: 288
+      cores_per_proc: 1
       walltime: 23:59:59
       uenv: icon/25.2:v3
   - postproc_1:
@@ -129,32 +129,32 @@ tasks:
       path: scripts/main_script_ocn.sh
       command: "bash main_script_ocn.sh {PORT::dummy}"
       nodes: 2
-      ntasks_per_node: 1
-      cpus_per_task: 1
+      procs_per_node: 1
+      cores_per_proc: 1
       walltime: 00:05:00
   - postproc_2:
       plugin: shell
       command: "bash main_script_atm.sh --input {PORT::streams}"
       multi_arg_sep: ","
       nodes: 2
-      ntasks_per_node: 1
-      cpus_per_task: 1
+      procs_per_node: 1
+      cores_per_proc: 1
       walltime: 00:05:00
   - store_and_clean_1:
       plugin: shell
       path: scripts/post_clean.sh
       command: "bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive={PORT::archive}"
       nodes: 1
-      ntasks_per_node: 1
-      cpus_per_task: 1
+      procs_per_node: 1
+      cores_per_proc: 1
       walltime: 00:01:00
   - store_and_clean_2:
       plugin: shell
       path: scripts/post_clean.sh
       command: "bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --archive={PORT::archive}"
       nodes: 1
-      ntasks_per_node: 1
-      cpus_per_task: 1
+      procs_per_node: 1
+      cores_per_proc: 1
       walltime: 00:01:00
 data:
   available:
