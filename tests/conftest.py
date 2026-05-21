@@ -100,13 +100,21 @@ def minimal_invert_task_io_config() -> models.ConfigWorkflow:
                 tasks=[
                     models.ConfigCycleTask(
                         name="task_b",
-                        inputs={"port_b1": [models.ConfigCycleTaskInput(name="output_a")]},
-                        outputs={"port_b2": [models.ConfigCycleTaskOutput(name="output_b")]},
+                        components={
+                            models.ConfigCycleTask.__SINGLE_COMPONENT_NAME__: models.ConfigCycleTaskComponent(
+                                inputs={"port_b1": [models.ConfigCycleTaskInput(name="output_a")]},
+                                outputs={"port_b2": [models.ConfigCycleTaskOutput(name="output_b")]},
+                            )
+                        },
                     ),
                     models.ConfigCycleTask(
                         name="task_a",
-                        inputs={"port_a1": [models.ConfigCycleTaskInput(name="available")]},
-                        outputs={"port_a2": [models.ConfigCycleTaskOutput(name="output_a")]},
+                        components={
+                            models.ConfigCycleTask.__SINGLE_COMPONENT_NAME__: models.ConfigCycleTaskComponent(
+                                inputs={"port_a1": [models.ConfigCycleTaskInput(name="available")]},
+                                outputs={"port_a2": [models.ConfigCycleTaskOutput(name="output_a")]},
+                            )
+                        },
                     ),
                 ],
             ),
@@ -146,7 +154,7 @@ def pprinter() -> pretty_print.PrettyPrinter:
     return pretty_print.PrettyPrinter()
 
 
-def generate_config_paths(test_case: str):
+def generate_config_paths(test_case: str) -> dict[str, pathlib.Path | dict[str, str]]:
     return {
         "yml": pathlib.Path(f"tests/cases/{test_case}/config/config.yml"),
         "txt": pathlib.Path(f"tests/cases/{test_case}/data/config.txt"),
@@ -155,7 +163,7 @@ def generate_config_paths(test_case: str):
 
 
 @pytest.fixture
-def config_paths(config_case, tmp_path, test_rootdir) -> dict[str, pathlib.Path]:
+def config_paths(config_case, tmp_path, test_rootdir) -> dict[str, pathlib.Path | dict[t.Any, t.Any]]:
     config = generate_config_paths(config_case)
     # Copy test directory to tmp path and adapt config
     shutil.copytree(

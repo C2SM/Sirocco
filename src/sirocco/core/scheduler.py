@@ -21,8 +21,7 @@ def ignore_env(*args: str):
     try:
         yield
     finally:
-        for var, value in ignored_vars.items():
-            os.environ[var] = value
+        os.environ.update(ignored_vars)
 
 
 @dataclass(kw_only=True)
@@ -50,21 +49,21 @@ class Scheduler(ABC):
         # Scheduler header
         script_lines.extend(self.header_lines(task, output_mode=output_mode))
 
-        # Some MPI environment variables for potential usage by the user defined runscript content
+        # Some MPI environment variables for potential usage by the user provided script
         script_lines.append("")
         if task.nodes is not None:
             script_lines.append(f"N_NODES={task.nodes}")
-        if task.ntasks_per_node is not None:
-            script_lines.append(f"N_TASKS_PER_NODE={task.ntasks_per_node}")
-        if task.cpus_per_task is not None:
-            script_lines.append(f"CPUS_PER_TASK={task.cpus_per_task}")
+        if task.procs_per_node is not None:
+            script_lines.append(f"PROCS_PER_NODE={task.procs_per_node}")
+        if task.cores_per_proc is not None:
+            script_lines.append(f"CORES_PER_PROC={task.cores_per_proc}")
 
         # Sirocco context
         script_lines.append("")
         script_lines.extend(task.sirocco_environemnt())
 
         # Linked input
-        script_lines.extend(self.add_links(task))
+        script_lines.extend(task.add_links())
 
         # Task runscript "content"
         script_lines.append("")
@@ -73,20 +72,8 @@ class Scheduler(ABC):
         # Submit runscript
         # ================
         (task.run_dir / task.SUBMIT_FILENAME).write_text("\n".join(script_lines))
+        (task.run_dir / task.SUBMIT_FILENAME).chmod(0o755)
         task.jobid = self.submit_to_scheduler(task, dependency_type=dependency_type)
-
-    def add_links(self, task: Task) -> list[str]:
-        link_list: list[str] = []
-        if "link" in task.inputs:
-            link_list.extend([f"ln -s {data.resolved_path} ." for data in task.inputs["link"]])
-        if "link_content" in task.inputs:
-            link_list.extend(
-                [
-                    f"for item in {data.resolved_path}/*; do ln -s ${{item}} .; done"
-                    for data in task.inputs["link_content"]
-                ]
-            )
-        return link_list
 
     @abstractmethod
     def header_lines(
@@ -148,8 +135,8 @@ class Slurm(Scheduler):
             header.append(f"#SBATCH --partition={partition}")
         if nodes := task.nodes:
             header.append(f"#SBATCH --nodes={nodes}")
-        if ntasks_per_node := task.ntasks_per_node:
-            header.append(f"#SBATCH --ntasks-per-node={ntasks_per_node}")
+        if procs_per_node := task.procs_per_node:
+            header.append(f"#SBATCH --ntasks-per-node={procs_per_node}")
         if output_mode == "append":
             header.append("#SBATCH --open-mode=append")
         return header

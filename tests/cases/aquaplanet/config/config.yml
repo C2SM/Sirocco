@@ -10,21 +10,23 @@ cycles:
         period: PT1H
       tasks:
         - icon:
-            inputs:
-              ecrad_data: [ecrad_data]
-              cloud_opt_props: [ECHAM6_CldOptProps]
-              rrtmg_lw: [rrtmg_lw]
-              dynamics_grid_file: [icon_grid]
-              restart_file:
-                - restart:
-                    when:
-                      after: *root_start_date
-                    target_cycle:
-                      lag: -PT1H
-            outputs:
-              finish_status: [finish]
-              latest_restart_file: [restart]
-              output_streams: [atm_2d, atm_3d_pl]
+            components:
+              atm:
+                inputs:
+                  ecrad_data: [ecrad_data]
+                  cloud_opt_props: [ECHAM6_CldOptProps]
+                  rrtmg_lw: [rrtmg_lw]
+                  dynamics_grid_file: [icon_grid]
+                  restart_file:
+                    - restart:
+                        when:
+                          after: *root_start_date
+                        target_cycle:
+                          lag: -PT1H
+                outputs:
+                  finish_status: [finish]
+                  latest_restart_file: [restart]
+                  output_streams: [atm_2d, atm_3d_pl]
         - post_proc:
             inputs:
               streams: [atm_2d, atm_3d_pl]
@@ -45,11 +47,11 @@ tasks:
       plugin: icon
       uenv: icon/25.2:v3
       nodes: 1
-      ntasks_per_node: 200
-      cpus_per_task: 1
-      bin: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/bin/icon
-      bin_cpu: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/bin/icon
-      bin_gpu: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_gpu_25.2-v3/bin/icon
+      procs_per_node: 200
+      cores_per_proc: 1
+      exe:
+        cpu:
+          path: /capstor/store/cscs/userlab/cwd01/leclairm/archive_icon_build/icon-nwp_cpu_25.2-v3/bin/icon
       namelists:
         - ./ICON/icon_master.namelist
         - ./ICON/NAMELIST_exclaim_ape_R02B04

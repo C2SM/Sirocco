@@ -6,6 +6,7 @@ import hashlib
 import io
 import logging
 from abc import ABC, abstractmethod
+from itertools import chain
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -386,7 +387,9 @@ class IconTaskSpecBuilder(TaskSpecBuilder):
             Dict mapping data names (labels) to their ICON output port names
         """
         mapper = PortLabelMapper()
-        for port_name, output_list in self.task.outputs.items():
+        # NOTE: ports can be dupplicated accross components (e.g. restart, output_streams).
+        #       This is a temporary workaround until aiida-icon implements components
+        for port_name, output_list in chain(*(comp.outputs.items() for comp in self.task.components.values())):
             if port_name is not None:
                 for data in output_list:
                     mapper.add(port_name, data.name)
@@ -414,11 +417,11 @@ class IconTaskSpecBuilder(TaskSpecBuilder):
 
         # Model namelists - store as PKs with parsed content
         model_namelist_pks = {}
-        for model_name, model_nml in self.task.model_namelists.items():
+        for model_name, model in self.task.models.items():
             with io.StringIO() as buffer:
-                model_nml.namelist.write(buffer)
+                model.namelist.namelist.write(buffer)
                 content = buffer.getvalue()
-                model_node = create_namelist_singlefiledata_from_content(content, model_nml.name, store=True)
+                model_node = create_namelist_singlefiledata_from_content(content, model.namelist.name, store=True)
                 model_namelist_pks[model_name] = model_node.pk
 
         # Wrapper script - store as PK if present

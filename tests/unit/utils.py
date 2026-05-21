@@ -35,8 +35,8 @@ def create_mock_shell_task(**overrides):
         "partition": None,
         "account": None,
         "nodes": None,
-        "ntasks_per_node": None,
-        "cpus_per_task": None,
+        "procs_per_node": None,
+        "cores_per_proc": None,
         "uenv": None,
         "view": None,
         "path": None,
@@ -80,8 +80,8 @@ def create_mock_icon_task(**overrides):
         "partition": None,
         "account": None,
         "nodes": None,
-        "ntasks_per_node": None,
-        "cpus_per_task": None,
+        "procs_per_node": None,
+        "cores_per_proc": None,
         "uenv": None,
         "view": None,
         "path": None,
@@ -180,10 +180,10 @@ def create_icon_task_from_workflow(
     tmp_path,
     name="test_icon",
     computer="localhost",
-    bin_path=None,
+    exe_cpu_path=None,
     walltime="01:00:00",
     nodes=1,
-    ntasks_per_node=12,
+    procs_per_node=12,
     **task_config,
 ):
     """Create a real IconTask by parsing a workflow with namelist files.
@@ -195,7 +195,7 @@ def create_icon_task_from_workflow(
         bin_path: Path to ICON binary (defaults to tmp_path/icon)
         walltime: Wall time limit
         nodes: Number of nodes
-        ntasks_per_node: Tasks per node
+        procs_per_node: Tasks per node
         **task_config: Additional task config
 
     Returns:
@@ -211,6 +211,15 @@ def create_icon_task_from_workflow(
         &master_nml
          lrestart = .false.
         /
+        &master_model_nml
+         model_name="atm"
+         model_namelist_filename="model.namelist"
+         model_type=1
+         model_min_rank=0
+         model_max_rank=65535
+         model_inc_rank=1
+         model_rank_group_size=1
+       /
     """)
     )
 
@@ -220,11 +229,13 @@ def create_icon_task_from_workflow(
         &run_nml
          num_lev = 90
         /
+        &parallel_nml
+        /
     """)
     )
 
-    bin_path = bin_path or tmp_path / "icon"
-    bin_path.touch(exist_ok=True)
+    exe_cpu_path = exe_cpu_path or tmp_path / "icon"
+    exe_cpu_path.touch(exist_ok=True)
 
     # Build additional task config lines with proper indentation
     extra_config = ""
@@ -243,18 +254,24 @@ def create_icon_task_from_workflow(
                 stop_date: 2026-01-02T00:00
                 period: P1D
               tasks:
-                - {name}: {{}}
+                - {name}:
+                    components:
+                      atm: {{}}
         tasks:
           - {name}:
               plugin: icon
               computer: {computer}
-              bin: {bin_path}
+              exe:
+                cpu:
+                  path: {exe_cpu_path}
+                  procs:
+                    atm: {{}}
               namelists:
                 - ./ICON/icon_master.namelist
                 - ./ICON/model.namelist
               walltime: {walltime}
               nodes: {nodes}
-              ntasks_per_node: {ntasks_per_node}{extra_config}
+              procs_per_node: {procs_per_node}{extra_config}
         data:
           available: []
           generated: []
@@ -306,12 +323,12 @@ def create_icon_task_with_model_namelists(
     namelist_paths = ["./ICON/icon_master.namelist"]
     for model in models:
         model_nml = icon_dir / f"{model}.namelist"
-        model_nml.write_text("&run_nml\n num_lev = 90\n/\n")
+        model_nml.write_text("&run_nml\n num_lev = 90\n/\n&parallel_nml\n/\n")
         namelist_paths.append(f"./ICON/{model}.namelist")
 
     # Create bin path
-    bin_path = tmp_path / "icon"
-    bin_path.touch()
+    exe_cpu_path = tmp_path / "icon"
+    exe_cpu_path.touch()
 
     # Hardcoded YAML config with model namelists
     # Build with proper indentation: first item aligns with f-string indentation,
@@ -320,6 +337,9 @@ def create_icon_task_with_model_namelists(
         f"- {path}" if i == 0 else f"                - {path}" for i, path in enumerate(namelist_paths)
     )
 
+    components = "\n" + "\n".join(
+        textwrap.indent(f"{model}:\n  inputs: {{}}\n  outputs: {{}}", prefix=" " * 22) for model in models
+    )
     config_yaml = textwrap.dedent(
         f"""
         name: test_workflow
@@ -331,17 +351,23 @@ def create_icon_task_with_model_namelists(
                 stop_date: 2026-01-02T00:00
                 period: P1D
               tasks:
-                - {name}: {{}}
+                - {name}:
+                    components:{components}
         tasks:
           - {name}:
               plugin: icon
               computer: {computer}
-              bin: {bin_path}
+              exe:
+                cpu:
+                  path: {exe_cpu_path}
+                  procs:
+                    atm: {{}}
+                    oce: {{}}
               namelists:
                 {namelist_yaml}
               walltime: 01:00:00
               nodes: 1
-              ntasks_per_node: 12
+              procs_per_node: 12
         data:
           available: []
           generated: []
@@ -353,8 +379,8 @@ def create_icon_task_with_model_namelists(
 
 
 def create_generated_data(
-    name="output_data",
-    path="output.txt",
+    name: str = "output_data",
+    path: str | None = "output.txt",
     coordinates=None,
 ):
     """Create a real GeneratedData object directly.

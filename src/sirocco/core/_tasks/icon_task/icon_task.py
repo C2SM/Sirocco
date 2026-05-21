@@ -3,36 +3,70 @@ from __future__ import annotations
 import logging
 import shutil
 from dataclasses import dataclass, field
+from itertools import chain
+from math import ceil
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 
-import f90nml
-from aiida_icon.iconutils import masternml
-
-from sirocco.core.graph_items import Data, GeneratedData, Task
+from sirocco.core._tasks.icon_task.models import IconModel, ModelType
+from sirocco.core._tasks.icon_task.ports import PortHandler, restart_in_handler
+from sirocco.core._tasks.icon_task.task_distribution import (
+    RankInfo,
+    allocate_tasks_from_weights,
+    distribute_procs_cyclic,
+    distribute_procs_load_balanced,
+)
+from sirocco.core.graph_items import Task
 from sirocco.core.namelistfile import NamelistFile
-from sirocco.parsing import yaml_data_models as models
+from sirocco.parsing import yaml_data_models
 from sirocco.parsing.cycling import DateCyclePoint
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Iterable
 
+    import f90nml
 
 LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(kw_only=True)
-class IconTask(models.ConfigIconTaskSpecs, Task):
+class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
+    SUPPORTED_MACHINES: ClassVar[list[str]] = field(default=["santis"], repr=False)
     _MASTER_NAMELIST_NAME: ClassVar[str] = field(default="icon_master.namelist", repr=False)
-    _MASTER_MODEL_NML_SECTION: ClassVar[str] = field(default="master_model_nml", repr=False)
-    _AIIDA_ICON_RESTART_FILE_PORT_NAME: ClassVar[str] = field(default="restart_file", repr=False)
+    _MODEL_NML_KEYS: ClassVar[list[str]] = field(default=["master_model_nml", "jsb_model_nml"], repr=False)
     _MAIN: ClassVar[str] = field(default="main.sh", repr=False)
     namelists: list[NamelistFile]
+    master_namelist: NamelistFile = field(init=False, repr=False)
+    models: dict[str, IconModel] = field(default_factory=dict, repr=False)
+    master_models: dict[str, IconModel] = field(default_factory=dict, repr=False)
+    compute_nodes: int = field(init=False, repr=False)
+    io_nodes: int = field(init=False, repr=False)
+    n_procs: int = field(init=False, repr=False)
+    ranks_info: dict[int, RankInfo] = field(init=False, repr=False, default_factory=dict)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__()
-        # Detect master namelist
-        master_namelist = None
+
+        # Set component models and namelists
+        self.set_components_and_namelists()
+
+        # Allocate ranks
+        self.allocate_ranks()
+
+        # Validate wrapper script
+        # TODO: Remove this once aiida-icon is synced with standalone
+        if self.wrapper_script is not None:
+            self.wrapper_script = self.config_rootdir / self.wrapper_script
+            if not self.wrapper_script.exists():
+                msg = f"Wrapper script in path {self.wrapper_script} does not exist."
+                raise FileNotFoundError(msg)
+            if not self.wrapper_script.is_file():
+                msg = f"Wrapper script in path {self.wrapper_script} is not a file."
+                raise OSError(msg)
+
+    def set_components_and_namelists(self) -> None:
+        # Detect and set master namelist
+        master_namelist: NamelistFile | None = None
         for namelist in self.namelists:
             if namelist.name == self._MASTER_NAMELIST_NAME:
                 master_namelist = namelist
@@ -40,67 +74,171 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         if master_namelist is None:
             msg = f"Failed to read master namelists. Could not find {self._MASTER_NAMELIST_NAME!r} in namelists {self.namelists}"
             raise ValueError(msg)
-        self._master_namelist = master_namelist
+        self.master_namelist = master_namelist
 
-        # Parse master namelist to identify required model namelists
-        master_nml_data = f90nml.reads(str(self._master_namelist.namelist))
-        self._required_models = dict(masternml.iter_model_name_filepath(master_nml_data))
+        # Build dictionnary mapping component names to model namelists
+        namelist_by_filename: dict[str, NamelistFile] = {nml.name: nml for nml in self.namelists}
+        # Gather temporary information from namelists to build IconModel objects thereafter
+        model_namelists: dict[str, NamelistFile] = {}
+        master_namelist_model_nml_blocks: dict[str, f90nml.Namelist] = {}
+        model_types: dict[str, int] = {}
+        model_master: dict[str, bool] = {}
+        for key in self._MODEL_NML_KEYS:
+            for model_nml in self.master_namelist.iter_nml(key):
+                if not isinstance((filename := model_nml.get("model_namelist_filename")), str):
+                    msg = f"{self.name}: {key} does not contain a valid 'model_namelist_filename' parameter"
+                    raise KeyError(msg)
+                if filename not in namelist_by_filename:
+                    msg = f"{self.name}: namelist {filename} required by {self._MASTER_NAMELIST_NAME!r} not found in provided namelists"
+                    raise KeyError(msg)
+                if not isinstance(model_name := model_nml.get("model_name"), str):
+                    msg = f"{self.name}: {key} associated to {filename} does not contain a valid 'model_name' parameter"
+                    raise KeyError(msg)
+                model_namelists[model_name] = namelist_by_filename[filename]
+                master_namelist_model_nml_blocks[model_name] = model_nml
+                if key == "master_model_nml":
+                    if not isinstance(model_type := model_nml.get("model_type"), int):
+                        msg = f"{self.name}: master_model_nml associated to {filename} does not contain a valid 'model_type' parameter"
+                        raise KeyError(msg)
+                    model_types[model_name] = model_type
+                    model_master[model_name] = True
+                elif key == "jsb_model_nml":
+                    model_types[model_name] = 5
+                    model_master[model_name] = False
 
-        # Build mapping of available model namelists
-        self._model_namelists = {}
-        namelist_by_name = {nml.name: nml for nml in self.namelists}
+        # Check if models and config component names match
+        if (model_names := set(model_namelists.keys())) != (
+            comp_names := {k for k in self.components if k != "master"}
+        ):
+            msg = f"{self.name}: models specified in {self._MASTER_NAMELIST_NAME} ({model_names}) don't match components from the config ({comp_names})"
+            raise ValueError(msg)
 
-        for model_name, model_path in self._required_models.items():
-            # Look for the namelist file by filename
-            model_filename = model_path.name
-            if model_filename in namelist_by_name:
-                self._model_namelists[model_name] = namelist_by_name[model_filename]
-            elif not model_path.is_absolute():
-                # TODO: do not allow this case anymore
-                # For relative paths, require the namelist to be provided
-                msg = f"Missing model namelist for model '{model_name}': expected file '{model_filename}' not found in provided namelists"
-                raise ValueError(msg)
-            # For absolute paths, the file is expected to exist on the target system
-            # We don't validate this here as it will be handled by aiida-icon
+        # Check if model names match between executables and task specs
+        exe_model_names = (set(self.exe.gpu.model_names()) if self.exe.gpu else set()) | (
+            set(self.exe.cpu.model_names()) if self.exe.cpu else set()
+        )
+        if model_names != exe_model_names:
+            msg = f"{self.name}: model names specified for executables ({exe_model_names}) and task ({model_names}) don't match"
+            raise ValueError(msg)
 
-        if self.wrapper_script is not None:
-            self.wrapper_script = self._validate_wrapper_script(self.wrapper_script, self.config_rootdir)
+        # Build IconModel objects and fill in self.models
+        for comp_name, component in self.components.items():
+            if comp_name != "master":
+                self.models[comp_name] = IconModel(
+                    name=comp_name,
+                    is_master_model=model_master[comp_name],
+                    core_component=component,
+                    task_label=self.label,
+                    task_run_dir=self.run_dir,
+                    master_namelist_block=master_namelist_model_nml_blocks[comp_name],
+                    namelist=model_namelists[comp_name],
+                    model_type=ModelType(model_types[comp_name]),
+                )
+        self.master_models = {model_name: model for model_name, model in self.models.items() if model.is_master_model}
 
-        # Set default MPI variables
-        self.nodes = 1 if self.nodes is None else self.nodes
-        if self.ntasks_per_node is None:
-            if self.target == "santis_cpu":
-                self.ntasks_per_node = 288
-            elif self.target == "santis_gpu":
-                self.ntasks_per_node = 4
+    def allocate_ranks(self) -> None:
+        """Allocate rank ranges to icon components"""
 
-    @property
-    def master_namelist(self) -> NamelistFile:
-        return self._master_namelist
+        match self.computer:
+            case "santis" | "remote" | "localhost":  # "remote" and "localhost" for testing
+                # NOTE: The following code only relies on the fact that cpu and gpu executables share the same nodes,
+                #       so it's not only santis specific.
 
-    @property
-    def model_namelists(self) -> dict[str, NamelistFile]:
-        """Return mapping of model names to their namelist files."""
-        return self._model_namelists
+                # number of compute and IO nodes
+                # ------------------------------
+                self.io_nodes = ceil(self.exe.tot_io_procs / self.exe.procs_per_io_node) if self.exe.separate_io else 0
+                if self.io_nodes >= self.nodes:
+                    msg = f"{self.name}: number of IO nodes (got {self.io_nodes}) must be < total number of nodes ({self.nodes})"
+                    raise ValueError(msg)
+                self.compute_nodes = self.nodes - self.io_nodes
 
-    @property
-    def model_namelist(self) -> NamelistFile:
-        # NOTE: This is a workaround until multiple models are implemented
-        if len(self._model_namelists) != 1:
-            msg = "multiple models not yet implemented"
-            raise NotImplementedError(msg)
-        return next(iter(self._model_namelists.values()))
+                # Allocate model ranks
+                # --------------------
+                min_rank = 0
+                # gpu executable
+                if self.exe.gpu:
+                    if self.exe.gpu.compute_procs_per_node is None:
+                        msg = "compute_procs_per_node must be set for a gpu executable"
+                        raise ValueError(msg)
+                    compute_procs = self.compute_nodes * self.exe.gpu.compute_procs_per_node
+                    min_rank = self.allocate_exe_ranks(min_rank, compute_procs, self.exe.gpu, "gpu")
+                # cpu executable
+                if self.exe.cpu:
+                    if self.exe.separate_io:
+                        if self.exe.cpu.compute_procs_per_node is None:
+                            msg = "compute_procs_per_node must be set when separate_io is True"
+                            raise ValueError(msg)
+                        compute_procs = self.compute_nodes * self.exe.cpu.compute_procs_per_node
+                    else:
+                        if self.procs_per_node is None:
+                            msg = "procs_per_node must be set when separate_io is False"
+                            raise ValueError(msg)
+                        non_gpu_compute_procs_per_node = self.procs_per_node
+                        if self.exe.gpu and self.exe.gpu.compute_procs_per_node:
+                            non_gpu_compute_procs_per_node -= self.exe.gpu.compute_procs_per_node
+                        compute_procs = self.nodes * non_gpu_compute_procs_per_node - self.exe.tot_io_procs
+                    min_rank = self.allocate_exe_ranks(min_rank, compute_procs, self.exe.cpu, "cpu")
 
-    @property
-    def is_restart(self) -> bool:
-        """Check if the icon task starts from the restart file."""
-        # restart port must be present and nonempty
-        return bool(self.inputs.get(self._AIIDA_ICON_RESTART_FILE_PORT_NAME, False))
+                # Allocate hiopy ranks
+                # --------------------
+                if self.exe.hiopy:
+                    self.exe.hiopy.min_rank = min_rank
+                    min_rank += self.exe.hiopy.procs
+                    self.exe.hiopy.max_rank = min_rank - 1
+                    for rank in range(self.exe.hiopy.min_rank, self.exe.hiopy.max_rank + 1):
+                        self.ranks_info[rank] = RankInfo(
+                            node_id=-1,
+                            numa_node=-1,
+                            model="hiopy",
+                            target="hiopy",
+                            pe_type="hiopy",
+                        )
+
+                # Total number of procs
+                # ---------------------
+                self.n_procs = min_rank
+
+            case _:
+                msg = f"{self.name}: allocate_ranks not implemented for machine {self.computer}"
+                raise NotImplementedError(msg)
+
+        # Final check for rank allocation
+        # -------------------------------
+        for model_name, model in self.master_models.items():
+            if model.min_rank < 0 or model.max_rank < 0:
+                msg = f"{self.name}: model {model_name}  min_rank and/or max_rank not set"
+                raise RuntimeError(msg)
+
+    def allocate_exe_ranks(
+        self, min_rank: int, compute_procs: int, exe: yaml_data_models.ConfigIconExe, target: Literal["cpu", "gpu"]
+    ) -> int:
+        compute_weights: dict[str, int] = {name: exe_proc.compute_weight for name, exe_proc in exe.procs.items()}
+
+        for model_name, n_compute_procs in allocate_tasks_from_weights(compute_procs, compute_weights).items():
+            max_rank = min_rank + n_compute_procs + exe.procs[model_name].tot_io_procs - 1
+            for rank in range(min_rank, max_rank + 1):
+                self.ranks_info[rank] = RankInfo(
+                    node_id=-1,
+                    numa_node=-1,
+                    model=model_name,
+                    target=target,
+                    pe_type="compute" if rank < min_rank + n_compute_procs else "io",
+                )
+            self.master_models[model_name].min_rank = min_rank
+            self.master_models[model_name].max_rank = max_rank
+            self.master_models[model_name].num_io_procs = exe.procs[model_name].streams
+            self.master_models[model_name].num_prefetch_proc = exe.procs[model_name].prefetch
+            self.master_models[model_name].num_restart_procs = exe.procs[model_name].restart
+
+            min_rank = max_rank + 1
+
+        return min_rank
 
     def update_icon_namelists_from_workflow(self) -> None:
         if not isinstance(self.cycle_point, DateCyclePoint):
-            msg = "ICON task must have a DateCyclePoint"
+            msg = f"{self.name}: icon tasks must have a DateCyclePoint"
             raise TypeError(msg)
+
         self.master_namelist.update_from_specs(
             {
                 "master_time_control_nml": {
@@ -119,10 +257,135 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             }
         )
 
+        for jsb_control_nml in self.master_namelist.iter_nml("jsb_control_nml"):
+            jsb_control_nml["restart_jsbach"] = self.is_restart
+
+    @property
+    def is_restart(self) -> bool:
+        """Check if the icon task starts from restart file(s)."""
+        # Get restart status of first master model
+        restart_ref = bool(next(iter(self.master_models.values())).inputs.get(restart_in_handler.port_name, False))
+        # Check if all master models have the same restart status
+        for model in self.master_models.values():
+            if bool(model.inputs.get(restart_in_handler.port_name, False)) != restart_ref:
+                msg = f"{self.name}: All CON models must have the same restart status"
+                raise ValueError(msg)
+        return restart_ref
+
+    def get_exe_ranks_str(self, exe: yaml_data_models.ConfigIconExe) -> str:
+        return ",".join(
+            f"{self.master_models[name].min_rank}-{self.master_models[name].max_rank}" for name in exe.model_names()
+        )
+
+    def generate_multi_prog_config(self) -> None:
+        match self.computer:
+            case "santis":
+                multi_prog_lines: list[str] = []
+                if self.exe.gpu:
+                    multi_prog_lines.append(
+                        f"{self.get_exe_ranks_str(self.exe.gpu)} ./santis_icon_wrapper.sh ./icon_gpu"
+                    )
+                if self.exe.cpu:
+                    multi_prog_lines.append(
+                        f"{self.get_exe_ranks_str(self.exe.cpu)} ./santis_icon_wrapper.sh ./icon_cpu"
+                    )
+                if self.exe.hiopy:
+                    multi_prog_lines.append(
+                        f"{self.exe.hiopy.min_rank}-{self.exe.hiopy.max_rank} ./santis_hiopy_wrapper.sh"
+                    )
+                (self.run_dir / "multi-prog.conf").write_text("\n".join(multi_prog_lines))
+            case _:
+                msg = f"{self.name}: generate_multi_prog_config not implemented for machine {self.computer}"
+                raise NotImplementedError(msg)
+
+    def get_exe_compute_rank_bounds(self, exe: yaml_data_models.ConfigIconExe) -> Iterable[tuple[int, int]]:
+        return (
+            (self.master_models[name].min_rank, self.master_models[name].max_rank - exe.procs[name].tot_io_procs)
+            for name in exe.model_names()
+        )
+
+    def get_exe_io_rank_bounds(self, exe: yaml_data_models.ConfigIconExe) -> Iterable[tuple[int, int]]:
+        return (
+            (self.master_models[name].max_rank - exe.procs[name].tot_io_procs + 1, self.master_models[name].max_rank)
+            for name in exe.model_names()
+        )
+
+    def distribute_ranks(self) -> None:
+        """Compute task distribution and dump to template file with placeholder node names"""
+
+        match self.computer:
+            case "santis":
+                io_rank_bounds: Iterable[tuple[int, int]] = chain(
+                    self.get_exe_io_rank_bounds(self.exe.gpu) if self.exe.gpu else (),
+                    self.get_exe_io_rank_bounds(self.exe.cpu) if self.exe.cpu else (),
+                )
+
+                # Distribute gpu compute ranks to compute nodes (can be all nodes)
+                if self.exe.gpu:
+                    distribute_procs_load_balanced(
+                        ranks_info=self.ranks_info,
+                        rank_bounds=self.get_exe_compute_rank_bounds(self.exe.gpu),
+                        nodes=tuple(range(self.compute_nodes)),
+                        n_sockets=self.exe.gpu.sockets_per_node,
+                    )
+                if self.exe.separate_io:
+                    # Distribute cpu compute ranks to compute nodes
+                    if self.exe.cpu:
+                        distribute_procs_load_balanced(
+                            self.ranks_info,
+                            self.get_exe_compute_rank_bounds(self.exe.cpu),
+                            tuple(range(self.compute_nodes)),
+                            n_sockets=self.exe.cpu.sockets_per_node,
+                        )
+                    # Distribute io ranks to io nodes
+                    if self.exe.cpu:
+                        n_sockets = self.exe.cpu.sockets_per_node
+                    elif self.exe.gpu:
+                        n_sockets = self.exe.gpu.sockets_per_node
+                    else:
+                        n_sockets = 1  # cannot happen
+                    distribute_procs_cyclic(
+                        ranks_info=self.ranks_info,
+                        rank_bounds=io_rank_bounds,
+                        nodes=tuple(range(self.compute_nodes, self.compute_nodes + self.io_nodes)),
+                        n_sockets=n_sockets,
+                    )
+                else:
+                    # Distribute cpu compute ranks + io ranks to all nodes
+                    if self.exe.cpu:
+                        n_sockets = self.exe.cpu.sockets_per_node
+                    elif self.exe.gpu:
+                        n_sockets = self.exe.gpu.sockets_per_node
+                    else:
+                        n_sockets = 1
+                    rank_bounds = chain(
+                        self.get_exe_io_rank_bounds(self.exe.cpu) if self.exe.cpu else (), io_rank_bounds
+                    )
+                    distribute_procs_load_balanced(
+                        ranks_info=self.ranks_info,
+                        rank_bounds=rank_bounds,
+                        nodes=tuple(range(self.nodes)),
+                        n_sockets=n_sockets,
+                    )
+
+                # Write annotated hostfile
+                nid_length = len(str(self.nodes - 1))
+                (self.run_dir / "hostfile-sirocco").write_text(
+                    "\n".join(
+                        "sirocco_nid{node_id:0{nid_length}} {numa_node} {pe_type} {target} {model}".format(
+                            **self.ranks_info[k], nid_length=nid_length
+                        )
+                        for k in range(self.n_procs)
+                    )
+                )
+
+            case _:
+                msg = f"{self.name}: distribute_ranks not implemented for machine {self.computer}"
+                raise NotImplementedError(msg)
+
     def dump_namelists(
         self, directory: Path, filename_mode: Literal["append_coordinates", "raw"] = "append_coordinates"
     ) -> None:
-        # TODO: if standalone becomes the only orchestrator, no need for directory and filename_mode kw args
         if not directory.exists():
             msg = f"Dumping path {directory} does not exist."
             raise OSError(msg)
@@ -136,7 +399,7 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
                 from datetime import datetime
 
                 # Format coordinates - strip timezone from datetimes (all Sirocco datetimes are UTC)
-                coord_strs = []
+                coord_strs: list[str] = []
                 for p in self.coordinates.values():
                     if isinstance(p, datetime):
                         # Remove timezone for filename (keeps original format otherwise)
@@ -148,242 +411,81 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
             namelist.dump(directory / filename)
 
     def prepare_for_submission(self) -> None:
-        # Ensure either target or runscript is set
-        # NOTE: This code is there as it is the first available place where we know the standalone orchestrator is used
-        # TODO: unify `runtime` spec with aiida-icon and then  make this a yaml model validator
-        if self.target is None:
-            if self.runtime is None:
-                msg = f"task {self.name}: 'runtime' is required when 'target' is unset"
-                raise ValueError(msg)
-        elif self.runtime is not None:
-            msg = f"task {self.name}: 'target' set to {self.target}: 'runtime' is ignored. Unset 'target' to take it into account."
-            LOGGER.warning(msg)
+        """Generate or copy any file required at runtime to task run_dir"""
 
-        # Link ICON binary
-        match self.target:
-            case None:
-                if self.bin is not None:
-                    (self.run_dir / "icon").symlink_to(self.bin)
-                if self.bin_cpu is not None:
-                    (self.run_dir / "icon_cpu").symlink_to(self.bin_cpu)
-                if self.bin_gpu is not None:
-                    (self.run_dir / "icon_gpu").symlink_to(self.bin_gpu)
-            case "santis_cpu":
-                if self.bin_cpu is not None:
-                    (self.run_dir / "icon_cpu").symlink_to(self.bin_cpu)
-                elif self.bin is not None:
-                    (self.run_dir / "icon_cpu").symlink_to(self.bin)
-            case "santis_gpu":
-                if self.bin_gpu is not None:
-                    (self.run_dir / "icon_gpu").symlink_to(self.bin_gpu)
-                elif self.bin is not None:
-                    (self.run_dir / "icon_gpu").symlink_to(self.bin)
+        # Check supported machine and set target
+        if self.computer not in self.SUPPORTED_MACHINES:
+            msg = (
+                f"machine {self.computer} not suportted for icon task. Supported machines are {self.SUPPORTED_MACHINES}"
+            )
+            raise ValueError(msg)
+
+        # Link ICON binaries
+        if self.exe.cpu is not None:
+            (self.run_dir / "icon_cpu").symlink_to(self.exe.cpu.path)
+        if self.exe.gpu is not None:
+            (self.run_dir / "icon_gpu").symlink_to(self.exe.gpu.path)
 
         # Take input/output ports specifications into account:
-        # - adapt namelist paramters
+        # - adapt namelist parameters
         # - resolve data path
         # - link data
-        self.handle_input_ports()
-        self.handle_output_ports()
+        for model in self.models.values():
+            for port in chain(model.inputs, model.outputs):
+                PortHandler.handle(port, model)
 
         # Dump namelists
         self.dump_namelists(directory=self.run_dir, filename_mode="raw")
 
         # Copy required runtime files
-        if self.target is None:
-            # NOTE: dupplicate validation for type checker
-            if self.runtime is None:
-                msg = f"task {self.name}: 'runtime' is required when 'target' is unset"
+        if self.runtime is None:
+            runtime_dir = Path(__file__).parent / "runtime" / self.computer
+            if not runtime_dir.exists():
+                msg = f"runtime not defined for computer {self.computer}"
                 raise ValueError(msg)
+        else:
             runtime_dir = self.config_rootdir / self.runtime
-            if not (runtime_dir / self._MAIN).is_file():
-                msg = f"{self._MAIN} not found in runtime at {runtime_dir}"
-                raise ValueError(msg)
             if not runtime_dir.is_dir():
                 msg = f"{self.name}: 'runtime' directory not found at {runtime_dir}"
                 raise ValueError(msg)
-        else:
-            runtime_dir = Path(__file__).parent / "target_runtime" / self.target
+            if not (runtime_dir / self._MAIN).is_file():
+                msg = f"{self._MAIN} not found in runtime at {runtime_dir}"
+                raise ValueError(msg)
         shutil.copytree(runtime_dir, self.run_dir, dirs_exist_ok=True)
 
+        # Hostfile and multi-prog config file
+        self.distribute_ranks()
+        if self.target == "hybrid":
+            self.generate_multi_prog_config()
+
     def runscript_lines(self) -> list[str]:
-        return [f"source ./{self._MAIN}"]
-
-    def handle_input_ports(self) -> None:
-        """Reflect port specs in namelist and link necessary input data"""
-
-        for port, data_list in self.inputs.items():
-            if not data_list:
-                continue
-            match port:
-                case "dynamics_grid_file":
-                    self.adapt_nml_param_and_link(
-                        port=port,
-                        data_list=data_list,
-                        namelist=self.model_namelist,
-                        section="grid_nml",
-                        parameter="dynamics_grid_filename",
-                    )
-                case "ifs2icon":
-                    self.adapt_nml_param_and_link(
-                        port=port,
-                        data_list=data_list,
-                        namelist=self.model_namelist,
-                        section="initicon_nml",
-                        parameter="ifs2icon_filename",
-                    )
-                case "ecrad_data":
-                    self.adapt_nml_param_and_link(
-                        port=port,
-                        data_list=data_list,
-                        namelist=self.model_namelist,
-                        section="radiation_nml",
-                        parameter="ecrad_data_path",
-                        target_link_name="ecrad_data",
-                    )
-                case "extpar_file":
-                    self.adapt_nml_param_and_link(
-                        port=port,
-                        data_list=data_list,
-                        namelist=self.model_namelist,
-                        section="extpar_nml",
-                        parameter="extpar_filename",
-                    )
-                case "cloud_opt_props":
-                    self.adapt_nml_param_and_link(
-                        port=port,
-                        data_list=data_list,
-                        namelist=self.model_namelist,
-                        section="nwp_phy_nml",
-                        parameter="cldopt_filename",
-                        target_link_name="CldOptProps.nc",
-                    )
-                case "rrtmg_lw":
-                    self.adapt_nml_param_and_link(
-                        port=port,
-                        data_list=data_list,
-                        namelist=self.model_namelist,
-                        section="nwp_phy_nml",
-                        parameter="lrtm_filename",
-                        target_link_name="rrtmg_lw.nc",
-                    )
-                case "restart_file":
-                    if (
-                        restart_write_mode := self.model_namelist["io_nml"].get("restart_write_mode")
-                        != "joint procs multifile"
-                    ):
-                        msg = f"Only supported restart_write_mode is 'joint procs multifile', got {restart_write_mode}"
-                        raise ValueError(msg)
-                    data = self.ensure_single_data_port(port, data_list)
-                    # TODO: adapt for multi model
-                    model_name = self.master_namelist[self._MASTER_MODEL_NML_SECTION]["model_name"]
-                    (self.run_dir / f"multifile_restart_{model_name}.mfr").symlink_to(data.resolved_path)
-                case "link" | "link_content":
-                    pass
-                case _:
-                    msg = f"IconTask: unsopported input port {port}"
-                    raise ValueError(msg)
-
-    def handle_output_ports(self) -> None:
-        """Check namelist parameters and resolve output data path"""
-
-        for port, data_list in self.outputs.items():
-            if not data_list:
-                continue
-            match port:
-                case "latest_restart_file":
-                    data = self.ensure_single_data_port(port, data_list)
-                    # TODO: adapt for multi model
-                    model_name = self.master_namelist[self._MASTER_MODEL_NML_SECTION]["model_name"]
-                    data.resolved_path = self.run_dir / f"multifile_restart_{model_name}.mfr"
-                case "output_streams":
-                    output_nml = self.model_namelist.get("output_nml", [])
-                    nml_streams: list[f90nml.Namelist] = (
-                        [output_nml] if isinstance(output_nml, f90nml.Namelist) else output_nml
-                    )
-                    if (n_nml := len(nml_streams)) != (n_yaml := len(data_list)):
-                        msg = f"for task {self.name}: number of output streams speficied in namelist ({n_nml}) differs from number of streams specified the workflow config ({n_yaml})"
-                        raise ValueError(msg)
-                    for k, (nml_stream, output_data) in enumerate(zip(nml_streams, data_list, strict=False)):
-                        filename_format = nml_stream.get("filename_format", "<output_filename>_XXX_YYY")
-                        output_filename = nml_stream.get("output_filename", "")
-                        # for type checkers
-                        if not isinstance(filename_format, str) or not isinstance(output_filename, str):
-                            msg = f"for task {self.name}, output stream number {k}: 'filename_format' and 'output_filename' namelist parameters must be strings"
-                            raise TypeError(msg)
-                        stream_dir = Path(filename_format.replace("<output_filename>", output_filename)).parent
-                        if stream_dir == Path("."):
-                            msg = f"for task {self.name}: output stream number {k} specifies an output stream directly in the run directory. Please specify a subdirectory using the 'filename_format' and 'output_filename' parameters (see ICON documentation)"
-                            raise ValueError(msg)
-                        output_data.resolved_path = (
-                            stream_dir if stream_dir.is_absolute() else self.run_dir / stream_dir
-                        )
-                        output_data.resolved_path.mkdir(parents=True, exist_ok=True)
-                case "finish_status":
-                    data = self.ensure_single_data_port(port, data_list)
-                    data.resolved_path = self.run_dir / "finish.status"
-                case _:
-                    msg = f"IconTask: unsopported oputput port {port}"
-                    raise ValueError(msg)
-
-    @staticmethod
-    def ensure_single_data_port(port: str | None, data_list: Sequence[Data]) -> Data:
-        if len(data_list) > 1:
-            msg = f"port {port} only accepts a single object"
-            raise ValueError(msg)
-        return data_list[0]
+        lines: list[str] = []
+        # Total number of tasks
+        lines.append(f"export N_PROCS={self.n_procs}")
+        lines.append(f"export SIROCCO_TARGET={self.target}")
+        if self.exe.gpu:
+            if self.exe.gpu.icon4py_venv:
+                lines.append(f"export ICON4PY_VENV={self.exe.gpu.icon4py_venv}")
+            if self.exe.gpu.gt4py_build_cache_dir:
+                lines.append(f"export GT4PY_BUILD_CACHE_DIR={self.exe.gpu.gt4py_build_cache_dir}")
+        lines.append(f"source ./{self._MAIN}")
+        return lines
 
     def resolve_output_data_paths(self) -> None:
-        self.handle_output_ports()
-
-    def adapt_nml_param_and_link(
-        self,
-        port: str,
-        data_list: list[Data],
-        namelist: NamelistFile,
-        section: str,
-        parameter: str,
-        target_link_name: str | None = None,
-    ) -> None:
-        data = self.ensure_single_data_port(port, data_list)
-        if isinstance(data, GeneratedData):
-            target_link_name = target_link_name if target_link_name else data.resolved_path.name
-            namelist[section][parameter] = f"./{target_link_name}"
-            (self.run_dir / target_link_name).symlink_to(data.resolved_path)
-        else:
-            namelist[section][parameter] = str(data.resolved_path)
-
-    # FIXME: This is broken, `output_nml` as well as other namelist blocks can be present in multiple namelists
-    # SOLUTION: Implement a proper component level for the icon task, each having its model namelis, inputs and outputs
-    # TODO: Move this checker in aiida_icon.iconutils together with masternml
-    def _validate_output_streams(self, data_list: list[Data]) -> None:
-        """Validate output stream configuration against namelist"""
-        # Find the model namelist containing output_nml
-        model_namelist = None
-        for namelist in self.model_namelists.values():
-            if "output_nml" in namelist.namelist:
-                model_namelist = namelist
-                break
-
-        if model_namelist is None:
-            msg = f"for task {self.name}: could not find model namelist containing 'output_nml' sections"
-            raise ValueError(msg)
-
-        output_nml = model_namelist.namelist.get("output_nml", [])
-        nml_streams: list[f90nml.Namelist] = [output_nml] if isinstance(output_nml, f90nml.Namelist) else output_nml
-
-        if (n_nml := len(nml_streams)) != (n_yaml := len(data_list)):
-            msg = f"for task {self.name}: number of output streams specified in namelist ({n_nml}) differs from number of streams specified in the workflow config ({n_yaml})"
-            raise ValueError(msg)
+        for model in self.models.values():
+            for port in model.outputs:
+                PortHandler.handle(port, model)
 
     @classmethod
-    def build_from_config(cls: type[Self], config: models.ConfigTask, config_rootdir: Path, **kwargs: Any) -> Self:
+    def build_from_config(
+        cls: type[Self], config: yaml_data_models.ConfigTask, config_rootdir: Path, **kwargs: Any
+    ) -> Self:
         config_kwargs = dict(config)
         del config_kwargs["parameters"]
         # The following check is here for type checkers.
         # We don't want to narrow the type in the signature, as that would break liskov substitution.
         # We guarantee elsewhere this is called with the correct type at runtime
-        if not isinstance(config, models.ConfigIconTask):
+        if not isinstance(config, yaml_data_models.ConfigIconTask):
             raise TypeError
 
         config_kwargs["namelists"] = [
@@ -398,16 +500,3 @@ class IconTask(models.ConfigIconTaskSpecs, Task):
         )
         self.update_icon_namelists_from_workflow()
         return self
-
-    def _validate_wrapper_script(self, wrapper_script: Path, config_rootdir: Path) -> Path:
-        """Validate and resolve wrapper script path"""
-        resolved_path = wrapper_script if wrapper_script.is_absolute() else config_rootdir / wrapper_script
-
-        if not resolved_path.exists():
-            msg = f"Wrapper script in path {resolved_path} does not exist."
-            raise FileNotFoundError(msg)
-        if not resolved_path.is_file():
-            msg = f"Wrapper script in path {resolved_path} is not a file."
-            raise OSError(msg)
-
-        return resolved_path

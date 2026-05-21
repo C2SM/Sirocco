@@ -19,7 +19,7 @@ class SiroccoContinueTask(models.ConfigSiroccoTaskSpecs, Task):
     LOCK_FILE_NAME: ClassVar[str] = field(default=".sirocco.lock", repr=False)
 
     name: str = "SIROCCO"
-    computer: str | None = "dummy"
+    computer: str = "dummy"
     rank: int = 0
     config_filename: str
 
