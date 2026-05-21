@@ -343,11 +343,11 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                     elif self.exe.gpu:
                         n_sockets = self.exe.gpu.sockets_per_node
                     else:
-                        n_sockets = 1
+                        n_sockets = 1  # cannot happen
                     distribute_procs_cyclic(
                         ranks_info=self.ranks_info,
                         rank_bounds=io_rank_bounds,
-                        nodes=tuple(range(self.compute_nodes + 1, self.compute_nodes + self.io_nodes + 1)),
+                        nodes=tuple(range(self.compute_nodes, self.compute_nodes + self.io_nodes)),
                         n_sockets=n_sockets,
                     )
                 else:
