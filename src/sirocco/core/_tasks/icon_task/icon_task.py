@@ -171,7 +171,9 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                         compute_procs = self.compute_nodes * self.exe.cpu.compute_procs_per_node
                     else:
                         if self.procs_per_node is None:
-                            msg = "procs_per_node must be set when separate_io is False"
+                            msg = (
+                                "procs_per_node must be set when separate_io is False and a cpu executable is specified"
+                            )
                             raise ValueError(msg)
                         non_gpu_compute_procs_per_node = self.procs_per_node
                         if self.exe.gpu and self.exe.gpu.compute_procs_per_node:
@@ -357,9 +359,9 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                     elif self.exe.gpu:
                         n_sockets = self.exe.gpu.sockets_per_node
                     else:
-                        n_sockets = 1
+                        n_sockets = 1  # cannot happen
                     rank_bounds = chain(
-                        self.get_exe_io_rank_bounds(self.exe.cpu) if self.exe.cpu else (), io_rank_bounds
+                        self.get_exe_compute_rank_bounds(self.exe.cpu) if self.exe.cpu else (), io_rank_bounds
                     )
                     distribute_procs_load_balanced(
                         ranks_info=self.ranks_info,
@@ -367,6 +369,12 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                         nodes=tuple(range(self.nodes)),
                         n_sockets=n_sockets,
                     )
+
+                # Check all node_id and numa_node are set
+                for k, r in self.ranks_info.items():
+                    if r["node_id"] == -1 or r["numa_node"] == -1:
+                        msg = f"rank {k} has unitialized node_id and/or numa_node"
+                        raise ValueError(msg)
 
                 # Write annotated hostfile
                 nid_length = len(str(self.nodes - 1))
