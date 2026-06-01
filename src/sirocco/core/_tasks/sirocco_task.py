@@ -22,6 +22,8 @@ class SiroccoContinueTask(models.ConfigSiroccoTaskSpecs, Task):
     computer: str = "dummy"
     rank: int = 0
     config_filename: str
+    # For most schedulers, the env of the submitting process is kept.
+    set_env: bool = False
 
     def __post_init__(self) -> None:
         self.run_dir = self.config_rootdir
@@ -32,7 +34,7 @@ class SiroccoContinueTask(models.ConfigSiroccoTaskSpecs, Task):
 
     def prepare_for_submission(self) -> None:
         lines: list[str] = []
-        if self.venv is not None:
+        if self.set_env and self.venv is not None:
             lines.append(f"source {self.venv}")
         lines.append(f"sirocco continue --from_wf {self.config_filename} || exit")
         (self.run_dir / self.CMD_FILENAME).write_text("\n".join(lines))
@@ -42,7 +44,7 @@ class SiroccoContinueTask(models.ConfigSiroccoTaskSpecs, Task):
         cmd = ""
         if self.uenv is not None:
             cmd += "uenv run ${SIROCCO_UENV}"
-            if self.view is not None:
+            if self.set_env and self.view is not None:
                 cmd += " --view ${SIROCCO_VIEW}"
             cmd += " -- "
         cmd += f"./{self.CMD_FILENAME}"
