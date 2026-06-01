@@ -18,16 +18,17 @@ MODEL=${rank_info[4]}  # icon master model name or "hiopy"
 
 # Set up environment
 # ------------------
-source santis_common_run_environment.sh
+source santis_environments.sh
+santis_common_environment
 if [ "${PE_TYPE}" == "compute" ]; then
     if [ "${TARGET}" == "cpu" ]; then
-        export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
-        export ICON_THREADS=${SLURM_CPUS_PER_TASK}  # NOTE: is that used anywhere??
+        santis_compute_cpu_environment
     elif [ "${TARGET}" == "gpu" ]; then
-        source santis_gpu_run_environment.sh
-        [ -n "${ICON4PY_VENV}" ] && source santis_icon4py_environment.sh
-        export CUDA_VISIBLE_DEVICES=$NUMA_NODE
+        santis_compute_gpu_environment
+        [ -n "${ICON4PY_VENV}" ] && santis_icon4py_environment
     fi
+elif [ "${PE_TYPE}" == "io" ]; then
+    santis_io_environment
 fi
 
 # Launch executable

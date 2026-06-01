@@ -1,0 +1,89 @@
+#!/usr/local/bin/bash
+
+# Environment common to all PEs
+# =============================
+santis_common_environment(){
+    ulimit -s unlimited
+    ulimit -c 0
+
+    # MPICH
+    # -----
+    # NOTE: must be in commom env no only gpu
+    export MPICH_GPU_SUPPORT_ENABLED=1
+    export MPICH_GPU_IPC_ENABLED=1
+
+    # Libfabric / Slingshot
+    # ---------------------
+    export FI_CXI_SAFE_DEVMEM_COPY_THRESHOLD=0
+    export FI_CXI_RX_MATCH_MODE=software
+    export FI_MR_CACHE_MONITOR=disabled
+
+    # OpenMP
+    # ------
+    export OMP_SCHEDULE=guided,16
+    export OMP_DYNAMIC="false"
+    export OMP_STACKSIZE=200M
+
+    # NVHPC
+    # ----
+    export NVCOMPILER_TERM=trace
+}
+
+# Compute cpu environment
+# =======================
+santis_compute_cpu_environment(){
+    # MPICH
+    # -----
+    export MPICH_OFI_NIC_POLICY=NUMA
+
+    # OpenMP
+    # ------
+    export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
+    export ICON_THREADS=${SLURM_CPUS_PER_TASK}  # NOTE: is that used anywhere??
+
+}
+
+# Compute gpu environment
+# =======================
+santis_compute_gpu_environment(){
+    # MPICH
+    # -----
+    export MPICH_OFI_NIC_POLICY=GPU
+
+    # CUDA
+    # ----
+    export CUDA_VISIBLE_DEVICES=$NUMA_NODE
+    export CUDA_BUFFER_PAGE_IN_THRESHOLD_MS=0.001
+
+    # NVHPC
+    # -----
+    export NVCOMPILER_ACC_DEFER_UPLOADS=1
+    export NVCOMPILER_ACC_SYNCHRONOUS=0
+    export NVCOMPILER_ACC_DEFER_UPLOADS=1
+    export NVCOMPILER_ACC_USE_GRAPH=1  # Harmless if cuda-graphs is disabled
+    export NVCOMPILER_ACC_NOTIFY=0
+}
+
+# icon4py environment
+# ===================
+santis_icon4py_environment(){
+    source "${ICON4PY_VENV}/bin/activate"
+    export CUDAARCHS=90
+    export PYTHONOPTIMIZE=2
+    # Default GT4PY_BUILD_CACHE_DIR one level above rundir, i.e. case run directory
+    # so that it's set to a common path for all chunks
+    export GT4PY_BUILD_CACHE_DIR=${GT4PY_BUILD_CACHE_DIR:-".."}
+    export CUPY_CACHE_IN_MEMORY=1
+    export GT4PY_BUILD_CACHE_LIFETIME=persistent
+    export GT4PY_UNSTRUCTURED_HORIZONTAL_HAS_UNIT_STRIDE=1
+    export DACE_compiler_cuda_block_size_limit=256
+    export PY2FGEN_LOG_LEVEL=WARNING
+} 
+
+# IO environment
+# ==============
+santis_io_environment(){
+    # MPICH
+    # -----
+    export MPICH_OFI_NIC_POLICY=NUMA
+}
