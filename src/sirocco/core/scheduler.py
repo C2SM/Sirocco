@@ -52,11 +52,11 @@ class Scheduler(ABC):
         # Some MPI environment variables for potential usage by the user provided script
         script_lines.append("")
         if task.nodes is not None:
-            script_lines.append(f"N_NODES={task.nodes}")
+            script_lines.append(f"export N_NODES={task.nodes}")
         if task.procs_per_node is not None:
-            script_lines.append(f"PROCS_PER_NODE={task.procs_per_node}")
+            script_lines.append(f"export PROCS_PER_NODE={task.procs_per_node}")
         if task.cores_per_proc is not None:
-            script_lines.append(f"CORES_PER_PROC={task.cores_per_proc}")
+            script_lines.append(f"export CORES_PER_PROC={task.cores_per_proc}")
 
         # Sirocco context
         script_lines.append("")
@@ -135,8 +135,6 @@ class Slurm(Scheduler):
             header.append(f"#SBATCH --partition={partition}")
         if nodes := task.nodes:
             header.append(f"#SBATCH --nodes={nodes}")
-        if procs_per_node := task.procs_per_node:
-            header.append(f"#SBATCH --ntasks-per-node={procs_per_node}")
         if output_mode == "append":
             header.append("#SBATCH --open-mode=append")
         return header
