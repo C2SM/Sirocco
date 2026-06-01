@@ -472,7 +472,7 @@ def create_symlink_tree(
     ] = None,
 ):
     """
-    Create a human-readable directory tree with symlinks to CalcJob remote working directories.
+    Create a human-readable directory tree with symlinks to CalcJob remote working directories. [AiiDA]
 
     This command queries a submitted workflow by its PK and creates symlinks on the HPC
     to the remote working directories of all CalcJobNodes. The symlinks are organized
