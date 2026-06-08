@@ -948,16 +948,22 @@ def check_parameters_lists(data: Any) -> dict[str, list]:
     return data
 
 
-def propagate_root_task_specs(config_task_list: list[ConfigTask | dict[str, dict]]) -> list[ConfigTask]:
-    """propagate ROOT task specs and returns the list of updated ConfigTask"""
+def propagate_root_task_specs(
+    config_task_list: list[ConfigTask | dict[str, dict]],
+) -> list[ConfigTask | dict[str, dict]]:
+    """propagate ROOT task specs and returns the list of updated ConfigTask
+
+    Only acts on dictionnaries and not already built config task object.
+    Even though already built config task object are accepted as input
+    for idempotency purposes (e.g. for testing) they will not be modified."""
 
     if not config_task_list:
         msg = "At least one task is required."
         raise ValueError(msg)
 
-    updated_config_task_list: list[ConfigTask] = []
+    updated_config_task_list: list[ConfigTask | dict[str, dict]] = []
 
-    # Gat root specs if any
+    # Get root specs if any
     root_specs: dict = {}
     for config_task in config_task_list:
         if root_specs:
@@ -971,19 +977,21 @@ def propagate_root_task_specs(config_task_list: list[ConfigTask | dict[str, dict
         if isinstance(config_task, ConfigRootTask):
             root_specs = dict(config_task)
             break
+    else:
+        return config_task_list
 
     # Propagate root specs
-    root_specs.pop("name", None)
     root_specs.pop("parameters", None)
     for config_task in config_task_list:
         if isinstance(config_task, dict):
             name_and_specs = extract_merge_key_as_value(config_task)
             if name_and_specs["name"] != "ROOT":
-                name_and_specs.update(root_specs)
-                updated_config_task_list.append(TypeAdapter(ConfigTask).validate_python(name_and_specs))
-        if isinstance(config_task, ConfigShellTask | ConfigIconTask):
-            for root_key, root_value in root_specs.items():
-                setattr(config_task, root_key, root_value)
+                # NOTE: the root task only has the same fields as ConfigBaseTask
+                #       so we can safely propagate them
+                updated_specs = root_specs.copy()
+                updated_specs.update(name_and_specs)
+                updated_config_task_list.append(updated_specs)
+        elif isinstance(config_task, ConfigShellTask | ConfigIconTask | ConfigSiroccoTask):
             updated_config_task_list.append(config_task)
 
     return updated_config_task_list
