@@ -746,8 +746,9 @@ class ConfigIconTaskSpecs:
             "description": "Path relative to config dir containing runtime files (environment setup, mpi command, etc...)"
         },
     )
+    yac_coupling: Annotated[Path | None, AfterValidator(is_relative_path)] = None
     # NOTE: Cannot use init=False as ConfigIconTask inherits from BaseModel which does not support it (yet?)
-    #       Se possible workaround there: https://github.com/pydantic/pydantic/discussions/5929#discussioncomment-12936754
+    #       See possible workaround there: https://github.com/pydantic/pydantic/discussions/5929#discussioncomment-12936754
     target: Literal["cpu", "gpu", "hybrid", "__none__"] = field(repr=False, default="__none__")
 
 

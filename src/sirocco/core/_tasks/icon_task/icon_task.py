@@ -44,11 +44,17 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
     n_procs: int = field(init=False, repr=False)
     ranks_info: dict[int, RankInfo] = field(init=False, repr=False, default_factory=dict)
 
+    def is_coupled(self) -> bool:
+        return len(self.master_models) > 1
+
     def __post_init__(self) -> None:
         super().__post_init__()
 
         # Set component models and namelists
         self.set_components_and_namelists()
+
+        # check coupled simulation
+        self.check_coupled()
 
         # Allocate ranks
         self.allocate_ranks()
@@ -136,6 +142,11 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                 )
         self.master_models = {model_name: model for model_name, model in self.models.items() if model.is_master_model}
 
+    def check_coupled(self) -> None:
+        if self.is_coupled() and self.yac_coupling is None:
+            msg = "'yac_coupling' must be specified when running with several master models"
+            raise ValueError(msg)
+
     def allocate_ranks(self) -> None:
         """Allocate rank ranges to icon components"""
 
@@ -166,7 +177,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                 if self.exe.cpu:
                     if self.exe.separate_io:
                         if self.exe.cpu.compute_procs_per_node is None:
-                            msg = "compute_procs_per_node must be set when separate_io is True"
+                            msg = "compute_procs_per_node for cpu must be set when separate_io is True"
                             raise ValueError(msg)
                         compute_procs = self.compute_nodes * self.exe.cpu.compute_procs_per_node
                     else:
@@ -442,8 +453,10 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
             for port in chain(model.inputs, model.outputs):
                 PortHandler.handle(port, model)
 
-        # Dump namelists
+        # Dump ICON config files
         self.dump_namelists(directory=self.run_dir, filename_mode="raw")
+        if self.is_coupled() and self.yac_coupling is not None:
+            shutil.copy(self.yac_coupling, self.run_dir / self.yac_coupling)
 
         # Copy required runtime files
         if self.runtime is None:
