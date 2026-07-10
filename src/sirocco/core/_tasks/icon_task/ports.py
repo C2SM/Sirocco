@@ -38,6 +38,8 @@ class PortHandler:
             if self.section is not None and self.parameter is not None:
                 if isinstance(data, GeneratedData):
                     target_link_name = self.target_link_name if self.target_link_name else data.resolved_path.name
+                    if self.section not in model.namelist:
+                        model.namelist[self.section] = {}
                     model.namelist[self.section][self.parameter] = f"./{target_link_name}"
                     (model.task_run_dir / target_link_name).symlink_to(data.resolved_path)
                 else:
@@ -101,6 +103,11 @@ rrtmg_lw_handler = PortHandler(
     parameter="lrtm_filename",
     target_link_name="rrtmg_lw.nc",
 )
+rrtmg_sw_handler = PortHandler(
+    port_name="rrtmg_sw",
+    valid_model_types=[ModelType.ATMOSPHERE],
+    target_link_name="rrtmg_sw.nc",
+)
 bc_solar_sw_handler = PortHandler(
     port_name="bc_solar_sw",
     valid_model_types=[ModelType.ATMOSPHERE],
@@ -110,6 +117,12 @@ atm_plumes_handler = PortHandler(
     port_name="atm_plumes",
     valid_model_types=[ModelType.ATMOSPHERE],
     target_link_name="MACv2.0-SP_v1.nc",
+)
+ghg_filename_handler = PortHandler(
+    port_name="ghg_file",
+    valid_model_types=[ModelType.ATMOSPHERE],
+    section="radiation_nml",
+    parameter="ghg_filename",
 )
 jsb_ifs_handler = PortHandler(
     port_name="jsb_ifs",
@@ -256,6 +269,8 @@ restart_in_handler = PortHandler(
     valid_model_types=[ModelType.ATMOSPHERE, ModelType.OCEAN],
     custom_callable=restart_in_handler_callable,
 )
+
+# TODO: Rename restart ports to restart_in and restart_out
 
 
 def restart_out_handler_callable(port_name: str, model: IconModel) -> None:
