@@ -30,6 +30,9 @@ class NamelistFile(models.ConfigNamelistFileSpec):
     def __setitem__(self, k, v) -> None:
         self.namelist.__setitem__(k, v)
 
+    def __contains__(self, k) -> bool:
+        return k in self.namelist
+
     def get(self, key: str, default: Any = None) -> Any:
         return self.namelist.get(key, default=default)
 
