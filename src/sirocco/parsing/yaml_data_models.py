@@ -804,6 +804,7 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
             self.target = "hybrid"
         return self
 
+    # TODO: double check and remove this
     # @model_validator(mode="after")
     # def set_defaults(self) -> ConfigIconTask:
     #     if self.target == "__none__":
