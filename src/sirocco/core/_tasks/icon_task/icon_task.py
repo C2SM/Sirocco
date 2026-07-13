@@ -35,6 +35,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
     _MASTER_NAMELIST_NAME: ClassVar[str] = field(default="icon_master.namelist", repr=False)
     _MODEL_NML_KEYS: ClassVar[list[str]] = field(default=["master_model_nml", "jsb_model_nml"], repr=False)
     _MAIN: ClassVar[str] = field(default="main.sh", repr=False)
+    _ICON_MOUNT: ClassVar[str] = field(default="ICON_MOUNT", repr=False)
     namelists: list[NamelistFile]
     master_namelist: NamelistFile = field(init=False, repr=False)
     models: dict[str, IconModel] = field(default_factory=dict, repr=False)
@@ -484,6 +485,9 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         # Total number of tasks
         lines.append(f"export N_PROCS={self.n_procs}")
         lines.append(f"export SIROCCO_TARGET={self.target}")
+        if self.squash is not None:
+            lines.append(f"export ICON_SQUASH={self.squash}")
+            lines.append(f"export ICON_MOUNT={self._ICON_MOUNT}")
         if self.exe.gpu:
             if self.exe.gpu.icon4py_venv:
                 lines.append(f"export ICON4PY_VENV={self.exe.gpu.icon4py_venv}")

@@ -731,6 +731,7 @@ def validate_executables(exes: ConfigIconExecutables) -> ConfigIconExecutables:
 class ConfigIconTaskSpecs:
     plugin: ClassVar[Literal["icon"]] = "icon"
     exe: Annotated[ConfigIconExecutables, AfterValidator(validate_executables)]
+    squash: Annotated[Path, AfterValidator(is_absolute_path)]
     # TODO: remove bin, only kept for compatibility with AiiDA for now
     bin: Annotated[Path | None, AfterValidator(is_absolute_path)] = field(repr=True, default=None)
     # TODO: remove wrapper_script, only kept for compatibility with AiiDA for now
