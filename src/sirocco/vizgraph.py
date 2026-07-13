@@ -210,11 +210,10 @@ class VizGraph:
 
     def draw(self, file_path: Path | None = None, **kwargs):
         # draw graphviz dot graph to svg file
-        self.agraph.layout(prog="dot")
         if file_path is None:
             file_path = Path(f"./{self.name}.svg")
 
-        self.agraph.draw(path=file_path, format="svg", **kwargs)
+        self.agraph.draw(path=file_path, prog="dot", format="svg", **kwargs)
 
         # Add interactive capabilities to the svg graph thanks to
         # https://github.com/BartBrood/dynamic-SVG-from-Graphviz

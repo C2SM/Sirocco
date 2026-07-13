@@ -45,8 +45,7 @@ dependencies = [
   "aiida-gui",
   "ipdb",
   "termcolor",
-  # Move to 2.0 once the dot laypout issue is solved
-  "pygraphviz==1.14",
+  "pygraphviz==2.0",
   "lxml",
   "f90nml",
   "aiida-shell>=0.8.1",
