@@ -160,7 +160,7 @@ class Slurm(Scheduler):
                 case _:
                     assert_never(dependency_type)
         submit_cmd.append(task.SUBMIT_FILENAME)
-        with ignore_env("SIROCCO_UENV", "SIROCCO_VIEW"):
+        with ignore_env("UENV_MOUNT_LIST", "SIROCCO_UENV", "SIROCCO_VIEW"):
             result = self.run_command(submit_cmd, cwd=task.run_dir)
         return result.stdout.decode().strip()
 
