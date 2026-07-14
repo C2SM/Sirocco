@@ -4,8 +4,8 @@ import shutil
 import subprocess
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
-from dataclasses import dataclass
-from typing import Literal, assert_never
+from dataclasses import dataclass, field
+from typing import ClassVar, Literal, assert_never
 
 from sirocco.core.graph_items import Task, TaskStatus
 
@@ -117,6 +117,8 @@ class Scheduler(ABC):
 
 @dataclass(kw_only=True)
 class Slurm(Scheduler):
+    UENV_MACHINES: ClassVar[list[str]] = field(default=["santis"])
+
     def header_lines(
         self,
         task: Task,
@@ -145,6 +147,8 @@ class Slurm(Scheduler):
         dependency_type: Literal["ALL_COMPLETED", "ANY", "NONE"] = "ALL_COMPLETED",
     ) -> str:
         submit_cmd: list[str] = ["sbatch", "--parsable"]
+        if task.computer in self.UENV_MACHINES:
+            submit_cmd.append("--uenv-passthrough=ignore")
         if parent_ids := [parent.jobid for parent in task.parents if parent.rank >= 0]:
             match dependency_type:
                 case "ALL_COMPLETED":
@@ -156,7 +160,7 @@ class Slurm(Scheduler):
                 case _:
                     assert_never(dependency_type)
         submit_cmd.append(task.SUBMIT_FILENAME)
-        with ignore_env("UENV_MOUNT_LIST", "SIROCCO_UENV", "SIROCCO_VIEW"):
+        with ignore_env("SIROCCO_UENV", "SIROCCO_VIEW"):
             result = self.run_command(submit_cmd, cwd=task.run_dir)
         return result.stdout.decode().strip()
 
