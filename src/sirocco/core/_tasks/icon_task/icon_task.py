@@ -89,7 +89,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         model_namelists: dict[str, NamelistFile] = {}
         master_namelist_model_nml_blocks: dict[str, f90nml.Namelist] = {}
         model_types: dict[str, int] = {}
-        model_master: dict[str, bool] = {}
+        is_master: dict[str, bool] = {}
         for key in self._MODEL_NML_KEYS:
             for model_nml in self.master_namelist.iter_nml(key):
                 if not isinstance((filename := model_nml.get("model_namelist_filename")), str):
@@ -108,10 +108,10 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                         msg = f"{self.name}: master_model_nml associated to {filename} does not contain a valid 'model_type' parameter"
                         raise KeyError(msg)
                     model_types[model_name] = model_type
-                    model_master[model_name] = True
+                    is_master[model_name] = True
                 elif key == "jsb_model_nml":
                     model_types[model_name] = 5
-                    model_master[model_name] = False
+                    is_master[model_name] = False
 
         # Check if models and config component names match
         if (model_names := set(model_namelists.keys())) != (
@@ -124,8 +124,8 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         exe_model_names = (set(self.exe.gpu.model_names()) if self.exe.gpu else set()) | (
             set(self.exe.cpu.model_names()) if self.exe.cpu else set()
         )
-        if model_names != exe_model_names:
-            msg = f"{self.name}: model names specified for executables ({exe_model_names}) and task ({model_names}) don't match"
+        if (master_model_names := set(name for name in model_namelists if is_master[name])) != exe_model_names:
+            msg = f"{self.name}: model names specified for executables ({exe_model_names}) and task ({master_model_names}) don't match"
             raise ValueError(msg)
 
         # Build IconModel objects and fill in self.models
@@ -133,7 +133,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
             if comp_name != "master":
                 self.models[comp_name] = IconModel(
                     name=comp_name,
-                    is_master_model=model_master[comp_name],
+                    is_master_model=is_master[comp_name],
                     core_component=component,
                     task_label=self.label,
                     task_run_dir=self.run_dir,
@@ -433,11 +433,15 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
     def prepare_for_submission(self) -> None:
         """Generate or copy any file required at runtime to task run_dir"""
 
-        # Check supported machine and set target
+        # Check supported machine
         if self.computer not in self.SUPPORTED_MACHINES:
             msg = (
                 f"machine {self.computer} not suportted for icon task. Supported machines are {self.SUPPORTED_MACHINES}"
             )
+            raise ValueError(msg)
+
+        if self.computer == "santis" and self.uenv is None:
+            msg = f"{self.name}: uenv is required for ICON tasks on Santis"
             raise ValueError(msg)
 
         # Link ICON binaries
@@ -485,8 +489,15 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         # Total number of tasks
         lines.append(f"export N_PROCS={self.n_procs}")
         lines.append(f"export SIROCCO_TARGET={self.target}")
-        if self.squash is not None:
-            lines.append(f"export ICON_SQUASH={self.squash}")
+        # ICON squashfs image
+        # Not straight forward as it uses a combination of port (squashfs image path) and icon task spec (mount_point)
+        if (master_comp := self.components.get("master")) is not None and (
+            icon_squash := master_comp.inputs.get("squash")
+        ) is not None:
+            if len(icon_squash) > 1:
+                msg = "squash port only accepts a single data item"
+                raise ValueError(msg)
+            lines.append(f"export ICON_SQUASH={icon_squash[0].resolved_path}")
             lines.append(f"export ICON_MOUNT={self._ICON_MOUNT}")
         if self.exe.gpu:
             if self.exe.gpu.icon4py_venv:
