@@ -731,7 +731,6 @@ def validate_executables(exes: ConfigIconExecutables) -> ConfigIconExecutables:
 class ConfigIconTaskSpecs:
     plugin: ClassVar[Literal["icon"]] = "icon"
     exe: Annotated[ConfigIconExecutables, AfterValidator(validate_executables)]
-    squash_mount: Path | None = None
     # TODO: remove bin, only kept for compatibility with AiiDA for now
     bin: Annotated[Path | None, AfterValidator(is_absolute_path)] = field(repr=True, default=None)
     # TODO: remove wrapper_script, only kept for compatibility with AiiDA for now
@@ -827,6 +826,7 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
 @dataclass(kw_only=True)
 class ConfigBaseDataSpecs:
     format: str | None = None
+    mount: Path | None = None
 
 
 class ConfigBaseData(_NamedBaseModel, ConfigBaseDataSpecs):

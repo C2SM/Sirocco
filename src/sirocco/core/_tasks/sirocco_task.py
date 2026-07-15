@@ -5,8 +5,8 @@ from sirocco.core.graph_items import Task
 from sirocco.parsing import yaml_data_models as models
 
 
-# NOTE: SiroccoTask is an subclass of graphitem for implementation simplicity
-# reasons eventhough it's not allowed to be part of the graph
+# NOTE: SiroccoTask is a subclass of graphitem for implementation simplicity
+# reasons (submission) eventhough it's not allowed to be part of the graph
 @dataclass(kw_only=True)
 class SiroccoContinueTask(models.ConfigSiroccoTaskSpecs, Task):
     """Special Sirocco Task for continuing the workflow"""
@@ -41,11 +41,4 @@ class SiroccoContinueTask(models.ConfigSiroccoTaskSpecs, Task):
         (self.run_dir / self.CMD_FILENAME).chmod(0o755)
 
     def runscript_lines(self) -> list[str]:
-        cmd = ""
-        if self.uenv is not None:
-            cmd += "uenv run ${SIROCCO_UENV}"
-            if self.set_env and self.view is not None:
-                cmd += " --view ${SIROCCO_VIEW}"
-            cmd += " -- "
-        cmd += f"./{self.CMD_FILENAME}"
-        return [cmd]
+        return [f"./{self.CMD_FILENAME}"]

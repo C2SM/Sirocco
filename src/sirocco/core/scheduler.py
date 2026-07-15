@@ -137,6 +137,14 @@ class Slurm(Scheduler):
             header.append(f"#SBATCH --partition={partition}")
         if nodes := task.nodes:
             header.append(f"#SBATCH --nodes={nodes}")
+        if task.computer in self.UENV_MACHINES:
+            uenv_list: list[str] = [task.uenv] if task.uenv else []
+            uenv_list.extend((f"{path}:{mount}" for path, mount in task.get_squash()))
+            if uenv_list:
+                uenv = ",".join(uenv_list)
+                header.append(f"#SBATCH --uenv={uenv}")
+            if view := task.view:
+                header.append(f"#SBATCH --view={view}")
         if output_mode == "append":
             header.append("#SBATCH --open-mode=append")
         return header
@@ -160,8 +168,7 @@ class Slurm(Scheduler):
                 case _:
                     assert_never(dependency_type)
         submit_cmd.append(task.SUBMIT_FILENAME)
-        with ignore_env("UENV_MOUNT_LIST", "SIROCCO_UENV", "SIROCCO_VIEW"):
-            result = self.run_command(submit_cmd, cwd=task.run_dir)
+        result = self.run_command(submit_cmd, cwd=task.run_dir)
         return result.stdout.decode().strip()
 
     def cancel(self, task: Task):

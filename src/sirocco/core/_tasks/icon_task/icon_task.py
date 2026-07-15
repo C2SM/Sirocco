@@ -124,7 +124,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         exe_model_names = (set(self.exe.gpu.model_names()) if self.exe.gpu else set()) | (
             set(self.exe.cpu.model_names()) if self.exe.cpu else set()
         )
-        if (master_model_names := set(name for name in model_namelists if is_master[name])) != exe_model_names:
+        if (master_model_names := {name for name in model_namelists if is_master[name]}) != exe_model_names:
             msg = f"{self.name}: model names specified for executables ({exe_model_names}) and task ({master_model_names}) don't match"
             raise ValueError(msg)
 
@@ -489,19 +489,6 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         # Total number of tasks
         lines.append(f"export N_PROCS={self.n_procs}")
         lines.append(f"export SIROCCO_TARGET={self.target}")
-        # ICON squashfs image
-        # Not straight forward as it uses a combination of port (squashfs image path) and icon task spec (mount_point)
-        if (master_comp := self.components.get("master")) is not None and (
-            icon_squash := master_comp.inputs.get("squash")
-        ) is not None:
-            if len(icon_squash) > 1:
-                msg = "squash port only accepts a single data item"
-                raise ValueError(msg)
-            lines.append(f"export ICON_SQUASH={icon_squash[0].resolved_path}")
-            if self.squash_mount is None:
-                lines.append(f"export ICON_MOUNT={self._DEFAULT_ICON_MOUNT}")
-            else:
-                lines.append(f"export ICON_MOUNT={self.squash_mount}")
         if self.exe.gpu:
             if self.exe.gpu.icon4py_venv:
                 lines.append(f"export ICON4PY_VENV={self.exe.gpu.icon4py_venv}")

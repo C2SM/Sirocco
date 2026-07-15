@@ -1,29 +1,16 @@
 #!/usr/bin/bash -l
 
-if [ $# != 0 ]; then
-    VENV="${1}/.venv"
-    VENV_SQUASHFS="${1}/venv.squashfs"
-    rm -rf ${VENV}
-    mkdir -p ${VENV}
-    ln -s ${VENV} .venv
-else
-    VENV=.venv
-    VENV_SQUASHFS=".venv.squashfs"
-fi
+BUILD_DIR="${BUILD_DIR:-/dev/shm/$USER/sirocco_install}"
+squash_name="sirocco_venv.squashfs"
+
+pushd "${BUILD_DIR}" >/dev/null 2>&1
 
 uv venv --relocatable --python="$(which python)" --prompt="༄ sirocco ༄"
 source .venv/bin/activate
-CC=$(which gcc) \
-CFLAGS="-I/user-tools/env/sirocco/include -I/user-environment/env/sirocco/include/graphviz" \
-LDFLAGS="-L/user-tools/env/sirocco/lib -L/user-environment/env/sirocco/lib/graphviz" \
 uv sync --no-cache --link-mode=copy --compile-bytecode --active --no-editable --inexact || exit
 
-mksquashfs ${VENV} ${VENV_SQUASHFS} -no-recovery -noappend -Xcompression-level 3 || exit
+mksquashfs .venv "${squash_name}" -no-recovery -noappend -Xcompression-level 3 || exit
 
-rm -rf ${VENV}
+popd >/dev/null 2>&1
 
-if [ -n "${1}" ]; then
-    rsync -av ${VENV_SQUASHFS} .
-    rm -rf ${1}
-fi
-
+rsync -av "${BUILD_DIR}/${squash_name}" .

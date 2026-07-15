@@ -277,13 +277,29 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
             chain(self.waiters, *chain(data_out.downstream_tasks for data_out in self.output_data_nodes()))
         )
 
+    def get_squash(self) -> list[tuple[Path, Path]]:
+        squash_data: list[Data] = []
+        # Get squashed data
+        for comp in self.components.values():
+            if data_list := comp.inputs.get("squash"):
+                if squash_data:
+                    msg = "Only one squash port allowed"
+                    raise ValueError(msg)
+                squash_data = data_list
+        # Resolve mount point and create it if necessary
+        squash_paths: list[tuple[Path, Path]] = []
+        for data in squash_data:
+            if data.mount is None:
+                msg = f"{self.label}: mount point of squashed images must be provided"
+                raise ValueError(msg)
+            mount = data.mount if data.mount.is_absolute() else self.run_dir / data.mount
+            mount.mkdir(parents=True, exist_ok=True)
+            squash_paths.append((data.resolved_path, mount))
+        return squash_paths
+
     def sirocco_environemnt(self) -> list[str]:
         # TODO: Add parameters
         env_list: list[str] = []
-        if uenv := self.uenv:
-            env_list.append(f"export SIROCCO_UENV={uenv}")
-            if view := self.view:
-                env_list.append(f"export SIROCCO_VIEW={view}")
         if isinstance(self.cycle_point, cycling.DateCyclePoint):
             env_list.append(f"export SIROCCO_START_DATE={self.cycle_point.chunk_start_date.isoformat()}")
             env_list.append(f"export SIROCCO_STOP_DATE={self.cycle_point.chunk_stop_date.isoformat()}")
