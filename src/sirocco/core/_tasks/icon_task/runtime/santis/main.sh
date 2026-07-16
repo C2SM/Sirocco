@@ -18,7 +18,7 @@ export SLURM_HOSTFILE_ANNOTATED="./hostfile-${SLURM_JOB_ID}_annotated"
 
 # Build srun command
 # ------------------
-srun_cmd="srun -l --kill-on-bad-exit=1 --mpi=cray_shasta --ntasks=${N_PROCS} --hint=nomultithread --distribution=arbitrary"
+srun_cmd="srun -l --kill-on-bad-exit=1 --mpi=cray_shasta --ntasks=${N_PROCS} --hint=nomultithread --distribution=arbitrary --uenv-passthrough=use"
 [ -n "${CORES_PER_PROC}" ] && srun_cmd+=" --cpus-per-task=${CORES_PER_PROC}"
 if [ "${SIROCCO_TARGET}" == "cpu" ]; then
     srun_cmd+=" ./santis_icon_wrapper.sh ./icon_cpu"
