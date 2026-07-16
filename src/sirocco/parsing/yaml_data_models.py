@@ -662,13 +662,9 @@ class ConfigIconExecutables:
     @property
     def tot_io_procs(self) -> int:
         return (
-            self.gpu.tot_io_procs
-            if self.gpu
-            else 0 + self.cpu.tot_io_procs
-            if self.cpu
-            else 0 + self.hiopy.procs
-            if self.hiopy
-            else 0
+            (self.gpu.tot_io_procs if self.gpu else 0)
+            + (self.cpu.tot_io_procs if self.cpu else 0)
+            + (self.hiopy.procs if self.hiopy else 0)
         )
 
 
