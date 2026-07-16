@@ -244,9 +244,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
             self.master_models[model_name].num_prefetch_proc = exe.procs[model_name].prefetch
             self.master_models[model_name].num_restart_procs = exe.procs[model_name].restart
 
-            min_rank = max_rank + 1
-
-        return min_rank
+        return max_rank + 1
 
     def update_icon_namelists_from_workflow(self) -> None:
         if not isinstance(self.cycle_point, DateCyclePoint):
@@ -461,7 +459,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         # Dump ICON config files
         self.dump_namelists(directory=self.run_dir, filename_mode="raw")
         if self.is_coupled() and self.yac_coupling is not None:
-            shutil.copy(self.yac_coupling, self.run_dir / self.yac_coupling)
+            shutil.copy(self.config_rootdir / self.yac_coupling, self.run_dir / self.yac_coupling.name)
 
         # Copy required runtime files
         if self.runtime is None:
