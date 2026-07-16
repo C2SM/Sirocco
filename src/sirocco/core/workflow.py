@@ -317,7 +317,7 @@ class Workflow:
         for k in range(self.front_depth - 1):
             for task in self.front[k]:
                 for child in task.children:
-                    if max(parent.rank for parent in child.parents) == k:
+                    if (max(parent.rank for parent in child.parents) == k) and (child.rank == self.front_depth):
                         self.scheduler.submit(child)
                         child.rank = k + 1
                         self.front[k + 1].append(child)
