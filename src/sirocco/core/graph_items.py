@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import enum
 from dataclasses import dataclass, field
+from datetime import datetime
 from itertools import chain, product
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, TypeVar, cast
@@ -60,9 +61,14 @@ class GraphItem:
     def __post_init__(self) -> None:
         self.label = self.name
         if self.coordinates:
-            self.label += "__" + "__".join(
-                f"{key}_{value}".replace(" ", "_") for key, value in self.coordinates.items()
-            )
+            label_items: list[str] = []
+            for key, value in self.coordinates.items():
+                if isinstance(value, datetime):
+                    date_str = value.strftime("%Y-%m-%dT%H-%M-%S")
+                    label_items.append(f"{key}_{date_str}")
+                else:
+                    label_items.append(f"{key}_{value}".replace(" ", "_"))
+            self.label += "__" + "__".join(label_items)
 
 
 GRAPH_ITEM_T = TypeVar("GRAPH_ITEM_T", bound=GraphItem)
