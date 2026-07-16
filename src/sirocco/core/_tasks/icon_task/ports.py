@@ -25,7 +25,7 @@ class PortHandler:
 
     def __call__(self, model: IconModel) -> None:
         if model.model_type not in self.valid_model_types:
-            msg = f"port {self.port_name} not valid for model type {model.model_type}"
+            msg = f"port {self.port_name} not valid for model {model.name} of type {model.model_type}"
             raise ValueError(msg)
         if self.custom_callable:
             self.custom_callable(self.port_name, model)
@@ -41,7 +41,8 @@ class PortHandler:
                     if self.section not in model.namelist:
                         model.namelist[self.section] = {}
                     model.namelist[self.section][self.parameter] = f"./{target_link_name}"
-                    (model.task_run_dir / target_link_name).symlink_to(data.resolved_path)
+                    if not (origin := model.task_run_dir / target_link_name).is_symlink():
+                        origin.symlink_to(data.resolved_path)
                 else:
                     model.namelist[self.section][self.parameter] = str(data.resolved_path)
             # Only link
@@ -240,14 +241,9 @@ jsb_fract_handler = PortHandler(
 )
 ocean_inistate = PortHandler(
     port_name="ocean_inistate",
-    valid_model_types=[ModelType.LAND],
+    valid_model_types=[ModelType.OCEAN],
     section="ocean_initialConditions_nml",
     parameter="InitialState_InputFileName",
-)
-ocean_initial_state_handler = PortHandler(
-    port_name="ocean_initial_state",
-    valid_model_types=[ModelType.OCEAN],
-    target_link_name="initial_state.nc",
 )
 
 
