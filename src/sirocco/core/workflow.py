@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import enum
 import logging
+import os
+import re
+import shlex
+import subprocess
 from datetime import datetime
 from itertools import chain, product
 from pathlib import Path
@@ -11,7 +15,7 @@ from ruamel.yaml import YAML
 
 from sirocco.core._tasks.sirocco_task import SiroccoContinueTask
 from sirocco.core.graph_items import Cycle, Data, Store, Task, TaskStatus
-from sirocco.core.scheduler import Scheduler
+from sirocco.core.scheduler import UENV_MACHINES, Scheduler
 from sirocco.parsing.cycling import DateCyclePoint, OneOffPoint
 from sirocco.parsing.yaml_data_models import (
     ConfigBaseData,
@@ -75,6 +79,7 @@ class Workflow:
         self.data: Store[Data] = Store()
         self.cycles: Store[Cycle] = Store()
         self.status: WorkflowStatus = WorkflowStatus.INIT
+        self.base_env: dict[str, str] = self.set_base_env()
 
         config_data_dict: dict[str, ConfigBaseData] = {
             data.name: data for data in chain(config_data.available, config_data.generated)
@@ -121,6 +126,8 @@ class Workflow:
                             coordinates=coordinates,
                             datastore=self.data,
                             graph_spec=task_graph_spec,
+                            # NOTE: If hte computer becomes a workflow attribute instead of a task one we can simplify this
+                            base_env=self.base_env if task_config.computer in UENV_MACHINES else None,
                         )
                         task.rank = self.front_depth
                         self.tasks.add(task)
@@ -422,6 +429,45 @@ class Workflow:
         else:
             self.sirocco_continue_task.jobid = "_NO_ID_"
             self.status = WorkflowStatus.COMPLETED
+
+    @staticmethod
+    def set_base_env() -> dict[str, str]:
+        """Set the base env from which to potentially submit tasks"""
+
+        env_dict: dict[str, str] = {}
+
+        # Python equivalent of `env -i HOME=${HOME} USER=${USER} bash --login -c 'export -p'`
+        home = os.environ.get("HOME", "")
+        user = os.environ.get("USER", "")
+        cmd = ["env", "-i", f"HOME={home}", f"USER={user}", "bash", "--login", "-c", "export -p"]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        except subprocess.CalledProcessError as e:
+            msg = f"During set_base_env, command {cmd} failed with the following error:\n {e.stderr}"
+            raise RuntimeError(msg) from e
+
+        # Parse env into a dict
+        # Strip out "declare -xyz" or "export" from the beginning of the line
+        pattern = re.compile(r"^(declare -\S+|export)(?P<spec>.*)$")
+        for line in result.stdout.split("\n"):
+            spec = line.strip()
+            # Skip empty lines or comments
+            if not spec or spec.startswith("#"):
+                continue
+            if (m := pattern.match(spec)) is None:
+                msg = f"unrcognized pattern in the following line of the environment:\n{line}"
+                raise RuntimeError(msg)
+            spec = m.group("spec").strip()
+
+            # Use shlex to safely parse KEY="VALUE" considering internal quotes
+            try:
+                parsed = shlex.split(spec)
+                if parsed and "=" in parsed[0]:
+                    key, value = parsed[0].split("=", 1)
+                    env_dict[key] = value
+            except ValueError:
+                continue  # Skip malformed lines
+        return env_dict
 
     @classmethod
     def from_config_file(

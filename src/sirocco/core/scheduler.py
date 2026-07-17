@@ -5,11 +5,12 @@ import subprocess
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import ClassVar, Literal, assert_never
+from typing import Any, Literal, assert_never
 
 from sirocco.core.graph_items import Task, TaskStatus
 
 LOGGER = logging.getLogger(__name__)
+UENV_MACHINES = field(default=["santis"])
 
 
 class SchedulerCommandError(RuntimeError): ...
@@ -29,6 +30,7 @@ class Scheduler(ABC):
     def submit(
         self,
         task: Task,
+        base_env: dict[str, str] | None = None,
         output_mode: Literal["overwrite", "append"] = "overwrite",
         dependency_type: Literal["ALL_COMPLETED", "ANY", "NONE"] = "ALL_COMPLETED",
     ):
@@ -73,7 +75,7 @@ class Scheduler(ABC):
         # ================
         (task.run_dir / task.SUBMIT_FILENAME).write_text("\n".join(script_lines))
         (task.run_dir / task.SUBMIT_FILENAME).chmod(0o755)
-        task.jobid = self.submit_to_scheduler(task, dependency_type=dependency_type)
+        task.jobid = self.submit_to_scheduler(task, base_env=base_env, dependency_type=dependency_type)
 
     @abstractmethod
     def header_lines(
@@ -87,6 +89,7 @@ class Scheduler(ABC):
     def submit_to_scheduler(
         self,
         task: Task,
+        base_env: dict[str, str] | None = None,
         dependency_type: Literal["ALL_COMPLETED", "ANY", "NONE"] = "ALL_COMPLETED",
     ) -> str:
         pass
@@ -109,16 +112,14 @@ class Scheduler(ABC):
     @staticmethod
     def run_command(cmd: list[str], **subprocess_kw) -> subprocess.CompletedProcess:
         try:
-            return subprocess.run(cmd, capture_output=True, check=True, **subprocess_kw)
+            return subprocess.run(cmd, capture_output=True, check=True, text=True, **subprocess_kw)
         except subprocess.CalledProcessError as e:
-            msg = f"Command {cmd} failed with the following error:\n{e.stderr.decode()}"
+            msg = f"Command {cmd} failed with the following error:\n{e.stderr}"
             raise SchedulerCommandError(msg) from e
 
 
 @dataclass(kw_only=True)
 class Slurm(Scheduler):
-    UENV_MACHINES: ClassVar[list[str]] = field(default=["santis"])
-
     def header_lines(
         self,
         task: Task,
@@ -137,7 +138,7 @@ class Slurm(Scheduler):
             header.append(f"#SBATCH --partition={partition}")
         if nodes := task.nodes:
             header.append(f"#SBATCH --nodes={nodes}")
-        if task.computer in self.UENV_MACHINES:
+        if task.computer in UENV_MACHINES:
             uenv_list: list[str] = [task.uenv] if task.uenv else []
             uenv_list.extend((f"{path}:{mount}" for path, mount in task.get_squash()))
             if uenv_list:
@@ -152,10 +153,11 @@ class Slurm(Scheduler):
     def submit_to_scheduler(
         self,
         task: Task,
+        base_env: dict[str, str] | None = None,
         dependency_type: Literal["ALL_COMPLETED", "ANY", "NONE"] = "ALL_COMPLETED",
     ) -> str:
         submit_cmd: list[str] = ["sbatch", "--parsable"]
-        if task.computer in self.UENV_MACHINES:
+        if task.computer in UENV_MACHINES:
             submit_cmd.append("--uenv-passthrough=ignore")
         if parent_ids := [parent.jobid for parent in task.parents if parent.rank >= 0]:
             match dependency_type:
@@ -168,8 +170,12 @@ class Slurm(Scheduler):
                 case _:
                     assert_never(dependency_type)
         submit_cmd.append(task.SUBMIT_FILENAME)
-        result = self.run_command(submit_cmd, cwd=task.run_dir)
-        return result.stdout.decode().strip()
+
+        kwargs: dict[str, Any] = {"cwd": task.run_dir}
+        if base_env is not None:
+            kwargs["env"] = base_env
+        result = self.run_command(submit_cmd, **kwargs)
+        return result.stdout.strip()
 
     def cancel(self, task: Task):
         """Cancel a submitted task"""
@@ -183,7 +189,7 @@ class Slurm(Scheduler):
         """Infer task status using sacct"""
 
         result = self.run_command(["sacct", "-o", "state", "-p", "-j", task.jobid])
-        status_str = result.stdout.decode().strip().split("\n")[1][:-1]
+        status_str = result.stdout.strip().split("\n")[1][:-1]
         # NOTE: For a complete list of SLURM state codes, see
         #       https://slurm.schedmd.com/job_state_codes.html
         match status_str:

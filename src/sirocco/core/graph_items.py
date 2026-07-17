@@ -159,6 +159,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     rank: int = field(init=False, repr=False)
     cycle_point: CyclePoint
     cycle: Cycle = field(init=False, repr=False)
+    base_env: dict[str, str] | None = None
 
     components: dict[str, TaskComponent] = field(default_factory=dict)
     wait_on: list[Task] = field(default_factory=list)
@@ -214,6 +215,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
         coordinates: dict[str, Any],
         datastore: Store,
         graph_spec: ConfigCycleTask,
+        base_env: dict[str, str] | None = None,
     ) -> Task:
         if (plugin_cls := Task.plugin_classes.get(type(config).plugin, None)) is None:
             msg = f"Plugin {type(config).plugin!r} is not supported."
@@ -239,6 +241,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
                 )
                 for comp_name, conf_comp in graph_spec.components.items()
             },
+            base_env=base_env,
         )
 
         # Store for actual linking in link_wait_on_tasks() once all tasks are created
