@@ -840,13 +840,13 @@ class ConfigBaseData(_NamedBaseModel, ConfigBaseDataSpecs):
             ...     '''
             ... )
             >>> validate_yaml_content(ConfigBaseData, snippet)
-            ConfigBaseData(format=None, name='foo', parameters=[])
+            ConfigBaseData(format=None, mount=None, name='foo', parameters=[])
 
 
         from python:
 
             >>> ConfigBaseData(name="foo")
-            ConfigBaseData(format=None, name='foo', parameters=[])
+            ConfigBaseData(format=None, mount=None, name='foo', parameters=[])
     """
 
     parameters: list[str] = []

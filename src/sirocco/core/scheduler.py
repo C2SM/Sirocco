@@ -30,7 +30,6 @@ class Scheduler(ABC):
     def submit(
         self,
         task: Task,
-        base_env: dict[str, str] | None = None,
         output_mode: Literal["overwrite", "append"] = "overwrite",
         dependency_type: Literal["ALL_COMPLETED", "ANY", "NONE"] = "ALL_COMPLETED",
     ):
@@ -75,7 +74,7 @@ class Scheduler(ABC):
         # ================
         (task.run_dir / task.SUBMIT_FILENAME).write_text("\n".join(script_lines))
         (task.run_dir / task.SUBMIT_FILENAME).chmod(0o755)
-        task.jobid = self.submit_to_scheduler(task, base_env=base_env, dependency_type=dependency_type)
+        task.jobid = self.submit_to_scheduler(task, dependency_type=dependency_type)
 
     @abstractmethod
     def header_lines(
@@ -89,7 +88,6 @@ class Scheduler(ABC):
     def submit_to_scheduler(
         self,
         task: Task,
-        base_env: dict[str, str] | None = None,
         dependency_type: Literal["ALL_COMPLETED", "ANY", "NONE"] = "ALL_COMPLETED",
     ) -> str:
         pass
@@ -153,7 +151,6 @@ class Slurm(Scheduler):
     def submit_to_scheduler(
         self,
         task: Task,
-        base_env: dict[str, str] | None = None,
         dependency_type: Literal["ALL_COMPLETED", "ANY", "NONE"] = "ALL_COMPLETED",
     ) -> str:
         submit_cmd: list[str] = ["sbatch", "--parsable"]
@@ -171,10 +168,7 @@ class Slurm(Scheduler):
                     assert_never(dependency_type)
         submit_cmd.append(task.SUBMIT_FILENAME)
 
-        kwargs: dict[str, Any] = {"cwd": task.run_dir}
-        if base_env is not None:
-            kwargs["env"] = base_env
-        result = self.run_command(submit_cmd, **kwargs)
+        result = self.run_command(submit_cmd, cwd=task.run_dir, env=task.base_env)
         return result.stdout.strip()
 
     def cancel(self, task: Task):
