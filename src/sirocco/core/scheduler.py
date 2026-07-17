@@ -10,7 +10,7 @@ from typing import Any, Literal, assert_never
 from sirocco.core.graph_items import Task, TaskStatus
 
 LOGGER = logging.getLogger(__name__)
-UENV_MACHINES = field(default=["santis"])
+UENV_MACHINES: list[str] = ["santis"]
 
 
 class SchedulerCommandError(RuntimeError): ...
