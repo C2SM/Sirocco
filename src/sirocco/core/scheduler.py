@@ -4,8 +4,8 @@ import shutil
 import subprocess
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
-from dataclasses import dataclass, field
-from typing import Any, Literal, assert_never
+from dataclasses import dataclass
+from typing import Literal, assert_never
 
 from sirocco.core.graph_items import Task, TaskStatus
 
@@ -137,10 +137,7 @@ class Slurm(Scheduler):
         if nodes := task.nodes:
             header.append(f"#SBATCH --nodes={nodes}")
         if task.computer in UENV_MACHINES:
-            uenv_list: list[str] = [task.uenv] if task.uenv else []
-            uenv_list.extend((f"{path}:{mount}" for path, mount in task.get_squash()))
-            if uenv_list:
-                uenv = ",".join(uenv_list)
+            if uenv := task.uenv:
                 header.append(f"#SBATCH --uenv={uenv}")
             if view := task.view:
                 header.append(f"#SBATCH --view={view}")
@@ -154,8 +151,6 @@ class Slurm(Scheduler):
         dependency_type: Literal["ALL_COMPLETED", "ANY", "NONE"] = "ALL_COMPLETED",
     ) -> str:
         submit_cmd: list[str] = ["sbatch", "--parsable"]
-        if task.computer in UENV_MACHINES:
-            submit_cmd.append("--uenv-passthrough=ignore")
         if parent_ids := [parent.jobid for parent in task.parents if parent.rank >= 0]:
             match dependency_type:
                 case "ALL_COMPLETED":

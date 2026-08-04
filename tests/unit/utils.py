@@ -357,6 +357,7 @@ def create_icon_task_with_model_namelists(
           - {name}:
               plugin: icon
               computer: {computer}
+              yac_coupling: "ICON/coupling.yaml"
               exe:
                 cpu:
                   path: {exe_cpu_path}

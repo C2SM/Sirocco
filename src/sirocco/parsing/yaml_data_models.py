@@ -746,6 +746,7 @@ class ConfigIconTaskSpecs:
     # NOTE: Cannot use init=False as ConfigIconTask inherits from BaseModel which does not support it (yet?)
     #       See possible workaround there: https://github.com/pydantic/pydantic/discussions/5929#discussioncomment-12936754
     target: Literal["cpu", "gpu", "hybrid", "__none__"] = field(repr=False, default="__none__")
+    squash_mount: list[Path] | None = None
 
 
 def check_icon_mater_namelist(namelists: list[ConfigNamelistFile]) -> list[ConfigNamelistFile]:
@@ -822,7 +823,6 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
 @dataclass(kw_only=True)
 class ConfigBaseDataSpecs:
     format: str | None = None
-    mount: Path | None = None
 
 
 class ConfigBaseData(_NamedBaseModel, ConfigBaseDataSpecs):
@@ -840,13 +840,13 @@ class ConfigBaseData(_NamedBaseModel, ConfigBaseDataSpecs):
             ...     '''
             ... )
             >>> validate_yaml_content(ConfigBaseData, snippet)
-            ConfigBaseData(format=None, mount=None, name='foo', parameters=[])
+            ConfigBaseData(format=None, name='foo', parameters=[])
 
 
         from python:
 
             >>> ConfigBaseData(name="foo")
-            ConfigBaseData(format=None, mount=None, name='foo', parameters=[])
+            ConfigBaseData(format=None, name='foo', parameters=[])
     """
 
     parameters: list[str] = []

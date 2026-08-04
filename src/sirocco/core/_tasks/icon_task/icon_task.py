@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import shlex
 import shutil
 from dataclasses import dataclass, field
 from itertools import chain
@@ -18,6 +19,7 @@ from sirocco.core._tasks.icon_task.task_distribution import (
 )
 from sirocco.core.graph_items import Task
 from sirocco.core.namelistfile import NamelistFile
+from sirocco.core.scheduler import UENV_MACHINES
 from sirocco.parsing import yaml_data_models
 from sirocco.parsing.cycling import DateCyclePoint
 
@@ -35,7 +37,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
     _MASTER_NAMELIST_NAME: ClassVar[str] = field(default="icon_master.namelist", repr=False)
     _MODEL_NML_KEYS: ClassVar[list[str]] = field(default=["master_model_nml", "jsb_model_nml"], repr=False)
     _MAIN: ClassVar[str] = field(default="main.sh", repr=False)
-    _DEFAULT_ICON_MOUNT: ClassVar[str] = field(default="ICON_MOUNT", repr=False)
+
     namelists: list[NamelistFile]
     master_namelist: NamelistFile = field(init=False, repr=False)
     models: dict[str, IconModel] = field(default_factory=dict, repr=False)
@@ -44,6 +46,8 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
     io_nodes: int = field(init=False, repr=False)
     n_procs: int = field(init=False, repr=False)
     ranks_info: dict[int, RankInfo] = field(init=False, repr=False, default_factory=dict)
+    icon_uenv: str | None = None
+    icon_view: str | None = None
 
     def is_coupled(self) -> bool:
         return len(self.master_models) > 1
@@ -65,10 +69,10 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         if self.wrapper_script is not None:
             self.wrapper_script = self.config_rootdir / self.wrapper_script
             if not self.wrapper_script.exists():
-                msg = f"Wrapper script in path {self.wrapper_script} does not exist."
+                msg = f"{self.label}: Wrapper script in path {self.wrapper_script} does not exist."
                 raise FileNotFoundError(msg)
             if not self.wrapper_script.is_file():
-                msg = f"Wrapper script in path {self.wrapper_script} is not a file."
+                msg = f"{self.label}: Wrapper script in path {self.wrapper_script} is not a file."
                 raise OSError(msg)
 
     def set_components_and_namelists(self) -> None:
@@ -79,7 +83,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                 master_namelist = namelist
                 break
         if master_namelist is None:
-            msg = f"Failed to read master namelists. Could not find {self._MASTER_NAMELIST_NAME!r} in namelists {self.namelists}"
+            msg = f"{self.label}: Failed to read master namelists. Could not find {self._MASTER_NAMELIST_NAME!r} in namelists {self.namelists}"
             raise ValueError(msg)
         self.master_namelist = master_namelist
 
@@ -93,19 +97,19 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         for key in self._MODEL_NML_KEYS:
             for model_nml in self.master_namelist.iter_nml(key):
                 if not isinstance((filename := model_nml.get("model_namelist_filename")), str):
-                    msg = f"{self.name}: {key} does not contain a valid 'model_namelist_filename' parameter"
+                    msg = f"{self.label}: {key} does not contain a valid 'model_namelist_filename' parameter"
                     raise KeyError(msg)
                 if filename not in namelist_by_filename:
-                    msg = f"{self.name}: namelist {filename} required by {self._MASTER_NAMELIST_NAME!r} not found in provided namelists"
+                    msg = f"{self.label}: namelist {filename} required by {self._MASTER_NAMELIST_NAME!r} not found in provided namelists"
                     raise KeyError(msg)
                 if not isinstance(model_name := model_nml.get("model_name"), str):
-                    msg = f"{self.name}: {key} associated to {filename} does not contain a valid 'model_name' parameter"
+                    msg = f"{self.label}: {key} associated to {filename} does not contain a valid 'model_name' parameter"
                     raise KeyError(msg)
                 model_namelists[model_name] = namelist_by_filename[filename]
                 master_namelist_model_nml_blocks[model_name] = model_nml
                 if key == "master_model_nml":
                     if not isinstance(model_type := model_nml.get("model_type"), int):
-                        msg = f"{self.name}: master_model_nml associated to {filename} does not contain a valid 'model_type' parameter"
+                        msg = f"{self.label}: master_model_nml associated to {filename} does not contain a valid 'model_type' parameter"
                         raise KeyError(msg)
                     model_types[model_name] = model_type
                     is_master[model_name] = True
@@ -117,7 +121,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         if (model_names := set(model_namelists.keys())) != (
             comp_names := {k for k in self.components if k != "master"}
         ):
-            msg = f"{self.name}: models specified in {self._MASTER_NAMELIST_NAME} ({model_names}) don't match components from the config ({comp_names})"
+            msg = f"{self.label}: models specified in {self._MASTER_NAMELIST_NAME} ({model_names}) don't match components from the config ({comp_names})"
             raise ValueError(msg)
 
         # Check if model names match between executables and task specs
@@ -125,7 +129,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
             set(self.exe.cpu.model_names()) if self.exe.cpu else set()
         )
         if (master_model_names := {name for name in model_namelists if is_master[name]}) != exe_model_names:
-            msg = f"{self.name}: model names specified for executables ({exe_model_names}) and task ({master_model_names}) don't match"
+            msg = f"{self.label}: model names specified for executables ({exe_model_names}) and task ({master_model_names}) don't match"
             raise ValueError(msg)
 
         # Build IconModel objects and fill in self.models
@@ -145,7 +149,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
 
     def check_coupled(self) -> None:
         if self.is_coupled() and self.yac_coupling is None:
-            msg = "'yac_coupling' must be specified when running with several master models"
+            msg = f"{self.label}: 'yac_coupling' must be specified when running with several master models"
             raise ValueError(msg)
 
     def allocate_ranks(self) -> None:
@@ -160,7 +164,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                 # ------------------------------
                 self.io_nodes = ceil(self.exe.tot_io_procs / self.exe.procs_per_io_node) if self.exe.separate_io else 0
                 if self.io_nodes >= self.nodes:
-                    msg = f"{self.name}: number of IO nodes (got {self.io_nodes}) must be < total number of nodes ({self.nodes})"
+                    msg = f"{self.label}: number of IO nodes (got {self.io_nodes}) must be < total number of nodes ({self.nodes})"
                     raise ValueError(msg)
                 self.compute_nodes = self.nodes - self.io_nodes
 
@@ -170,7 +174,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                 # gpu executable
                 if self.exe.gpu:
                     if self.exe.gpu.compute_procs_per_node is None:
-                        msg = "compute_procs_per_node must be set for a gpu executable"
+                        msg = f"{self.label}: compute_procs_per_node must be set for a gpu executable"
                         raise ValueError(msg)
                     compute_procs = self.compute_nodes * self.exe.gpu.compute_procs_per_node
                     min_rank = self.allocate_exe_ranks(min_rank, compute_procs, self.exe.gpu, "gpu")
@@ -178,13 +182,13 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                 if self.exe.cpu:
                     if self.exe.separate_io:
                         if self.exe.cpu.compute_procs_per_node is None:
-                            msg = "compute_procs_per_node for cpu must be set when separate_io is True"
+                            msg = f"{self.label}: compute_procs_per_node for cpu must be set when separate_io is True"
                             raise ValueError(msg)
                         compute_procs = self.compute_nodes * self.exe.cpu.compute_procs_per_node
                     else:
                         if self.procs_per_node is None:
                             msg = (
-                                "procs_per_node must be set when separate_io is False and a cpu executable is specified"
+                                f"{self.label}: procs_per_node must be set when separate_io is False and a cpu executable is specified"
                             )
                             raise ValueError(msg)
                         non_gpu_compute_procs_per_node = self.procs_per_node
@@ -213,14 +217,14 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                 self.n_procs = min_rank
 
             case _:
-                msg = f"{self.name}: allocate_ranks not implemented for machine {self.computer}"
+                msg = f"{self.label}: allocate_ranks not implemented for machine {self.computer}"
                 raise NotImplementedError(msg)
 
         # Final check for rank allocation
         # -------------------------------
         for model_name, model in self.master_models.items():
             if model.min_rank < 0 or model.max_rank < 0:
-                msg = f"{self.name}: model {model_name}  min_rank and/or max_rank not set"
+                msg = f"{self.label}: model {model_name}  min_rank and/or max_rank not set"
                 raise RuntimeError(msg)
 
     def allocate_exe_ranks(
@@ -248,7 +252,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
 
     def update_icon_namelists_from_workflow(self) -> None:
         if not isinstance(self.cycle_point, DateCyclePoint):
-            msg = f"{self.name}: icon tasks must have a DateCyclePoint"
+            msg = f"{self.label}: icon tasks must have a DateCyclePoint"
             raise TypeError(msg)
 
         self.master_namelist.update_from_specs(
@@ -280,7 +284,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         # Check if all master models have the same restart status
         for model in self.master_models.values():
             if bool(model.inputs.get(restart_in_handler.port_name, False)) != restart_ref:
-                msg = f"{self.name}: All CON models must have the same restart status"
+                msg = f"{self.label}: All CON models must have the same restart status"
                 raise ValueError(msg)
         return restart_ref
 
@@ -307,7 +311,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                     )
                 (self.run_dir / "multi-prog.conf").write_text("\n".join(multi_prog_lines))
             case _:
-                msg = f"{self.name}: generate_multi_prog_config not implemented for machine {self.computer}"
+                msg = f"{self.label}: generate_multi_prog_config not implemented for machine {self.computer}"
                 raise NotImplementedError(msg)
 
     def get_exe_compute_rank_bounds(self, exe: yaml_data_models.ConfigIconExe) -> Iterable[tuple[int, int]]:
@@ -383,7 +387,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                 # Check all node_id and numa_node are set
                 for k, r in self.ranks_info.items():
                     if r["node_id"] == -1 or r["numa_node"] == -1:
-                        msg = f"rank {k} has unitialized node_id and/or numa_node"
+                        msg = f"{self.label}: rank {k} has unitialized node_id and/or numa_node"
                         raise ValueError(msg)
 
                 # Write annotated hostfile
@@ -398,17 +402,17 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                 )
 
             case _:
-                msg = f"{self.name}: distribute_ranks not implemented for machine {self.computer}"
+                msg = f"{self.label}: distribute_ranks not implemented for machine {self.computer}"
                 raise NotImplementedError(msg)
 
     def dump_namelists(
         self, directory: Path, filename_mode: Literal["append_coordinates", "raw"] = "append_coordinates"
     ) -> None:
         if not directory.exists():
-            msg = f"Dumping path {directory} does not exist."
+            msg = f"{self.label}: Dumping path {directory} does not exist."
             raise OSError(msg)
         if not directory.is_dir():
-            msg = f"Dumping path {directory} is not directory."
+            msg = f"{self.label}: Dumping path {directory} is not directory."
             raise OSError(msg)
 
         for namelist in self.namelists:
@@ -434,13 +438,24 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         # Check supported machine
         if self.computer not in self.SUPPORTED_MACHINES:
             msg = (
-                f"machine {self.computer} not suportted for icon task. Supported machines are {self.SUPPORTED_MACHINES}"
+                f"{self.label}: machine {self.computer} not suportted for icon task. Supported machines are {self.SUPPORTED_MACHINES}"
             )
             raise ValueError(msg)
 
-        if self.computer == "santis" and self.uenv is None:
-            msg = f"{self.name}: uenv is required for ICON tasks on Santis"
-            raise ValueError(msg)
+        # Handle uenv and squashed images
+        # - reset self.uenv and self.view to None so that they doesn't get taken into account by the scheduler
+        # - store them in self.icon_uenv and self.icon_view to expose them with `export ICON_UENV=XYZ` in the run script
+        # - append squashed images paths and mount points to icon_uenv
+        if self.computer in UENV_MACHINES:
+            if self.uenv is None:
+                msg = f"{self.label}: uenv is required for ICON tasks on {self.computer}"
+                raise ValueError(msg)
+            uenv_list = [self.uenv]
+            uenv_list.extend((f"{squash}:{mount}" for squash, mount in self.get_squash_paths()))
+            self.icon_uenv = ",".join(uenv_list)
+            self.icon_view = self.view
+        self.uenv = None
+        self.view = None
 
         # Link ICON binaries
         if self.exe.cpu is not None:
@@ -465,15 +480,15 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         if self.runtime is None:
             runtime_dir = Path(__file__).parent / "runtime" / self.computer
             if not runtime_dir.exists():
-                msg = f"runtime not defined for computer {self.computer}"
+                msg = f"{self.label}: runtime not defined for computer {self.computer}"
                 raise ValueError(msg)
         else:
             runtime_dir = self.config_rootdir / self.runtime
             if not runtime_dir.is_dir():
-                msg = f"{self.name}: 'runtime' directory not found at {runtime_dir}"
+                msg = f"{self.label}: 'runtime' directory not found at {runtime_dir}"
                 raise ValueError(msg)
             if not (runtime_dir / self._MAIN).is_file():
-                msg = f"{self._MAIN} not found in runtime at {runtime_dir}"
+                msg = f"{self.label}: {self._MAIN} not found in runtime at {runtime_dir}"
                 raise ValueError(msg)
         shutil.copytree(runtime_dir, self.run_dir, dirs_exist_ok=True)
 
@@ -482,9 +497,33 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         if self.target == "hybrid":
             self.generate_multi_prog_config()
 
+    def get_squash_paths(self) -> list[tuple[Path, Path]]:
+        """Get squashed images paths and mount points"""
+
+        squash_paths: list[tuple[Path, Path]] = []
+        if (master_comp := self.components.get("master")) is not None and (
+            squash_data := master_comp.inputs.get("squash")
+        ) is not None:
+            n = len(squash_data)
+            if self.squash_mount is None:
+                msg = f"{self.label}: squash_mount must be provided when a squash port is specified"
+                raise ValueError(msg)
+            if m := len(self.squash_mount) != n:
+                msg = f"{self.label}: number of squashed images ({n}) differs from the number of mount points ({m})"
+                raise ValueError(msg)
+            for image, mount in zip(squash_data, self.squash_mount, strict=False):
+                mount_point = mount if mount.is_absolute() else self.run_dir / mount
+                mount_point.mkdir(parents=True, exist_ok=True)
+                squash_paths.append((image.resolved_path, mount_point))
+        return squash_paths
+
     def runscript_lines(self) -> list[str]:
         lines: list[str] = []
         # Total number of tasks
+        if self.icon_uenv is not None:
+            lines.append(f"export ICON_UENV={shlex.quote(self.icon_uenv)}")
+            if self.icon_view is not None:
+                lines.append(f"export ICON_VIEW={self.icon_view}")
         lines.append(f"export N_PROCS={self.n_procs}")
         lines.append(f"export SIROCCO_TARGET={self.target}")
         if self.exe.gpu:

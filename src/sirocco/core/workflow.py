@@ -436,7 +436,7 @@ class Workflow:
 
         env_dict: dict[str, str] = {}
 
-        # Python equivalent of `env -i HOME=${HOME} USER=${USER} bash --login -c 'export -p'`
+        # Execute `env -i HOME=${HOME} USER=${USER} bash --login -c 'export -p'` from current process
         home = os.environ.get("HOME", "")
         user = os.environ.get("USER", "")
         cmd = ["env", "-i", f"HOME={home}", f"USER={user}", "bash", "--login", "-c", "export -p"]
