@@ -103,7 +103,9 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                     msg = f"{self.label}: namelist {filename} required by {self._MASTER_NAMELIST_NAME!r} not found in provided namelists"
                     raise KeyError(msg)
                 if not isinstance(model_name := model_nml.get("model_name"), str):
-                    msg = f"{self.label}: {key} associated to {filename} does not contain a valid 'model_name' parameter"
+                    msg = (
+                        f"{self.label}: {key} associated to {filename} does not contain a valid 'model_name' parameter"
+                    )
                     raise KeyError(msg)
                 model_namelists[model_name] = namelist_by_filename[filename]
                 master_namelist_model_nml_blocks[model_name] = model_nml
@@ -187,9 +189,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                         compute_procs = self.compute_nodes * self.exe.cpu.compute_procs_per_node
                     else:
                         if self.procs_per_node is None:
-                            msg = (
-                                f"{self.label}: procs_per_node must be set when separate_io is False and a cpu executable is specified"
-                            )
+                            msg = f"{self.label}: procs_per_node must be set when separate_io is False and a cpu executable is specified"
                             raise ValueError(msg)
                         non_gpu_compute_procs_per_node = self.procs_per_node
                         if self.exe.gpu and self.exe.gpu.compute_procs_per_node:
@@ -437,9 +437,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
 
         # Check supported machine
         if self.computer not in self.SUPPORTED_MACHINES:
-            msg = (
-                f"{self.label}: machine {self.computer} not suportted for icon task. Supported machines are {self.SUPPORTED_MACHINES}"
-            )
+            msg = f"{self.label}: machine {self.computer} not suportted for icon task. Supported machines are {self.SUPPORTED_MACHINES}"
             raise ValueError(msg)
 
         # Handle uenv and squashed images
