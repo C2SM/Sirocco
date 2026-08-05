@@ -179,8 +179,10 @@ class Slurm(Scheduler):
     def get_status(self, task: Task) -> TaskStatus:
         """Infer task status using sacct"""
 
-        result = self.run_command(["sacct", "-o", "state", "-p", "-j", task.jobid])
-        status_str = result.stdout.strip().split("\n")[1][:-1]
+        result = self.run_command(
+            ["sacct", "-n", "-X", "--format='state'", "--parsable2", "-delimiter=''", "-j", task.jobid]
+        )
+        status_str = result.stdout
         # NOTE: For a complete list of SLURM state codes, see
         #       https://slurm.schedmd.com/job_state_codes.html
         match status_str:
