@@ -182,7 +182,7 @@ class Slurm(Scheduler):
         result = self.run_command(
             ["sacct", "-n", "-X", "--format='state'", "--parsable2", "-delimiter=''", "-j", task.jobid]
         )
-        status_str = result.stdout
+        status_str = result.stdout.strip()
         # NOTE: For a complete list of SLURM state codes, see
         #       https://slurm.schedmd.com/job_state_codes.html
         match status_str:
