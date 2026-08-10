@@ -8,7 +8,7 @@ santis_common_environment(){
 
     # MPICH
     # -----
-    # NOTE: must be in commom env no only gpu
+    # NOTE: must be in commom env not only gpu
     export MPICH_GPU_SUPPORT_ENABLED=1
     export MPICH_GPU_IPC_ENABLED=1
 
@@ -39,8 +39,9 @@ santis_compute_cpu_environment(){
     # OpenMP
     # ------
     export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
-    export ICON_THREADS=${SLURM_CPUS_PER_TASK}  # NOTE: is that used anywhere??
-
+    # TODO: Check if this is used anywhere.
+    #       => Probably just a leftover from icon runscripts
+    export ICON_THREADS=${SLURM_CPUS_PER_TASK}
 }
 
 # Compute gpu environment
