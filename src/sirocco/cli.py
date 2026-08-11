@@ -6,28 +6,41 @@ from typing import TYPE_CHECKING, Annotated
 
 import typer
 
-# Apply patches for third-party libraries before any AiiDA operations
-from sirocco.engines.aiida.patches import (
-    patch_firecrest_symlink,
-    patch_slurm_dependency_handling,
-    patch_workgraph_window,
-)
+# # Apply patches for third-party libraries before any AiiDA operations
+# from sirocco.engines.aiida.patches import (
+#     patch_firecrest_symlink,
+#     patch_slurm_dependency_handling,
+#     patch_workgraph_window,
+# )
 
-patch_firecrest_symlink()
-patch_slurm_dependency_handling()
-patch_workgraph_window()
+# patch_firecrest_symlink()
+# patch_slurm_dependency_handling()
+# patch_workgraph_window()
 
 # Imports below require patches to be applied first
 if TYPE_CHECKING:
     from aiida_workgraph import WorkGraph
 
-from aiida.manage.configuration import load_profile  # noqa: E402
+# from aiida.manage.configuration import load_profile  # noqa: E402
 from rich.console import Console  # noqa: E402
 from rich.traceback import install as install_rich_traceback  # noqa: E402
 
 from sirocco import core, parsing, pretty_print, vizgraph  # noqa: E402
 from sirocco.core._tasks.sirocco_task import SiroccoContinueTask  # noqa: E402
 from sirocco.engines.aiida import build_sirocco_workgraph  # noqa: E402
+
+def aiida_imports() -> None:
+    # Apply patches for third-party libraries before any AiiDA operations
+    from sirocco.engines.aiida.patches import (
+        patch_firecrest_symlink,
+        patch_slurm_dependency_handling,
+        patch_workgraph_window,
+    )
+    patch_firecrest_symlink()
+    patch_slurm_dependency_handling()
+    patch_workgraph_window()
+    
+    from aiida.manage.configuration import load_profile  # noqa: E402
 
 # --- Typer App and Rich Console Setup ---
 # Print tracebacks with syntax highlighting and rich formatting
@@ -61,6 +74,7 @@ def _create_aiida_workflow(
     Returns:
         Tuple of (core_workflow, aiida_workgraph)
     """
+    aiida_imports()
     load_profile()
     config_workflow = parsing.ConfigWorkflow.from_config_file(
         str(workflow_file),
@@ -88,6 +102,7 @@ def create_aiida_workflow(
         Tuple of (core_workflow, aiida_workgraph)
     """
 
+    aiida_imports()
     from aiida.common import ProfileConfigurationError
 
     try:
@@ -366,6 +381,8 @@ def run(
         ),
     ] = None,
 ):
+    
+    aiida_imports()
     # Load config and use values from config.yml (single source of truth)
     config_workflow = parsing.ConfigWorkflow.from_config_file(
         str(workflow_file),
@@ -416,6 +433,7 @@ def submit(
 ):
     """Submit the workflow to the AiiDA daemon."""
 
+    aiida_imports()
     # Load config and use values from config.yml (single source of truth)
     config_workflow = parsing.ConfigWorkflow.from_config_file(
         str(workflow_file),
@@ -481,6 +499,8 @@ def create_symlink_tree(
     The command is incremental: existing symlinks are skipped, and new ones are added
     as the workflow progresses.
     """
+
+    aiida_imports()
     from aiida.orm import CalcJobNode, WorkflowNode, load_node
 
     try:
