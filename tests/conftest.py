@@ -54,7 +54,6 @@ def icon_grid_path(pytestconfig):
 
 
 @pytest.fixture
-@pytest.mark.requires_icon
 def icon_filepath_executable() -> str:
     which_icon = subprocess.run(["which", "icon"], capture_output=True, check=False)
     if which_icon.returncode:
