@@ -743,7 +743,7 @@ def restart(
         if wf.status == core.workflow.WorkflowStatus.CONTINUE:
             console.print("✅ Workflow restarted successfully.")
         elif wf.status == core.workflow.WorkflowStatus.COMPLETED:
-            console.print("✅ Workflow completed!")
+            console.print("✅ WORKFLOW COMPLETED")
         elif wf.status == core.workflow.WorkflowStatus.RESTART_FAILED:
             console.print("❌ Workflow restart failed")
     except Exception as e:
