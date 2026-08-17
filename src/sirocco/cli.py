@@ -21,12 +21,12 @@ import typer
 if TYPE_CHECKING:
     from aiida_workgraph import WorkGraph
 
-# from aiida.manage.configuration import load_profile  # noqa: E402
-from rich.console import Console  # noqa: E402
-from rich.traceback import install as install_rich_traceback  # noqa: E402
+# from aiida.manage.configuration import load_profile
+from rich.console import Console
+from rich.traceback import install as install_rich_traceback
 
-from sirocco import core, parsing, pretty_print, vizgraph  # noqa: E402
-from sirocco.core._tasks.sirocco_task import SiroccoContinueTask  # noqa: E402
+from sirocco import core, parsing, pretty_print, vizgraph
+from sirocco.core._tasks.sirocco_task import SiroccoContinueTask
 
 # --- Typer App and Rich Console Setup ---
 # Print tracebacks with syntax highlighting and rich formatting
@@ -68,11 +68,13 @@ def _create_aiida_workflow(
         patch_slurm_dependency_handling,
         patch_workgraph_window,
     )
+
     patch_firecrest_symlink()
     patch_slurm_dependency_handling()
     patch_workgraph_window()
-    from aiida.manage.configuration import load_profile  # noqa: E402
-    from sirocco.engines.aiida import build_sirocco_workgraph  # noqa: E402
+    from aiida.manage.configuration import load_profile
+
+    from sirocco.engines.aiida import build_sirocco_workgraph
 
     load_profile()
     config_workflow = parsing.ConfigWorkflow.from_config_file(
@@ -108,6 +110,7 @@ def create_aiida_workflow(
         patch_slurm_dependency_handling,
         patch_workgraph_window,
     )
+
     patch_firecrest_symlink()
     patch_slurm_dependency_handling()
     patch_workgraph_window()
@@ -390,7 +393,6 @@ def run(
         ),
     ] = None,
 ):
-
     # AiiDa imports
     # Apply patches for third-party libraries before any AiiDA operations
     from sirocco.engines.aiida.patches import (
@@ -398,6 +400,7 @@ def run(
         patch_slurm_dependency_handling,
         patch_workgraph_window,
     )
+
     patch_firecrest_symlink()
     patch_slurm_dependency_handling()
     patch_workgraph_window()
@@ -459,6 +462,7 @@ def submit(
         patch_slurm_dependency_handling,
         patch_workgraph_window,
     )
+
     patch_firecrest_symlink()
     patch_slurm_dependency_handling()
     patch_workgraph_window()
@@ -536,10 +540,11 @@ def create_symlink_tree(
         patch_slurm_dependency_handling,
         patch_workgraph_window,
     )
+
     patch_firecrest_symlink()
     patch_slurm_dependency_handling()
     patch_workgraph_window()
-    from aiida.manage.configuration import load_profile  # noqa: E402
+    from aiida.manage.configuration import load_profile
     from aiida.orm import CalcJobNode, WorkflowNode, load_node
 
     try:

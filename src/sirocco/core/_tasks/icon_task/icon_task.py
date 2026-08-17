@@ -502,11 +502,10 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         if (master_comp := self.components.get("master")) is not None and (
             squash_data := master_comp.inputs.get("squash")
         ) is not None:
-            n = len(squash_data)
             if self.squash_mount is None:
                 msg = f"{self.label}: squash_mount must be provided when a squash port is specified"
                 raise ValueError(msg)
-            if m := len(self.squash_mount) != n:
+            if (m := len(self.squash_mount)) != (n := len(squash_data)):
                 msg = f"{self.label}: number of squashed images ({n}) differs from the number of mount points ({m})"
                 raise ValueError(msg)
             for image, mount in zip(squash_data, self.squash_mount, strict=False):
