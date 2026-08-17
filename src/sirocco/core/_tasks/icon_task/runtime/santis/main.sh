@@ -2,19 +2,19 @@
 
 set -e
 
+# Generate SLURM hostfile for arbitrary task distribution
+# -------------------------------------------------------
+sirocco_hostfile="./hostfile-sirocco"
+export SLURM_HOSTFILE="./hostfile-${SLURM_JOB_ID}"
+export SLURM_HOSTFILE_ANNOTATED="./hostfile-${SLURM_JOB_ID}_annotated"
+./generate_hostfile.sh ${sirocco_hostfile} ${SLURM_HOSTFILE} ${SLURM_HOSTFILE_ANNOTATED}
+
 # Dump environment
 # ----------------
 # Dump SLURM environment variables to stdout
 set | grep SLURM
 # Dump full environment to file
 set > ./env_${SLURM_JOB_ID}
-
-# Generate SLURM hostfile for arbitrary task distribution
-# -------------------------------------------------------
-SIROCCO_HOSTFILE="./hostfile-sirocco"
-export SLURM_HOSTFILE="./hostfile-${SLURM_JOB_ID}"
-export SLURM_HOSTFILE_ANNOTATED="./hostfile-${SLURM_JOB_ID}_annotated"
-./generate_hostfile.sh ${SIROCCO_HOSTFILE} ${SLURM_HOSTFILE} ${SLURM_HOSTFILE_ANNOTATED}
 
 # Build srun command
 # ------------------

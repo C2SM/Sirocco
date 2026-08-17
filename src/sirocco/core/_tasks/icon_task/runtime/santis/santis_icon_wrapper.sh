@@ -10,27 +10,27 @@ fi
 # read line corresponding to SLURM_PROCID
 rank_info=($(sed -n $((SLURM_PROCID+1))p ${SLURM_HOSTFILE_ANNOTATED}))
 # Parse line
-NID=${rank_info[0]}  # node id
-NUMA_NODE=${rank_info[1]}  # numa node 
-PE_TYPE=${rank_info[2]}  # "compute", "io"  or "hiopy"
-TARGET=${rank_info[3]}  # "cpu", "gpu" or "hiopy"
-MODEL=${rank_info[4]}  # icon master model name or "hiopy"
+nid=${rank_info[0]}  # node id
+numa_node=${rank_info[1]}  # numa node
+pe_type=${rank_info[2]}  # "compute", "io"  or "hiopy"
+target=${rank_info[3]}  # "cpu", "gpu" or "hiopy"
+model=${rank_info[4]}  # icon master model name or "hiopy"
 
 # Set up environment
 # ------------------
 source santis_environments.sh
 santis_common_environment
-if [ "${PE_TYPE}" == "compute" ]; then
-    if [ "${TARGET}" == "cpu" ]; then
+if [ "${pe_type}" == "compute" ]; then
+    if [ "${target}" == "cpu" ]; then
         santis_compute_cpu_environment
-    elif [ "${TARGET}" == "gpu" ]; then
+    elif [ "${target}" == "gpu" ]; then
         santis_compute_gpu_environment
         [ -n "${ICON4PY_VENV}" ] && santis_icon4py_environment
     fi
-elif [ "${PE_TYPE}" == "io" ]; then
+elif [ "${pe_type}" == "io" ]; then
     santis_io_environment
 fi
 
 # Launch executable
 # -----------------
-numactl --cpunodebind=$NUMA_NODE --membind=$NUMA_NODE bash -c "$@"
+numactl --cpunodebind=$numa_node --membind=$numa_node bash -c "$@"
