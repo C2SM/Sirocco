@@ -33,7 +33,7 @@ class SiroccoContinueTask(models.ConfigSiroccoTaskSpecs, Task):
     def prepare_for_submission(self) -> None:
         lines: list[str] = []
         if self.venv is not None:
-            lines.append(f"source {self.venv}")
+            lines.append(f"source {self.venv}/bin/activate")
         lines.append(f"sirocco continue --from_wf {self.config_filename} || exit")
         (self.run_dir / self.CMD_FILENAME).write_text("\n".join(lines))
         (self.run_dir / self.CMD_FILENAME).chmod(0o755)
