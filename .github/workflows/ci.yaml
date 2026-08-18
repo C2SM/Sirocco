@@ -1,12 +1,11 @@
 name: ci
 
-# NOTE: Deactivating until we need to test with aiida-icon again
-# on:
-#   push:
-#     # only pushes to main trigger
-#     branches: [main]
-#   pull_request:
-#     # always triggered
+on:
+  push:
+    # only pushes to main trigger
+    branches: [main]
+  pull_request:
+    # always triggered
 
 jobs:
 
