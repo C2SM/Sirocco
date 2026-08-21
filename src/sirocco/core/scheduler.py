@@ -138,6 +138,10 @@ class Slurm(Scheduler):
             header.append(f"#SBATCH --nodes={nodes}")
         if gpus_per_node := task.gpus_per_node:
             header.append(f"#SBATCH --gpus-per-node={gpus_per_node}")
+        if gres_flags := task.gres_flags:
+            header.append(f"#SBATCH --gres-flags={gres_flags}")
+        if gres := task.gres:
+            header.append(f"#SBATCH --gres={gres}")
         if task.computer in UENV_MACHINES:
             if uenv := task.uenv:
                 header.append(f"#SBATCH --uenv={uenv}")

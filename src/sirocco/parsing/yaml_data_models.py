@@ -418,6 +418,8 @@ class ConfigBaseTaskSpecs:
     procs_per_node: int | None = None  # SLURM option `--ntasks-per-node`, AiiDA option `num_mpiprocs_per_machine`
     cores_per_proc: int | None = None  # SLURM option `--cpus-per-task`, AiiDA option `num_cores_per_mpiproc`
     gpus_per_node: int | None = None  # SLURM option `--gpus-per-node`
+    gres_flags: str | None = None  # SLURM option `--gres-flags`
+    gres: str | None = None  # SLURM option `--gres`
     mpi_cmd: str | None = None
 
 
