@@ -55,7 +55,7 @@ class Hue(enum.Enum):
     DATA_AV = 116
     DATA_GEN = 214
     TASK = 354
-    EDGE = 252
+    EDGE = 27
 
 
 class EdgeFace(enum.Enum):
@@ -84,12 +84,12 @@ class EdgeFace(enum.Enum):
 
 class NodeFace(enum.Enum):
     _value_: dict[str, Any]
-    __NODE: ClassVar = {"style": "filled", "fontname": "Adwaita Sans", "fontsize": 14, "penwidth": 2}
+    __NODE: ClassVar = {"style": "filled", "fontname": "Adwaita Sans", "fontsize": 14, "penwidth": 2, "fontcolor": "#361800"}
     __ACTIVE: ClassVar = {"penwidth": 3.5, "fontsize": 20}
     __DATA = __NODE | {"shape": "ellipse"}
     __TASK = __NODE | {"shape": "box"}
 
-    CLUSTER = {"bgcolor": "#F6F5F4", "color": None, "fontsize": 16}  # noqa: RUF012
+    CLUSTER = {"style": "rounded", "bgcolor": "#f4f0eb", "color": None, "fontsize": 16}  # noqa: RUF012
     DATA_AV = __DATA | node_colors(Hue.DATA_AV.value)
     DATA_AV_ACTIVE = __DATA | __ACTIVE | node_colors(Hue.DATA_AV.value, status="active")
     DATA_AV_INACTIVE = __DATA | node_colors(Hue.DATA_AV.value, status="inactive")
@@ -146,7 +146,7 @@ class VizGraph:
     ) -> None:
         self.name = name
         # self.agraph = AGraph(name=name, fontname="Fira Sans", newrank=True)
-        self.agraph = AGraph(name=name, fontname="Adwaita Sans", newrank=True)
+        self.agraph = AGraph(name=name, fontname="Adwaita Sans", newrank=True, bgcolor="transparent")
         for data_node in data:
             self.agraph.add_node(
                 data_node,
