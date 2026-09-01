@@ -174,6 +174,7 @@ class VizGraph:
                     self.agraph.add_edge(
                         data_node,
                         task,
+                        tooltip=None,
                         **EdgeFace.from_status(task.viz_status).value,
                     )
                 for data_node in task.output_data_nodes():
@@ -182,12 +183,14 @@ class VizGraph:
                     self.agraph.add_edge(
                         task,
                         data_node,
+                        tooltip=None,
                         **EdgeFace.from_status(task.viz_status).value,
                     )
                 for wait_task in task.wait_on:
                     self.agraph.add_edge(
                         wait_task,
                         task,
+                        tooltip=None,
                         **EdgeFace.from_status(task.viz_status, wait=True).value,
                     )
             self.agraph.add_subgraph(
