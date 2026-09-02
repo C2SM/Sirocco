@@ -381,7 +381,7 @@ class Workflow:
             for task in to_promote:
                 task.rank = k - 1
                 self.front[k].remove(task)
-                msg = f"🔵 {task.label} ({task.jobid}) PROMOTED from rank {k} to {k - 1}"
+                msg = f"🟡 {task.label} ({task.jobid}) PROMOTED from rank {k} to {k - 1}"
                 self.front[k - 1].append(task)
                 logger.info(msg)
 
