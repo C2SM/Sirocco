@@ -319,7 +319,7 @@ class Workflow:
                 task.rank = 0
                 self.scheduler.submit(task)
                 self.front[0].append(task)
-                msg = f"🔵 {task.label} ({task.jobid}) SUBMITTED to rank {task.rank}"
+                msg = f"🟣 {task.label} ({task.jobid}) SUBMITTED to rank {task.rank}"
                 logger.info(msg)
         for k in range(self.front_depth - 1):
             for task in self.front[k]:
@@ -328,7 +328,7 @@ class Workflow:
                         self.scheduler.submit(child)
                         child.rank = k + 1
                         self.front[k + 1].append(child)
-                        msg = f"🔵 {child.label} ({child.jobid}) SUBMITTED to rank {child.rank}"
+                        msg = f"🟣 {child.label} ({child.jobid}) SUBMITTED to rank {child.rank}"
                         logger.info(msg)
 
     def restart_front(self, logger: logging.Logger) -> None:
@@ -344,12 +344,12 @@ class Workflow:
                     in (TaskStatus.COMPLETED, TaskStatus.RUNNING, TaskStatus.WAITING)
                 ):
                     self.cool_down_tasks.remove(task)
-                    msg = f"🔵 {task.label} ({task.jobid}) CONTINUED as rank 0 from cool-down"
+                    msg = f"🟣 {task.label} ({task.jobid}) CONTINUED as rank 0 from cool-down"
                     logger.info(msg)
                 else:
                     self.scheduler.cancel(task)
                     self.scheduler.submit(task)
-                    msg = f"🔵 {task.label} ({task.jobid}) SUBMITTED to rank {task.rank}"
+                    msg = f"🟣 {task.label} ({task.jobid}) SUBMITTED to rank {task.rank}"
                     logger.info(msg)
 
     def propagate_front(self, logger: logging.Logger) -> None:
@@ -381,7 +381,7 @@ class Workflow:
             for task in to_promote:
                 task.rank = k - 1
                 self.front[k].remove(task)
-                msg = f"🟡 {task.label} ({task.jobid}) PROMOTED from rank {k} to {k - 1}"
+                msg = f"🔵 {task.label} ({task.jobid}) PROMOTED from rank {k} to {k - 1}"
                 self.front[k - 1].append(task)
                 logger.info(msg)
 
@@ -396,7 +396,7 @@ class Workflow:
                     self.scheduler.submit(child)
                     child.rank = self.front_depth - 1
                     self.front[-1].append(child)
-                    msg = f"🔵 {child.label} ({child.jobid}) SUBMITTED to rank {child.rank}"
+                    msg = f"🟣 {child.label} ({child.jobid}) SUBMITTED to rank {child.rank}"
                     logger.info(msg)
 
     def cancel_all_tasks(self, mode: Literal["cancel", "cool-down"], logger: logging.Logger) -> None:
@@ -410,7 +410,7 @@ class Workflow:
                     and self.scheduler.get_status(task) in (TaskStatus.COMPLETED, TaskStatus.RUNNING)
                 ):
                     self.cool_down_tasks.append(task)
-                    msg = f"🔵 {task.label} ({task.jobid}) COOLING DOWN"
+                    msg = f"🟣 {task.label} ({task.jobid}) COOLING DOWN"
                     logger.info(msg)
                 else:
                     self.scheduler.cancel(task)
