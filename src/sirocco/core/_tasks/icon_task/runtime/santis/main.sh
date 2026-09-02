@@ -18,7 +18,7 @@ set > ./env_${SLURM_JOB_ID}
 
 # Build srun command
 # ------------------
-srun_cmd="srun -l --kill-on-bad-exit=1 --mpi=cray_shasta --ntasks=${N_PROCS} --hint=nomultithread --distribution=arbitrary"
+srun_cmd="srun -l --kill-on-bad-exit=1 --mpi=cray_shasta --ntasks=${N_PROCS} --hint=nomultithread --gres-flags=allow-task-sharing --distribution=arbitrary"
 if [ -n "${ICON_UENV}" ]; then
     srun_cmd+=" --uenv=${ICON_UENV}"
     [ -n "${ICON_VIEW}" ] && srun_cmd+=" --view=${ICON_VIEW}"
