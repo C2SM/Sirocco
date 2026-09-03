@@ -84,7 +84,13 @@ class EdgeFace(enum.Enum):
 
 class NodeFace(enum.Enum):
     _value_: dict[str, Any]
-    __NODE: ClassVar = {"style": "filled", "fontname": "Adwaita Sans", "fontsize": 14, "penwidth": 2, "fontcolor": "#361800"}
+    __NODE: ClassVar = {
+        "style": "filled",
+        "fontname": "Adwaita Sans",
+        "fontsize": 14,
+        "penwidth": 2,
+        "fontcolor": "#361800",
+    }
     __ACTIVE: ClassVar = {"penwidth": 3.5, "fontsize": 20}
     __DATA = __NODE | {"shape": "ellipse"}
     __TASK = __NODE | {"shape": "box"}
