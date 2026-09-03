@@ -53,7 +53,7 @@ santis_compute_gpu_environment(){
 
     # CUDA
     # ----
-    export CUDA_VISIBLE_DEVICES=$NUMA_NODE
+    export CUDA_VISIBLE_DEVICES=$numa_node
     export CUDA_BUFFER_PAGE_IN_THRESHOLD_MS=0.001
 
     # NVHPC
