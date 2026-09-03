@@ -29,7 +29,6 @@ classifiers = [
 keywords = ["workflow"," icon", "aiida", "aiida-workgraph"]
 requires-python = '>=3.10'
 dependencies = [
-  "numpy",
   "isoduration",
   "pydantic",
   "ruamel.yaml",
