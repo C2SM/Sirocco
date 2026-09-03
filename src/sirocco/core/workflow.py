@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Self
 
 from ruamel.yaml import YAML
+from termcolor import colored
 
 from sirocco.core._tasks.sirocco_task import SiroccoContinueTask
 from sirocco.core.graph_items import Cycle, Data, Store, Task, TaskStatus
@@ -43,6 +44,27 @@ class WorkflowStatus(enum.Enum):
     STOPPED = 4
     STOPPING = 5
     RESTART_FAILED = 6
+
+
+class StatusPoint:
+    RANK_0: str = colored("⬤", (109, 168, 255))  # type: ignore
+    RANK_1: str = colored("⬤", (76, 125, 204))  # type: ignore
+    RANK_2: str = colored("⬤", (44, 84, 155))  # type: ignore
+    RANK_3: str = colored("⬤", (3, 46, 109))  # type: ignore
+    COMPLETED: str = colored("⬤", (0, 191, 91))  # type: ignore
+    FAILED: str = colored("⬤", (255, 87, 87))  # type: ignore
+
+    @classmethod
+    def from_rank(cls, rank: int) -> str:
+        match rank:
+            case _ if rank == 0:
+                return cls.RANK_0
+            case _ if rank == 1:
+                return cls.RANK_1
+            case _ if rank == 2:  # noqa: PLR2004
+                return cls.RANK_2
+            case _:
+                return cls.RANK_3
 
 
 class Workflow:
@@ -162,6 +184,9 @@ class Workflow:
             parents=[],
             **config_kwargs,
         )
+
+        # Ensure ansi colors are used by termcolor
+        os.environ["FORCE_COLOR"] = "1"
 
     @property
     def config_rootdir(self) -> Path:
@@ -319,7 +344,7 @@ class Workflow:
                 task.rank = 0
                 self.scheduler.submit(task)
                 self.front[0].append(task)
-                msg = f"🟣 {task.label} ({task.jobid}) SUBMITTED to rank {task.rank}"
+                msg = f"{StatusPoint.from_rank(task.rank)} {task.label} ({task.jobid}) SUBMITTED to rank {task.rank}"
                 logger.info(msg)
         for k in range(self.front_depth - 1):
             for task in self.front[k]:
@@ -328,7 +353,7 @@ class Workflow:
                         self.scheduler.submit(child)
                         child.rank = k + 1
                         self.front[k + 1].append(child)
-                        msg = f"🟣 {child.label} ({child.jobid}) SUBMITTED to rank {child.rank}"
+                        msg = f"{StatusPoint.from_rank(child.rank)} {child.label} ({child.jobid}) SUBMITTED to rank {child.rank}"
                         logger.info(msg)
 
     def restart_front(self, logger: logging.Logger) -> None:
@@ -344,12 +369,14 @@ class Workflow:
                     in (TaskStatus.COMPLETED, TaskStatus.RUNNING, TaskStatus.WAITING)
                 ):
                     self.cool_down_tasks.remove(task)
-                    msg = f"🟣 {task.label} ({task.jobid}) CONTINUED as rank 0 from cool-down"
+                    msg = f"{StatusPoint.RANK_0} {task.label} ({task.jobid}) CONTINUED as rank 0 from cool-down"
                     logger.info(msg)
                 else:
                     self.scheduler.cancel(task)
                     self.scheduler.submit(task)
-                    msg = f"🟣 {task.label} ({task.jobid}) SUBMITTED to rank {task.rank}"
+                    msg = (
+                        f"{StatusPoint.from_rank(task.rank)} {task.label} ({task.jobid}) SUBMITTED to rank {task.rank}"
+                    )
                     logger.info(msg)
 
     def propagate_front(self, logger: logging.Logger) -> None:
@@ -359,7 +386,7 @@ class Workflow:
         to_promote: list[Task] = []
         for task in self.front[0]:
             if (status := self.scheduler.get_status(task)) == TaskStatus.FAILED:
-                msg = f"🔴 {task.label} ({task.jobid}) FAILED"
+                msg = f"{StatusPoint.FAILED} {task.label} ({task.jobid}) FAILED"
                 logger.info(msg)
                 self.cancel_all_tasks(mode="cancel", logger=logger)
                 msg = f"All workflow tasks canceled because {task.label} failed"
@@ -372,7 +399,7 @@ class Workflow:
             task.rank = -1
             self.front[0].remove(task)
             self.completed_tasks.append(task)
-            msg = f"🟢 {task.label} ({task.jobid}) COMPLETED"
+            msg = f"{StatusPoint.COMPLETED} {task.label} ({task.jobid}) COMPLETED"
             logger.info(msg)
 
         # Update front rank of tasks currently in the front after the first generation
@@ -381,7 +408,7 @@ class Workflow:
             for task in to_promote:
                 task.rank = k - 1
                 self.front[k].remove(task)
-                msg = f"🔵 {task.label} ({task.jobid}) PROMOTED from rank {k} to {k - 1}"
+                msg = f"{StatusPoint.from_rank(k - 1)} {task.label} ({task.jobid}) PROMOTED from rank {k} to {k - 1}"
                 self.front[k - 1].append(task)
                 logger.info(msg)
 
@@ -396,7 +423,7 @@ class Workflow:
                     self.scheduler.submit(child)
                     child.rank = self.front_depth - 1
                     self.front[-1].append(child)
-                    msg = f"🟣 {child.label} ({child.jobid}) SUBMITTED to rank {child.rank}"
+                    msg = f"{StatusPoint.from_rank(child.rank)} {child.label} ({child.jobid}) SUBMITTED to rank {child.rank}"
                     logger.info(msg)
 
     def cancel_all_tasks(self, mode: Literal["cancel", "cool-down"], logger: logging.Logger) -> None:
@@ -410,11 +437,11 @@ class Workflow:
                     and self.scheduler.get_status(task) in (TaskStatus.COMPLETED, TaskStatus.RUNNING)
                 ):
                     self.cool_down_tasks.append(task)
-                    msg = f"🟣 {task.label} ({task.jobid}) COOLING DOWN"
+                    msg = f"{StatusPoint.from_rank(task.rank)} {task.label} ({task.jobid}) COOLING DOWN"
                     logger.info(msg)
                 else:
                     self.scheduler.cancel(task)
-                    msg = f"🔴 {task.label} ({task.jobid}) CANCELED"
+                    msg = f"{StatusPoint.FAILED} {task.label} ({task.jobid}) CANCELED"
                     logger.info(msg)
 
     def auto_submit(self) -> None:

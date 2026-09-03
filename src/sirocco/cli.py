@@ -1,5 +1,7 @@
+import io
 import logging
 import shutil
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
@@ -28,6 +30,36 @@ from rich.traceback import install as install_rich_traceback
 from sirocco import core, parsing, pretty_print, vizgraph
 from sirocco.core._tasks.sirocco_task import SiroccoContinueTask
 
+
+class TeeStream(io.TextIOBase):
+    """Stream wrapper to mimic tee behavior"""
+
+    def __init__(self, logfile: Path, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.logfile = logfile
+
+    def write(self, data: str) -> int:
+        bytes_written = sys.stdout.write(data)
+        with self.logfile.open("a", encoding="utf-8") as f:
+            f.write(data)
+        return bytes_written
+
+    # Unused but might be useful at some point
+    def flush(self) -> None:
+        sys.stdout.flush()
+        with self.logfile.open("a", encoding="utf-8") as f:
+            f.flush()
+
+
+def log_console(wf: core.Workflow) -> Console:
+    return Console(
+        file=TeeStream(wf.config_rootdir / core.SiroccoContinueTask.STDOUTERR_FILENAME),  # type: ignore
+        force_terminal=True,
+        color_system="truecolor",
+        highlight=False,
+    )
+
+
 # --- Typer App and Rich Console Setup ---
 # Print tracebacks with syntax highlighting and rich formatting
 install_rich_traceback(show_locals=False)
@@ -39,7 +71,7 @@ app = typer.Typer(
 )
 
 # Create a Rich console instance for printing
-console = Console(record=True)
+console = Console()
 
 # Create logger
 logger = logging.getLogger(__name__)
@@ -130,6 +162,12 @@ def create_aiida_workflow(
         console.print(f"[bold red]❌ Failed to prepare AiiDA workflow: {e}[/bold red]")
         console.print_exception()
         raise typer.Exit(code=1) from e
+
+
+class CmdStatus:
+    PLAY: str = "[rgb(255,159,64)]▶[/rgb(255,159,64)]"
+    SUCCESS: str = "[rgb(67,165,65)]✔[/rgb(67,165,65)]"
+    FAIL: str = "[rgb(255,87,87)]✖[/rgb(255,87,87)]"
 
 
 # --- CLI main Commands ---
@@ -377,6 +415,7 @@ def add_now(width: int = 25) -> str:
     date_rule = (len(date_str) + 2) * "─"
     return "\n".join([f"{space}╭{date_rule}╮", f"{rule}┤ {date_str} ├{rule}", f"{space}╰{date_rule}╯"])
 
+
 @app.command(help=" [standalone] Start a workflow.")
 def start(
     workflow_file: Annotated[
@@ -398,10 +437,11 @@ def start(
         ),
     ] = False,
 ):
-    console.print(add_now())
     wf = core.Workflow.from_config_file(workflow_file)
+    tee_console = log_console(wf)
+    tee_console.print(add_now())
     if cleanup:
-        console.print(f"▶️ Cleaning up workflow at {wf.config_rootdir} ...")
+        tee_console.print(f"{CmdStatus.PLAY} Cleaning up workflow at {wf.config_rootdir} ...")
         if (run_dir := wf.config_rootdir / wf.RUN_ROOT).exists():
             shutil.rmtree(run_dir)
         (wf.config_rootdir / SiroccoContinueTask.SUBMIT_FILENAME).unlink(missing_ok=True)
@@ -409,21 +449,17 @@ def start(
     if (wf.config_rootdir / wf.RUN_ROOT).exists():
         msg = "Workflow already exists, cannot start. Use --cleanup to clean up before starting."
         raise ValueError(msg)
-    console.print(f"▶️ Starting workflow at {wf.config_rootdir} ...")
-    with (wf.config_rootdir / core.SiroccoContinueTask.STDOUTERR_FILENAME).open("a") as logfile:
-        logfile.write(console.export_text(clear=True))
+    tee_console.print(f"{CmdStatus.PLAY} Starting workflow at {wf.config_rootdir} ...")
     try:
         wf.start()
         if wf.status == core.workflow.WorkflowStatus.CONTINUE:
-            console.print("✅ Workflow started successfully.")
+            tee_console.print(f"{CmdStatus.SUCCESS}  Workflow started successfully.")
         elif wf.status == core.workflow.WorkflowStatus.FAILED:
-            console.print("❌ Workflow start failed")
+            tee_console.print(f"{CmdStatus.FAIL}  Workflow start failed")
     except Exception as e:
-        console.print(f"❌ Workflow start failed: {e}")
-        console.print_exception()
+        tee_console.print(f"{CmdStatus.FAIL} Workflow start failed: {e}")
+        tee_console.print_exception()
         raise typer.Exit(code=1) from e
-    with (wf.config_rootdir / core.SiroccoContinueTask.STDOUTERR_FILENAME).open("a") as logfile:
-        logfile.write(console.export_text(clear=True))
 
 
 @app.command(help="[standalone] Restart a stopped workflow.")
@@ -440,25 +476,22 @@ def restart(
         ),
     ],
 ):
-    console.print(add_now())
     wf = core.Workflow.from_config_file(workflow_file)
-    console.print(f"▶️ Restarting workflow at {wf.config_rootdir} ...")
-    with (wf.config_rootdir / core.SiroccoContinueTask.STDOUTERR_FILENAME).open("a") as logfile:
-        logfile.write(console.export_text(clear=True))
+    tee_console = log_console(wf)
+    tee_console.print(add_now())
+    tee_console.print(f"{CmdStatus.PLAY} Restarting workflow at {wf.config_rootdir} ...")
     try:
         wf.restart()
         if wf.status == core.workflow.WorkflowStatus.CONTINUE:
-            console.print("✅ Workflow restarted successfully.")
+            tee_console.print(f"{CmdStatus.SUCCESS}  Workflow restarted successfully.")
         elif wf.status == core.workflow.WorkflowStatus.COMPLETED:
-            console.print("✅ WORKFLOW COMPLETED")
+            tee_console.print(f"{CmdStatus.SUCCESS}  WORKFLOW COMPLETED")
         elif wf.status == core.workflow.WorkflowStatus.RESTART_FAILED:
-            console.print("❌ Workflow restart failed")
+            tee_console.print(f"{CmdStatus.FAIL}  Workflow restart failed")
     except Exception as e:
-        console.print(f"❌ Workflow restart failed: {e}")
-        console.print_exception()
+        tee_console.print(f"{CmdStatus.FAIL}  Workflow restart failed: {e}")
+        tee_console.print_exception()
         raise typer.Exit(code=1) from e
-    with (wf.config_rootdir / core.SiroccoContinueTask.STDOUTERR_FILENAME).open("a") as logfile:
-        logfile.write(console.export_text(clear=True))
 
 
 @app.command(help="[standalone] Stop a workflow.")
@@ -482,27 +515,24 @@ def stop(
         ),
     ] = False,
 ):
-    console.print(add_now())
     wf = core.Workflow.from_config_file(workflow_file)
-    msg = f"▶️ Stopping workflow at {wf.config_rootdir}"
+    tee_console = log_console(wf)
+    tee_console.print(add_now())
+    msg = f"{CmdStatus.PLAY} Stopping workflow at {wf.config_rootdir}"
     if cool_down:
         msg += " in cool down mode"
     msg += " ..."
-    console.print(msg)
-    with (wf.config_rootdir / core.SiroccoContinueTask.STDOUTERR_FILENAME).open("a") as logfile:
-        logfile.write(console.export_text(clear=True))
+    tee_console.print(msg)
     try:
         wf.stop(mode="cool-down" if cool_down else "cancel")
         if wf.status == core.workflow.WorkflowStatus.STOPPED:
-            console.print("✅ Workflow stopped successfully.")
+            tee_console.print(f"{CmdStatus.SUCCESS}  Workflow stopped successfully.")
         else:
-            console.print("❌ Workflow stop failed")
+            tee_console.print(f"{CmdStatus.FAIL}  Workflow stop failed")
     except Exception as e:
-        console.print(f"❌ Workflow stop failed: {e}")
-        console.print_exception()
+        tee_console.print(f"{CmdStatus.FAIL}  Workflow stop failed: {e}")
+        tee_console.print_exception()
         raise typer.Exit(code=1) from e
-    with (wf.config_rootdir / core.SiroccoContinueTask.STDOUTERR_FILENAME).open("a") as logfile:
-        logfile.write(console.export_text(clear=True))
 
 
 @app.command(name="continue", hidden=True)
@@ -526,23 +556,24 @@ def continue_wf(
         ),
     ] = False,
 ):
-    console.print(add_now())
+    std_console = Console(force_terminal=True, color_system="truecolor", highlight=False)
+    std_console.print(add_now())
     if not from_wf:
         msg = "Do not use interactively, the continue command is reserved for internal use"
         raise ValueError(msg)
     wf = core.Workflow.from_config_file(workflow_file)
-    console.print("▶️ Continue workflow ...")
+    std_console.print(f"{CmdStatus.PLAY} Continue workflow ...")
     try:
         wf.continue_wf()
         if wf.status == core.workflow.WorkflowStatus.CONTINUE:
-            console.print("✅ Workflow continuation submitted successfully.")
+            std_console.print(f"{CmdStatus.SUCCESS}  Workflow continuation submitted successfully.")
         elif wf.status == core.workflow.WorkflowStatus.COMPLETED:
-            console.print("✅ Workflow completed!")
+            std_console.print(f"{CmdStatus.SUCCESS}  Workflow completed!")
         elif wf.status == core.workflow.WorkflowStatus.FAILED:
-            console.print("❌ Workflow failed")
+            std_console.print(f"{CmdStatus.FAIL}  Workflow failed")
     except Exception as e:
-        console.print(f"❌ Workflow continuation failed: {e}")
-        console.print_exception()
+        std_console.print(f"{CmdStatus.FAIL}  Workflow continuation failed: {e}")
+        std_console.print_exception()
         raise typer.Exit(code=1) from e
 
 
@@ -560,22 +591,23 @@ def stviz(
         ),
     ],
 ):
-    console.print(f"📊 Visualizing workflow status from: [cyan]{workflow_file!s}[/cyan]")
+    console.print(f"{CmdStatus.PLAY} Visualizing workflow status from: [cyan]{workflow_file!s}[/cyan]")
     try:
         wf = core.Workflow.from_config_file(workflow_file)
         wf.load_state()
         viz_graph = vizgraph.VizGraph.from_status_workflow(wf)
         viz_graph.draw(file_path=Path("./status.svg"))
-        console.print("[green]✅ Status visualization saved to:[/green] [cyan]./status.svg[/cyan]")
+        console.print(f"{CmdStatus.SUCCESS} Status visualization saved to: [cyan]./status.svg[/cyan]")
 
     except Exception as e:
-        console.print("[bold red]❌ Failed to generate status visualization:[/bold red]")
+        console.print("{CmdStatus.FAIL} Failed to generate status visualization:")
         console.print_exception()
         raise typer.Exit(code=1) from e
 
 
 # --- CLI AiiDA Commands ---
-    
+
+
 @app.command(help="[AiiDA] Run the workflow in a blocking fashion.")
 def run(
     workflow_file: Annotated[
