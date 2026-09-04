@@ -6,12 +6,6 @@ santis_common_environment(){
     ulimit -s unlimited
     ulimit -c 0
 
-    # MPICH
-    # -----
-    # NOTE: must be in commom env not only gpu
-    export MPICH_GPU_SUPPORT_ENABLED=1
-    export MPICH_GPU_IPC_ENABLED=1
-
     # Libfabric / Slingshot
     # ---------------------
     export FI_CXI_SAFE_DEVMEM_COPY_THRESHOLD=0
@@ -34,6 +28,13 @@ santis_common_environment(){
 santis_compute_cpu_environment(){
     # MPICH
     # -----
+    if [ "${SIROCCO_TARGET}" == "hybrid" ]; then
+        export MPICH_GPU_SUPPORT_ENABLED=1
+        export MPICH_GPU_IPC_ENABLED=1
+    else
+        export MPICH_GPU_SUPPORT_ENABLED=0
+        export MPICH_GPU_IPC_ENABLED=0
+    fi
     export MPICH_OFI_NIC_POLICY=NUMA
 
     # OpenMP
@@ -49,6 +50,8 @@ santis_compute_cpu_environment(){
 santis_compute_gpu_environment(){
     # MPICH
     # -----
+    export MPICH_GPU_SUPPORT_ENABLED=1
+    export MPICH_GPU_IPC_ENABLED=1
     export MPICH_OFI_NIC_POLICY=GPU
 
     # CUDA
@@ -71,7 +74,7 @@ santis_icon4py_environment(){
     source "${ICON4PY_VENV}/bin/activate"
     export CUDAARCHS=90
     export PYTHONOPTIMIZE=2
-    # Default GT4PY_BUILD_CACHE_DIR one level above rundir, i.e. case run directory
+    # Default GT4PY_BUILD_CACHE_DIR one level above rundir, i.e. workflow run directory
     # so that it's set to a common path for all chunks
     export GT4PY_BUILD_CACHE_DIR=${GT4PY_BUILD_CACHE_DIR:-".."}
     export CUPY_CACHE_IN_MEMORY=1
@@ -94,5 +97,12 @@ santis_icon4py_environment(){
 santis_io_environment(){
     # MPICH
     # -----
+    if [ "${SIROCCO_TARGET}" == "hybrid" ]; then
+        export MPICH_GPU_SUPPORT_ENABLED=1
+        export MPICH_GPU_IPC_ENABLED=1
+    else
+        export MPICH_GPU_SUPPORT_ENABLED=0
+        export MPICH_GPU_IPC_ENABLED=0
+    fi
     export MPICH_OFI_NIC_POLICY=NUMA
 }
