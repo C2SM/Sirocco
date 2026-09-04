@@ -97,12 +97,12 @@ santis_icon4py_environment(){
 santis_io_environment(){
     # MPICH
     # -----
-    if [ "${SIROCCO_TARGET}" == "hybrid" ]; then
-        export MPICH_GPU_SUPPORT_ENABLED=1
-        export MPICH_GPU_IPC_ENABLED=1
-    else
+    if [ "${SIROCCO_TARGET}" == "cpu" ]; then
         export MPICH_GPU_SUPPORT_ENABLED=0
         export MPICH_GPU_IPC_ENABLED=0
+    else
+        export MPICH_GPU_SUPPORT_ENABLED=1
+        export MPICH_GPU_IPC_ENABLED=1
     fi
     export MPICH_OFI_NIC_POLICY=NUMA
 }
