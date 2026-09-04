@@ -29,11 +29,10 @@ classifiers = [
 keywords = ["workflow"," icon", "aiida", "aiida-workgraph"]
 requires-python = '>=3.10'
 dependencies = [
-  "numpy",
   "isoduration",
   "pydantic",
   "ruamel.yaml",
-  "aiida-core>=2.7.3",
+  "aiida-core==2.7.3",
   # pinned to my branch with the temporary fix
   "aiida-firecrest @ git+https://github.com/aiidateam/aiida-firecrest.git@c4e287ffe40ae57db7032fe1c80d2c4def0dc7fa",
   # pinned on my branch that contains all the changes for DYAMOND, so far
@@ -45,7 +44,7 @@ dependencies = [
   "aiida-gui",
   "ipdb",
   "termcolor",
-  "pygraphviz",
+  "pygraphviz==2.0",
   "lxml",
   "f90nml",
   "aiida-shell>=0.8.1",
@@ -150,7 +149,7 @@ python = ["3.12"]
 [tool.hatch.envs.docs]
 installer = "uv"
 description = "Build the documentation"
-extra-dependencies = [
+dependencies = [
     "mkdocs-material",
 ]
 

@@ -1,8 +1,9 @@
 # Sirocco
 
-Sirocco is a library for creating weather and climate workflows from a yaml
-format inspired by [cylc](https://cylc.github.io/) using
-[AiiDA](https://www.aiida.net/) as workflow engine.
+Sirocco is a library for creating weather and climate workflows from a `yaml`
+format inspired by [cylc](https://cylc.github.io/) and
+[AiiDA](https://www.aiida.net/). It either runs standalone on the target cluster
+or uses AiiDA running on a dedicated server as a workflow engine.
 
 ## Install
 

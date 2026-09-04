@@ -179,11 +179,11 @@ class AiidaAdapter:
 
         # Build resources
         resources = None
-        if task.nodes is not None or task.ntasks_per_node is not None or task.cpus_per_task is not None:
+        if task.nodes is not None or task.procs_per_node is not None or task.cores_per_proc is not None:
             resources = AiidaResources(
                 num_machines=task.nodes,
-                num_mpiprocs_per_machine=task.ntasks_per_node,
-                num_cores_per_mpiproc=task.cpus_per_task,
+                num_mpiprocs_per_machine=task.procs_per_node,
+                num_cores_per_mpiproc=task.cores_per_proc,
             )
 
         return AiidaMetadataOptions(

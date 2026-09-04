@@ -2,16 +2,21 @@ from __future__ import annotations
 
 import enum
 import logging
+import os
+import re
+import shlex
+import subprocess
 from datetime import datetime
 from itertools import chain, product
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Self
 
 from ruamel.yaml import YAML
+from termcolor import colored
 
 from sirocco.core._tasks.sirocco_task import SiroccoContinueTask
 from sirocco.core.graph_items import Cycle, Data, Store, Task, TaskStatus
-from sirocco.core.scheduler import Scheduler
+from sirocco.core.scheduler import UENV_MACHINES, Scheduler
 from sirocco.parsing.cycling import DateCyclePoint, OneOffPoint
 from sirocco.parsing.yaml_data_models import (
     ConfigBaseData,
@@ -39,6 +44,27 @@ class WorkflowStatus(enum.Enum):
     STOPPED = 4
     STOPPING = 5
     RESTART_FAILED = 6
+
+
+class StatusPoint:
+    RANK_0: str = colored("⬤", (109, 168, 255))  # type: ignore
+    RANK_1: str = colored("⬤", (76, 125, 204))  # type: ignore
+    RANK_2: str = colored("⬤", (44, 84, 155))  # type: ignore
+    RANK_3: str = colored("⬤", (3, 46, 109))  # type: ignore
+    COMPLETED: str = colored("⬤", (0, 191, 91))  # type: ignore
+    FAILED: str = colored("⬤", (255, 87, 87))  # type: ignore
+
+    @classmethod
+    def from_rank(cls, rank: int) -> str:
+        match rank:
+            case _ if rank == 0:
+                return cls.RANK_0
+            case _ if rank == 1:
+                return cls.RANK_1
+            case _ if rank == 2:  # noqa: PLR2004
+                return cls.RANK_2
+            case _:
+                return cls.RANK_3
 
 
 class Workflow:
@@ -75,6 +101,7 @@ class Workflow:
         self.data: Store[Data] = Store()
         self.cycles: Store[Cycle] = Store()
         self.status: WorkflowStatus = WorkflowStatus.INIT
+        self.base_env: dict[str, str] = self.set_base_env()
 
         config_data_dict: dict[str, ConfigBaseData] = {
             data.name: data for data in chain(config_data.available, config_data.generated)
@@ -97,7 +124,7 @@ class Workflow:
         for cycle_config in config_cycles:
             for cycle_point in cycle_config.cycling.iter_cycle_points():
                 for task_ref in cycle_config.tasks:
-                    for data_ref in chain(*task_ref.outputs.values()):
+                    for data_ref in chain(*chain(*(comp.outputs.values() for comp in task_ref.components.values()))):
                         data_config = config_data_dict[data_ref.name]
                         for coordinates in iter_coordinates(cycle_point, data_config.parameters):
                             self.data.add(Data.from_config(config=data_config, coordinates=coordinates))
@@ -121,6 +148,8 @@ class Workflow:
                             coordinates=coordinates,
                             datastore=self.data,
                             graph_spec=task_graph_spec,
+                            # NOTE: If hte computer becomes a workflow attribute instead of a task one we can simplify this
+                            base_env=self.base_env if task_config.computer in UENV_MACHINES else None,
                         )
                         task.rank = self.front_depth
                         self.tasks.add(task)
@@ -155,6 +184,9 @@ class Workflow:
             parents=[],
             **config_kwargs,
         )
+
+        # Ensure ansi colors are used by termcolor
+        os.environ["FORCE_COLOR"] = "1"
 
     @property
     def config_rootdir(self) -> Path:
@@ -312,16 +344,16 @@ class Workflow:
                 task.rank = 0
                 self.scheduler.submit(task)
                 self.front[0].append(task)
-                msg = f"{task.label} ({task.jobid}) SUBMITTED to rank {task.rank}"
+                msg = f"{StatusPoint.from_rank(task.rank)} {task.label} ({task.jobid}) SUBMITTED to rank {task.rank}"
                 logger.info(msg)
         for k in range(self.front_depth - 1):
             for task in self.front[k]:
                 for child in task.children:
-                    if max(parent.rank for parent in child.parents) == k:
+                    if (max(parent.rank for parent in child.parents) == k) and (child.rank == self.front_depth):
                         self.scheduler.submit(child)
                         child.rank = k + 1
                         self.front[k + 1].append(child)
-                        msg = f"{child.label} ({child.jobid}) SUBMITTED to rank {child.rank}"
+                        msg = f"{StatusPoint.from_rank(child.rank)} {child.label} ({child.jobid}) SUBMITTED to rank {child.rank}"
                         logger.info(msg)
 
     def restart_front(self, logger: logging.Logger) -> None:
@@ -337,12 +369,14 @@ class Workflow:
                     in (TaskStatus.COMPLETED, TaskStatus.RUNNING, TaskStatus.WAITING)
                 ):
                     self.cool_down_tasks.remove(task)
-                    msg = f"{task.label} ({task.jobid}) CONTINUED as rank 0 from cool-down"
+                    msg = f"{StatusPoint.RANK_0} {task.label} ({task.jobid}) CONTINUED as rank 0 from cool-down"
                     logger.info(msg)
                 else:
                     self.scheduler.cancel(task)
                     self.scheduler.submit(task)
-                    msg = f"{task.label} ({task.jobid}) SUBMITTED to rank {task.rank}"
+                    msg = (
+                        f"{StatusPoint.from_rank(task.rank)} {task.label} ({task.jobid}) SUBMITTED to rank {task.rank}"
+                    )
                     logger.info(msg)
 
     def propagate_front(self, logger: logging.Logger) -> None:
@@ -352,7 +386,7 @@ class Workflow:
         to_promote: list[Task] = []
         for task in self.front[0]:
             if (status := self.scheduler.get_status(task)) == TaskStatus.FAILED:
-                msg = f"{task.label} ({task.jobid}) FAILED"
+                msg = f"{StatusPoint.FAILED} {task.label} ({task.jobid}) FAILED"
                 logger.info(msg)
                 self.cancel_all_tasks(mode="cancel", logger=logger)
                 msg = f"All workflow tasks canceled because {task.label} failed"
@@ -365,7 +399,7 @@ class Workflow:
             task.rank = -1
             self.front[0].remove(task)
             self.completed_tasks.append(task)
-            msg = f"{task.label} ({task.jobid}) COMPLETED"
+            msg = f"{StatusPoint.COMPLETED} {task.label} ({task.jobid}) COMPLETED"
             logger.info(msg)
 
         # Update front rank of tasks currently in the front after the first generation
@@ -374,8 +408,8 @@ class Workflow:
             for task in to_promote:
                 task.rank = k - 1
                 self.front[k].remove(task)
+                msg = f"{StatusPoint.from_rank(k - 1)} {task.label} ({task.jobid}) PROMOTED from rank {k} to {k - 1}"
                 self.front[k - 1].append(task)
-                msg = f"{task.label} ({task.jobid}) PROMOTED from rank {k} to {k - 1}"
                 logger.info(msg)
 
         # Add new tasks to the last generation of the front
@@ -389,7 +423,7 @@ class Workflow:
                     self.scheduler.submit(child)
                     child.rank = self.front_depth - 1
                     self.front[-1].append(child)
-                    msg = f"{child.label} ({child.jobid}) SUBMITTED to rank {child.rank}"
+                    msg = f"{StatusPoint.from_rank(child.rank)} {child.label} ({child.jobid}) SUBMITTED to rank {child.rank}"
                     logger.info(msg)
 
     def cancel_all_tasks(self, mode: Literal["cancel", "cool-down"], logger: logging.Logger) -> None:
@@ -403,11 +437,11 @@ class Workflow:
                     and self.scheduler.get_status(task) in (TaskStatus.COMPLETED, TaskStatus.RUNNING)
                 ):
                     self.cool_down_tasks.append(task)
-                    msg = f"{task.label} ({task.jobid}) COOLING DOWN"
+                    msg = f"{StatusPoint.from_rank(task.rank)} {task.label} ({task.jobid}) COOLING DOWN"
                     logger.info(msg)
                 else:
                     self.scheduler.cancel(task)
-                    msg = f"{task.label} ({task.jobid}) CANCELED"
+                    msg = f"{StatusPoint.FAILED} {task.label} ({task.jobid}) CANCELED"
                     logger.info(msg)
 
     def auto_submit(self) -> None:
@@ -422,6 +456,45 @@ class Workflow:
         else:
             self.sirocco_continue_task.jobid = "_NO_ID_"
             self.status = WorkflowStatus.COMPLETED
+
+    @staticmethod
+    def set_base_env() -> dict[str, str]:
+        """Set the base env from which to potentially submit tasks"""
+
+        env_dict: dict[str, str] = {}
+
+        # Execute `env -i HOME=${HOME} USER=${USER} bash --login -c 'export -p'` from current process
+        home = os.environ.get("HOME", "")
+        user = os.environ.get("USER", "")
+        cmd = ["env", "-i", f"HOME={home}", f"USER={user}", "bash", "--login", "-c", "export -p"]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        except subprocess.CalledProcessError as e:
+            msg = f"During set_base_env, command {cmd} failed with the following error:\n {e.stderr}"
+            raise RuntimeError(msg) from e
+
+        # Parse env into a dict
+        # Strip out "declare -xyz" or "export" from the beginning of the line
+        pattern = re.compile(r"^(declare -\S+|export)(?P<spec>.*)$")
+        for line in result.stdout.split("\n"):
+            spec = line.strip()
+            # Skip empty lines or comments
+            if not spec or spec.startswith("#"):
+                continue
+            if (m := pattern.match(spec)) is None:
+                msg = f"unrcognized pattern in the following line of the environment:\n{line}"
+                raise RuntimeError(msg)
+            spec = m.group("spec").strip()
+
+            # Use shlex to safely parse KEY="VALUE" considering internal quotes
+            try:
+                parsed = shlex.split(spec)
+                if parsed and "=" in parsed[0]:
+                    key, value = parsed[0].split("=", 1)
+                    env_dict[key] = value
+            except ValueError:
+                continue  # Skip malformed lines
+        return env_dict
 
     @classmethod
     def from_config_file(
