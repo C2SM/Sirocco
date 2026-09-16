@@ -9,22 +9,9 @@ from typing import TYPE_CHECKING, Annotated
 
 import typer
 
-# # Apply patches for third-party libraries before any AiiDA operations
-# from sirocco.engines.aiida.patches import (
-#     patch_firecrest_symlink,
-#     patch_slurm_dependency_handling,
-#     patch_workgraph_window,
-# )
-
-# patch_firecrest_symlink()
-# patch_slurm_dependency_handling()
-# patch_workgraph_window()
-
-# Imports below require patches to be applied first
 if TYPE_CHECKING:
     from aiida_workgraph import WorkGraph
 
-# from aiida.manage.configuration import load_profile
 from rich.console import Console
 from rich.traceback import install as install_rich_traceback
 
@@ -99,93 +86,6 @@ console = Console()
 
 # Create logger
 logger = logging.getLogger(__name__)
-
-
-def _create_aiida_workflow(
-    workflow_file: Path,
-    jinja_vars_file: Path | None = None,
-) -> tuple[core.Workflow, "WorkGraph"]:
-    """Load workflow file and build WorkGraph.
-
-    Uses configuration from config.yml (single source of truth).
-
-    Args:
-        workflow_file: Path to workflow configuration file
-        jinja_vars_file: Optional path to variables file for Jinja2 templating
-
-    Returns:
-        Tuple of (core_workflow, aiida_workgraph)
-    """
-
-    # AiiDa imports
-    # Apply patches for third-party libraries before any AiiDA operations
-    from sirocco.engines.aiida.patches import (
-        patch_firecrest_symlink,
-        patch_slurm_dependency_handling,
-        patch_workgraph_window,
-    )
-
-    patch_firecrest_symlink()
-    patch_slurm_dependency_handling()
-    patch_workgraph_window()
-    from aiida.manage.configuration import load_profile
-
-    from sirocco.engines.aiida import build_sirocco_workgraph
-
-    load_profile()
-    config_workflow = parsing.ConfigWorkflow.from_config_file(
-        str(workflow_file),
-        jinja_vars_file_path=str(jinja_vars_file) if jinja_vars_file else None,
-    )
-
-    core_wf = core.Workflow.from_config_workflow(config_workflow)
-    wg = build_sirocco_workgraph(core_wf)
-    return core_wf, wg
-
-
-def create_aiida_workflow(
-    workflow_file: Path,
-    jinja_vars_file: Path | None = None,
-) -> tuple[core.Workflow, "WorkGraph"]:
-    """Helper to prepare WorkGraph from workflow file.
-
-    Uses configuration from config.yml (single source of truth).
-
-    Args:
-        workflow_file: Path to workflow configuration file
-        jinja_vars_file: Optional path to variables file for Jinja2 templating
-
-    Returns:
-        Tuple of (core_workflow, aiida_workgraph)
-    """
-
-    # AiiDa imports
-    # Apply patches for third-party libraries before any AiiDA operations
-    from sirocco.engines.aiida.patches import (
-        patch_firecrest_symlink,
-        patch_slurm_dependency_handling,
-        patch_workgraph_window,
-    )
-
-    patch_firecrest_symlink()
-    patch_slurm_dependency_handling()
-    patch_workgraph_window()
-
-    from aiida.common import ProfileConfigurationError
-
-    try:
-        core_wf, wg = _create_aiida_workflow(workflow_file=workflow_file, jinja_vars_file=jinja_vars_file)
-        console.print(f"⚙️ Workflow [magenta]'{wg.name}'[/magenta] prepared for AiiDA execution.")
-        return core_wf, wg  # noqa: TRY300 | try-consider-else -> shouldn't move this to `else` block
-    except ProfileConfigurationError as e:
-        console.print(f"[bold red]❌ No AiiDA profile set up: {e}[/bold red]")
-        console.print("[bold green]You can create one using `verdi presto`[/bold green]")
-        console.print_exception()
-        raise typer.Exit(code=1) from e
-    except Exception as e:
-        console.print(f"[bold red]❌ Failed to prepare AiiDA workflow: {e}[/bold red]")
-        console.print_exception()
-        raise typer.Exit(code=1) from e
 
 
 def rich_colored(text: str, rgb: tuple[int, int, int]) -> str:
@@ -440,7 +340,7 @@ def represent(
 def add_now(width: int = 25) -> str:
     rule = width * "─"
     space = width * " "
-    date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # noqa: DTZ005
     date_rule = (len(date_str) + 2) * "─"
     return "\n".join([f"{space}╭{date_rule}╮", f"{rule}┤ {date_str} ├{rule}", f"{space}╰{date_rule}╯"])
 
@@ -639,6 +539,84 @@ def stviz(
 # --- CLI AiiDA Commands ---
 
 
+def patch_aiida() -> None:
+    """Apply patches for third-party libraries before any AiiDA operations"""
+
+    from sirocco.engines.aiida.patches import (
+        patch_firecrest_symlink,
+        patch_slurm_dependency_handling,
+        patch_workgraph_window,
+    )
+
+    patch_firecrest_symlink()
+    patch_slurm_dependency_handling()
+    patch_workgraph_window()
+
+
+def _create_aiida_workflow(
+    workflow_file: Path,
+    jinja_vars_file: Path | None = None,
+) -> tuple[core.Workflow, "WorkGraph"]:
+    """Load workflow file and build WorkGraph.
+
+    Uses configuration from config.yml (single source of truth).
+
+    Args:
+        workflow_file: Path to workflow configuration file
+        jinja_vars_file: Optional path to variables file for Jinja2 templating
+
+    Returns:
+        Tuple of (core_workflow, aiida_workgraph)
+    """
+
+    from aiida.manage.configuration import load_profile
+
+    from sirocco.engines.aiida import build_sirocco_workgraph
+
+    load_profile()
+    config_workflow = parsing.ConfigWorkflow.from_config_file(
+        str(workflow_file),
+        jinja_vars_file_path=str(jinja_vars_file) if jinja_vars_file else None,
+    )
+
+    core_wf = core.Workflow.from_config_workflow(config_workflow)
+    wg = build_sirocco_workgraph(core_wf)
+    return core_wf, wg
+
+
+def create_aiida_workflow(
+    workflow_file: Path,
+    jinja_vars_file: Path | None = None,
+) -> tuple[core.Workflow, "WorkGraph"]:
+    """Helper to prepare WorkGraph from workflow file.
+
+    Uses configuration from config.yml (single source of truth).
+
+    Args:
+        workflow_file: Path to workflow configuration file
+        jinja_vars_file: Optional path to variables file for Jinja2 templating
+
+    Returns:
+        Tuple of (core_workflow, aiida_workgraph)
+    """
+
+    from aiida.common import ProfileConfigurationError
+
+    try:
+        core_wf, wg = _create_aiida_workflow(workflow_file=workflow_file, jinja_vars_file=jinja_vars_file)
+        console.print(f"⚙️ Workflow [magenta]'{wg.name}'[/magenta] prepared for AiiDA execution.")
+        return core_wf, wg  # noqa: TRY300 | try-consider-else -> shouldn't move this to `else` block
+    except ProfileConfigurationError as e:
+        console.print(f"[bold red]❌ No AiiDA profile set up: {e}[/bold red]")
+        console.print("[bold green]You can create one using `verdi presto`[/bold green]")
+        console.print_exception()
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        console.print(f"[bold red]❌ Failed to prepare AiiDA workflow: {e}[/bold red]")
+        console.print_exception()
+        raise typer.Exit(code=1) from e
+
+
 @app.command(help="[AiiDA] Run the workflow in a blocking fashion.")
 def run(
     workflow_file: Annotated[
@@ -665,17 +643,7 @@ def run(
         ),
     ] = None,
 ):
-    # AiiDa imports
-    # Apply patches for third-party libraries before any AiiDA operations
-    from sirocco.engines.aiida.patches import (
-        patch_firecrest_symlink,
-        patch_slurm_dependency_handling,
-        patch_workgraph_window,
-    )
-
-    patch_firecrest_symlink()
-    patch_slurm_dependency_handling()
-    patch_workgraph_window()
+    patch_aiida()
 
     # Load config and use values from config.yml (single source of truth)
     config_workflow = parsing.ConfigWorkflow.from_config_file(
@@ -727,17 +695,7 @@ def submit(
 ):
     """Submit the workflow to the AiiDA daemon."""
 
-    # AiiDa imports
-    # Apply patches for third-party libraries before any AiiDA operations
-    from sirocco.engines.aiida.patches import (
-        patch_firecrest_symlink,
-        patch_slurm_dependency_handling,
-        patch_workgraph_window,
-    )
-
-    patch_firecrest_symlink()
-    patch_slurm_dependency_handling()
-    patch_workgraph_window()
+    patch_aiida()
 
     # Load config and use values from config.yml (single source of truth)
     config_workflow = parsing.ConfigWorkflow.from_config_file(
@@ -805,17 +763,8 @@ def create_symlink_tree(
     as the workflow progresses.
     """
 
-    # AiiDa imports
-    # Apply patches for third-party libraries before any AiiDA operations
-    from sirocco.engines.aiida.patches import (
-        patch_firecrest_symlink,
-        patch_slurm_dependency_handling,
-        patch_workgraph_window,
-    )
+    patch_aiida()
 
-    patch_firecrest_symlink()
-    patch_slurm_dependency_handling()
-    patch_workgraph_window()
     from aiida.manage.configuration import load_profile
     from aiida.orm import CalcJobNode, WorkflowNode, load_node
 
