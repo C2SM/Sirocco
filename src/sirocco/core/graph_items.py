@@ -159,7 +159,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
     rank: int = field(init=False, repr=False)
     cycle_point: CyclePoint
     cycle: Cycle = field(init=False, repr=False)
-    base_env: dict[str, str] | None = None
+    base_env: dict[str, str] | None = field(default=None, repr=False)
 
     components: dict[str, TaskComponent] = field(default_factory=dict)
     wait_on: list[Task] = field(default_factory=list)
