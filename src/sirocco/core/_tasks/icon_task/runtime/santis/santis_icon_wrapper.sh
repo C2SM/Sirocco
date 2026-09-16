@@ -1,6 +1,10 @@
 #!/usr/local/bin/bash -l
 set -e
 
+# Get avaialble numa nodes
+# ------------------------
+visible_numa_nodes=($(numactl --show | grep nodebind | sed 's/^nodebind://'))
+
 # Parse annotated hostfile
 # ------------------------
 if [ ! -f ${SLURM_HOSTFILE_ANNOTATED} ]; then
@@ -11,7 +15,7 @@ fi
 rank_info=($(sed -n $((SLURM_PROCID+1))p ${SLURM_HOSTFILE_ANNOTATED}))
 # Parse line
 nid=${rank_info[0]}  # node id
-numa_node=${rank_info[1]}  # numa node
+numa_node=${visible_numa_nodes[${rank_info[1]}]}  # numa node
 pe_type=${rank_info[2]}  # "compute", "io"  or "hiopy"
 target=${rank_info[3]}  # "cpu", "gpu" or "hiopy"
 model=${rank_info[4]}  # icon master model name or "hiopy"
