@@ -466,10 +466,13 @@ class Workflow:
 
         if (
             subprocess.run(
-                ["which", "printenv"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                ["which", "printenv"],  # noqa: S607
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
             ).returncode
             > 0
-        ):  # noqa: S607
+        ):
             msg = "`printenv` not available on the system"
             raise RuntimeError(msg)
 
