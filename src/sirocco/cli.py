@@ -3,7 +3,7 @@ import logging
 import os
 import shutil
 import sys
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
 
@@ -440,7 +440,7 @@ def represent(
 def add_now(width: int = 25) -> str:
     rule = width * "─"
     space = width * " "
-    date_str = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
+    date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     date_rule = (len(date_str) + 2) * "─"
     return "\n".join([f"{space}╭{date_rule}╮", f"{rule}┤ {date_str} ├{rule}", f"{space}╰{date_rule}╯"])
 
