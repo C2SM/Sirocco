@@ -57,7 +57,7 @@ dependencies = [
   "isodate",
   "dotenv"
 ]
-license = {file = "LICENSE"}
+license = {file = "LICENSE"} 
 
 [project.urls]
 Repository = "https://github.com/C2SM/Sirocco.git"
@@ -151,21 +151,21 @@ python = ["3.12"]
 installer = "uv"
 description = "Build the documentation"
 dependencies = [
-    "mkdocs-material",
+    "zensical",
 ]
 
 [tool.hatch.envs.docs.scripts]
 build = [
-  "mkdocs build -f docs/mkdocs.yml",
-  "echo 'Now open docs/build/index.html with your browser'"
+  "zensical build",
+  "echo 'Now open docs/site/index.html with your browser'"
 ]
 serve = [
-  "mkdocs serve -f docs/mkdocs.yml",
+  "zensical serve",
 ]
 
-deploy = [
-  "mkdocs gh-deploy --no-history -f docs/mkdocs.yml"
-]
+# deploy = [
+#   "mkdocs gh-deploy --no-history -f docs/mkdocs.yml"
+# ]
 
 [tool.hatch.envs.types]
 python = "3.12"
@@ -202,3 +202,8 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = ["f90nml"]
 ignore_missing_imports = true
+
+[dependency-groups]
+dev = [
+    "zensical>=0.0.53",
+]
