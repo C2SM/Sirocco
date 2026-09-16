@@ -17,7 +17,7 @@ from termcolor import colored
 
 from sirocco.core._tasks.sirocco_task import SiroccoContinueTask
 from sirocco.core.graph_items import Cycle, Data, Store, Task, TaskStatus
-from sirocco.core.scheduler import UENV_MACHINES, Scheduler
+from sirocco.core.scheduler import Scheduler
 from sirocco.parsing.cycling import DateCyclePoint, OneOffPoint
 from sirocco.parsing.yaml_data_models import (
     ConfigBaseData,
@@ -464,7 +464,12 @@ class Workflow:
     def set_base_env() -> dict[str, str]:
         """Set the base env from which to potentially submit tasks"""
 
-        if subprocess.run(["which", "printenv"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode > 0:
+        if (
+            subprocess.run(
+                ["which", "printenv"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            ).returncode
+            > 0
+        ):  # noqa: S607
             msg = "`printenv` not available on the system"
             raise RuntimeError(msg)
 
