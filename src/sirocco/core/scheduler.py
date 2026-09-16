@@ -169,6 +169,9 @@ class Slurm(Scheduler):
                     assert_never(dependency_type)
         submit_cmd.append(task.SUBMIT_FILENAME)
 
+        if not task.base_env:
+            msg = f"{task.label}: base_env is empty"
+            raise ValueError(msg)
         result = self.run_command(submit_cmd, cwd=task.run_dir, env=task.base_env)
         return result.stdout.strip()
 

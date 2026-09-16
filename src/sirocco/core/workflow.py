@@ -157,7 +157,7 @@ class Workflow:
                             datastore=self.data,
                             graph_spec=task_graph_spec,
                             # NOTE: If hte computer becomes a workflow attribute instead of a task one we can simplify this
-                            base_env=self.base_env if task_config.computer in UENV_MACHINES else None,
+                            base_env=self.base_env,
                         )
                         task.rank = self.front_depth
                         self.tasks.add(task)
@@ -463,6 +463,10 @@ class Workflow:
     @staticmethod
     def set_base_env() -> dict[str, str]:
         """Set the base env from which to potentially submit tasks"""
+
+        if subprocess.run(["which", "printenv"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode > 0:
+            msg = "`printenv` not available on the system"
+            raise RuntimeError(msg)
 
         home = os.environ.get("HOME", "")
         user = os.environ.get("USER", "")
