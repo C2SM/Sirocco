@@ -48,7 +48,7 @@ class WorkflowStatus(enum.Enum):
 
 
 class StatusPoint:
-    BASE = "⬤"
+    BASE = "●"
     HUE_FRONT = 216
     COLOR_COMPLETED = (0, 191, 91)
     COLOR_FAILED = (255, 87, 87)
