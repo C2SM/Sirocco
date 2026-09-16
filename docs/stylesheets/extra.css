@@ -1,0 +1,106 @@
+[data-md-color-scheme="default"] {
+
+    --md-primary-fg-color: hsla(216, 44%, 50%, 1);
+    /* --md-primary-fg-color--light: */
+    /* --md-primary-fg-color--dark: */
+    /* --md-primary-bg-color: hsla(282, 18%, 51%, 0.5); */
+    /* --md-primary-bg-color--light: */
+
+    /* Typeset `mark` color shades */
+    --md-typeset-mark-color: hsl(29, 92%, 80%);
+
+    /* --md-typeset-a-color: */
+
+    --md-accent-fg-color: hsla(284, 35%, 52%, 1);
+    --md-accent-fg-color--transparent: hsla(284, 35%, 52%, 0.1);
+    /* --md-accent-bg-color:  hsla(336, 18%, 66%, 1) */
+    /* --md-accent-bg-color--light: hsla(336, 18%, 66%, 0.54) */
+
+    --md-default-fg-color: hsla(27, 100%, 10%, 1);
+    --md-default-fg-color--light: hsla(27, 100%, 10%, 0.65);
+    --md-default-fg-color--lighter: hsla(27, 100%, 10%, 0.32);
+    --md-default-fg-color--lightest: hsla(27, 100%, 10%, 0.12);
+    --md-default-bg-color: hsla(32, 59%, 88%, 0.7);
+    --md-default-bg-color--light: hsla(32, 59%, 88%, 0.54);
+    --md-default-bg-color--lighter: hsla(32, 59%, 88%, 0.26);
+    --md-default-bg-color--lightest: hsla(32, 59%, 88%, 0.07);
+
+
+    /* // Code color shades */
+    --md-code-fg-color: hsla(27, 100%, 10%, 1);
+    /* --md-code-bg-color: hsla(32, 59%, 88%, 1);*/
+    --md-code-bg-color: hsla(24, 51%, 36%, 0.1);
+    --md-code-bg-color--light: hsla(24, 51%, 36%, 0.07);
+    --md-code-bg-color--lighter: hsla(24, 51%, 36%, 0.05);
+
+    /* // Code highlighting color shades */
+    --md-code-hl-color--light: hsla(24, 51%, 36%, 0.2);
+    --md-code-hl-color: hsla(24, 51%, 36%, 1);
+
+    /* // Code highlighting syntax color shades */
+    --md-code-hl-number-color:         hsl(32, 82%, 42%);
+    --md-code-hl-special-color:        hsl(12, 81%, 71%);
+    --md-code-hl-function-color:       hsl(284, 35%, 52%);
+    --md-code-hl-constant-color:       hsl(216, 44%, 50%);
+    --md-code-hl-keyword-color:        hsl(14, 95%, 38%);
+    --md-code-hl-string-color:         hsl(70, 80%, 30%);
+    --md-code-hl-name-color:           var(--md-default-fg-color--light);
+    --md-code-hl-operator-color:       var(--md-code-fg-color);
+    --md-code-hl-punctuation-color:    var(--md-default-fg-color--light);
+    --md-code-hl-comment-color:        var(--md-default-fg-color--light);
+    --md-code-hl-generic-color:        var(--md-default-fg-color--light);
+    --md-code-hl-variable-color:       var(--md-default-fg-color--light);
+
+    h1, h2, h3, h4, h5, h6 {
+        color: var(--md-default-fg-color);
+    }
+
+    .md-header__title {
+        color: var(--md-default-fg-color);
+    }
+}
+
+/* Check marks */
+.md-typeset .task-list-item input:checked + .task-list-indicator::before {
+  background-color: hsl(70, 80%, 40%);
+}
+
+/* Admonitions */
+/* =========== */
+/* Trick to customize admonitions and details without explicitly specifying all the elements for each admonition type */
+
+/* WARNING: undefined admonition colors will not fall back to predefined colors */
+
+.md-typeset .admonition.note, .md-typeset details.note { --adm-color: hsl(215, 44%, 62%) }
+.md-typeset .admonition.abstract, .md-typeset details.abstract { --adm-color: hsl(220, 28%, 60%) }
+.md-typeset .admonition.info, .md-typeset details.info { --adm-color: hsl(143, 35%, 50%) }
+.md-typeset .admonition.tip, .md-typeset details.tip { --adm-color: hsl(140, 45%, 40%) }
+.md-typeset .admonition.question, .md-typeset details.question { --adm-color: hsl(132, 70%, 30%) }
+.md-typeset .admonition.warning, .md-typeset details.warning { --adm-color: hsl(30, 100%, 40%) }
+.md-typeset .admonition.failure, .md-typeset details.failure { --adm-color: hsl(16, 85%, 35%) }
+.md-typeset .admonition.danger, .md-typeset details.danger { --adm-color: hsl(14, 95%, 38%) }
+.md-typeset .admonition.bug, .md-typeset details.bug { --adm-color: hsl(14, 95%, 35%) }
+.md-typeset .admonition.example, .md-typeset details.example { --adm-color: hsl(284, 30%, 52%) }
+.md-typeset .admonition.quote, .md-typeset details.quote { --adm-color: hsl(32, 20%, 20%) }
+
+/* Overrides the background and border of the outer card container */
+.md-typeset .admonition,
+.md-typeset details {
+    border-color: var(--adm-color) !important;
+    background-color: color-mix(in srgb, var(--adm-color) 8%, transparent) !important;
+}
+
+/* Overrides the text and background color of the title strip */
+.md-typeset .admonition > .admonition-title,
+.md-typeset details > summary {
+    color: var(--adm-color) !important;
+    // background-color: color-mix(in srgb, var(--adm-color) 8%, transparent) !important;
+    border-bottom-color: color-mix(in srgb, var(--adm-color) 20%, transparent) !important;
+}
+
+/* Handles both standard and collapsible icons */
+.md-typeset .admonition > .admonition-title::before,
+.md-typeset details > summary::before,
+.md-typeset details > summary::after {
+    background-color: var(--adm-color) !important;
+}
