@@ -462,7 +462,7 @@ class Workflow:
 
     @staticmethod
     def set_base_env() -> dict[str, str]:
-        """Set the base env from which to potentially submit tasks"""
+        """Set the base env from which tasks are submitted"""
 
         if (
             subprocess.run(
