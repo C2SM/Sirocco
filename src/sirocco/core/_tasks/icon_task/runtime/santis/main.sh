@@ -9,6 +9,11 @@ export SLURM_HOSTFILE="./hostfile-${SLURM_JOB_ID}"
 export SLURM_HOSTFILE_ANNOTATED="./hostfile-${SLURM_JOB_ID}_annotated"
 ./generate_hostfile.sh ${sirocco_hostfile} ${SLURM_HOSTFILE} ${SLURM_HOSTFILE_ANNOTATED}
 
+if [ -n "$SLURM_NTASKS_PER_NODE" ]; then
+    # has to happen before `srun` and bash cannot export arrays, so kept as string
+    export VISIBLE_NUMA_NODES_GLOBAL=$(numactl --show | grep nodebind | sed 's/^nodebind://')
+fi
+
 # Dump environment
 # ----------------
 # Dump SLURM environment variables to stdout
