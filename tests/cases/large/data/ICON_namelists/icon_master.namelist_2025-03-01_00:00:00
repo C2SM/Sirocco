@@ -20,7 +20,7 @@
     model_namelist_filename = 'NAMELIST_exclaim_ape_R02B04'
     model_type = 1
     model_min_rank = 0
-    model_max_rank = 65535
+    model_max_rank = 11519
     model_inc_rank = 1
     model_rank_group_size = 1
 /

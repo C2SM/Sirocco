@@ -51,8 +51,8 @@ def create_mock_shell_task_for_builder(command: str = "echo test") -> core.Shell
     task.output_data_items = Mock(return_value=[])
     # Resource attributes (for build_scheduler_options)
     task.nodes = None
-    task.ntasks_per_node = None
-    task.cpus_per_task = None
+    task.procs_per_node = None
+    task.cores_per_proc = None
     task.mem = None  # Memory in MB
     task.mem_per_cpu = None
     task.account = None
@@ -807,57 +807,6 @@ class TestBuildIconTaskSpecOutputs:
 
     # Patch: Mock external package dependency (aiida-icon) to prevent actual namelist file creation
     @patch("sirocco.engines.aiida.spec_builders.create_namelist_singlefiledata_from_content")
-    def test_null_port_output(
-        self,
-        mock_create_nml,
-        aiida_localhost,  # Real Computer object
-    ):
-        """Test output with None as port key is skipped.
-
-        Tests Sirocco logic:
-        - Outputs with None port are correctly filtered out
-        - Spec building handles None ports gracefully
-
-        """
-
-        mock_master_nml = Mock(pk=456)
-        mock_create_nml.return_value = mock_master_nml
-
-        # Create task with output that has None port
-        task = create_mock_icon_task(
-            name="test_icon",
-            computer=aiida_localhost.label,
-            walltime="01:00:00",
-            nodes=1,
-            ntasks_per_node=12,
-            cpus_per_task=1,
-        )
-        task.bin = Path("/path/to/icon")
-        task.wrapper_script = None
-        task.master_namelist = Mock()
-        task.master_namelist.name = "master.namelist"
-        task.master_namelist.namelist = Mock()
-        task.model_namelists = {}
-        task.update_icon_namelists_from_workflow = Mock()
-
-        # Add output with None port
-        output_data = create_generated_data(name="restart_file", path=None)
-        task.outputs = {None: [output_data]}
-
-        # Build spec
-        spec = IconTaskSpecBuilder(task).build_spec()
-
-        print("\n=== ICON task with null port output ===")
-        print(f"Output data: {output_data}")
-        print(f"Task outputs: {task.outputs}")
-        print("Output port mapping:")
-        pprint(spec.output_port_mapping)
-
-        # Verify None port is filtered out (Sirocco logic test)
-        assert "restart_file" not in spec.output_port_mapping
-
-    # Patch: Mock external package dependency (aiida-icon) to prevent actual namelist file creation
-    @patch("sirocco.engines.aiida.spec_builders.create_namelist_singlefiledata_from_content")
     def test_output_port_mapping(
         self,
         mock_create_nml,
@@ -880,8 +829,8 @@ class TestBuildIconTaskSpecOutputs:
             computer=aiida_localhost.label,
             walltime="01:00:00",
             nodes=1,
-            ntasks_per_node=12,
-            cpus_per_task=1,
+            procs_per_node=12,
+            cores_per_proc=1,
         )
         task.bin = Path("/path/to/icon")
         task.wrapper_script = None
@@ -894,13 +843,16 @@ class TestBuildIconTaskSpecOutputs:
         # Add multiple outputs on the same port
         output1 = create_generated_data(name="atm_output", path=None)
         output2 = create_generated_data(name="oce_output", path=None)
-        task.outputs = {"restart_data": [output1, output2]}
+        task.components = {"atm": core.TaskComponent(inputs={}, outputs={"restart_data": [output1, output2]})}
+        task.models = {}
+
+        task.update_icon_namelists_from_workflow = Mock()
 
         # Build spec
         spec = IconTaskSpecBuilder(task).build_spec()
 
         print("\n=== ICON task output port mapping ===")
-        print(f"Task outputs: {task.outputs}")
+        print(f"Task outputs: {task.components['atm'].outputs}")
         print("Output port mapping:")
         pprint(spec.output_port_mapping)
 

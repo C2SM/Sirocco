@@ -1,33 +1,65 @@
+import io
 import logging
+import os
 import shutil
-from datetime import UTC, datetime
+import sys
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
 
 import typer
 
-# Apply patches for third-party libraries before any AiiDA operations
-from sirocco.engines.aiida.patches import (
-    patch_firecrest_symlink,
-    patch_slurm_dependency_handling,
-    patch_workgraph_window,
-)
-
-patch_firecrest_symlink()
-patch_slurm_dependency_handling()
-patch_workgraph_window()
-
-# Imports below require patches to be applied first
 if TYPE_CHECKING:
     from aiida_workgraph import WorkGraph
 
-from aiida.manage.configuration import load_profile  # noqa: E402
-from rich.console import Console  # noqa: E402
-from rich.traceback import install as install_rich_traceback  # noqa: E402
+from rich.console import Console
+from rich.traceback import install as install_rich_traceback
 
-from sirocco import core, parsing, pretty_print, vizgraph  # noqa: E402
-from sirocco.core._tasks.sirocco_task import SiroccoContinueTask  # noqa: E402
-from sirocco.engines.aiida import build_sirocco_workgraph  # noqa: E402
+from sirocco import core, parsing, pretty_print, vizgraph
+from sirocco.core._tasks.sirocco_task import SiroccoContinueTask
+
+
+class TeeStream(io.TextIOBase):
+    """Stream wrapper to mimic tee behavior"""
+
+    def __init__(self, logfile: Path, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        # Open the file handle once and keep it alive with the stream
+        self.file_handle = logfile.open("a", encoding="utf-8")
+
+    def write(self, data: str) -> int:
+        # Write to stdout
+        bytes_written = sys.stdout.write(data)
+        # Write to the open file handle
+        self.file_handle.write(data)
+        return bytes_written
+
+    def flush(self) -> None:
+        sys.stdout.flush()
+        # Only flush if the file handle exists and isn't already closed
+        if hasattr(self, "file_handle") and not self.file_handle.closed:
+            self.file_handle.flush()
+
+    def close(self) -> None:
+        # Safely close the handle first
+        if hasattr(self, "file_handle") and not self.file_handle.closed:
+            self.file_handle.close()
+        # Call the base class cleanup safely
+        super().close()
+
+
+def log_console(wf: core.Workflow) -> Console:
+    # Create file first, otherwise the first few lines are missing from the log
+    logfile = wf.config_rootdir / core.SiroccoContinueTask.STDOUTERR_FILENAME
+    if not logfile.exists():
+        logfile.touch()
+    return Console(
+        file=TeeStream(wf.config_rootdir / core.SiroccoContinueTask.STDOUTERR_FILENAME),  # type: ignore
+        force_terminal=True,
+        color_system="truecolor",
+        highlight=False,
+    )
+
 
 # --- Typer App and Rich Console Setup ---
 # Print tracebacks with syntax highlighting and rich formatting
@@ -39,73 +71,35 @@ app = typer.Typer(
     add_completion=True,
 )
 
+
+# Enable or disable ANSI escape codes
+@app.callback()
+def no_ansi(*, ansi: bool = True):
+    if ansi:
+        os.environ["FORCE_COLOR"] = "1"
+    else:
+        os.environ["NO_COLOR"] = "1"
+
+
 # Create a Rich console instance for printing
-console = Console(record=True)
+console = Console()
 
 # Create logger
 logger = logging.getLogger(__name__)
 
 
-def _create_aiida_workflow(
-    workflow_file: Path,
-    jinja_vars_file: Path | None = None,
-) -> tuple[core.Workflow, "WorkGraph"]:
-    """Load workflow file and build WorkGraph.
-
-    Uses configuration from config.yml (single source of truth).
-
-    Args:
-        workflow_file: Path to workflow configuration file
-        jinja_vars_file: Optional path to variables file for Jinja2 templating
-
-    Returns:
-        Tuple of (core_workflow, aiida_workgraph)
-    """
-    load_profile()
-    config_workflow = parsing.ConfigWorkflow.from_config_file(
-        str(workflow_file),
-        jinja_vars_file_path=str(jinja_vars_file) if jinja_vars_file else None,
-    )
-
-    core_wf = core.Workflow.from_config_workflow(config_workflow)
-    wg = build_sirocco_workgraph(core_wf)
-    return core_wf, wg
+def rich_colored(text: str, rgb: tuple[int, int, int]) -> str:
+    rgb_str = ",".join(map(str, rgb))
+    return f"[rgb({rgb_str})]{text}[/rgb({rgb_str})]"
 
 
-def create_aiida_workflow(
-    workflow_file: Path,
-    jinja_vars_file: Path | None = None,
-) -> tuple[core.Workflow, "WorkGraph"]:
-    """Helper to prepare WorkGraph from workflow file.
-
-    Uses configuration from config.yml (single source of truth).
-
-    Args:
-        workflow_file: Path to workflow configuration file
-        jinja_vars_file: Optional path to variables file for Jinja2 templating
-
-    Returns:
-        Tuple of (core_workflow, aiida_workgraph)
-    """
-
-    from aiida.common import ProfileConfigurationError
-
-    try:
-        core_wf, wg = _create_aiida_workflow(workflow_file=workflow_file, jinja_vars_file=jinja_vars_file)
-        console.print(f"⚙️ Workflow [magenta]'{wg.name}'[/magenta] prepared for AiiDA execution.")
-        return core_wf, wg  # noqa: TRY300 | try-consider-else -> shouldn't move this to `else` block
-    except ProfileConfigurationError as e:
-        console.print(f"[bold red]❌ No AiiDA profile set up: {e}[/bold red]")
-        console.print("[bold green]You can create one using `verdi presto`[/bold green]")
-        console.print_exception()
-        raise typer.Exit(code=1) from e
-    except Exception as e:
-        console.print(f"[bold red]❌ Failed to prepare AiiDA workflow: {e}[/bold red]")
-        console.print_exception()
-        raise typer.Exit(code=1) from e
+class CmdStatus:
+    PLAY: str = rich_colored("⮞", (255, 159, 64))
+    SUCCESS: str = rich_colored("✔", core.workflow.StatusPoint.COLOR_COMPLETED)
+    FAIL: str = rich_colored("✖", core.workflow.StatusPoint.COLOR_FAILED)
 
 
-# --- CLI Commands ---
+# --- CLI main Commands ---
 
 
 @app.command()
@@ -340,7 +334,290 @@ def represent(
         raise typer.Exit(code=1) from e
 
 
-@app.command(help="Run the workflow in a blocking fashion. [AiiDA]")
+# --- CLI Standalone Commands ---
+
+
+def add_now(width: int = 25) -> str:
+    rule = width * "─"
+    space = width * " "
+    date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # noqa: DTZ005
+    date_rule = (len(date_str) + 2) * "─"
+    return "\n".join([f"{space}╭{date_rule}╮", f"{rule}┤ {date_str} ├{rule}", f"{space}╰{date_rule}╯"])
+
+
+@app.command(help=" [standalone] Start a workflow.")
+def start(
+    workflow_file: Annotated[
+        Path,
+        typer.Argument(
+            ...,
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            help="Path to the workflow definition YAML file.",
+        ),
+    ],
+    cleanup: Annotated[  # noqa: FBT002
+        bool,
+        typer.Option(
+            "--cleanup",
+            help="clean up before starting",
+        ),
+    ] = False,
+):
+    wf = core.Workflow.from_config_file(workflow_file)
+    if cleanup:
+        # Do it here oterwise the first few lines disappear from the log
+        (wf.config_rootdir / SiroccoContinueTask.STDOUTERR_FILENAME).unlink(missing_ok=True)
+    tee_console = log_console(wf)
+    tee_console.print(add_now())
+    if cleanup:
+        tee_console.print(f"{CmdStatus.PLAY} Cleaning up workflow at {wf.config_rootdir} ...")
+        if (run_dir := wf.config_rootdir / wf.RUN_ROOT).exists():
+            shutil.rmtree(run_dir)
+        (wf.config_rootdir / SiroccoContinueTask.SUBMIT_FILENAME).unlink(missing_ok=True)
+    if (wf.config_rootdir / wf.RUN_ROOT).exists():
+        msg = "Workflow already exists, cannot start. Use --cleanup to clean up before starting."
+        raise ValueError(msg)
+    tee_console.print(f"{CmdStatus.PLAY} Starting workflow at {wf.config_rootdir} ...")
+    try:
+        wf.start()
+        if wf.status == core.workflow.WorkflowStatus.CONTINUE:
+            tee_console.print(f"{CmdStatus.SUCCESS}  Workflow started successfully.")
+        elif wf.status == core.workflow.WorkflowStatus.FAILED:
+            tee_console.print(f"{CmdStatus.FAIL}  Workflow start failed")
+    except Exception as e:
+        tee_console.print(f"{CmdStatus.FAIL} Workflow start failed: {e}")
+        tee_console.print_exception()
+        raise typer.Exit(code=1) from e
+
+
+@app.command(help="[standalone] Restart a stopped workflow.")
+def restart(
+    workflow_file: Annotated[
+        Path,
+        typer.Argument(
+            ...,
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            help="Path to the workflow definition YAML file.",
+        ),
+    ],
+):
+    wf = core.Workflow.from_config_file(workflow_file)
+    tee_console = log_console(wf)
+    tee_console.print(add_now())
+    tee_console.print(f"{CmdStatus.PLAY} Restarting workflow at {wf.config_rootdir} ...")
+    try:
+        wf.restart()
+        if wf.status == core.workflow.WorkflowStatus.CONTINUE:
+            tee_console.print(f"{CmdStatus.SUCCESS}  Workflow restarted successfully.")
+        elif wf.status == core.workflow.WorkflowStatus.COMPLETED:
+            tee_console.print(f"{CmdStatus.SUCCESS}  WORKFLOW COMPLETED")
+        elif wf.status == core.workflow.WorkflowStatus.RESTART_FAILED:
+            tee_console.print(f"{CmdStatus.FAIL}  Workflow restart failed")
+    except Exception as e:
+        tee_console.print(f"{CmdStatus.FAIL}  Workflow restart failed: {e}")
+        tee_console.print_exception()
+        raise typer.Exit(code=1) from e
+
+
+@app.command(help="[standalone] Stop a workflow.")
+def stop(
+    workflow_file: Annotated[
+        Path,
+        typer.Argument(
+            ...,
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            help="Path to the workflow definition YAML file.",
+        ),
+    ],
+    cool_down: Annotated[  # noqa: FBT002
+        bool,
+        typer.Option(
+            "--cool-down",
+            help="Do not cancel currently running tasks",
+        ),
+    ] = False,
+):
+    wf = core.Workflow.from_config_file(workflow_file)
+    tee_console = log_console(wf)
+    tee_console.print(add_now())
+    msg = f"{CmdStatus.PLAY} Stopping workflow at {wf.config_rootdir}"
+    if cool_down:
+        msg += " in cool down mode"
+    msg += " ..."
+    tee_console.print(msg)
+    try:
+        wf.stop(mode="cool-down" if cool_down else "cancel")
+        if wf.status == core.workflow.WorkflowStatus.STOPPED:
+            tee_console.print(f"{CmdStatus.SUCCESS}  Workflow stopped successfully.")
+        else:
+            tee_console.print(f"{CmdStatus.FAIL}  Workflow stop failed")
+    except Exception as e:
+        tee_console.print(f"{CmdStatus.FAIL}  Workflow stop failed: {e}")
+        tee_console.print_exception()
+        raise typer.Exit(code=1) from e
+
+
+@app.command(name="continue", hidden=True)
+def continue_wf(
+    workflow_file: Annotated[
+        Path,
+        typer.Argument(
+            ...,
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            help="Path to the workflow definition YAML file.",
+        ),
+    ],
+    from_wf: Annotated[  # noqa: FBT002
+        bool,
+        typer.Option(
+            "--from_wf",
+            help="Specify command is executed from a running worflow (as opposed to interactively)",
+        ),
+    ] = False,
+):
+    std_console = Console(force_terminal=True, color_system="truecolor", highlight=False)
+    std_console.print(add_now())
+    if not from_wf:
+        msg = "Do not use interactively, the continue command is reserved for internal use"
+        raise ValueError(msg)
+    wf = core.Workflow.from_config_file(workflow_file)
+    std_console.print(f"{CmdStatus.PLAY} Continue workflow ...")
+    try:
+        wf.continue_wf()
+        if wf.status == core.workflow.WorkflowStatus.CONTINUE:
+            std_console.print(f"{CmdStatus.SUCCESS}  Workflow continuation submitted successfully.")
+        elif wf.status == core.workflow.WorkflowStatus.COMPLETED:
+            std_console.print(f"{CmdStatus.SUCCESS}  Workflow completed!")
+        elif wf.status == core.workflow.WorkflowStatus.FAILED:
+            std_console.print(f"{CmdStatus.FAIL}  Workflow failed")
+    except Exception as e:
+        std_console.print(f"{CmdStatus.FAIL}  Workflow continuation failed: {e}")
+        std_console.print_exception()
+        raise typer.Exit(code=1) from e
+
+
+@app.command(help="[standalone] Visualize workflow status.")
+def stviz(
+    workflow_file: Annotated[
+        Path,
+        typer.Argument(
+            ...,
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            help="Path to the workflow definition YAML file.",
+        ),
+    ],
+):
+    console.print(f"{CmdStatus.PLAY} Visualizing workflow status from: [cyan]{workflow_file!s}[/cyan]")
+    try:
+        wf = core.Workflow.from_config_file(workflow_file)
+        wf.load_state()
+        viz_graph = vizgraph.VizGraph.from_status_workflow(wf)
+        viz_graph.draw(file_path=Path("./status.svg"))
+        console.print(f"{CmdStatus.SUCCESS} Status visualization saved to: [cyan]./status.svg[/cyan]")
+
+    except Exception as e:
+        console.print("{CmdStatus.FAIL} Failed to generate status visualization:")
+        console.print_exception()
+        raise typer.Exit(code=1) from e
+
+
+# --- CLI AiiDA Commands ---
+
+
+def patch_aiida() -> None:
+    """Apply patches for third-party libraries before any AiiDA operations"""
+
+    from sirocco.engines.aiida.patches import (
+        patch_firecrest_symlink,
+        patch_slurm_dependency_handling,
+        patch_workgraph_window,
+    )
+
+    patch_firecrest_symlink()
+    patch_slurm_dependency_handling()
+    patch_workgraph_window()
+
+
+def _create_aiida_workflow(
+    workflow_file: Path,
+    jinja_vars_file: Path | None = None,
+) -> tuple[core.Workflow, "WorkGraph"]:
+    """Load workflow file and build WorkGraph.
+
+    Uses configuration from config.yml (single source of truth).
+
+    Args:
+        workflow_file: Path to workflow configuration file
+        jinja_vars_file: Optional path to variables file for Jinja2 templating
+
+    Returns:
+        Tuple of (core_workflow, aiida_workgraph)
+    """
+
+    from aiida.manage.configuration import load_profile
+
+    from sirocco.engines.aiida import build_sirocco_workgraph
+
+    load_profile()
+    config_workflow = parsing.ConfigWorkflow.from_config_file(
+        str(workflow_file),
+        jinja_vars_file_path=str(jinja_vars_file) if jinja_vars_file else None,
+    )
+
+    core_wf = core.Workflow.from_config_workflow(config_workflow)
+    wg = build_sirocco_workgraph(core_wf)
+    return core_wf, wg
+
+
+def create_aiida_workflow(
+    workflow_file: Path,
+    jinja_vars_file: Path | None = None,
+) -> tuple[core.Workflow, "WorkGraph"]:
+    """Helper to prepare WorkGraph from workflow file.
+
+    Uses configuration from config.yml (single source of truth).
+
+    Args:
+        workflow_file: Path to workflow configuration file
+        jinja_vars_file: Optional path to variables file for Jinja2 templating
+
+    Returns:
+        Tuple of (core_workflow, aiida_workgraph)
+    """
+
+    from aiida.common import ProfileConfigurationError
+
+    try:
+        core_wf, wg = _create_aiida_workflow(workflow_file=workflow_file, jinja_vars_file=jinja_vars_file)
+        console.print(f"⚙️ Workflow [magenta]'{wg.name}'[/magenta] prepared for AiiDA execution.")
+        return core_wf, wg  # noqa: TRY300 | try-consider-else -> shouldn't move this to `else` block
+    except ProfileConfigurationError as e:
+        console.print(f"[bold red]❌ No AiiDA profile set up: {e}[/bold red]")
+        console.print("[bold green]You can create one using `verdi presto`[/bold green]")
+        console.print_exception()
+        raise typer.Exit(code=1) from e
+    except Exception as e:
+        console.print(f"[bold red]❌ Failed to prepare AiiDA workflow: {e}[/bold red]")
+        console.print_exception()
+        raise typer.Exit(code=1) from e
+
+
+@app.command(help="[AiiDA] Run the workflow in a blocking fashion.")
 def run(
     workflow_file: Annotated[
         Path,
@@ -366,6 +643,8 @@ def run(
         ),
     ] = None,
 ):
+    patch_aiida()
+
     # Load config and use values from config.yml (single source of truth)
     config_workflow = parsing.ConfigWorkflow.from_config_file(
         str(workflow_file),
@@ -388,7 +667,7 @@ def run(
         raise typer.Exit(code=1) from e
 
 
-@app.command(help="Submit the workflow to the AiiDA daemon. [AiiDA]")
+@app.command(help="[AiiDA] Submit the workflow to the AiiDA daemon.")
 def submit(
     workflow_file: Annotated[
         Path,
@@ -415,6 +694,8 @@ def submit(
     ] = None,
 ):
     """Submit the workflow to the AiiDA daemon."""
+
+    patch_aiida()
 
     # Load config and use values from config.yml (single source of truth)
     config_workflow = parsing.ConfigWorkflow.from_config_file(
@@ -472,7 +753,7 @@ def create_symlink_tree(
     ] = None,
 ):
     """
-    Create a human-readable directory tree with symlinks to CalcJob remote working directories.
+    [AiiDA] Create a human-readable directory tree with symlinks to CalcJob remote working directories.
 
     This command queries a submitted workflow by its PK and creates symlinks on the HPC
     to the remote working directories of all CalcJobNodes. The symlinks are organized
@@ -481,6 +762,10 @@ def create_symlink_tree(
     The command is incremental: existing symlinks are skipped, and new ones are added
     as the workflow progresses.
     """
+
+    patch_aiida()
+
+    from aiida.manage.configuration import load_profile
     from aiida.orm import CalcJobNode, WorkflowNode, load_node
 
     try:
@@ -609,211 +894,6 @@ def create_symlink_tree(
         console.print(f"[bold red]❌ Command failed: {e}[/bold red]")
         console.print_exception()
         raise typer.Exit(code=1) from e
-
-
-@app.command(help="Start a workflow. [standalone]")
-def start(
-    workflow_file: Annotated[
-        Path,
-        typer.Argument(
-            ...,
-            exists=True,
-            file_okay=True,
-            dir_okay=False,
-            readable=True,
-            help="Path to the workflow definition YAML file.",
-        ),
-    ],
-    cleanup: Annotated[  # noqa: FBT002
-        bool,
-        typer.Option(
-            "--cleanup",
-            help="clean up before starting",
-        ),
-    ] = False,
-):
-    console.print(add_now())
-    wf = core.Workflow.from_config_file(workflow_file)
-    if cleanup:
-        console.print(f"▶️ Cleaning up workflow at {wf.config_rootdir} ...")
-        if (run_dir := wf.config_rootdir / wf.RUN_ROOT).exists():
-            shutil.rmtree(run_dir)
-        (wf.config_rootdir / SiroccoContinueTask.SUBMIT_FILENAME).unlink(missing_ok=True)
-        (wf.config_rootdir / SiroccoContinueTask.STDOUTERR_FILENAME).unlink(missing_ok=True)
-    if (wf.config_rootdir / wf.RUN_ROOT).exists():
-        msg = "Workflow already exists, cannot start. Use --cleanup to clean up before starting."
-        raise ValueError(msg)
-    console.print(f"▶️ Starting workflow at {wf.config_rootdir} ...")
-    with (wf.config_rootdir / core.SiroccoContinueTask.STDOUTERR_FILENAME).open("a") as logfile:
-        logfile.write(console.export_text(clear=True))
-    try:
-        wf.start()
-        if wf.status == core.workflow.WorkflowStatus.CONTINUE:
-            console.print("✅ Workflow started successfully.")
-        elif wf.status == core.workflow.WorkflowStatus.FAILED:
-            console.print("❌ Workflow start failed")
-    except Exception as e:
-        console.print(f"❌ Workflow start failed: {e}")
-        console.print_exception()
-        raise typer.Exit(code=1) from e
-    with (wf.config_rootdir / core.SiroccoContinueTask.STDOUTERR_FILENAME).open("a") as logfile:
-        logfile.write(console.export_text(clear=True))
-
-
-@app.command(help="Restart a stopped workflow. [standalone]")
-def restart(
-    workflow_file: Annotated[
-        Path,
-        typer.Argument(
-            ...,
-            exists=True,
-            file_okay=True,
-            dir_okay=False,
-            readable=True,
-            help="Path to the workflow definition YAML file.",
-        ),
-    ],
-):
-    console.print(add_now())
-    wf = core.Workflow.from_config_file(workflow_file)
-    console.print(f"▶️ Restarting workflow at {wf.config_rootdir} ...")
-    with (wf.config_rootdir / core.SiroccoContinueTask.STDOUTERR_FILENAME).open("a") as logfile:
-        logfile.write(console.export_text(clear=True))
-    try:
-        wf.restart()
-        if wf.status == core.workflow.WorkflowStatus.CONTINUE:
-            console.print("✅ Workflow restarted successfully.")
-        elif wf.status == core.workflow.WorkflowStatus.COMPLETED:
-            console.print("✅ Workflow completed!")
-        elif wf.status == core.workflow.WorkflowStatus.RESTART_FAILED:
-            console.print("❌ Workflow restart failed")
-    except Exception as e:
-        console.print(f"❌ Workflow restart failed: {e}")
-        console.print_exception()
-        raise typer.Exit(code=1) from e
-    with (wf.config_rootdir / core.SiroccoContinueTask.STDOUTERR_FILENAME).open("a") as logfile:
-        logfile.write(console.export_text(clear=True))
-
-
-@app.command(help="Stop a workflow. [standalone]")
-def stop(
-    workflow_file: Annotated[
-        Path,
-        typer.Argument(
-            ...,
-            exists=True,
-            file_okay=True,
-            dir_okay=False,
-            readable=True,
-            help="Path to the workflow definition YAML file.",
-        ),
-    ],
-    cool_down: Annotated[  # noqa: FBT002
-        bool,
-        typer.Option(
-            "--cool-down",
-            help="Do not cancel currently running tasks",
-        ),
-    ] = False,
-):
-    console.print(add_now())
-    wf = core.Workflow.from_config_file(workflow_file)
-    msg = f"▶️ Stopping workflow at {wf.config_rootdir}"
-    if cool_down:
-        msg += " in cool down mode"
-    msg += " ..."
-    console.print(msg)
-    with (wf.config_rootdir / core.SiroccoContinueTask.STDOUTERR_FILENAME).open("a") as logfile:
-        logfile.write(console.export_text(clear=True))
-    try:
-        wf.stop(mode="cool-down" if cool_down else "cancel")
-        if wf.status == core.workflow.WorkflowStatus.STOPPED:
-            console.print("✅ Workflow stopped successfully.")
-        else:
-            console.print("❌ Workflow stop failed")
-    except Exception as e:
-        console.print(f"❌ Workflow stop failed: {e}")
-        console.print_exception()
-        raise typer.Exit(code=1) from e
-    with (wf.config_rootdir / core.SiroccoContinueTask.STDOUTERR_FILENAME).open("a") as logfile:
-        logfile.write(console.export_text(clear=True))
-
-
-@app.command(name="continue", hidden=True)
-def continue_wf(
-    workflow_file: Annotated[
-        Path,
-        typer.Argument(
-            ...,
-            exists=True,
-            file_okay=True,
-            dir_okay=False,
-            readable=True,
-            help="Path to the workflow definition YAML file.",
-        ),
-    ],
-    from_wf: Annotated[  # noqa: FBT002
-        bool,
-        typer.Option(
-            "--from_wf",
-            help="Specify command is executed from a running worflow (as opposed to interactively)",
-        ),
-    ] = False,
-):
-    console.print(add_now())
-    if not from_wf:
-        msg = "Do not use interactively, the continue command is reserved for internal use"
-        raise ValueError(msg)
-    wf = core.Workflow.from_config_file(workflow_file)
-    console.print("▶️ Continue workflow ...")
-    try:
-        wf.continue_wf()
-        if wf.status == core.workflow.WorkflowStatus.CONTINUE:
-            console.print("✅ Workflow continuation submitted successfully.")
-        elif wf.status == core.workflow.WorkflowStatus.COMPLETED:
-            console.print("✅ Workflow completed!")
-        elif wf.status == core.workflow.WorkflowStatus.FAILED:
-            console.print("❌ Workflow failed")
-    except Exception as e:
-        console.print(f"❌ Workflow continuation failed: {e}")
-        console.print_exception()
-        raise typer.Exit(code=1) from e
-
-
-@app.command(help="Visualize workflow status. [standalone]")
-def stviz(
-    workflow_file: Annotated[
-        Path,
-        typer.Argument(
-            ...,
-            exists=True,
-            file_okay=True,
-            dir_okay=False,
-            readable=True,
-            help="Path to the workflow definition YAML file.",
-        ),
-    ],
-):
-    console.print(f"📊 Visualizing workflow status from: [cyan]{workflow_file!s}[/cyan]")
-    try:
-        wf = core.Workflow.from_config_file(workflow_file)
-        wf.load_state()
-        viz_graph = vizgraph.VizGraph.from_status_workflow(wf)
-        viz_graph.draw(file_path=Path("./status.svg"))
-        console.print("[green]✅ Status visualization saved to:[/green] [cyan]./status.svg[/cyan]")
-
-    except Exception as e:
-        console.print("[bold red]❌ Failed to generate status visualization:[/bold red]")
-        console.print_exception()
-        raise typer.Exit(code=1) from e
-
-
-def add_now(width: int = 25) -> str:
-    rule = width * "─"
-    space = width * " "
-    date_str = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
-    date_rule = (len(date_str) + 2) * "─"
-    return "\n".join([f"{space}╭{date_rule}╮", f"{rule}┤ {date_str} ├{rule}", f"{space}╰{date_rule}╯"])
 
 
 # --- Main entry point for the script ---

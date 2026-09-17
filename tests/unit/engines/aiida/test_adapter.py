@@ -274,8 +274,8 @@ def test_build_scheduler_options_basic():
         partition="normal",
         account="test_account",
         nodes=2,
-        ntasks_per_node=12,
-        cpus_per_task=1,
+        procs_per_node=12,
+        cores_per_proc=1,
     )
 
     options = AiidaAdapter.build_scheduler_options(task)
@@ -798,7 +798,7 @@ def test_build_scheduler_options_with_date_cycle_point(aiida_localhost):
         walltime="02:00:00",
         account="test_account",
         nodes=4,
-        ntasks_per_node=24,
+        procs_per_node=24,
     )
     task.cycle_point = create_date_cycle_point()
 

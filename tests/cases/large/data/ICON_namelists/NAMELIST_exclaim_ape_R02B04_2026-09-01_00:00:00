@@ -6,6 +6,7 @@
     num_io_procs = 0
     num_restart_procs = 0
     iorder_sendrecv = 3
+    num_prefetch_proc = 0
 /
 
 &grid_nml

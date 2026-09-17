@@ -1,4 +1,5 @@
 from ._tasks import IconTask, ShellTask, SiroccoContinueTask
+from ._tasks.icon_task.models import IconModel
 from .graph_items import (
     AvailableData,
     Cycle,
@@ -7,7 +8,9 @@ from .graph_items import (
     GraphItem,
     MpiCmdPlaceholder,
     Task,
+    TaskComponent,
 )
+from .namelistfile import NamelistFile
 from .workflow import Workflow
 
 __all__ = [
@@ -16,10 +19,13 @@ __all__ = [
     "Data",
     "GeneratedData",
     "GraphItem",
+    "IconModel",
     "IconTask",
     "MpiCmdPlaceholder",
+    "NamelistFile",
     "ShellTask",
     "SiroccoContinueTask",
     "Task",
+    "TaskComponent",
     "Workflow",
 ]

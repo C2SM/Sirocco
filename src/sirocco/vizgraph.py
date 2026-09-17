@@ -55,7 +55,7 @@ class Hue(enum.Enum):
     DATA_AV = 116
     DATA_GEN = 214
     TASK = 354
-    EDGE = 252
+    EDGE = 27
 
 
 class EdgeFace(enum.Enum):
@@ -84,12 +84,18 @@ class EdgeFace(enum.Enum):
 
 class NodeFace(enum.Enum):
     _value_: dict[str, Any]
-    __NODE: ClassVar = {"style": "filled", "fontname": "Adwaita Sans", "fontsize": 14, "penwidth": 2}
+    __NODE: ClassVar = {
+        "style": "filled",
+        "fontname": "Adwaita Sans",
+        "fontsize": 14,
+        "penwidth": 2,
+        "fontcolor": "#361800",
+    }
     __ACTIVE: ClassVar = {"penwidth": 3.5, "fontsize": 20}
     __DATA = __NODE | {"shape": "ellipse"}
     __TASK = __NODE | {"shape": "box"}
 
-    CLUSTER = {"bgcolor": "#F6F5F4", "color": None, "fontsize": 16}  # noqa: RUF012
+    CLUSTER = {"style": "rounded", "bgcolor": "#f4f0eb", "color": None, "fontsize": 16}  # noqa: RUF012
     DATA_AV = __DATA | node_colors(Hue.DATA_AV.value)
     DATA_AV_ACTIVE = __DATA | __ACTIVE | node_colors(Hue.DATA_AV.value, status="active")
     DATA_AV_INACTIVE = __DATA | node_colors(Hue.DATA_AV.value, status="inactive")
@@ -146,7 +152,7 @@ class VizGraph:
     ) -> None:
         self.name = name
         # self.agraph = AGraph(name=name, fontname="Fira Sans", newrank=True)
-        self.agraph = AGraph(name=name, fontname="Adwaita Sans", newrank=True)
+        self.agraph = AGraph(name=name, fontname="Adwaita Sans", newrank=True, bgcolor="transparent")
         for data_node in data:
             self.agraph.add_node(
                 data_node,
@@ -174,6 +180,7 @@ class VizGraph:
                     self.agraph.add_edge(
                         data_node,
                         task,
+                        tooltip=None,
                         **EdgeFace.from_status(task.viz_status).value,
                     )
                 for data_node in task.output_data_nodes():
@@ -182,12 +189,14 @@ class VizGraph:
                     self.agraph.add_edge(
                         task,
                         data_node,
+                        tooltip=None,
                         **EdgeFace.from_status(task.viz_status).value,
                     )
                 for wait_task in task.wait_on:
                     self.agraph.add_edge(
                         wait_task,
                         task,
+                        tooltip=None,
                         **EdgeFace.from_status(task.viz_status, wait=True).value,
                     )
             self.agraph.add_subgraph(
@@ -210,11 +219,10 @@ class VizGraph:
 
     def draw(self, file_path: Path | None = None, **kwargs):
         # draw graphviz dot graph to svg file
-        self.agraph.layout(prog="dot")
         if file_path is None:
             file_path = Path(f"./{self.name}.svg")
 
-        self.agraph.draw(path=file_path, format="svg", **kwargs)
+        self.agraph.draw(path=file_path, prog="dot", format="svg", **kwargs)
 
         # Add interactive capabilities to the svg graph thanks to
         # https://github.com/BartBrood/dynamic-SVG-from-Graphviz
