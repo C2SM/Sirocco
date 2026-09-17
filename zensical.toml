@@ -43,6 +43,7 @@ extra_javascript = [
   # "javascripts/tex-mml-chtml.js",
   "https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js",
   "javascripts/image-scroll.js",
+  "javascripts/sirocco_highlighter.js",
 ]
 
 [project.theme]
