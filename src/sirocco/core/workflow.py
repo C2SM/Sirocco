@@ -190,6 +190,7 @@ class Workflow:
             config_rootdir=self.config_rootdir,
             config_filename=self.config_filename,
             parents=[],
+            base_env=self.base_env,
             **config_kwargs,
         )
 
