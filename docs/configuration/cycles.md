@@ -38,20 +38,11 @@ The example below shows a short but comprehensive graph covering most of the ded
 <!-- </div> -->
 <!-- </div> -->
 
-<!-- [Not Working] enable zooming the svg only vs the whole page -->
-<!-- <div id="zoom-container" style="width: 100%; max-width: 600px; height: 400px; overflow: auto; border: 1px solid #ccc; position: relative; touch-action: none;"> -->
-<!-- <div id="zoom-wrapper" style="transform-origin: 0 0; transform: scale(1); width: 100%; height: 100%;"> -->
-<!-- <object type="image/svg+xml" data="/assets/large.svg" width="100%"> -->
-<!--   Your browser does not support interactive SVGs. -->
-<!-- </object> -->
-<!-- </div> -->
-<!-- </div> -->
-
 The corresponding `cycles` section reads like the following.
 
 ```yaml title="sirocco.yaml"
-start_date: &root_start_date "2026-01-01T00:00"  # (1)!
-stop_date: &root_stop_date "2026-08-01T00:00"
+var_start_date: &root_start_date "2026-01-01T00:00"  # (1)!
+var_stop_date: &root_stop_date "2026-08-01T00:00"
 [...]
 cycles:
   - bi-monthly:
@@ -286,11 +277,19 @@ For now, 2 options are supported, namely `"all"` and `"single"`.
 
 #### `outputs`
 
-In the same way as `inputs`, the `outputs` section maps port names to lists of data instances. Since there cannot be any ambiguity on the date and parameters of the later, there are no `target_cycle` and `parameters` specifications. `when` is also not available for now, even though one could imagine cases where a task would or not output some data depending on the cycle occurrence.
+**type**: mapping
+<br>
+**optional**
+<br>
+**description**: In the same way as `inputs`, the `outputs` section maps port names to lists of data instances. Since there cannot be any ambiguity on the date and parameters of the later, there are no `target_cycle` and `parameters` specifications. `when` is also not available for now, even though one could imagine cases where a task would or not output some data depending on the cycle occurrence.
 
 #### `wait_on`
 
-On top of dependencies between tasks derived from the `inputs`/`outputs` relationships, `wait_on` enables the addition of explicit dependencies between tasks. Forcing a task to explicitly wait for the completion of some others can be very useful to prevent too early execution. In our case, such a dependency is introduced for the `pre proc` task on the occurrence of `model` 2 cycles before. This prevents the execution of all `pre proc` instances at the beginning of the workflow which could fill up the HPC with unnecessary data and jobs. Also the
+**type**: mapping
+<br>
+**optional**
+<br>
+**description**:  On top of dependencies between tasks derived from the `inputs`/`outputs` relationships, `wait_on` enables the addition of explicit dependencies between tasks. Forcing a task to explicitly wait for the completion of some others can be very useful to prevent too early execution. In our case, such a dependency is introduced for the `pre proc` task on the occurrence of `model` 2 cycles before. This prevents the execution of all `pre proc` instances at the beginning of the workflow which could fill up the HPC with unnecessary data and jobs. Also the
 `clean up` task has an explicit dependency on `post proc` to avoid deleting data the later still needs.
 
 Concretely `wait_on` is a list of task instances. Exactly as input data instances, they can be further specified using the [`target_cycle`](#target_cycle), [`parameters`](#parameters) and [`when`](#when) keywords.

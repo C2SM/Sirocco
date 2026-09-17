@@ -54,6 +54,9 @@
     h1, h2, h3, h4, h5, h6 {
         color: var(--md-default-fg-color);
     }
+    h4, h5, h6 {
+      font-size: 0.8rem;
+    }
 
     .md-header__title {
         color: var(--md-default-fg-color);
@@ -103,4 +106,10 @@
 .md-typeset details > summary::before,
 .md-typeset details > summary::after {
     background-color: var(--adm-color) !important;
+}
+
+/* Sirocco keywords highlighting in code blocks */
+.sirocco-keyword {
+    color: hsl(284, 35%, 52%); !important;
+    /* font-weight: bold !important; */
 }
