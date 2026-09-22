@@ -421,6 +421,7 @@ class ConfigBaseTaskSpecs:
     gres_flags: str | None = None  # SLURM option `--gres-flags`
     gres: str | None = None  # SLURM option `--gres`
     mpi_cmd: str | None = None
+    sockets_per_node: int = 1
 
 
 class ConfigBaseTask(_NamedBaseModel, ConfigBaseTaskSpecs):
@@ -678,7 +679,6 @@ class ConfigIconExe:
     icon4py_venv: Path | None = None
     gt4py_build_cache_dir: Path | None = None
     compute_procs_per_node: int | None = None
-    sockets_per_node: int = 1
 
     @property
     def tot_io_procs(self) -> int:
@@ -802,6 +802,13 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
             self.target = "cpu"
         else:
             self.target = "hybrid"
+        return self
+
+    @model_validator(mode="after")
+    def set_defaults(self) -> ConfigIconTask:
+        match self.computer:
+            case "santis":
+                self.gpus_per_node = self.sockets_per_node
         return self
 
     # TODO: double check and remove this

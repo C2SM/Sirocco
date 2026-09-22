@@ -342,7 +342,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                         ranks_info=self.ranks_info,
                         rank_bounds=self.get_exe_compute_rank_bounds(self.exe.gpu),
                         nodes=tuple(range(self.compute_nodes)),
-                        n_sockets=self.exe.gpu.sockets_per_node,
+                        n_sockets=self.sockets_per_node,
                     )
                 if self.exe.separate_io:
                     # Distribute cpu compute ranks to compute nodes
@@ -351,29 +351,16 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                             self.ranks_info,
                             self.get_exe_compute_rank_bounds(self.exe.cpu),
                             tuple(range(self.compute_nodes)),
-                            n_sockets=self.exe.cpu.sockets_per_node,
+                            n_sockets=self.sockets_per_node,
                         )
-                    # Distribute io ranks to io nodes
-                    if self.exe.cpu:
-                        n_sockets = self.exe.cpu.sockets_per_node
-                    elif self.exe.gpu:
-                        n_sockets = self.exe.gpu.sockets_per_node
-                    else:
-                        n_sockets = 1  # cannot happen
                     distribute_procs_cyclic(
                         ranks_info=self.ranks_info,
                         rank_bounds=io_rank_bounds,
                         nodes=tuple(range(self.compute_nodes, self.compute_nodes + self.io_nodes)),
-                        n_sockets=n_sockets,
+                        n_sockets=self.sockets_per_node,
                     )
                 else:
                     # Distribute cpu compute ranks + io ranks to all nodes
-                    if self.exe.cpu:
-                        n_sockets = self.exe.cpu.sockets_per_node
-                    elif self.exe.gpu:
-                        n_sockets = self.exe.gpu.sockets_per_node
-                    else:
-                        n_sockets = 1  # cannot happen
                     rank_bounds = chain(
                         self.get_exe_compute_rank_bounds(self.exe.cpu) if self.exe.cpu else (), io_rank_bounds
                     )
@@ -381,7 +368,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                         ranks_info=self.ranks_info,
                         rank_bounds=rank_bounds,
                         nodes=tuple(range(self.nodes)),
-                        n_sockets=n_sockets,
+                        n_sockets=self.sockets_per_node,
                     )
 
                 # Check all node_id and numa_node are set
