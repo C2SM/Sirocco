@@ -431,6 +431,13 @@ class ConfigBaseTask(_NamedBaseModel, ConfigBaseTaskSpecs):
 
     parameters: list[str] = Field(default_factory=list)
 
+    @model_validator(mode="after")
+    def set_defaults(self) -> ConfigBaseTask:
+        match self.computer:
+            case "santis":
+                self.gpus_per_node = self.sockets_per_node
+        return self
+
 
 class ConfigRootTask(ConfigBaseTask):
     plugin: ClassVar[Literal["_root"]] = "_root"
@@ -802,13 +809,6 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
             self.target = "cpu"
         else:
             self.target = "hybrid"
-        return self
-
-    @model_validator(mode="after")
-    def set_defaults(self) -> ConfigIconTask:
-        match self.computer:
-            case "santis":
-                self.gpus_per_node = self.sockets_per_node
         return self
 
     # TODO: double check and remove this
