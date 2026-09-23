@@ -146,6 +146,8 @@ class TaskComponent:
 class Task(ConfigBaseTaskSpecs, GraphItem):
     """Internal representation of a task node"""
 
+    plugin: ClassVar[str]
+
     plugin_classes: ClassVar[dict[str, type[Self]]] = field(default={}, repr=False)
     color: ClassVar[str] = field(default="light_red", repr=False)
     SUBMIT_FILENAME: ClassVar[str] = field(default="run_script.sh", repr=False)

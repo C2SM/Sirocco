@@ -202,3 +202,15 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = ["f90nml"]
 ignore_missing_imports = true
+
+[tool.ty.environment]
+python-version = "3.12"
+
+[tool.ty.src]
+# Aligns with mypy's case exclusions using glob patterns
+exclude = ["tests/cases/**", "src/sirocco/engines/**"]
+
+[tool.ty.rules]
+# Aligns with mypy's disable_error_code = ["import-untyped"] globally
+unresolved-import = "ignore"
+unused-ignore-comment = "ignore"
