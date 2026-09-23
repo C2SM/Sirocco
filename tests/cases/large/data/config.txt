@@ -9,6 +9,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: []
             components:
               __SINGLE_COMPONENT__:
@@ -18,7 +19,6 @@ cycles:
                 outputs:
                   out:
                     - extpar_file
-            plugin: 'shell'
             command: 'extpar --verbose --in {PORT::obs} --out {PORT::out}'
   - icon_bimonthly [date: 2025-01-01 00:00:00+00:00]:
       tasks:
@@ -30,6 +30,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2025-01-01 00:00:00+00:00 -- 2025-03-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -43,7 +44,6 @@ cycles:
                 outputs:
                   ini_cond:
                     - icon_input [date: 2025-01-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2025-01-01 00:00:00+00:00]:
             computer: 'remote'
@@ -53,6 +53,7 @@ cycles:
             procs_per_node: 288
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'icon'
             cycle_point: [2025-01-01 00:00:00+00:00 -- 2025-03-01 00:00:00+00:00]
             components:
               atm:
@@ -68,7 +69,6 @@ cycles:
                     - stream_2 [date: 2025-01-01 00:00:00+00:00]
                   latest_restart_file:
                     - icon_restart [date: 2025-01-01 00:00:00+00:00]
-            plugin: 'icon'
             exe:
               cpu:
                 path: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
@@ -90,6 +90,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2025-01-01 00:00:00+00:00 -- 2025-03-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -99,7 +100,6 @@ cycles:
                 outputs:
                   processed:
                     - postout_1 [date: 2025-01-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2025-01-01 00:00:00+00:00]:
             computer: 'remote'
@@ -108,6 +108,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2025-01-01 00:00:00+00:00 -- 2025-03-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -121,7 +122,6 @@ cycles:
                 outputs:
                   archive:
                     - stored_data_1 [date: 2025-01-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive={PORT::archive}'
   - icon_bimonthly [date: 2025-03-01 00:00:00+00:00]:
       tasks:
@@ -133,6 +133,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2025-03-01 00:00:00+00:00 -- 2025-05-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -146,7 +147,6 @@ cycles:
                 outputs:
                   ini_cond:
                     - icon_input [date: 2025-03-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2025-03-01 00:00:00+00:00]:
             computer: 'remote'
@@ -156,6 +156,7 @@ cycles:
             procs_per_node: 288
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'icon'
             cycle_point: [2025-03-01 00:00:00+00:00 -- 2025-05-01 00:00:00+00:00]
             components:
               atm:
@@ -172,7 +173,6 @@ cycles:
                     - stream_2 [date: 2025-03-01 00:00:00+00:00]
                   latest_restart_file:
                     - icon_restart [date: 2025-03-01 00:00:00+00:00]
-            plugin: 'icon'
             exe:
               cpu:
                 path: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
@@ -194,6 +194,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2025-03-01 00:00:00+00:00 -- 2025-05-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -203,7 +204,6 @@ cycles:
                 outputs:
                   processed:
                     - postout_1 [date: 2025-03-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2025-03-01 00:00:00+00:00]:
             computer: 'remote'
@@ -212,6 +212,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2025-03-01 00:00:00+00:00 -- 2025-05-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -225,7 +226,6 @@ cycles:
                 outputs:
                   archive:
                     - stored_data_1 [date: 2025-03-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive={PORT::archive}'
   - icon_bimonthly [date: 2025-05-01 00:00:00+00:00]:
       tasks:
@@ -237,6 +237,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2025-05-01 00:00:00+00:00 -- 2025-07-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -252,7 +253,6 @@ cycles:
                     - icon_input [date: 2025-05-01 00:00:00+00:00]
             wait_on:
               - 'icon [date: 2025-01-01 00:00:00+00:00]'
-            plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2025-05-01 00:00:00+00:00]:
             computer: 'remote'
@@ -262,6 +262,7 @@ cycles:
             procs_per_node: 288
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'icon'
             cycle_point: [2025-05-01 00:00:00+00:00 -- 2025-07-01 00:00:00+00:00]
             components:
               atm:
@@ -278,7 +279,6 @@ cycles:
                     - stream_2 [date: 2025-05-01 00:00:00+00:00]
                   latest_restart_file:
                     - icon_restart [date: 2025-05-01 00:00:00+00:00]
-            plugin: 'icon'
             exe:
               cpu:
                 path: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
@@ -300,6 +300,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2025-05-01 00:00:00+00:00 -- 2025-07-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -309,7 +310,6 @@ cycles:
                 outputs:
                   processed:
                     - postout_1 [date: 2025-05-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2025-05-01 00:00:00+00:00]:
             computer: 'remote'
@@ -318,6 +318,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2025-05-01 00:00:00+00:00 -- 2025-07-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -331,7 +332,6 @@ cycles:
                 outputs:
                   archive:
                     - stored_data_1 [date: 2025-05-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive={PORT::archive}'
   - icon_bimonthly [date: 2025-07-01 00:00:00+00:00]:
       tasks:
@@ -343,6 +343,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2025-07-01 00:00:00+00:00 -- 2025-09-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -358,7 +359,6 @@ cycles:
                     - icon_input [date: 2025-07-01 00:00:00+00:00]
             wait_on:
               - 'icon [date: 2025-03-01 00:00:00+00:00]'
-            plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2025-07-01 00:00:00+00:00]:
             computer: 'remote'
@@ -368,6 +368,7 @@ cycles:
             procs_per_node: 288
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'icon'
             cycle_point: [2025-07-01 00:00:00+00:00 -- 2025-09-01 00:00:00+00:00]
             components:
               atm:
@@ -384,7 +385,6 @@ cycles:
                     - stream_2 [date: 2025-07-01 00:00:00+00:00]
                   latest_restart_file:
                     - icon_restart [date: 2025-07-01 00:00:00+00:00]
-            plugin: 'icon'
             exe:
               cpu:
                 path: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
@@ -406,6 +406,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2025-07-01 00:00:00+00:00 -- 2025-09-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -415,7 +416,6 @@ cycles:
                 outputs:
                   processed:
                     - postout_1 [date: 2025-07-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2025-07-01 00:00:00+00:00]:
             computer: 'remote'
@@ -424,6 +424,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2025-07-01 00:00:00+00:00 -- 2025-09-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -437,7 +438,6 @@ cycles:
                 outputs:
                   archive:
                     - stored_data_1 [date: 2025-07-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive={PORT::archive}'
   - icon_bimonthly [date: 2025-09-01 00:00:00+00:00]:
       tasks:
@@ -449,6 +449,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2025-09-01 00:00:00+00:00 -- 2025-11-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -464,7 +465,6 @@ cycles:
                     - icon_input [date: 2025-09-01 00:00:00+00:00]
             wait_on:
               - 'icon [date: 2025-05-01 00:00:00+00:00]'
-            plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2025-09-01 00:00:00+00:00]:
             computer: 'remote'
@@ -474,6 +474,7 @@ cycles:
             procs_per_node: 288
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'icon'
             cycle_point: [2025-09-01 00:00:00+00:00 -- 2025-11-01 00:00:00+00:00]
             components:
               atm:
@@ -490,7 +491,6 @@ cycles:
                     - stream_2 [date: 2025-09-01 00:00:00+00:00]
                   latest_restart_file:
                     - icon_restart [date: 2025-09-01 00:00:00+00:00]
-            plugin: 'icon'
             exe:
               cpu:
                 path: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
@@ -512,6 +512,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2025-09-01 00:00:00+00:00 -- 2025-11-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -521,7 +522,6 @@ cycles:
                 outputs:
                   processed:
                     - postout_1 [date: 2025-09-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2025-09-01 00:00:00+00:00]:
             computer: 'remote'
@@ -530,6 +530,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2025-09-01 00:00:00+00:00 -- 2025-11-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -543,7 +544,6 @@ cycles:
                 outputs:
                   archive:
                     - stored_data_1 [date: 2025-09-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive={PORT::archive}'
   - icon_bimonthly [date: 2025-11-01 00:00:00+00:00]:
       tasks:
@@ -555,6 +555,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2025-11-01 00:00:00+00:00 -- 2026-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -570,7 +571,6 @@ cycles:
                     - icon_input [date: 2025-11-01 00:00:00+00:00]
             wait_on:
               - 'icon [date: 2025-07-01 00:00:00+00:00]'
-            plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2025-11-01 00:00:00+00:00]:
             computer: 'remote'
@@ -580,6 +580,7 @@ cycles:
             procs_per_node: 288
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'icon'
             cycle_point: [2025-11-01 00:00:00+00:00 -- 2026-01-01 00:00:00+00:00]
             components:
               atm:
@@ -596,7 +597,6 @@ cycles:
                     - stream_2 [date: 2025-11-01 00:00:00+00:00]
                   latest_restart_file:
                     - icon_restart [date: 2025-11-01 00:00:00+00:00]
-            plugin: 'icon'
             exe:
               cpu:
                 path: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
@@ -618,6 +618,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2025-11-01 00:00:00+00:00 -- 2026-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -627,7 +628,6 @@ cycles:
                 outputs:
                   processed:
                     - postout_1 [date: 2025-11-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2025-11-01 00:00:00+00:00]:
             computer: 'remote'
@@ -636,6 +636,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2025-11-01 00:00:00+00:00 -- 2026-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -649,7 +650,6 @@ cycles:
                 outputs:
                   archive:
                     - stored_data_1 [date: 2025-11-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive={PORT::archive}'
   - icon_bimonthly [date: 2026-01-01 00:00:00+00:00]:
       tasks:
@@ -661,6 +661,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2026-01-01 00:00:00+00:00 -- 2026-03-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -676,7 +677,6 @@ cycles:
                     - icon_input [date: 2026-01-01 00:00:00+00:00]
             wait_on:
               - 'icon [date: 2025-09-01 00:00:00+00:00]'
-            plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2026-01-01 00:00:00+00:00]:
             computer: 'remote'
@@ -686,6 +686,7 @@ cycles:
             procs_per_node: 288
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'icon'
             cycle_point: [2026-01-01 00:00:00+00:00 -- 2026-03-01 00:00:00+00:00]
             components:
               atm:
@@ -702,7 +703,6 @@ cycles:
                     - stream_2 [date: 2026-01-01 00:00:00+00:00]
                   latest_restart_file:
                     - icon_restart [date: 2026-01-01 00:00:00+00:00]
-            plugin: 'icon'
             exe:
               cpu:
                 path: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
@@ -724,6 +724,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2026-01-01 00:00:00+00:00 -- 2026-03-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -733,7 +734,6 @@ cycles:
                 outputs:
                   processed:
                     - postout_1 [date: 2026-01-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2026-01-01 00:00:00+00:00]:
             computer: 'remote'
@@ -742,6 +742,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2026-01-01 00:00:00+00:00 -- 2026-03-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -755,7 +756,6 @@ cycles:
                 outputs:
                   archive:
                     - stored_data_1 [date: 2026-01-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive={PORT::archive}'
   - icon_bimonthly [date: 2026-03-01 00:00:00+00:00]:
       tasks:
@@ -767,6 +767,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2026-03-01 00:00:00+00:00 -- 2026-05-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -782,7 +783,6 @@ cycles:
                     - icon_input [date: 2026-03-01 00:00:00+00:00]
             wait_on:
               - 'icon [date: 2025-11-01 00:00:00+00:00]'
-            plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2026-03-01 00:00:00+00:00]:
             computer: 'remote'
@@ -792,6 +792,7 @@ cycles:
             procs_per_node: 288
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'icon'
             cycle_point: [2026-03-01 00:00:00+00:00 -- 2026-05-01 00:00:00+00:00]
             components:
               atm:
@@ -808,7 +809,6 @@ cycles:
                     - stream_2 [date: 2026-03-01 00:00:00+00:00]
                   latest_restart_file:
                     - icon_restart [date: 2026-03-01 00:00:00+00:00]
-            plugin: 'icon'
             exe:
               cpu:
                 path: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
@@ -830,6 +830,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2026-03-01 00:00:00+00:00 -- 2026-05-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -839,7 +840,6 @@ cycles:
                 outputs:
                   processed:
                     - postout_1 [date: 2026-03-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2026-03-01 00:00:00+00:00]:
             computer: 'remote'
@@ -848,6 +848,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2026-03-01 00:00:00+00:00 -- 2026-05-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -861,7 +862,6 @@ cycles:
                 outputs:
                   archive:
                     - stored_data_1 [date: 2026-03-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive={PORT::archive}'
   - icon_bimonthly [date: 2026-05-01 00:00:00+00:00]:
       tasks:
@@ -873,6 +873,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2026-05-01 00:00:00+00:00 -- 2026-07-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -888,7 +889,6 @@ cycles:
                     - icon_input [date: 2026-05-01 00:00:00+00:00]
             wait_on:
               - 'icon [date: 2026-01-01 00:00:00+00:00]'
-            plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2026-05-01 00:00:00+00:00]:
             computer: 'remote'
@@ -898,6 +898,7 @@ cycles:
             procs_per_node: 288
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'icon'
             cycle_point: [2026-05-01 00:00:00+00:00 -- 2026-07-01 00:00:00+00:00]
             components:
               atm:
@@ -914,7 +915,6 @@ cycles:
                     - stream_2 [date: 2026-05-01 00:00:00+00:00]
                   latest_restart_file:
                     - icon_restart [date: 2026-05-01 00:00:00+00:00]
-            plugin: 'icon'
             exe:
               cpu:
                 path: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
@@ -936,6 +936,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2026-05-01 00:00:00+00:00 -- 2026-07-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -945,7 +946,6 @@ cycles:
                 outputs:
                   processed:
                     - postout_1 [date: 2026-05-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2026-05-01 00:00:00+00:00]:
             computer: 'remote'
@@ -954,6 +954,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2026-05-01 00:00:00+00:00 -- 2026-07-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -967,7 +968,6 @@ cycles:
                 outputs:
                   archive:
                     - stored_data_1 [date: 2026-05-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive={PORT::archive}'
   - icon_bimonthly [date: 2026-07-01 00:00:00+00:00]:
       tasks:
@@ -979,6 +979,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2026-07-01 00:00:00+00:00 -- 2026-09-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -994,7 +995,6 @@ cycles:
                     - icon_input [date: 2026-07-01 00:00:00+00:00]
             wait_on:
               - 'icon [date: 2026-03-01 00:00:00+00:00]'
-            plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2026-07-01 00:00:00+00:00]:
             computer: 'remote'
@@ -1004,6 +1004,7 @@ cycles:
             procs_per_node: 288
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'icon'
             cycle_point: [2026-07-01 00:00:00+00:00 -- 2026-09-01 00:00:00+00:00]
             components:
               atm:
@@ -1020,7 +1021,6 @@ cycles:
                     - stream_2 [date: 2026-07-01 00:00:00+00:00]
                   latest_restart_file:
                     - icon_restart [date: 2026-07-01 00:00:00+00:00]
-            plugin: 'icon'
             exe:
               cpu:
                 path: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
@@ -1042,6 +1042,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2026-07-01 00:00:00+00:00 -- 2026-09-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -1051,7 +1052,6 @@ cycles:
                 outputs:
                   processed:
                     - postout_1 [date: 2026-07-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2026-07-01 00:00:00+00:00]:
             computer: 'remote'
@@ -1060,6 +1060,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2026-07-01 00:00:00+00:00 -- 2026-09-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -1073,7 +1074,6 @@ cycles:
                 outputs:
                   archive:
                     - stored_data_1 [date: 2026-07-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive={PORT::archive}'
   - icon_bimonthly [date: 2026-09-01 00:00:00+00:00]:
       tasks:
@@ -1085,6 +1085,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2026-09-01 00:00:00+00:00 -- 2026-11-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -1100,7 +1101,6 @@ cycles:
                     - icon_input [date: 2026-09-01 00:00:00+00:00]
             wait_on:
               - 'icon [date: 2026-05-01 00:00:00+00:00]'
-            plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2026-09-01 00:00:00+00:00]:
             computer: 'remote'
@@ -1110,6 +1110,7 @@ cycles:
             procs_per_node: 288
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'icon'
             cycle_point: [2026-09-01 00:00:00+00:00 -- 2026-11-01 00:00:00+00:00]
             components:
               atm:
@@ -1126,7 +1127,6 @@ cycles:
                     - stream_2 [date: 2026-09-01 00:00:00+00:00]
                   latest_restart_file:
                     - icon_restart [date: 2026-09-01 00:00:00+00:00]
-            plugin: 'icon'
             exe:
               cpu:
                 path: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
@@ -1148,6 +1148,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2026-09-01 00:00:00+00:00 -- 2026-11-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -1157,7 +1158,6 @@ cycles:
                 outputs:
                   processed:
                     - postout_1 [date: 2026-09-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2026-09-01 00:00:00+00:00]:
             computer: 'remote'
@@ -1166,6 +1166,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2026-09-01 00:00:00+00:00 -- 2026-11-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -1179,7 +1180,6 @@ cycles:
                 outputs:
                   archive:
                     - stored_data_1 [date: 2026-09-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive={PORT::archive}'
   - icon_bimonthly [date: 2026-11-01 00:00:00+00:00]:
       tasks:
@@ -1191,6 +1191,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2026-11-01 00:00:00+00:00 -- 2027-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -1206,7 +1207,6 @@ cycles:
                     - icon_input [date: 2026-11-01 00:00:00+00:00]
             wait_on:
               - 'icon [date: 2026-07-01 00:00:00+00:00]'
-            plugin: 'shell'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2026-11-01 00:00:00+00:00]:
             computer: 'remote'
@@ -1216,6 +1216,7 @@ cycles:
             procs_per_node: 288
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'icon'
             cycle_point: [2026-11-01 00:00:00+00:00 -- 2027-01-01 00:00:00+00:00]
             components:
               atm:
@@ -1232,7 +1233,6 @@ cycles:
                     - stream_2 [date: 2026-11-01 00:00:00+00:00]
                   latest_restart_file:
                     - icon_restart [date: 2026-11-01 00:00:00+00:00]
-            plugin: 'icon'
             exe:
               cpu:
                 path: /TESTS_ROOTDIR/tests/cases/large/config/ICON/bin/icon
@@ -1254,6 +1254,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2026-11-01 00:00:00+00:00 -- 2027-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -1263,7 +1264,6 @@ cycles:
                 outputs:
                   processed:
                     - postout_1 [date: 2026-11-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2026-11-01 00:00:00+00:00]:
             computer: 'remote'
@@ -1272,6 +1272,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2026-11-01 00:00:00+00:00 -- 2027-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -1285,7 +1286,6 @@ cycles:
                 outputs:
                   archive:
                     - stored_data_1 [date: 2026-11-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive={PORT::archive}'
   - yearly [date: 2025-01-01 00:00:00+00:00]:
       tasks:
@@ -1296,6 +1296,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2025-01-01 00:00:00+00:00 -- 2026-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -1310,7 +1311,6 @@ cycles:
                 outputs:
                   processed:
                     - postout_2 [date: 2025-01-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'bash main_script_atm.sh --input {PORT::streams}'
         - store_and_clean_2 [date: 2025-01-01 00:00:00+00:00]:
             computer: 'remote'
@@ -1319,6 +1319,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2025-01-01 00:00:00+00:00 -- 2026-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -1335,7 +1336,6 @@ cycles:
                 outputs:
                   archive:
                     - stored_data_2 [date: 2025-01-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --archive={PORT::archive}'
   - yearly [date: 2026-01-01 00:00:00+00:00]:
       tasks:
@@ -1346,6 +1346,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2026-01-01 00:00:00+00:00 -- 2027-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -1360,7 +1361,6 @@ cycles:
                 outputs:
                   processed:
                     - postout_2 [date: 2026-01-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'bash main_script_atm.sh --input {PORT::streams}'
         - store_and_clean_2 [date: 2026-01-01 00:00:00+00:00]:
             computer: 'remote'
@@ -1369,6 +1369,7 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
+            plugin: 'shell'
             cycle_point: [2026-01-01 00:00:00+00:00 -- 2027-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -1385,5 +1386,4 @@ cycles:
                 outputs:
                   archive:
                     - stored_data_2 [date: 2026-01-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --archive={PORT::archive}'
