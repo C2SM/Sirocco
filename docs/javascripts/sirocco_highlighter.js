@@ -6,7 +6,28 @@ document.addEventListener("DOMContentLoaded", function () {
   const codeBlocks = document.querySelectorAll(".md-code__content, pre code");
 
   // Sirocco keywords
-  const siroccoKeywords = ["start_date", "stop_date", "period", "cycles", "tasks", "data", "cycling", "inputs", "outputs", "wait_on", "when", "target_cycle", "at", "before", "after", "lag", "date", "parameters"];
+  const siroccoKeywords = [
+    "scheduler",
+    "front_depth",
+    "cycles",
+    "cycling",
+    "start_date",
+    "stop_date",
+    "period",
+    "tasks",
+    "inputs",
+    "target_cycle",
+    "lag",
+    "date",
+    "when",
+    "at",
+    "before",
+    "after",
+    "outputs",
+    "wait_on",
+    "data",
+    "parameters",
+  ];
 
   codeBlocks.forEach(codeBlock => {
     // find standard YAML tag tokens inside the block (they all get the nt class)
