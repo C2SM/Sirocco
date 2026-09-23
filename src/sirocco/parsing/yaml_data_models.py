@@ -737,14 +737,6 @@ def validate_executables(exes: ConfigIconExecutables) -> ConfigIconExecutables:
 class ConfigIconTaskSpecs:
     plugin: ClassVar[Literal["icon"]] = "icon"
     exe: Annotated[ConfigIconExecutables, AfterValidator(validate_executables)]
-    # TODO: remove bin, only kept for compatibility with AiiDA for now
-    bin: Annotated[Path | None, AfterValidator(is_absolute_path)] = field(repr=True, default=None)
-    # TODO: remove wrapper_script, only kept for compatibility with AiiDA for now
-    wrapper_script: Path | None = field(
-        default=None,
-        repr=False,
-        metadata={"description": "Path to wrapper script file relative to the config directory or absolute."},
-    )
     runtime: Path | None = field(
         default=None,
         repr=False,
@@ -757,6 +749,13 @@ class ConfigIconTaskSpecs:
     #       See possible workaround there: https://github.com/pydantic/pydantic/discussions/5929#discussioncomment-12936754
     target: Literal["cpu", "gpu", "hybrid", "__none__"] = field(repr=False, default="__none__")
     squash_mount: list[Path] | None = None
+    # TODO: remove bin and wrapper_script once aiida-icon is inlined with the Sirocco icon task
+    bin: Annotated[Path | None, AfterValidator(is_absolute_path)] = field(repr=True, default=None)
+    wrapper_script: Path | None = field(
+        default=None,
+        repr=False,
+        metadata={"description": "Path to wrapper script file relative to the config directory or absolute."},
+    )
 
 
 def check_icon_mater_namelist(namelists: list[ConfigNamelistFile]) -> list[ConfigNamelistFile]:
