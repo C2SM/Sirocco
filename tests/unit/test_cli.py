@@ -5,6 +5,7 @@ Integration tests for run/submit commands are in test_workgraph.py.
 """
 
 import subprocess
+from pathlib import Path
 
 import pytest
 import typer.testing
@@ -127,7 +128,7 @@ class TestCreateAiidaWorkflow:
         from sirocco.cli import create_aiida_workflow
 
         with pytest.raises(typer.Exit):
-            create_aiida_workflow("nonexistent.yml")
+            create_aiida_workflow(Path("nonexistent.yml"))
 
         captured = capsys.readouterr()
         assert "Failed to prepare AiiDA workflow" in captured.out
@@ -141,7 +142,7 @@ class TestCreateAiidaWorkflow:
         bad_config.write_text("invalid: yaml: content: [")
 
         with pytest.raises(typer.Exit):
-            create_aiida_workflow(str(bad_config))
+            create_aiida_workflow(bad_config)
 
         captured = capsys.readouterr()
         assert "Failed to prepare AiiDA workflow" in captured.out
