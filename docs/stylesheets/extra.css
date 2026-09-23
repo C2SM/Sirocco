@@ -61,6 +61,14 @@
     .md-header__title {
         color: var(--md-default-fg-color);
     }
+
+    /* Sirocco keywords highlighting in code blocks */
+    --sirocco-kw-color: hsl(284, 35%, 52%);
+    .sirocco-keyword {
+      color: var(--sirocco-kw-color); !important;
+      /* font-weight: bold !important; */
+    }
+
 }
 
 /* Check marks */
@@ -106,10 +114,4 @@
 .md-typeset details > summary::before,
 .md-typeset details > summary::after {
     background-color: var(--adm-color) !important;
-}
-
-/* Sirocco keywords highlighting in code blocks */
-.sirocco-keyword {
-    color: hsl(284, 35%, 52%); !important;
-    /* font-weight: bold !important; */
 }

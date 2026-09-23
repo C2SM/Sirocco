@@ -29,7 +29,7 @@ The example below shows a short but comprehensive graph covering most of the ded
 *Example workflow graph*. Nodes vertical position indicate their rank, starting with 0 (no parents) at the top. Red rectangles represent **tasks**, green and blue ellipses represent **available data** and  **generated data** and light rectangular areas indicate **cycle** occurrences. Solid lines represent **input/output** relationships while dashed lines indicate a **`wait_on`** dependency.
 </figcaption>
 
-<!-- large image in a fix sized window with sliders: Might be useful for a parameterized example-->
+<!-- large image in a fix sized window with sliders: might be useful for a parameterized example-->
 <!-- <div style="width: 100%; height: 400px; overflow: auto"> -->
 <!-- <div style="transform: scale(4); transform-origin: top left; width: 600px; height: 400px;"> -->
 <!-- <object type="image/svg+xml" data="/assets/large.svg" width="100%"> -->
@@ -114,7 +114,7 @@ data:
   [...]
 ```
 
-1.  These are not Sirocco specific entries but `yaml` [anchors and aliases :lucide-external-link:](https://yaml.cc/tutorial/advanced-features.html)
+1.  These are not Sirocco specific entries but YAML [anchors and aliases :lucide-external-link:](https://yaml.cc/tutorial/advanced-features.html)
 
 ## `cycles` specifications
 
@@ -292,7 +292,7 @@ For now, 2 options are supported, namely `"all"` and `"single"`.
 **description**:  On top of dependencies between tasks derived from the `inputs`/`outputs` relationships, `wait_on` enables the addition of explicit dependencies between tasks. Forcing a task to explicitly wait for the completion of some others can be very useful to prevent too early execution. In our case, such a dependency is introduced for the `pre proc` task on the occurrence of `model` 2 cycles before. This prevents the execution of all `pre proc` instances at the beginning of the workflow which could fill up the HPC with unnecessary data and jobs. Also the
 `clean up` task has an explicit dependency on `post proc` to avoid deleting data the later still needs.
 
-Concretely `wait_on` is a list of task instances. Exactly as input data instances, they can be further specified using the [`target_cycle`](#target_cycle), [`parameters`](#parameters) and [`when`](#when) keywords.
+Concretely `wait_on` is a list of task instances. Exactly as input data instances, they can be further specified using the [`target_cycle`](#target_cycle), [`parameters`](#parameters) (both applied to tasks instead of data) and [`when`](#when) keywords.
 
 <!-- Local Variables: -->
 <!-- jinx-local-words: "composable" -->

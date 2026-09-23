@@ -7,7 +7,7 @@ icon: lucide/folder-cog
 
 A Sirocco configuration is a directory containing the main `sirocco.yaml` file plus all the human readable files necessary to fully configure the workflow tasks, organized in arbitrary subdirectory structures. They can be software configration files, source code, scripts, etc ...
 
-The current chapter describes the `yaml` dialect in which this configuration is expressed. The terminology used will thus follow the `yaml` one when needed, typically for _sequences_ or _mappings_.
+The current chapter describes the YAML dialect in which this configuration is expressed. The terminology used will thus follow the YAML one when needed, typically for _sequences_ or _mappings_. YAML dialects can sometimes be difficult to read and/or learn because the dialect keywords don't stand out when looking at a the file. That's why Sirocco keywords will be highlighted with a <span style="color: var(--sirocco-kw-color);">specific color</span> throughout the documentation.
 
 ## Templating
 
