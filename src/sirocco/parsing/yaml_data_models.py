@@ -811,24 +811,6 @@ class ConfigIconTask(ConfigBaseTask, ConfigIconTaskSpecs):
             self.target = "hybrid"
         return self
 
-    # TODO: double check and remove this
-    # @model_validator(mode="after")
-    # def set_defaults(self) -> ConfigIconTask:
-    #     if self.target == "__none__":
-    #         msg = f"error in validation order, target should be set, got {self.target}"
-    #         raise ValueError(msg)
-    #     match self.computer:
-    #         case "santis":
-    #             if self.target == "cpu" and not self.procs_per_node:
-    #                 self.procs_per_node = 288
-    #                 if self.cores_per_proc:
-    #                     self.procs_per_node = self.procs_per_node // self.cores_per_proc
-    #             if self.target == "gpu" and not self.procs_per_node:
-    #                 self.procs_per_node = 4
-    #                 if self.cores_per_proc:
-    #                     self.procs_per_node = self.procs_per_node // self.cores_per_proc
-    #     return self
-
 
 @dataclass(kw_only=True)
 class ConfigBaseDataSpecs:
