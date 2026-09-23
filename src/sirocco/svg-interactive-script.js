@@ -118,6 +118,7 @@ function addInteractivity(evt) {
             if (this.classList.contains("edge-highlight")){
                 this.classList.remove("edge-highlight");
                 this.classList.remove("text-highlight-edges");
+                resetEdge(this); // Reset styles when unclicking
             }
             else {
                 this.classList.add("edge-highlight");
@@ -143,6 +144,7 @@ function addInteractivity(evt) {
                     if (patroon.test(edges[i].childNodes[1].textContent)) {
                         edges[i].classList.remove("edge-highlight");
                         edges[i].classList.remove("text-highlight-edges");
+                        resetEdge(edges[i]); // Reset styles when unclicking node
                     }
                 }
             } else {
@@ -164,6 +166,13 @@ function addInteractivity(evt) {
         var path = edge.querySelector('path');
         var polygon = edge.querySelector('polygon');
         var length = path.getTotalLength();
+        
+        // Save initial values if they haven't been saved yet
+        if (!path.hasAttribute('data-orig-dasharray')) {
+            var currentDash = window.getComputedStyle(path).strokeDasharray;
+            path.setAttribute('data-orig-dasharray', currentDash || 'none');
+        }
+
         // Clear any previous transition
         path.style.transition = path.style.WebkitTransition = 'none';
         if (polygon){polygon.style.transition = polygon.style.WebkitTransition = 'none';};
@@ -181,7 +190,39 @@ function addInteractivity(evt) {
                      'fill-opacity 1s ease-in-out 2s';};
         // Go!
         path.style.strokeDashoffset = '0';
-        if (polygon){setTimeout(function(){polygon.style.opacity='1';},2000)};
+        if (polygon){
+            // Clear previous timeout reference if any to avoid animation conflicts
+            if(edge.polygonTimeout) { clearTimeout(edge.polygonTimeout); }
+            edge.polygonTimeout = setTimeout(function(){polygon.style.opacity='1';},2000);
+        }
+    }
+
+    function resetEdge(edge){
+        var path = edge.querySelector('path');
+        var polygon = edge.querySelector('polygon');
+        
+        // Clear active timeouts
+        if(edge.polygonTimeout) { 
+            clearTimeout(edge.polygonTimeout); 
+            edge.polygonTimeout = null;
+        }
+
+        // Remove inline styles completely to fall back to CSS stylesheet defaults
+        path.style.transition = path.style.WebkitTransition = '';
+        path.style.strokeDashoffset = '';
+        
+        // Reapply saved original dasharray value
+        if (path.hasAttribute('data-orig-dasharray')) {
+            var origDash = path.getAttribute('data-orig-dasharray');
+            path.style.strokeDasharray = (origDash === 'none') ? '' : origDash;
+        } else {
+            path.style.strokeDasharray = '';
+        }
+
+        if (polygon) {
+            polygon.style.transition = polygon.style.WebkitTransition = '';
+            polygon.style.opacity = '';
+        }
     }
 }
 

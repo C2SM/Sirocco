@@ -1,3 +1,4 @@
+import time
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from typing import Any
@@ -101,3 +102,18 @@ def convert_to_date_list(values: Any) -> list[datetime]:
 
 def convert_to_duration_list(values: Any) -> list[Duration]:
     return [convert_to_duration(item) for item in iter_yaml_item(values)]
+
+
+def validate_walltime_format(value: str | None) -> str | None:
+    """Validates that walltime string adheres to "%H:%M:%S" format"""
+    if value is None:
+        return None
+
+    try:
+        # This will raise ValueError if format is invalid
+        time.strptime(value, "%H:%M:%S")
+        # Return the original string, not the parsed time object
+        return value  # noqa: TRY300
+    except ValueError as e:
+        msg = f"walltime must be in HH:MM:SS format, got '{value}'"
+        raise ValueError(msg) from e

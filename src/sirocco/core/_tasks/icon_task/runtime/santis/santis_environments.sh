@@ -1,0 +1,108 @@
+#!/usr/local/bin/bash
+
+# Environment common to all PEs
+# =============================
+santis_common_environment(){
+    ulimit -s unlimited
+    ulimit -c 0
+
+    # Libfabric / Slingshot
+    # ---------------------
+    export FI_CXI_SAFE_DEVMEM_COPY_THRESHOLD=0
+    export FI_CXI_RX_MATCH_MODE=software
+    export FI_MR_CACHE_MONITOR=disabled
+
+    # OpenMP
+    # ------
+    export OMP_SCHEDULE=guided,16
+    export OMP_DYNAMIC="false"
+    export OMP_STACKSIZE=200M
+
+    # NVHPC
+    # ----
+    export NVCOMPILER_TERM=trace
+}
+
+# Compute cpu environment
+# =======================
+santis_compute_cpu_environment(){
+    # MPICH
+    # -----
+    if [ "${SIROCCO_TARGET}" == "hybrid" ]; then
+        export MPICH_GPU_SUPPORT_ENABLED=1
+        export MPICH_GPU_IPC_ENABLED=1
+    else
+        export MPICH_GPU_SUPPORT_ENABLED=0
+        export MPICH_GPU_IPC_ENABLED=0
+    fi
+    export MPICH_OFI_NIC_POLICY=NUMA
+
+    # OpenMP
+    # ------
+    export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
+    # TODO: Check if this is used anywhere.
+    #       => Probably just a leftover from icon runscripts
+    export ICON_THREADS=${SLURM_CPUS_PER_TASK}
+}
+
+# Compute gpu environment
+# =======================
+santis_compute_gpu_environment(){
+    # MPICH
+    # -----
+    export MPICH_GPU_SUPPORT_ENABLED=1
+    export MPICH_GPU_IPC_ENABLED=1
+    export MPICH_OFI_NIC_POLICY=GPU
+
+    # CUDA
+    # ----
+    export CUDA_VISIBLE_DEVICES=$numa_node
+    export CUDA_BUFFER_PAGE_IN_THRESHOLD_MS=0.001
+
+    # NVHPC
+    # -----
+    export NVCOMPILER_ACC_DEFER_UPLOADS=1
+    export NVCOMPILER_ACC_SYNCHRONOUS=0
+    export NVCOMPILER_ACC_DEFER_UPLOADS=1
+    export NVCOMPILER_ACC_USE_GRAPH=1  # Harmless if cuda-graphs is disabled
+    export NVCOMPILER_ACC_NOTIFY=0
+}
+
+# icon4py environment
+# ===================
+santis_icon4py_environment(){
+    source "${ICON4PY_VENV}/bin/activate"
+    export CUDAARCHS=90
+    export PYTHONOPTIMIZE=2
+    # Default GT4PY_BUILD_CACHE_DIR one level above rundir, i.e. workflow run directory
+    # so that it's set to a common path for all chunks
+    export GT4PY_BUILD_CACHE_DIR=${GT4PY_BUILD_CACHE_DIR:-".."}
+    export CUPY_CACHE_IN_MEMORY=1
+    export GT4PY_BUILD_CACHE_LIFETIME=persistent
+    export GT4PY_UNSTRUCTURED_HORIZONTAL_HAS_UNIT_STRIDE=1
+    export DACE_compiler_cuda_block_size_limit=256
+    export PY2FGEN_LOG_LEVEL=WARNING
+
+    export PMI_MMAP_SYNC_WAIT_TIME=300
+    export HWMALLOC_LARGE_LIMIT=$((1 << 26)) # 64 MiB, default 2 MiB
+    export HWMALLOC_LARGE_SEGMENT_SIZE=$((1 << 26)) # 64 MiB, default 2 MiB
+    export HWMALLOC_NEVER_FREE=1 # This should make sure that even if halos are bigger than the above options, the allocations are still kept around
+    export MPICH_GPU_IPC_CACHE_MAX_SIZE=100 # default 50, shouldn't really make a difference, but you never know
+    export NV_ACC_CUDA_MEMALLOCASYNC=1
+    export NV_ACC_CUDA_MEMALLOCASYNC_POOLSIZE=500000000000
+} 
+
+# IO environment
+# ==============
+santis_io_environment(){
+    # MPICH
+    # -----
+    if [ "${SIROCCO_TARGET}" == "cpu" ]; then
+        export MPICH_GPU_SUPPORT_ENABLED=0
+        export MPICH_GPU_IPC_ENABLED=0
+    else
+        export MPICH_GPU_SUPPORT_ENABLED=1
+        export MPICH_GPU_IPC_ENABLED=1
+    fi
+    export MPICH_OFI_NIC_POLICY=NUMA
+}

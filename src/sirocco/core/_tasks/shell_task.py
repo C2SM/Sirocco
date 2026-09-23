@@ -10,6 +10,8 @@ from sirocco.parsing import yaml_data_models as models
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from sirocco.core.graph_items import Data
+
 
 @dataclass(kw_only=True)
 class ShellTask(models.ConfigShellTaskSpecs, Task):
@@ -33,10 +35,26 @@ class ShellTask(models.ConfigShellTaskSpecs, Task):
             self.path = self._validate_path(config.path, config_rootdir)
         return self
 
+    @property
+    def inputs(self) -> dict[str, list[Data]]:
+        if (len(self.components) > 1) or (
+            next(iter(self.components.keys())) != models.ConfigCycleTask.__SINGLE_COMPONENT_NAME__
+        ):
+            msg = "Only single component taks can unambiguously define inputs"
+            raise ValueError(msg)
+        return next(iter(self.components.values())).inputs
+
+    @property
+    def outputs(self) -> dict[str, list[GeneratedData]]:
+        if (len(self.components) > 1) or (
+            next(iter(self.components.keys())) != models.ConfigCycleTask.__SINGLE_COMPONENT_NAME__
+        ):
+            msg = "Only single component taks can unambiguously define outputs"
+            raise ValueError(msg)
+        return next(iter(self.components.values())).outputs
+
     @staticmethod
     def _validate_path(path: Path, config_rootdir: Path) -> Path:
-        if path.is_absolute():
-            msg = f"Script path {path} must be relative with respect to config file."
         path = config_rootdir / path
         if not path.exists():
             msg = f"Script in path {path} does not exist."
@@ -55,11 +73,10 @@ class ShellTask(models.ConfigShellTaskSpecs, Task):
 
     def prepare_for_submission(self) -> None:
         if self.path is not None:
-            # TODO: Check existence of src
-            if (src := self.config_rootdir / self.path).is_dir():
-                shutil.copytree(src, self.run_dir / src.name)
+            if self.path.is_dir():
+                shutil.copytree(self.path, self.run_dir / self.path.name)
             else:
-                shutil.copy(src, self.run_dir / src.name)
+                shutil.copy(self.path, self.run_dir / self.path.name)
 
     def resolve_output_data_paths(self) -> None:
         for data in self.output_data_nodes():

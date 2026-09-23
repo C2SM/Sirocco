@@ -30,8 +30,6 @@ jobs:
         pip install "click<8.3.0"  # NOTE: click 8.2 -> 8.3 is backwards incompatible
         pip install "virtualenv<21.0.0"  # NOTE: virtualenv 21.0.0 has breaking changes incompatible with hatch
         pip install hatch
-    - name: Install Graphviz
-      run: sudo apt-get install graphviz graphviz-dev
     - name: Set up SSH on localhost
       run: |
         # Start SSH daemon
@@ -71,12 +69,6 @@ jobs:
         pip install "click<8.3.0"  # NOTE: click 8.2 -> 8.3 is backwards incompatible
         pip install "virtualenv<21.0.0"  # NOTE: virtualenv 21.0.0 has breaking changes incompatible with hatch
         pip install hatch
-    - name: Install Graphviz
-      run: sudo apt-get install graphviz graphviz-dev
-    - name: Install package
-      run: |
-        pip install .
-        verdi presto
     - name: Build docs
       run: hatch run docs:build
 
@@ -95,14 +87,10 @@ jobs:
         pip install "click<8.3.0"  # NOTE: click 8.2 -> 8.3 is backwards incompatible
         pip install "virtualenv<21.0.0"  # NOTE: virtualenv 21.0.0 has breaking changes incompatible with hatch
         pip install hatch
-    - name: Install Graphviz
-      run: sudo apt-get install graphviz graphviz-dev
-    - name: Install package
-      run: |
-        pip install .
-        verdi presto
-    - name: Run formatter and linter
-      run: hatch fmt --check
+    - name: Run formatter
+      run: hatch check fmt
+    - name: Run linter
+      run: hatch check code
 
   typechecking:
     runs-on: ubuntu-latest
@@ -119,7 +107,5 @@ jobs:
         pip install "click<8.3.0"  # NOTE: click 8.2 -> 8.3 is backwards incompatible
         pip install "virtualenv<21.0.0"  # NOTE: virtualenv 21.0.0 has breaking changes incompatible with hatch
         pip install hatch
-    - name: Install Graphviz
-      run: sudo apt-get install graphviz graphviz-dev
-    - name: Run formatter and linter
+    - name: Run type checker
       run: hatch run types:check
