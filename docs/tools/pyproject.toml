@@ -1,0 +1,15 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sirocco-yaml-lexer"
+version = "0.0.1"
+description = "Custom YAML lexer for Sirocco configuration"
+dependencies = ["pygments"]
+
+[project.entry-points."pygments.lexers"]
+sirocco_yaml = "sirocco_yaml_lexer.lexer:SiroccoYamlLexer"
+
+[tool.hatch.envs.default]
+installer = "uv"
