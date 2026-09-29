@@ -62,13 +62,6 @@
         color: var(--md-default-fg-color);
     }
 
-    /* Sirocco keywords highlighting in code blocks */
-    --sirocco-kw-color: hsl(284, 35%, 52%);
-    .sirocco-keyword {
-      color: var(--sirocco-kw-color); !important;
-      /* font-weight: bold !important; */
-    }
-
 }
 
 /* Check marks */
