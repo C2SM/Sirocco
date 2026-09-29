@@ -40,7 +40,7 @@ The example below shows a short but comprehensive graph covering most of the ded
 
 The corresponding `cycles` section reads like the following.
 
-```yaml title="sirocco.yaml"
+```sirocco-yaml title="sirocco.yaml"
 var_start_date: &root_start_date "2026-01-01T00:00"  # (1)!
 var_stop_date: &root_stop_date "2026-08-01T00:00"
 [...]
@@ -120,7 +120,7 @@ data:
 
 The first level of the `cycles` section is a sequence of mappings of cycle names to their description.
 
-```yaml
+```sirocco-yaml
 cycles:
   - cycle name 1:
       [...]
@@ -130,7 +130,7 @@ cycles:
 
 ### `cycling`
 
-```yaml
+```sirocco-yaml
 cycles:
   - cycle name 1:
       cycling:
@@ -147,7 +147,7 @@ cycles:
 
 ### `tasks`
 
-```yaml
+```sirocco-yaml
 cycles:
   - cycle name 1:
       [...]
@@ -191,7 +191,7 @@ In all generality, from a task perspective, linking a piece of data as an input 
     Just like tasks, these data names must be references to data declared in the [root level `data`](data) section, which can be confusing at first.
 
 There are two cases where the targeted data instance is unambiguous: if the data instance doesn't have any date or parameters (_e.g._ available data) or when the data was generated in the same cycle. This is for instance the case for the `bc` port of the `model` task. Even though the `boundary condition` data is generated at each occurrence of the `bi-monthly` cycle by the `pre proc` task, the default instance taken into account is the one generated in the same cycle as the current one. The configuration then looks like
-```yaml
+```sirocco-yaml
 cycle name:
   [...]
   tasks:
@@ -201,7 +201,7 @@ cycle name:
 ```
 
 In other cases, it is necessary to provide more information about which data instance is targeted, which is enabled by the `target_cycle` and `parameters` specifications. On top of that, `when` can specify when the input data should be considered at all.
-```yaml
+```sirocco-yaml
 cycle name:
   [...]
   tasks:
@@ -221,14 +221,14 @@ cycle name:
 **optional**
 <br>
 **description**: As the name indicates, this setting gives us means to target a specific cycle occurrence. A relative `lag` can be given with
-```yaml
+```sirocco-yaml
 target_cycle:
   lag: relative_lag
 ```
 where `lag` is a duration specified in [ISO 8601 format](https://en.wikipedia.org/wiki/ISO_8601) or a sequence of them (_e.g._ the `stream` port in [the example](#example)) when targeting several occurrences, e.g. for the `post proc` task of the `4 monthly` cycle. The targeted data instance is the one whose `date` attribute is obtained by adding `relative_lag`, which can be negative, to the current cycle occurrence `date` (the one to which the task belongs).
 
 Instead of specifying a relative lag, an absolute date (or, again, a sequence of them) can be given with
-```yaml
+```sirocco-yaml
 target_cycle:
   date: absolute_date
 ```
@@ -240,7 +240,7 @@ target_cycle:
 **optional**
 <br>
 **description**: The `when` keyword can used to specify wether or not a data instance needs to be taken into account. This is typically used when the behavior of the task differs between the first (last) occurrence and the other ones. In the example above, the `model` task requires `initial conditions` as input at the first occurrence and later expects `restart`. The specification is the following
-```yaml
+```sirocco-yaml
 when:
   at: at_date
   before: before_date
@@ -255,7 +255,7 @@ when:
 **optional**
 <br>
 **description**: Tasks and pieces of data can be parameterized. Specifying which instances are targeted, is done via
-```yaml
+```sirocco-yaml
 parameters:
   parameter name: "mode_name"
 ```
