@@ -3,7 +3,7 @@
 import pytest
 
 from sirocco.core import Workflow
-from sirocco.core._tasks.icon_task import IconTask
+from sirocco.core.tasks.icon_task import IconTask
 
 
 # configs containing task using icon plugin

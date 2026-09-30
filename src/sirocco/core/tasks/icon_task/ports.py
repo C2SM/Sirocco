@@ -3,8 +3,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import ClassVar, Self
 
-from sirocco.core._tasks.icon_task.models import IconModel, ModelType
 from sirocco.core.graph_items import GeneratedData
+from sirocco.core.tasks.icon_task.models import IconModel, ModelType
 
 
 @dataclass(kw_only=True)

@@ -12,7 +12,7 @@ from aiida.common import NotExistent
 from aiida.orm import Computer, load_computer
 
 from sirocco import pretty_print
-from sirocco.core import _tasks as core_tasks
+from sirocco.core import tasks as core_tasks
 from sirocco.core import workflow
 from sirocco.parsing import yaml_data_models as models
 from tests.unit import utils as test_utils
