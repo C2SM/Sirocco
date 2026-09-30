@@ -59,13 +59,13 @@ tasks:
       plugin: shell
       uenv: icon/25.2:v3
       view: default
-      path: scripts/cleanup.py
+      src: scripts/cleanup.py
       command: "python cleanup.py {PORT::positional}"
   - post_proc:
       plugin: shell
       uenv: /capstor/store/cscs/userlab/cwd01/leclairm/uenvs/images/climtools_25.2_v2.sqfs
       view: default
-      path: scripts/post_proc.sh
+      src: scripts/post_proc.sh
       command: "post_proc.sh {PORT::streams}"
 data:
   available:

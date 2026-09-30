@@ -467,7 +467,7 @@ class ConfigShellTaskSpecs:
 
     command: str
     # TODO: change "path" for "src"
-    path: Annotated[Path | None, AfterValidator(is_relative_path)] = field(
+    src: Annotated[Path | None, AfterValidator(is_relative_path)] = field(
         default=None,
         repr=False,
         metadata={"description": ("Script file relative to the config directory.")},

@@ -47,7 +47,7 @@ tasks:
       walltime: 00:05:00
       node: 1
       computer: remote
-      path: scripts/icon.py
+      src: scripts/icon.py
       command: "python icon.py[ --restart {PORT::restart}][ --init {PORT::init}]"
   - cleanup:
       plugin: shell
@@ -56,7 +56,7 @@ tasks:
       walltime: 00:05:00
       node: 1
       computer: remote
-      path: scripts/cleanup.py
+      src: scripts/cleanup.py
       command: "python cleanup.py"
 
 data:

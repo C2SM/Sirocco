@@ -38,12 +38,12 @@ tasks:
       computer: "{{ SIROCCO_COMPUTER }}"
   - icon:
       plugin: shell
-      path: scripts/icon.py
+      src: scripts/icon.py
       command: "python icon.py [--restart {PORT::restart_in}] [--init {PORT::init}]"
       uenv: "icon-wcp/v1:rc4"
   - cleanup:
       plugin: shell
-      path: scripts/cleanup.py
+      src: scripts/cleanup.py
       command: "python cleanup.py"
 data:
   available:

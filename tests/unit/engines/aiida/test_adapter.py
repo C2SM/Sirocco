@@ -334,7 +334,7 @@ def test_build_metadata(aiida_localhost):
 
 
 def test_create_shell_code_executable_name(aiida_localhost):
-    """Test creating code for executable name (no path)."""
+    """Test creating code for executable name (no src)."""
     # Use unique command to avoid conflicts with existing codes
     unique_command = f"bash_{uuid.uuid4().hex[:8]}"
     task = create_mock_shell_task(command=f"{unique_command} script.sh")
@@ -361,7 +361,7 @@ def test_create_shell_code_local_script(tmp_path, aiida_localhost):
     script_file = tmp_path / unique_name
     script_file.write_text("#!/bin/bash\necho hello")
 
-    task = create_mock_shell_task(path=script_file, command=f"bash {unique_name}")
+    task = create_mock_shell_task(src=script_file, command=f"bash {unique_name}")
 
     code = CodeFactory.create_shell_code(task, aiida_localhost)
 
@@ -688,7 +688,7 @@ def test_create_shell_code_resolves_relative_path(tmp_path, aiida_localhost):
         os.chdir(tmp_path)
 
         # Use relative path
-        task = create_mock_shell_task(path=Path(f"./{unique_name}"), command=f"bash {unique_name}")
+        task = create_mock_shell_task(src=Path(f"./{unique_name}"), command=f"bash {unique_name}")
 
         code = CodeFactory.create_shell_code(task, aiida_localhost)
 

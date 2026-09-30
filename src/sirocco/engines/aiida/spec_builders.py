@@ -296,7 +296,7 @@ class ShellTaskSpecBuilder(TaskSpecBuilder):
         Returns:
             Resolved arguments template string
         """
-        script_name = Path(self.task.path).name if self.task.path else None
+        script_name = Path(self.task.src).name if self.task.src else None
         # Combine input and output labels for port resolution
         combined_labels = {**input_labels, **output_labels}
         arguments_with_placeholders = self.task.resolve_ports(combined_labels)  # type: ignore[arg-type]

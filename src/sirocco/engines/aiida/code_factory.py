@@ -81,8 +81,8 @@ class CodeFactory:
         """
 
         # Determine the executable path to use
-        if task.path is not None:
-            executable_path = str(task.path)
+        if task.src is not None:
+            executable_path = str(task.src)
         else:
             executable_path, _ = split_cmd_arg(task.command)
 
