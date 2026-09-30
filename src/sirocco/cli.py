@@ -16,7 +16,7 @@ from rich.console import Console
 from rich.traceback import install as install_rich_traceback
 
 from sirocco import core, parsing, pretty_print, vizgraph
-from sirocco.core._tasks.sirocco_task import SiroccoContinueTask
+from sirocco.core.tasks.sirocco_task import SiroccoContinueTask
 
 
 class TeeStream(io.TextIOBase):

@@ -4,7 +4,7 @@ from sirocco import pretty_print
 from sirocco.core import AvailableData, Workflow
 
 # NOTE: import of ShellTask is required to populated in Task.plugin_classes in __init_subclass__
-from sirocco.core._tasks.shell_task import ShellTask  # noqa: F401
+from sirocco.core.tasks.shell_task import ShellTask  # noqa: F401
 
 
 def test_minimal_workflow(minimal_config):
