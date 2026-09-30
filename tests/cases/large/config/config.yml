@@ -87,7 +87,7 @@ tasks:
       computer: "{{ SIROCCO_COMPUTER }}"
   - extpar:
       plugin: shell
-      path: scripts/extpar
+      src: scripts/extpar
       command: "extpar --verbose --in {PORT::obs} --out {PORT::out}"
       nodes: 1
       procs_per_node: 1
@@ -96,7 +96,7 @@ tasks:
       walltime: 00:02:00
   - preproc:
       plugin: shell
-      path: scripts/cleanup.sh
+      src: scripts/cleanup.sh
       command: "bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}"
       nodes: 4
       procs_per_node: 1
@@ -126,7 +126,7 @@ tasks:
       uenv: icon/25.2:v3
   - postproc_1:
       plugin: shell
-      path: scripts/main_script_ocn.sh
+      src: scripts/main_script_ocn.sh
       command: "bash main_script_ocn.sh {PORT::dummy}"
       nodes: 2
       procs_per_node: 1
@@ -142,7 +142,7 @@ tasks:
       walltime: 00:05:00
   - store_and_clean_1:
       plugin: shell
-      path: scripts/post_clean.sh
+      src: scripts/post_clean.sh
       command: "bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --input={PORT::icon_input} --archive={PORT::archive}"
       nodes: 1
       procs_per_node: 1
@@ -150,7 +150,7 @@ tasks:
       walltime: 00:01:00
   - store_and_clean_2:
       plugin: shell
-      path: scripts/post_clean.sh
+      src: scripts/post_clean.sh
       command: "bash post_clean.sh --processed={PORT::postout} --original={PORT::streams} --archive={PORT::archive}"
       nodes: 1
       procs_per_node: 1

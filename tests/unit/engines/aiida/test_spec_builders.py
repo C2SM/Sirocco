@@ -321,7 +321,7 @@ class TestShellTaskSpecBuilderHelpers:
         """Test _resolve_arguments_template combines labels and resolves."""
         task = create_mock_shell_task_for_builder(command="echo {input} > {output}")
         task.computer = aiida_localhost.label
-        task.path = "/bin/echo"
+        task.src = "/bin/echo"
         task.resolve_ports.return_value = "echo /path/to/input.txt > result.txt"
         builder = ShellTaskSpecBuilder(task)
 
@@ -743,7 +743,7 @@ class TestBuildShellTaskSpecOutputs:
             name="test_task",
             computer=aiida_localhost.label,
             command="script.sh [[optional_input]]",
-            path=Path("script.sh"),
+            src=Path("script.sh"),
             walltime="01:00:00",
         )
         task.input_data_items.return_value = []

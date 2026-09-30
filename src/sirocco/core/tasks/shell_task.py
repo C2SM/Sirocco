@@ -19,7 +19,7 @@ class ShellTask(models.ConfigShellTaskSpecs, Task):
     def build_from_config(cls: type[Self], config: models.ConfigTask, config_rootdir: Path, **kwargs: Any) -> Self:
         config_kwargs = dict(config)
         del config_kwargs["parameters"]
-        del config_kwargs["path"]
+        del config_kwargs["src"]
         # The following check is here for type checkers.
         # We don't want to narrow the type in the signature, as that would break liskov substitution.
         # We guarantee elsewhere this is called with the correct type at runtime
@@ -31,8 +31,8 @@ class ShellTask(models.ConfigShellTaskSpecs, Task):
             **kwargs,
             **config_kwargs,
         )
-        if config.path is not None:
-            self.path = self._validate_path(config.path, config_rootdir)
+        if config.src is not None:
+            self.src = self._validate_path(config.src, config_rootdir)
         return self
 
     @property
@@ -72,11 +72,11 @@ class ShellTask(models.ConfigShellTaskSpecs, Task):
         ]
 
     def prepare_for_submission(self) -> None:
-        if self.path is not None:
-            if self.path.is_dir():
-                shutil.copytree(self.path, self.run_dir / self.path.name)
+        if self.src is not None:
+            if self.src.is_dir():
+                shutil.copytree(self.src, self.run_dir / self.src.name)
             else:
-                shutil.copy(self.path, self.run_dir / self.path.name)
+                shutil.copy(self.src, self.run_dir / self.src.name)
 
     def resolve_output_data_paths(self) -> None:
         for data in self.output_data_nodes():

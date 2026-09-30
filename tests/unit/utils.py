@@ -39,7 +39,7 @@ def create_mock_shell_task(**overrides):
         "cores_per_proc": None,
         "uenv": None,
         "view": None,
-        "path": None,
+        "src": None,
         "command": None,
     }
 

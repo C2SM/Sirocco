@@ -62,21 +62,21 @@ tasks:
       computer: "{{ SIROCCO_COMPUTER }}"
   - icon:
       plugin: shell
-      path: scripts/icon.py
+      src: scripts/icon.py
       command: "python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}"
       parameters: [foo, bar]
   - statistics_foo:
       plugin: shell
-      path: scripts/statistics.py
+      src: scripts/statistics.py
       command: "python statistics.py {PORT::dummy}"
       parameters: [bar]
   - statistics_foo_bar:
       plugin: shell
-      path: scripts/statistics.py
+      src: scripts/statistics.py
       command: "python statistics.py {PORT::dummy}"
   - merge:
       plugin: shell
-      path: scripts/merge.py
+      src: scripts/merge.py
       command: "python merge.py {PORT::dummy}"
 
 data:
