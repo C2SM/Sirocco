@@ -112,9 +112,10 @@ def verify(
             file_okay=False,
             dir_okay=True,
             readable=True,
+            default=Path("."),
             help="Path to the workflow definition YAML file.",
         ),
-    ] = Path("."),
+    ],
 ):
     """
     Validate the workflow definition file for syntax and basic consistency.
@@ -141,9 +142,10 @@ def visualize(
             file_okay=False,
             dir_okay=True,
             readable=True,
+            default=Path("."),
             help="Path to the workflow definition YAML file.",
         ),
-    ] = Path("."),
+    ],
     output_file: Annotated[
         Path | None,
         typer.Option(
@@ -200,9 +202,10 @@ def represent(
             file_okay=False,
             dir_okay=True,
             readable=True,
+            default=Path("."),
             help="Path to the workflow definition YAML file.",
         ),
-    ] = Path("."),
+    ],
 ):
     """
     Display the text representation of the unrolled workflow graph.
@@ -247,10 +250,11 @@ def start(
             file_okay=False,
             dir_okay=True,
             readable=True,
+            default=Path("."),
             help="Path to the workflow definition YAML file.",
         ),
     ],
-    cleanup: Annotated[  # noqa: FBT002
+    cleanup: Annotated[
         bool,
         typer.Option(
             "--cleanup",
@@ -295,9 +299,10 @@ def restart(
             file_okay=False,
             dir_okay=True,
             readable=True,
+            default=Path("."),
             help="Path to the workflow definition YAML file.",
         ),
-    ] = Path("."),
+    ],
 ):
     wf = core.Workflow.from_config_path(config_dir)
     tee_console = log_console(wf)
@@ -327,10 +332,11 @@ def stop(
             file_okay=False,
             dir_okay=True,
             readable=True,
+            default=Path("."),
             help="Path to the workflow definition YAML file.",
         ),
-    ] = Path("."),
-    cool_down: Annotated[  # noqa: FBT002
+    ],
+    cool_down: Annotated[
         bool,
         typer.Option(
             "--cool-down",
@@ -368,10 +374,11 @@ def continue_wf(
             file_okay=False,
             dir_okay=True,
             readable=True,
+            default=Path("."),
             help="Path to the workflow definition YAML file.",
         ),
-    ] = Path("."),
-    from_wf: Annotated[  # noqa: FBT002
+    ],
+    from_wf: Annotated[
         bool,
         typer.Option(
             "--from_wf",
@@ -410,9 +417,10 @@ def stviz(
             file_okay=False,
             dir_okay=True,
             readable=True,
+            default=Path("."),
             help="Path to the workflow definition YAML file.",
         ),
-    ] = Path("."),
+    ],
 ):
     console.print(f"{CmdStatus.PLAY} Visualizing workflow status from: [cyan]{config_dir!s}[/cyan]")
     try:
@@ -490,7 +498,7 @@ def create_aiida_workflow(
     try:
         core_wf, wg = _create_aiida_workflow(config_dir=config_dir)
         console.print(f"⚙️ Workflow [magenta]'{wg.name}'[/magenta] prepared for AiiDA execution.")
-        return core_wf, wg  # noqa: TRY300 | try-consider-else -> shouldn't move this to `else` block
+        return core_wf, wg
     except ProfileConfigurationError as e:
         console.print(f"[bold red]❌ No AiiDA profile set up: {e}[/bold red]")
         console.print("[bold green]You can create one using `verdi presto`[/bold green]")
@@ -512,9 +520,10 @@ def run(
             file_okay=False,
             dir_okay=True,
             readable=True,
+            default=Path("."),
             help="Path to the workflow definition YAML file.",
         ),
-    ] = Path("."),
+    ],
 ):
     patch_aiida()
 
@@ -547,9 +556,10 @@ def submit(
             file_okay=False,
             dir_okay=True,
             readable=True,
+            default=Path("."),
             help="Path to the workflow definition YAML file.",
         ),
-    ] = Path("."),
+    ],
 ):
     """Submit the workflow to the AiiDA daemon."""
 
@@ -571,7 +581,7 @@ def submit(
 
         if (results_node := wg.process) is None:
             msg = "Something went wrong when submitting workgraph"
-            raise RuntimeError(msg)  # noqa: TRY301
+            raise RuntimeError(msg)
 
         console.print(f"[green]✅ Workflow submitted. PK: {results_node.pk}[/green]")
 
@@ -638,7 +648,7 @@ def create_symlink_tree(
 
         if not isinstance(node, WorkflowNode):
             msg = f"Node with pk {pk} not a WorkflowNode but of type `{type(node)}`. Not supported."
-            raise TypeError(msg)  # noqa: TRY301
+            raise TypeError(msg)
 
         # Get workflow name
         workflow_name = node.process_label or node.label or f"workflow_{pk}"
@@ -662,7 +672,7 @@ def create_symlink_tree(
 
         if computer is None:
             console.print("[bold red]❌ No computer found for any CalcJobNode[/bold red]")
-            raise typer.Exit(code=1)  # noqa: TRY301
+            raise typer.Exit(code=1)
 
         # Use Computer's work directory as default if base_directory not specified
         if base_directory is None:
