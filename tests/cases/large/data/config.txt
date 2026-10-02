@@ -2,6 +2,7 @@ cycles:
   - init:
       tasks:
         - extpar:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             walltime: '00:02:00'
@@ -9,7 +10,6 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: []
             components:
               __SINGLE_COMPONENT__:
@@ -23,6 +23,7 @@ cycles:
   - icon_bimonthly [date: 2025-01-01 00:00:00+00:00]:
       tasks:
         - preproc [date: 2025-01-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 4
             walltime: '00:02:00'
@@ -30,7 +31,6 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2025-01-01 00:00:00+00:00 -- 2025-03-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -46,6 +46,7 @@ cycles:
                     - icon_input [date: 2025-01-01 00:00:00+00:00]
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2025-01-01 00:00:00+00:00]:
+            plugin: 'icon'
             computer: 'remote'
             uenv: 'icon/25.2:v3'
             nodes: 40
@@ -53,7 +54,6 @@ cycles:
             procs_per_node: 288
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'icon'
             cycle_point: [2025-01-01 00:00:00+00:00 -- 2025-03-01 00:00:00+00:00]
             components:
               atm:
@@ -84,13 +84,13 @@ cycles:
               - icon_master.namelist
               - NAMELIST_exclaim_ape_R02B04
         - postproc_1 [date: 2025-01-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 2
             walltime: '00:05:00'
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2025-01-01 00:00:00+00:00 -- 2025-03-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -102,13 +102,13 @@ cycles:
                     - postout_1 [date: 2025-01-01 00:00:00+00:00]
             command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2025-01-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             walltime: '00:01:00'
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2025-01-01 00:00:00+00:00 -- 2025-03-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -126,6 +126,7 @@ cycles:
   - icon_bimonthly [date: 2025-03-01 00:00:00+00:00]:
       tasks:
         - preproc [date: 2025-03-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 4
             walltime: '00:02:00'
@@ -133,7 +134,6 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2025-03-01 00:00:00+00:00 -- 2025-05-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -149,6 +149,7 @@ cycles:
                     - icon_input [date: 2025-03-01 00:00:00+00:00]
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2025-03-01 00:00:00+00:00]:
+            plugin: 'icon'
             computer: 'remote'
             uenv: 'icon/25.2:v3'
             nodes: 40
@@ -156,7 +157,6 @@ cycles:
             procs_per_node: 288
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'icon'
             cycle_point: [2025-03-01 00:00:00+00:00 -- 2025-05-01 00:00:00+00:00]
             components:
               atm:
@@ -188,13 +188,13 @@ cycles:
               - icon_master.namelist
               - NAMELIST_exclaim_ape_R02B04
         - postproc_1 [date: 2025-03-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 2
             walltime: '00:05:00'
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2025-03-01 00:00:00+00:00 -- 2025-05-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -206,13 +206,13 @@ cycles:
                     - postout_1 [date: 2025-03-01 00:00:00+00:00]
             command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2025-03-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             walltime: '00:01:00'
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2025-03-01 00:00:00+00:00 -- 2025-05-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -230,6 +230,7 @@ cycles:
   - icon_bimonthly [date: 2025-05-01 00:00:00+00:00]:
       tasks:
         - preproc [date: 2025-05-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 4
             walltime: '00:02:00'
@@ -237,7 +238,6 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2025-05-01 00:00:00+00:00 -- 2025-07-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -255,6 +255,7 @@ cycles:
               - 'icon [date: 2025-01-01 00:00:00+00:00]'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2025-05-01 00:00:00+00:00]:
+            plugin: 'icon'
             computer: 'remote'
             uenv: 'icon/25.2:v3'
             nodes: 40
@@ -262,7 +263,6 @@ cycles:
             procs_per_node: 288
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'icon'
             cycle_point: [2025-05-01 00:00:00+00:00 -- 2025-07-01 00:00:00+00:00]
             components:
               atm:
@@ -294,13 +294,13 @@ cycles:
               - icon_master.namelist
               - NAMELIST_exclaim_ape_R02B04
         - postproc_1 [date: 2025-05-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 2
             walltime: '00:05:00'
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2025-05-01 00:00:00+00:00 -- 2025-07-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -312,13 +312,13 @@ cycles:
                     - postout_1 [date: 2025-05-01 00:00:00+00:00]
             command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2025-05-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             walltime: '00:01:00'
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2025-05-01 00:00:00+00:00 -- 2025-07-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -336,6 +336,7 @@ cycles:
   - icon_bimonthly [date: 2025-07-01 00:00:00+00:00]:
       tasks:
         - preproc [date: 2025-07-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 4
             walltime: '00:02:00'
@@ -343,7 +344,6 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2025-07-01 00:00:00+00:00 -- 2025-09-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -361,6 +361,7 @@ cycles:
               - 'icon [date: 2025-03-01 00:00:00+00:00]'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2025-07-01 00:00:00+00:00]:
+            plugin: 'icon'
             computer: 'remote'
             uenv: 'icon/25.2:v3'
             nodes: 40
@@ -368,7 +369,6 @@ cycles:
             procs_per_node: 288
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'icon'
             cycle_point: [2025-07-01 00:00:00+00:00 -- 2025-09-01 00:00:00+00:00]
             components:
               atm:
@@ -400,13 +400,13 @@ cycles:
               - icon_master.namelist
               - NAMELIST_exclaim_ape_R02B04
         - postproc_1 [date: 2025-07-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 2
             walltime: '00:05:00'
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2025-07-01 00:00:00+00:00 -- 2025-09-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -418,13 +418,13 @@ cycles:
                     - postout_1 [date: 2025-07-01 00:00:00+00:00]
             command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2025-07-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             walltime: '00:01:00'
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2025-07-01 00:00:00+00:00 -- 2025-09-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -442,6 +442,7 @@ cycles:
   - icon_bimonthly [date: 2025-09-01 00:00:00+00:00]:
       tasks:
         - preproc [date: 2025-09-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 4
             walltime: '00:02:00'
@@ -449,7 +450,6 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2025-09-01 00:00:00+00:00 -- 2025-11-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -467,6 +467,7 @@ cycles:
               - 'icon [date: 2025-05-01 00:00:00+00:00]'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2025-09-01 00:00:00+00:00]:
+            plugin: 'icon'
             computer: 'remote'
             uenv: 'icon/25.2:v3'
             nodes: 40
@@ -474,7 +475,6 @@ cycles:
             procs_per_node: 288
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'icon'
             cycle_point: [2025-09-01 00:00:00+00:00 -- 2025-11-01 00:00:00+00:00]
             components:
               atm:
@@ -506,13 +506,13 @@ cycles:
               - icon_master.namelist
               - NAMELIST_exclaim_ape_R02B04
         - postproc_1 [date: 2025-09-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 2
             walltime: '00:05:00'
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2025-09-01 00:00:00+00:00 -- 2025-11-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -524,13 +524,13 @@ cycles:
                     - postout_1 [date: 2025-09-01 00:00:00+00:00]
             command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2025-09-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             walltime: '00:01:00'
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2025-09-01 00:00:00+00:00 -- 2025-11-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -548,6 +548,7 @@ cycles:
   - icon_bimonthly [date: 2025-11-01 00:00:00+00:00]:
       tasks:
         - preproc [date: 2025-11-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 4
             walltime: '00:02:00'
@@ -555,7 +556,6 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2025-11-01 00:00:00+00:00 -- 2026-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -573,6 +573,7 @@ cycles:
               - 'icon [date: 2025-07-01 00:00:00+00:00]'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2025-11-01 00:00:00+00:00]:
+            plugin: 'icon'
             computer: 'remote'
             uenv: 'icon/25.2:v3'
             nodes: 40
@@ -580,7 +581,6 @@ cycles:
             procs_per_node: 288
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'icon'
             cycle_point: [2025-11-01 00:00:00+00:00 -- 2026-01-01 00:00:00+00:00]
             components:
               atm:
@@ -612,13 +612,13 @@ cycles:
               - icon_master.namelist
               - NAMELIST_exclaim_ape_R02B04
         - postproc_1 [date: 2025-11-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 2
             walltime: '00:05:00'
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2025-11-01 00:00:00+00:00 -- 2026-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -630,13 +630,13 @@ cycles:
                     - postout_1 [date: 2025-11-01 00:00:00+00:00]
             command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2025-11-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             walltime: '00:01:00'
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2025-11-01 00:00:00+00:00 -- 2026-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -654,6 +654,7 @@ cycles:
   - icon_bimonthly [date: 2026-01-01 00:00:00+00:00]:
       tasks:
         - preproc [date: 2026-01-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 4
             walltime: '00:02:00'
@@ -661,7 +662,6 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2026-01-01 00:00:00+00:00 -- 2026-03-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -679,6 +679,7 @@ cycles:
               - 'icon [date: 2025-09-01 00:00:00+00:00]'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2026-01-01 00:00:00+00:00]:
+            plugin: 'icon'
             computer: 'remote'
             uenv: 'icon/25.2:v3'
             nodes: 40
@@ -686,7 +687,6 @@ cycles:
             procs_per_node: 288
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'icon'
             cycle_point: [2026-01-01 00:00:00+00:00 -- 2026-03-01 00:00:00+00:00]
             components:
               atm:
@@ -718,13 +718,13 @@ cycles:
               - icon_master.namelist
               - NAMELIST_exclaim_ape_R02B04
         - postproc_1 [date: 2026-01-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 2
             walltime: '00:05:00'
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2026-01-01 00:00:00+00:00 -- 2026-03-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -736,13 +736,13 @@ cycles:
                     - postout_1 [date: 2026-01-01 00:00:00+00:00]
             command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2026-01-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             walltime: '00:01:00'
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2026-01-01 00:00:00+00:00 -- 2026-03-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -760,6 +760,7 @@ cycles:
   - icon_bimonthly [date: 2026-03-01 00:00:00+00:00]:
       tasks:
         - preproc [date: 2026-03-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 4
             walltime: '00:02:00'
@@ -767,7 +768,6 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2026-03-01 00:00:00+00:00 -- 2026-05-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -785,6 +785,7 @@ cycles:
               - 'icon [date: 2025-11-01 00:00:00+00:00]'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2026-03-01 00:00:00+00:00]:
+            plugin: 'icon'
             computer: 'remote'
             uenv: 'icon/25.2:v3'
             nodes: 40
@@ -792,7 +793,6 @@ cycles:
             procs_per_node: 288
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'icon'
             cycle_point: [2026-03-01 00:00:00+00:00 -- 2026-05-01 00:00:00+00:00]
             components:
               atm:
@@ -824,13 +824,13 @@ cycles:
               - icon_master.namelist
               - NAMELIST_exclaim_ape_R02B04
         - postproc_1 [date: 2026-03-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 2
             walltime: '00:05:00'
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2026-03-01 00:00:00+00:00 -- 2026-05-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -842,13 +842,13 @@ cycles:
                     - postout_1 [date: 2026-03-01 00:00:00+00:00]
             command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2026-03-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             walltime: '00:01:00'
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2026-03-01 00:00:00+00:00 -- 2026-05-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -866,6 +866,7 @@ cycles:
   - icon_bimonthly [date: 2026-05-01 00:00:00+00:00]:
       tasks:
         - preproc [date: 2026-05-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 4
             walltime: '00:02:00'
@@ -873,7 +874,6 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2026-05-01 00:00:00+00:00 -- 2026-07-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -891,6 +891,7 @@ cycles:
               - 'icon [date: 2026-01-01 00:00:00+00:00]'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2026-05-01 00:00:00+00:00]:
+            plugin: 'icon'
             computer: 'remote'
             uenv: 'icon/25.2:v3'
             nodes: 40
@@ -898,7 +899,6 @@ cycles:
             procs_per_node: 288
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'icon'
             cycle_point: [2026-05-01 00:00:00+00:00 -- 2026-07-01 00:00:00+00:00]
             components:
               atm:
@@ -930,13 +930,13 @@ cycles:
               - icon_master.namelist
               - NAMELIST_exclaim_ape_R02B04
         - postproc_1 [date: 2026-05-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 2
             walltime: '00:05:00'
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2026-05-01 00:00:00+00:00 -- 2026-07-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -948,13 +948,13 @@ cycles:
                     - postout_1 [date: 2026-05-01 00:00:00+00:00]
             command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2026-05-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             walltime: '00:01:00'
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2026-05-01 00:00:00+00:00 -- 2026-07-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -972,6 +972,7 @@ cycles:
   - icon_bimonthly [date: 2026-07-01 00:00:00+00:00]:
       tasks:
         - preproc [date: 2026-07-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 4
             walltime: '00:02:00'
@@ -979,7 +980,6 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2026-07-01 00:00:00+00:00 -- 2026-09-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -997,6 +997,7 @@ cycles:
               - 'icon [date: 2026-03-01 00:00:00+00:00]'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2026-07-01 00:00:00+00:00]:
+            plugin: 'icon'
             computer: 'remote'
             uenv: 'icon/25.2:v3'
             nodes: 40
@@ -1004,7 +1005,6 @@ cycles:
             procs_per_node: 288
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'icon'
             cycle_point: [2026-07-01 00:00:00+00:00 -- 2026-09-01 00:00:00+00:00]
             components:
               atm:
@@ -1036,13 +1036,13 @@ cycles:
               - icon_master.namelist
               - NAMELIST_exclaim_ape_R02B04
         - postproc_1 [date: 2026-07-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 2
             walltime: '00:05:00'
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2026-07-01 00:00:00+00:00 -- 2026-09-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -1054,13 +1054,13 @@ cycles:
                     - postout_1 [date: 2026-07-01 00:00:00+00:00]
             command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2026-07-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             walltime: '00:01:00'
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2026-07-01 00:00:00+00:00 -- 2026-09-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -1078,6 +1078,7 @@ cycles:
   - icon_bimonthly [date: 2026-09-01 00:00:00+00:00]:
       tasks:
         - preproc [date: 2026-09-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 4
             walltime: '00:02:00'
@@ -1085,7 +1086,6 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2026-09-01 00:00:00+00:00 -- 2026-11-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -1103,6 +1103,7 @@ cycles:
               - 'icon [date: 2026-05-01 00:00:00+00:00]'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2026-09-01 00:00:00+00:00]:
+            plugin: 'icon'
             computer: 'remote'
             uenv: 'icon/25.2:v3'
             nodes: 40
@@ -1110,7 +1111,6 @@ cycles:
             procs_per_node: 288
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'icon'
             cycle_point: [2026-09-01 00:00:00+00:00 -- 2026-11-01 00:00:00+00:00]
             components:
               atm:
@@ -1142,13 +1142,13 @@ cycles:
               - icon_master.namelist
               - NAMELIST_exclaim_ape_R02B04
         - postproc_1 [date: 2026-09-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 2
             walltime: '00:05:00'
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2026-09-01 00:00:00+00:00 -- 2026-11-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -1160,13 +1160,13 @@ cycles:
                     - postout_1 [date: 2026-09-01 00:00:00+00:00]
             command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2026-09-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             walltime: '00:01:00'
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2026-09-01 00:00:00+00:00 -- 2026-11-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -1184,6 +1184,7 @@ cycles:
   - icon_bimonthly [date: 2026-11-01 00:00:00+00:00]:
       tasks:
         - preproc [date: 2026-11-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 4
             walltime: '00:02:00'
@@ -1191,7 +1192,6 @@ cycles:
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2026-11-01 00:00:00+00:00 -- 2027-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -1209,6 +1209,7 @@ cycles:
               - 'icon [date: 2026-07-01 00:00:00+00:00]'
             command: 'bash cleanup.sh -p {PORT::extpar} -e {PORT::era} -g {PORT::grid} {PORT::ini_cond}'
         - icon [date: 2026-11-01 00:00:00+00:00]:
+            plugin: 'icon'
             computer: 'remote'
             uenv: 'icon/25.2:v3'
             nodes: 40
@@ -1216,7 +1217,6 @@ cycles:
             procs_per_node: 288
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'icon'
             cycle_point: [2026-11-01 00:00:00+00:00 -- 2027-01-01 00:00:00+00:00]
             components:
               atm:
@@ -1248,13 +1248,13 @@ cycles:
               - icon_master.namelist
               - NAMELIST_exclaim_ape_R02B04
         - postproc_1 [date: 2026-11-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 2
             walltime: '00:05:00'
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2026-11-01 00:00:00+00:00 -- 2027-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -1266,13 +1266,13 @@ cycles:
                     - postout_1 [date: 2026-11-01 00:00:00+00:00]
             command: 'bash main_script_ocn.sh {PORT::dummy}'
         - store_and_clean_1 [date: 2026-11-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             walltime: '00:01:00'
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2026-11-01 00:00:00+00:00 -- 2027-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -1290,13 +1290,13 @@ cycles:
   - yearly [date: 2025-01-01 00:00:00+00:00]:
       tasks:
         - postproc_2 [date: 2025-01-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 2
             walltime: '00:05:00'
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2025-01-01 00:00:00+00:00 -- 2026-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -1313,13 +1313,13 @@ cycles:
                     - postout_2 [date: 2025-01-01 00:00:00+00:00]
             command: 'bash main_script_atm.sh --input {PORT::streams}'
         - store_and_clean_2 [date: 2025-01-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             walltime: '00:01:00'
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2025-01-01 00:00:00+00:00 -- 2026-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -1340,13 +1340,13 @@ cycles:
   - yearly [date: 2026-01-01 00:00:00+00:00]:
       tasks:
         - postproc_2 [date: 2026-01-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 2
             walltime: '00:05:00'
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2026-01-01 00:00:00+00:00 -- 2027-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
@@ -1363,13 +1363,13 @@ cycles:
                     - postout_2 [date: 2026-01-01 00:00:00+00:00]
             command: 'bash main_script_atm.sh --input {PORT::streams}'
         - store_and_clean_2 [date: 2026-01-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             walltime: '00:01:00'
             procs_per_node: 1
             cores_per_proc: 1
             sockets_per_node: 1
-            plugin: 'shell'
             cycle_point: [2026-01-01 00:00:00+00:00 -- 2027-01-01 00:00:00+00:00]
             components:
               __SINGLE_COMPONENT__:
