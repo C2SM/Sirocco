@@ -73,7 +73,7 @@ class TestCLICommands:
             msg = "Invalid workflow"
             raise ValueError(msg)
 
-        monkeypatch.setattr("sirocco.parsing.ConfigWorkflow.from_config_file", mock_from_config_file)
+        monkeypatch.setattr("sirocco.parsing.ConfigWorkflow.from_config_path", mock_from_config_file)
 
         result = runner.invoke(app, ["verify", str(minimal_config_path)])
 
