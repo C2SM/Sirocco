@@ -57,7 +57,7 @@ class TestCLICommands:
         assert result.exit_code == 1
 
     @pytest.mark.usefixtures("config_case")
-    @pytest.mark.parametrize("config_case",["small-shell"])
+    @pytest.mark.parametrize("config_case", ["small-shell"])
     def test_verify_command_success(self, runner, config_paths):
         """Test the verify command with a valid workflow file."""
         result = runner.invoke(app, ["verify", str(config_paths["dir"])])
