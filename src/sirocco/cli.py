@@ -107,7 +107,6 @@ def verify(
     config_dir: Annotated[
         Path,
         typer.Argument(
-            ...,
             exists=True,
             file_okay=False,
             dir_okay=True,
@@ -137,7 +136,6 @@ def visualize(
     config_dir: Annotated[
         Path,
         typer.Argument(
-            ...,
             exists=True,
             file_okay=False,
             dir_okay=True,
@@ -197,7 +195,6 @@ def represent(
     config_dir: Annotated[
         Path,
         typer.Argument(
-            ...,
             exists=True,
             file_okay=False,
             dir_okay=True,
@@ -245,7 +242,6 @@ def start(
     config_dir: Annotated[
         Path,
         typer.Argument(
-            ...,
             exists=True,
             file_okay=False,
             dir_okay=True,
@@ -254,6 +250,7 @@ def start(
             help="Path to the workflow definition YAML file.",
         ),
     ],
+    *,
     cleanup: Annotated[
         bool,
         typer.Option(
@@ -294,7 +291,6 @@ def restart(
     config_dir: Annotated[
         Path,
         typer.Argument(
-            ...,
             exists=True,
             file_okay=False,
             dir_okay=True,
@@ -327,7 +323,6 @@ def stop(
     config_dir: Annotated[
         Path,
         typer.Argument(
-            ...,
             exists=True,
             file_okay=False,
             dir_okay=True,
@@ -336,6 +331,7 @@ def stop(
             help="Path to the workflow definition YAML file.",
         ),
     ],
+    *,
     cool_down: Annotated[
         bool,
         typer.Option(
@@ -369,7 +365,6 @@ def continue_wf(
     config_dir: Annotated[
         Path,
         typer.Argument(
-            ...,
             exists=True,
             file_okay=False,
             dir_okay=True,
@@ -378,6 +373,7 @@ def continue_wf(
             help="Path to the workflow definition YAML file.",
         ),
     ],
+    *,
     from_wf: Annotated[
         bool,
         typer.Option(
@@ -412,7 +408,6 @@ def stviz(
     config_dir: Annotated[
         Path,
         typer.Argument(
-            ...,
             exists=True,
             file_okay=False,
             dir_okay=True,
@@ -498,7 +493,7 @@ def create_aiida_workflow(
     try:
         core_wf, wg = _create_aiida_workflow(config_dir=config_dir)
         console.print(f"⚙️ Workflow [magenta]'{wg.name}'[/magenta] prepared for AiiDA execution.")
-        return core_wf, wg
+        return core_wf, wg  # noqa: TRY300 | try-consider-else -> shouldn't move this to `else` block
     except ProfileConfigurationError as e:
         console.print(f"[bold red]❌ No AiiDA profile set up: {e}[/bold red]")
         console.print("[bold green]You can create one using `verdi presto`[/bold green]")
@@ -515,7 +510,6 @@ def run(
     config_dir: Annotated[
         Path,
         typer.Argument(
-            ...,
             exists=True,
             file_okay=False,
             dir_okay=True,
@@ -551,7 +545,6 @@ def submit(
     config_dir: Annotated[
         Path,
         typer.Argument(
-            ...,
             exists=True,
             file_okay=False,
             dir_okay=True,
@@ -581,7 +574,7 @@ def submit(
 
         if (results_node := wg.process) is None:
             msg = "Something went wrong when submitting workgraph"
-            raise RuntimeError(msg)
+            raise RuntimeError(msg)  # noqa: TRY301
 
         console.print(f"[green]✅ Workflow submitted. PK: {results_node.pk}[/green]")
 
@@ -648,7 +641,7 @@ def create_symlink_tree(
 
         if not isinstance(node, WorkflowNode):
             msg = f"Node with pk {pk} not a WorkflowNode but of type `{type(node)}`. Not supported."
-            raise TypeError(msg)
+            raise TypeError(msg)  # noqa: TRY301
 
         # Get workflow name
         workflow_name = node.process_label or node.label or f"workflow_{pk}"
@@ -672,7 +665,7 @@ def create_symlink_tree(
 
         if computer is None:
             console.print("[bold red]❌ No computer found for any CalcJobNode[/bold red]")
-            raise typer.Exit(code=1)
+            raise typer.Exit(code=1)  # noqa: TRY301
 
         # Use Computer's work directory as default if base_directory not specified
         if base_directory is None:
