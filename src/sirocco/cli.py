@@ -111,10 +111,9 @@ def verify(
             file_okay=False,
             dir_okay=True,
             readable=True,
-            default=Path("."),
             help="Path to the workflow definition YAML file.",
         ),
-    ],
+    ] = Path("."),
 ):
     """
     Validate the workflow definition file for syntax and basic consistency.
@@ -140,10 +139,9 @@ def visualize(
             file_okay=False,
             dir_okay=True,
             readable=True,
-            default=Path("."),
             help="Path to the workflow definition YAML file.",
         ),
-    ],
+    ] = Path("."),
     output_file: Annotated[
         Path | None,
         typer.Option(
@@ -199,10 +197,9 @@ def represent(
             file_okay=False,
             dir_okay=True,
             readable=True,
-            default=Path("."),
             help="Path to the workflow definition YAML file.",
         ),
-    ],
+    ] = Path("."),
 ):
     """
     Display the text representation of the unrolled workflow graph.
@@ -246,10 +243,9 @@ def start(
             file_okay=False,
             dir_okay=True,
             readable=True,
-            default=Path("."),
             help="Path to the workflow definition YAML file.",
         ),
-    ],
+    ] = Path("."),
     *,
     cleanup: Annotated[
         bool,
@@ -295,10 +291,9 @@ def restart(
             file_okay=False,
             dir_okay=True,
             readable=True,
-            default=Path("."),
             help="Path to the workflow definition YAML file.",
         ),
-    ],
+    ] = Path("."),
 ):
     wf = core.Workflow.from_config_path(config_dir)
     tee_console = log_console(wf)
@@ -327,10 +322,9 @@ def stop(
             file_okay=False,
             dir_okay=True,
             readable=True,
-            default=Path("."),
             help="Path to the workflow definition YAML file.",
         ),
-    ],
+    ] = Path("."),
     *,
     cool_down: Annotated[
         bool,
@@ -369,10 +363,9 @@ def continue_wf(
             file_okay=False,
             dir_okay=True,
             readable=True,
-            default=Path("."),
             help="Path to the workflow definition YAML file.",
         ),
-    ],
+    ] = Path("."),
     *,
     from_wf: Annotated[
         bool,
@@ -412,10 +405,9 @@ def stviz(
             file_okay=False,
             dir_okay=True,
             readable=True,
-            default=Path("."),
             help="Path to the workflow definition YAML file.",
         ),
-    ],
+    ] = Path("."),
 ):
     console.print(f"{CmdStatus.PLAY} Visualizing workflow status from: [cyan]{config_dir!s}[/cyan]")
     try:
@@ -514,10 +506,9 @@ def run(
             file_okay=False,
             dir_okay=True,
             readable=True,
-            default=Path("."),
             help="Path to the workflow definition YAML file.",
         ),
-    ],
+    ] = Path("."),
 ):
     patch_aiida()
 
@@ -549,10 +540,9 @@ def submit(
             file_okay=False,
             dir_okay=True,
             readable=True,
-            default=Path("."),
             help="Path to the workflow definition YAML file.",
         ),
-    ],
+    ] = Path("."),
 ):
     """Submit the workflow to the AiiDA daemon."""
 
