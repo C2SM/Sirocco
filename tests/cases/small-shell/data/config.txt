@@ -2,6 +2,7 @@ cycles:
   - bimonthly_tasks [date: 2026-01-01 00:00:00+00:00]:
       tasks:
         - icon [date: 2026-01-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             uenv: 'icon-wcp/v1:rc4'
             nodes: 1
@@ -20,11 +21,11 @@ cycles:
                     - icon_output [date: 2026-01-01 00:00:00+00:00]
                   restart_out:
                     - icon_restart [date: 2026-01-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'python icon.py [--restart {PORT::restart_in}] [--init {PORT::init}]'
   - bimonthly_tasks [date: 2026-03-01 00:00:00+00:00]:
       tasks:
         - icon [date: 2026-03-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             uenv: 'icon-wcp/v1:rc4'
             nodes: 1
@@ -43,11 +44,11 @@ cycles:
                     - icon_output [date: 2026-03-01 00:00:00+00:00]
                   restart_out:
                     - icon_restart [date: 2026-03-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'python icon.py [--restart {PORT::restart_in}] [--init {PORT::init}]'
   - bimonthly_tasks [date: 2026-05-01 00:00:00+00:00]:
       tasks:
         - icon [date: 2026-05-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             uenv: 'icon-wcp/v1:rc4'
             nodes: 1
@@ -66,11 +67,11 @@ cycles:
                     - icon_output [date: 2026-05-01 00:00:00+00:00]
                   restart_out:
                     - icon_restart [date: 2026-05-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'python icon.py [--restart {PORT::restart_in}] [--init {PORT::init}]'
   - lastly:
       tasks:
         - cleanup:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             sockets_per_node: 1
@@ -81,5 +82,4 @@ cycles:
                 outputs: {}
             wait_on:
               - 'icon [date: 2026-05-01 00:00:00+00:00]'
-            plugin: 'shell'
             command: 'python cleanup.py'

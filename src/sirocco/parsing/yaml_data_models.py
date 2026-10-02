@@ -406,6 +406,8 @@ class ConfigBaseTaskSpecs:
     Any of these keys can be None, in which case they are inherited from the root task.
     """
 
+    plugin: ClassVar[str]
+
     computer: str
     host: str | None = None
     account: str | None = None
@@ -440,12 +442,12 @@ class ConfigBaseTask(_NamedBaseModel, ConfigBaseTaskSpecs):
 
 
 class ConfigRootTask(ConfigBaseTask):
-    plugin: ClassVar[Literal["_root"]] = "_root"
+    plugin: ClassVar[str] = "_root"
 
 
 @dataclass(kw_only=True)
 class ConfigSiroccoTaskSpecs:
-    plugin: ClassVar[Literal["_sirocco", "sirocco_continue"]] = "_sirocco"
+    plugin: ClassVar[str] = "_sirocco"
     venv: Path | None = field(default=None, repr=False)
 
 
@@ -454,7 +456,7 @@ class ConfigSiroccoTask(ConfigBaseTask, ConfigSiroccoTaskSpecs): ...
 
 @dataclass(kw_only=True)
 class ConfigShellTaskSpecs:
-    plugin: ClassVar[Literal["shell"]] = "shell"
+    plugin: ClassVar[str] = "shell"
     when_port_pattern: ClassVar[re.Pattern] = field(
         default=re.compile(r"\[(?P<opt>.*?){PORT(?P<sep_spec>\[sep=.+\])?::(?P<port>.+?)}\]"),
         repr=False,
@@ -735,7 +737,7 @@ def validate_executables(exes: ConfigIconExecutables) -> ConfigIconExecutables:
 
 @dataclass(kw_only=True)
 class ConfigIconTaskSpecs:
-    plugin: ClassVar[Literal["icon"]] = "icon"
+    plugin: ClassVar[str] = "icon"
     exe: Annotated[ConfigIconExecutables, AfterValidator(validate_executables)]
     runtime: Path | None = field(
         default=None,

@@ -2,6 +2,7 @@ cycles:
   - bimonthly_tasks [date: 2026-01-01 00:00:00+00:00]:
       tasks:
         - icon [foo: 0, bar: 3.0, date: 2026-01-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             sockets_per_node: 1
@@ -19,9 +20,9 @@ cycles:
                     - icon_output [foo: 0, bar: 3.0, date: 2026-01-01 00:00:00+00:00]
                   restart_out:
                     - icon_restart [foo: 0, bar: 3.0, date: 2026-01-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
         - icon [foo: 1, bar: 3.0, date: 2026-01-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             sockets_per_node: 1
@@ -39,9 +40,9 @@ cycles:
                     - icon_output [foo: 1, bar: 3.0, date: 2026-01-01 00:00:00+00:00]
                   restart_out:
                     - icon_restart [foo: 1, bar: 3.0, date: 2026-01-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
         - statistics_foo [bar: 3.0, date: 2026-01-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             sockets_per_node: 1
@@ -55,9 +56,9 @@ cycles:
                 outputs:
                   out:
                     - analysis_foo [bar: 3.0, date: 2026-01-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'python statistics.py {PORT::dummy}'
         - statistics_foo_bar [date: 2026-01-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             sockets_per_node: 1
@@ -70,11 +71,11 @@ cycles:
                 outputs:
                   out:
                     - analysis_foo_bar [date: 2026-01-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'python statistics.py {PORT::dummy}'
   - bimonthly_tasks [date: 2026-07-01 00:00:00+00:00]:
       tasks:
         - icon [foo: 0, bar: 3.0, date: 2026-07-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             sockets_per_node: 1
@@ -92,9 +93,9 @@ cycles:
                     - icon_output [foo: 0, bar: 3.0, date: 2026-07-01 00:00:00+00:00]
                   restart_out:
                     - icon_restart [foo: 0, bar: 3.0, date: 2026-07-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
         - icon [foo: 1, bar: 3.0, date: 2026-07-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             sockets_per_node: 1
@@ -112,9 +113,9 @@ cycles:
                     - icon_output [foo: 1, bar: 3.0, date: 2026-07-01 00:00:00+00:00]
                   restart_out:
                     - icon_restart [foo: 1, bar: 3.0, date: 2026-07-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
         - statistics_foo [bar: 3.0, date: 2026-07-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             sockets_per_node: 1
@@ -128,9 +129,9 @@ cycles:
                 outputs:
                   out:
                     - analysis_foo [bar: 3.0, date: 2026-07-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'python statistics.py {PORT::dummy}'
         - statistics_foo_bar [date: 2026-07-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             sockets_per_node: 1
@@ -143,11 +144,11 @@ cycles:
                 outputs:
                   out:
                     - analysis_foo_bar [date: 2026-07-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'python statistics.py {PORT::dummy}'
   - bimonthly_tasks [date: 2027-01-01 00:00:00+00:00]:
       tasks:
         - icon [foo: 0, bar: 3.0, date: 2027-01-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             sockets_per_node: 1
@@ -165,9 +166,9 @@ cycles:
                     - icon_output [foo: 0, bar: 3.0, date: 2027-01-01 00:00:00+00:00]
                   restart_out:
                     - icon_restart [foo: 0, bar: 3.0, date: 2027-01-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
         - icon [foo: 1, bar: 3.0, date: 2027-01-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             sockets_per_node: 1
@@ -185,9 +186,9 @@ cycles:
                     - icon_output [foo: 1, bar: 3.0, date: 2027-01-01 00:00:00+00:00]
                   restart_out:
                     - icon_restart [foo: 1, bar: 3.0, date: 2027-01-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
         - statistics_foo [bar: 3.0, date: 2027-01-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             sockets_per_node: 1
@@ -201,9 +202,9 @@ cycles:
                 outputs:
                   out:
                     - analysis_foo [bar: 3.0, date: 2027-01-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'python statistics.py {PORT::dummy}'
         - statistics_foo_bar [date: 2027-01-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             sockets_per_node: 1
@@ -216,11 +217,11 @@ cycles:
                 outputs:
                   out:
                     - analysis_foo_bar [date: 2027-01-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'python statistics.py {PORT::dummy}'
   - bimonthly_tasks [date: 2027-07-01 00:00:00+00:00]:
       tasks:
         - icon [foo: 0, bar: 3.0, date: 2027-07-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             sockets_per_node: 1
@@ -238,9 +239,9 @@ cycles:
                     - icon_output [foo: 0, bar: 3.0, date: 2027-07-01 00:00:00+00:00]
                   restart_out:
                     - icon_restart [foo: 0, bar: 3.0, date: 2027-07-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
         - icon [foo: 1, bar: 3.0, date: 2027-07-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             sockets_per_node: 1
@@ -258,9 +259,9 @@ cycles:
                     - icon_output [foo: 1, bar: 3.0, date: 2027-07-01 00:00:00+00:00]
                   restart_out:
                     - icon_restart [foo: 1, bar: 3.0, date: 2027-07-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'python icon.py [--restart {PORT::restart}] [--init {PORT::init}] --forcing {PORT::forcing}'
         - statistics_foo [bar: 3.0, date: 2027-07-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             sockets_per_node: 1
@@ -274,9 +275,9 @@ cycles:
                 outputs:
                   out:
                     - analysis_foo [bar: 3.0, date: 2027-07-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'python statistics.py {PORT::dummy}'
         - statistics_foo_bar [date: 2027-07-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             sockets_per_node: 1
@@ -289,11 +290,11 @@ cycles:
                 outputs:
                   out:
                     - analysis_foo_bar [date: 2027-07-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'python statistics.py {PORT::dummy}'
   - yearly [date: 2026-01-01 00:00:00+00:00]:
       tasks:
         - merge [date: 2026-01-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             sockets_per_node: 1
@@ -307,11 +308,11 @@ cycles:
                 outputs:
                   out:
                     - yearly_analysis [date: 2026-01-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'python merge.py {PORT::dummy}'
   - yearly [date: 2027-01-01 00:00:00+00:00]:
       tasks:
         - merge [date: 2027-01-01 00:00:00+00:00]:
+            plugin: 'shell'
             computer: 'remote'
             nodes: 1
             sockets_per_node: 1
@@ -325,5 +326,4 @@ cycles:
                 outputs:
                   out:
                     - yearly_analysis [date: 2027-01-01 00:00:00+00:00]
-            plugin: 'shell'
             command: 'python merge.py {PORT::dummy}'
