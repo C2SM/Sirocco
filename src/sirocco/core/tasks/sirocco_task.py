@@ -1,5 +1,6 @@
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import ClassVar, Literal
 
 from sirocco.core.graph_items import Task
@@ -22,7 +23,7 @@ class SiroccoContinueTask(models.ConfigSiroccoTaskSpecs, Task):
     name: str = "SIROCCO"
     computer: str = "dummy"
     rank: int = 0
-    config_filename: str
+    config_rootdir: Path
 
     def __post_init__(self) -> None:
         self.run_dir = self.config_rootdir
@@ -41,6 +42,6 @@ class SiroccoContinueTask(models.ConfigSiroccoTaskSpecs, Task):
         cmd: list[str] = ["sirocco"]
         if os.environ.get("NO_COLOR") == "1":
             cmd.append("--no-ansi")
-        cmd.append(f"continue --from_wf {self.config_filename} || exit")
+        cmd.append(f"continue --from_wf {self.config_rootdir} || exit")
         lines.append(" ".join(cmd))
         return lines

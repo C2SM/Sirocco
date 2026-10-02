@@ -25,9 +25,7 @@ def test_waiting_on(config_paths):
     task chaining (>>), so we test that the cleanup task's get_job_data has
     the expected number of dependencies.
     """
-    config_workflow = ConfigWorkflow.from_config_file(
-        str(config_paths["yml"]), template_context=config_paths["variables"]
-    )
+    config_workflow = ConfigWorkflow.from_config_path(config_paths["dir"], template_context=config_paths["variables"])
 
     core_workflow = Workflow.from_config_workflow(config_workflow)
     workgraph = build_sirocco_workgraph(core_workflow)
@@ -63,9 +61,7 @@ def test_waiting_on(config_paths):
 )
 def test_build_workgraph(config_paths):
     """Test that WorkGraph builds successfully with the new functional API."""
-    config_workflow = ConfigWorkflow.from_config_file(
-        str(config_paths["yml"]), template_context=config_paths["variables"]
-    )
+    config_workflow = ConfigWorkflow.from_config_path(config_paths["dir"], template_context=config_paths["variables"])
     core_workflow = Workflow.from_config_workflow(config_workflow)
 
     # Build the WorkGraph
@@ -103,9 +99,7 @@ def test_build_workgraph(config_paths):
 )
 def test_branch_independence_config(config_paths):
     """Test that branch independence workflow is configured correctly."""
-    config_workflow = ConfigWorkflow.from_config_file(
-        str(config_paths["yml"]), template_context=config_paths["variables"]
-    )
+    config_workflow = ConfigWorkflow.from_config_path(config_paths["dir"], template_context=config_paths["variables"])
     core_workflow = Workflow.from_config_workflow(config_workflow)
 
     # Build the WorkGraph (front_depth is read from config)

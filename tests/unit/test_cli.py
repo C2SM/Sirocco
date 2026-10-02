@@ -11,6 +11,7 @@ import pytest
 import typer.testing
 
 from sirocco.cli import app
+from sirocco.parsing import yaml_data_models as models
 
 
 @pytest.fixture
@@ -40,23 +41,26 @@ class TestCLICommands:
 
     @pytest.mark.parametrize("command", ["verify", "represent", "visualize", "run", "submit"])
     def test_command_with_nonexistent_workflow(self, runner, command):
-        """Test commands with nonexistent workflow files."""
-        result = runner.invoke(app, [command, "nonexistent.yml"])
+        """Test commands with nonexistent config dir."""
+        result = runner.invoke(app, [command, "nonexistent"])
         # typer's internal validation checks if the file exists, and if not, fails with exit code 2
         assert result.exit_code == 2
 
     @pytest.mark.parametrize("command", ["verify", "represent", "visualize", "run", "submit"])
     def test_command_empty_file(self, runner, command, tmp_path):
         """Test commands with empty file."""
-        empty_file = tmp_path / "empty.yml"
-        empty_file.write_text("")
+        empty_config = tmp_path / "empty_config"
+        empty_config.mkdir(exist_ok=True)
+        (empty_config / models.ConfigWorkflow._CONFIG_FILENAME).write_text("")
 
-        result = runner.invoke(app, [command, str(empty_file)])
+        result = runner.invoke(app, [command, empty_config])
         assert result.exit_code == 1
 
-    def test_verify_command_success(self, runner, minimal_config_path):
+    @pytest.mark.usefixtures("config_case")
+    @pytest.mark.parametrize("config_case",["small-shell"])
+    def test_verify_command_success(self, runner, config_paths):
         """Test the verify command with a valid workflow file."""
-        result = runner.invoke(app, ["verify", str(minimal_config_path)])
+        result = runner.invoke(app, ["verify", str(config_paths["dir"])])
 
         assert result.exit_code == 0
         assert "✅ Workflow definition is valid" in result.stdout

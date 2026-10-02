@@ -69,7 +69,6 @@ def minimal_config() -> models.ConfigWorkflow:
         name="minimal",
         scheduler="slurm",
         rootdir=pathlib.Path("minimal"),
-        config_filename="config.yml",
         cycles=[models.ConfigCycle(name="minimal", tasks=[models.ConfigCycleTask(name="some_task")])],
         tasks=[models.ConfigShellTask(name="some_task", command="some_command", computer="localhost")],
         data=models.ConfigData(
@@ -92,7 +91,6 @@ def minimal_invert_task_io_config() -> models.ConfigWorkflow:
         name="minimal",
         scheduler="slurm",
         rootdir=pathlib.Path("minimal"),
-        config_filename="config.yml",
         cycles=[
             models.ConfigCycle(
                 name="minimal",
@@ -155,7 +153,7 @@ def pprinter() -> pretty_print.PrettyPrinter:
 
 def generate_config_paths(test_case: str) -> dict[str, pathlib.Path]:
     return {
-        "yml": pathlib.Path(f"tests/cases/{test_case}/config/config.yml"),
+        "dir": pathlib.Path(f"tests/cases/{test_case}/config"),
         "txt": pathlib.Path(f"tests/cases/{test_case}/data/config.txt"),
         "svg": pathlib.Path(f"tests/cases/{test_case}/svg/config.svg"),
     }
@@ -177,7 +175,7 @@ def config_paths(config_case, tmp_path, test_rootdir) -> dict[str, pathlib.Path 
     # not be modified.
 
     # Load Jinja2 variables from vars.yml if it exists, otherwise start with empty dict
-    vars_file = tmp_path / f"tests/cases/{config_case}/config/vars.yml"
+    vars_file = tmp_path / f"tests/cases/{config_case}/config/sirocco_vars.yaml"
     if vars_file.exists():
         import yaml
 
@@ -236,8 +234,9 @@ def pytest_configure(config):
             for key, value in config_paths.items():
                 config_paths[key] = pathlib.Path(config.rootdir) / value
             # Use actual rootdir for workflow parsing (files must exist)
-            variables = {"TESTS_ROOTDIR": str(config.rootdir)}
-            wf = workflow.Workflow.from_config_file(str(config_paths["yml"]), template_context=variables)
+            wf = workflow.Workflow.from_config_path(
+                str(config_paths["dir"]), template_context={"TESTS_ROOTDIR": str(config.rootdir)}
+            )
             # Normalize paths in serialized output
             serialize_workflow(config_paths=config_paths, workflow=wf, rootdir=config.rootdir)
             serialize_nml(config_paths=config_paths, workflow=wf)
@@ -391,8 +390,9 @@ def minimal_config_path(tmp_path):
                 path: "d"
         """
     )
-    minimal = tmp_path / "minimal.yml"
-    minimal.write_text(minimal_config)
+    minimal: pathlib.Path = tmp_path / "minimal"
+    minimal.mkdir(exist_ok=True)
+    (minimal / models.ConfigWorkflow._CONFIG_FILENAME).write_text(minimal_config)
     return minimal
 
 

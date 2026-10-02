@@ -24,9 +24,8 @@ def test_shell_filenames_nodes_arguments(config_paths):
 
     from sirocco import core
 
-    config_workflow = ConfigWorkflow.from_config_file(
-        str(config_paths["yml"]), template_context=config_paths["variables"]
-    )
+    config_workflow = ConfigWorkflow.from_config_path(config_paths["dir"], template_context=config_paths["variables"])
+    print(config_paths["variables"])
 
     # Update the stop_date for both cycles to make the result shorter
     config_workflow.cycles[0].cycling.stop_date = datetime(2027, 1, 1, 0, 0, tzinfo=UTC)
@@ -89,8 +88,8 @@ def test_shell_filenames_nodes_arguments(config_paths):
     # Note: Script names are removed from arguments_template (stored in code separately)
     # Note: AvailableData uses actual paths, not placeholders
     # Note: Whitespace is normalized (empty ports collapse double spaces to single spaces)
-    initial_conditions_path = str(config_paths["yml"].parent / "data/initial_conditions")
-    forcing_path = str(config_paths["yml"].parent / "data/forcing")
+    initial_conditions_path = str(config_paths["dir"] / "data/initial_conditions")
+    forcing_path = str(config_paths["dir"] / "data/forcing")
 
     expected_arguments_list = [
         f"--init {initial_conditions_path} --forcing {forcing_path}",

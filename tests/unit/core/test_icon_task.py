@@ -15,7 +15,7 @@ from sirocco.core.tasks.icon_task import IconTask
 def test_nml_mod(config_paths, tmp_path):
     """Test ICON namelist generation from IconTask."""
     nml_refdir = config_paths["txt"].parent / "ICON_namelists"
-    wf = Workflow.from_config_file(config_paths["yml"], template_context=config_paths["variables"])
+    wf = Workflow.from_config_path(config_paths["dir"])
     # Create core namelists
     for task in wf.tasks:
         if isinstance(task, IconTask):
