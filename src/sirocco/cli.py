@@ -107,7 +107,6 @@ def verify(
     config_dir: Annotated[
         Path,
         typer.Argument(
-            ...,
             exists=True,
             file_okay=False,
             dir_okay=True,
@@ -136,7 +135,6 @@ def visualize(
     config_dir: Annotated[
         Path,
         typer.Argument(
-            ...,
             exists=True,
             file_okay=False,
             dir_okay=True,
@@ -195,7 +193,6 @@ def represent(
     config_dir: Annotated[
         Path,
         typer.Argument(
-            ...,
             exists=True,
             file_okay=False,
             dir_okay=True,
@@ -242,15 +239,15 @@ def start(
     config_dir: Annotated[
         Path,
         typer.Argument(
-            ...,
             exists=True,
             file_okay=False,
             dir_okay=True,
             readable=True,
             help="Path to the workflow definition YAML file.",
         ),
-    ],
-    cleanup: Annotated[  # noqa: FBT002
+    ] = Path("."),
+    *,
+    cleanup: Annotated[
         bool,
         typer.Option(
             "--cleanup",
@@ -290,7 +287,6 @@ def restart(
     config_dir: Annotated[
         Path,
         typer.Argument(
-            ...,
             exists=True,
             file_okay=False,
             dir_okay=True,
@@ -322,7 +318,6 @@ def stop(
     config_dir: Annotated[
         Path,
         typer.Argument(
-            ...,
             exists=True,
             file_okay=False,
             dir_okay=True,
@@ -330,7 +325,8 @@ def stop(
             help="Path to the workflow definition YAML file.",
         ),
     ] = Path("."),
-    cool_down: Annotated[  # noqa: FBT002
+    *,
+    cool_down: Annotated[
         bool,
         typer.Option(
             "--cool-down",
@@ -363,7 +359,6 @@ def continue_wf(
     config_dir: Annotated[
         Path,
         typer.Argument(
-            ...,
             exists=True,
             file_okay=False,
             dir_okay=True,
@@ -371,7 +366,8 @@ def continue_wf(
             help="Path to the workflow definition YAML file.",
         ),
     ] = Path("."),
-    from_wf: Annotated[  # noqa: FBT002
+    *,
+    from_wf: Annotated[
         bool,
         typer.Option(
             "--from_wf",
@@ -405,7 +401,6 @@ def stviz(
     config_dir: Annotated[
         Path,
         typer.Argument(
-            ...,
             exists=True,
             file_okay=False,
             dir_okay=True,
@@ -507,7 +502,6 @@ def run(
     config_dir: Annotated[
         Path,
         typer.Argument(
-            ...,
             exists=True,
             file_okay=False,
             dir_okay=True,
@@ -542,7 +536,6 @@ def submit(
     config_dir: Annotated[
         Path,
         typer.Argument(
-            ...,
             exists=True,
             file_okay=False,
             dir_okay=True,
