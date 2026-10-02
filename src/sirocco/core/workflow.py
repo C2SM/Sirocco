@@ -9,7 +9,6 @@ import subprocess
 from colorsys import hls_to_rgb
 from datetime import datetime
 from itertools import chain, product
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Self, assert_never
 
 from ruamel.yaml import YAML
@@ -28,6 +27,7 @@ from sirocco.parsing.yaml_data_models import (
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+    from pathlib import Path
 
     from sirocco.parsing.cycling import CyclePoint
     from sirocco.parsing.yaml_data_models import (
@@ -85,7 +85,6 @@ class Workflow:
         self,
         name: str,
         config_rootdir: Path,
-        config_filename: str,
         scheduler: Scheduler,
         config_cycles: list[ConfigCycle],
         config_tasks: list[ConfigTask],
@@ -93,12 +92,9 @@ class Workflow:
         front_depth: int,
         parameters: dict[str, list],
         config_sirocco_task: ConfigSiroccoTask | None = None,
-        resolved_config_path: str | None = None,
     ) -> None:
         self.name: str = name
         self._config_rootdir: Path = config_rootdir
-        self.config_filename = config_filename
-        self.resolved_config_path = resolved_config_path
         self.scheduler = scheduler
         self.front_depth = front_depth
         self.front: list[list[Task]] = [[] for _ in range(self.front_depth)]
@@ -188,7 +184,6 @@ class Workflow:
             coordinates={},
             cycle_point=OneOffPoint(),
             config_rootdir=self.config_rootdir,
-            config_filename=self.config_filename,
             parents=[],
             base_env=self.base_env,
             **config_kwargs,
@@ -501,32 +496,21 @@ class Workflow:
         return env_dict
 
     @classmethod
-    def from_config_file(
+    def from_config_path(
         cls: type[Self],
         config_path: str | Path,
-        template_context: dict[str, Any] | str | Path | None = None,
+        template_context: dict[str, Any] | None = None,
     ) -> Self:
         """Load workflow from a config file.
 
         Args:
             config_path: Path to the config YAML file
-            template_context: Either a dict of inline context variables, path to a variables file, or None
+            template_context: dict of inline context variables or None
 
         Returns:
             Workflow instance
         """
-        if isinstance(template_context, dict):
-            # Inline context dict (for tests/programmatic use)
-            return cls.from_config_workflow(
-                ConfigWorkflow.from_config_file(config_path, template_context=template_context)
-            )
-        if isinstance(template_context, (str, Path)):
-            # Path to variables file (file-based approach)
-            return cls.from_config_workflow(
-                ConfigWorkflow.from_config_file(config_path, jinja_vars_file_path=template_context)
-            )
-        # No context
-        return cls.from_config_workflow(ConfigWorkflow.from_config_file(config_path))
+        return cls.from_config_workflow(ConfigWorkflow.from_config_path(config_path, template_context=template_context))
 
     @classmethod
     def from_config_str(
@@ -563,7 +547,6 @@ class Workflow:
         return cls(
             name=config_workflow.name,
             config_rootdir=config_workflow.rootdir,
-            config_filename=config_workflow.config_filename,
             scheduler=Scheduler.create(config_workflow.scheduler),
             config_cycles=config_workflow.cycles,
             config_tasks=config_workflow.tasks,
@@ -571,5 +554,4 @@ class Workflow:
             parameters=config_workflow.parameters,
             front_depth=config_workflow.front_depth,
             config_sirocco_task=sirocco_task_config,
-            resolved_config_path=config_workflow.resolved_config_path,
         )

@@ -26,6 +26,7 @@ from sirocco.engines.aiida.task_pairs import (
     LAUNCHER_PREFIX,
     TaskPairContext,
 )
+from sirocco.parsing.yaml_data_models import ConfigWorkflow
 
 if TYPE_CHECKING:
     from sirocco.engines.aiida.models import (
@@ -60,8 +61,7 @@ def build_sirocco_workgraph(
         ValueError: If workflow cannot run on AiiDA (e.g., missing computers, invalid labels)
 
     Note:
-        The resolved config path (for provenance) is read from core_workflow.resolved_config_path
-        and will be stored in the WorkGraph extras.
+        The resolved config path will be stored in the WorkGraph extras for provenance.
 
         The front_depth configuration (number of topological levels to keep active) is read from
         core_workflow.front_depth:
@@ -96,7 +96,7 @@ class WorkGraphBuilder:
 
     Attributes:
         workflow: Core workflow to convert
-        resolved_config_path: Path to resolved config file (read from workflow.resolved_config_path).
+        resolved_config_path: Path to resolved config file.
             This is purely for provenance, to store the config with the workflow.
         data_nodes: Maps data labels to AiiDA nodes
         shell_specs: Pre-computed shell task specifications
@@ -106,7 +106,7 @@ class WorkGraphBuilder:
 
     def __init__(self, core_workflow: core.Workflow):
         self.workflow = core_workflow
-        self.resolved_config_path = core_workflow.resolved_config_path
+        self.resolved_config_path = core_workflow.config_rootdir / ConfigWorkflow._CONFIG_RESOLVED_FILENAME
 
         # Pre-computed static configuration
         self.data_nodes: dict[str, FileNode] = {}

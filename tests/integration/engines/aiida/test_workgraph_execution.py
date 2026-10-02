@@ -75,7 +75,7 @@ def test_branch_independence_with_front_depths(config_paths, front_depth):
 
     # Build and run the workflow with specified front_depth
     LOGGER.info("Building workflow from config")
-    core_workflow = Workflow.from_config_file(str(config_paths["yml"]), template_context=config_paths["variables"])
+    core_workflow = Workflow.from_config_path(str(config_paths["dir"]))
     core_workflow.front_depth = front_depth
     workgraph = build_sirocco_workgraph(core_workflow)
     LOGGER.info("WorkGraph built with %s tasks", len(workgraph.tasks))
@@ -163,9 +163,7 @@ def test_branch_independence_with_front_depths(config_paths, front_depth):
 @pytest.mark.usefixtures("config_case", "aiida_localhost", "aiida_remote_computer")
 @pytest.mark.parametrize(
     "config_case",
-    [
-        "dynamic-simple",  # Use dynamic-simple path for complex config
-    ],
+    ["dynamic-complex"],
 )
 def test_complex_workflow_with_cross_dependencies(config_paths):
     """Integration test for complex workflow with 3 branches and cross-dependencies.
@@ -209,15 +207,11 @@ def test_complex_workflow_with_cross_dependencies(config_paths):
     LOGGER.info("=" * 80)
 
     # Use config_complex.yml instead of config.yml
-    config_dir = Path(config_paths["yml"]).parent
-    complex_config_path = config_dir / "config_complex.yml"
-
-    if not complex_config_path.exists():
-        pytest.skip(f"Complex config not found: {complex_config_path}")
+    complex_config_path = Path(config_paths["dir"])
 
     # Build and run the workflow
     LOGGER.info("Building workflow from %s", complex_config_path)
-    core_workflow = Workflow.from_config_file(str(complex_config_path))
+    core_workflow = Workflow.from_config_path(str(complex_config_path))
     workgraph = build_sirocco_workgraph(core_workflow)
     LOGGER.info("WorkGraph built with %s tasks", len(workgraph.tasks))
 
@@ -350,7 +344,7 @@ def test_run_workgraph(config_paths):
     Automatically uses the aiida_profile fixture to create a new profile. Note to debug the test with your profile
     please run this in a separate file as the profile is deleted after test finishes.
     """
-    core_workflow = Workflow.from_config_file(str(config_paths["yml"]), template_context=config_paths["variables"])
+    core_workflow = Workflow.from_config_path(str(config_paths["dir"]))
     workgraph = build_sirocco_workgraph(core_workflow)
     workgraph.run()
     output_node = workgraph.process

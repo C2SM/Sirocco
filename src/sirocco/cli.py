@@ -104,28 +104,25 @@ class CmdStatus:
 
 @app.command()
 def verify(
-    workflow_file: Annotated[
+    config_dir: Annotated[
         Path,
         typer.Argument(
             ...,
             exists=True,
-            file_okay=True,
-            dir_okay=False,
+            file_okay=False,
+            dir_okay=True,
             readable=True,
             help="Path to the workflow definition YAML file.",
         ),
-    ],
+    ] = Path("."),
 ):
     """
     Validate the workflow definition file for syntax and basic consistency.
-
-    Note: This validates the template syntax without variable substitution.
-    Use 'sirocco resolve' to render templates with variables.
     """
-    console.print(f"🔍 Verifying workflow file: [cyan]{workflow_file!s}[/cyan]")
+    console.print(f"🔍 Verifying workflow file: [cyan]{config_dir!s}[/cyan]")
     try:
         # Attempt to load and validate the configuration
-        parsing.ConfigWorkflow.from_config_file(str(workflow_file))
+        parsing.ConfigWorkflow.from_config_path(config_dir)
         console.print("[green]✅ Workflow definition is valid.[/green]")
     except Exception as e:
         console.print("[bold red]❌ Workflow validation failed:[/bold red]")
@@ -135,131 +132,26 @@ def verify(
 
 
 @app.command()
-def resolve(
-    workflow_file: Annotated[
-        Path,
-        typer.Argument(
-            ...,
-            exists=True,
-            file_okay=True,
-            dir_okay=False,
-            readable=True,
-            help="Path to the workflow definition YAML file.",
-        ),
-    ],
-    jinja_vars_file: Annotated[
-        Path | None,
-        typer.Option(
-            "--jinja-vars-file",
-            "-v",
-            exists=True,
-            file_okay=True,
-            dir_okay=False,
-            readable=True,
-            help="Path to variables file for Jinja2 templating. If not specified, auto-detects vars.yml/vars.yaml.",
-        ),
-    ] = None,
-    output_file: Annotated[
-        Path | None,
-        typer.Option(
-            "--output",
-            "-o",
-            writable=True,
-            file_okay=True,
-            dir_okay=False,
-            help="Output file path. If not specified, prints to stdout.",
-        ),
-    ] = None,
-):
-    """
-    Render Jinja2 template variables in workflow config file.
-
-    This command resolves all Jinja2 template variables ({{ var }}) in the workflow
-    configuration file and outputs the fully rendered YAML.
-
-    Variables are loaded from:
-    1. Explicitly specified --jinja-vars-file, or
-    2. Auto-detected vars.yml/vars.yaml in the same directory
-
-    Examples:
-        # Render to stdout
-        sirocco resolve config.yml
-
-        # Use custom variables file
-        sirocco resolve config.yml --jinja-vars-file custom_vars.yml
-
-        # Save to file
-        sirocco resolve config.yml -o config.resolved.yml
-    """
-    from pathlib import Path
-
-    from sirocco.parsing.yaml_data_models import JinjaResolver
-
-    console.print(f"🔧 Resolving template in: [cyan]{workflow_file!s}[/cyan]")
-    if jinja_vars_file:
-        console.print(f"   Using variables from: [cyan]{jinja_vars_file!s}[/cyan]")
-
-    # Validate input file
-    config_resolved_path = Path(workflow_file).resolve()
-    if not config_resolved_path.exists():
-        console.print(f"[bold red]❌ File not found: {config_resolved_path}[/bold red]")
-        raise typer.Exit(code=1)
-
-    content = config_resolved_path.read_text()
-    if content == "":
-        console.print(f"[bold red]❌ File is empty: {config_resolved_path}[/bold red]")
-        raise typer.Exit(code=1)
-
-    try:
-        # Render Jinja2 template
-        resolver = JinjaResolver()
-
-        # Load variables from file (if any)
-        context = resolver.load_variables_from_file(
-            config_resolved_path, Path(jinja_vars_file) if jinja_vars_file else None
-        )
-
-        # Render the template
-        rendered_content = resolver.render(content, context)
-
-        # Output to file or stdout
-        if output_file:
-            output_path = Path(output_file)
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            output_path.write_text(rendered_content)
-            console.print(f"[green]✅ Resolved config written to:[/green] [cyan]{output_path.resolve()}[/cyan]")
-        else:
-            # Print to stdout
-            console.print("\n[bold]Resolved configuration:[/bold]")
-            console.print(rendered_content)
-
-    except Exception as e:
-        console.print("[bold red]❌ Template resolution failed:[/bold red]")
-        console.print_exception()
-        raise typer.Exit(code=1) from e
-
-
-@app.command()
 def visualize(
-    workflow_file: Annotated[
+    config_dir: Annotated[
         Path,
         typer.Argument(
             ...,
             exists=True,
-            file_okay=True,
-            dir_okay=False,
+            file_okay=False,
+            dir_okay=True,
             readable=True,
             help="Path to the workflow definition YAML file.",
         ),
-    ],
+    ] = Path("."),
     output_file: Annotated[
         Path | None,
         typer.Option(
             "--output",
             "-o",
             writable=True,
-            file_okay=True,
-            dir_okay=False,
+            file_okay=False,
+            dir_okay=True,
             help="Optional path to save the output SVG file.",
         ),
     ] = None,
@@ -270,10 +162,10 @@ def visualize(
     Note: Uses auto-detected vars.yml/vars.yaml if present.
     Use 'sirocco resolve' first if you need custom variable substitution.
     """
-    console.print(f"📊 Visualizing workflow from: [cyan]{workflow_file!s}[/cyan]")
+    console.print(f"📊 Visualizing workflow from: [cyan]{config_dir!s}[/cyan]")
     try:
         # Load configuration
-        config_workflow = parsing.ConfigWorkflow.from_config_file(str(workflow_file))
+        config_workflow = parsing.ConfigWorkflow.from_config_path(config_dir)
 
         # Create the core workflow representation (unrolls parameters/cycles)
         core_workflow = core.Workflow.from_config_workflow(config_workflow)
@@ -282,7 +174,7 @@ def visualize(
         viz_graph = vizgraph.VizGraph.from_core_workflow(core_workflow)
 
         # Determine output path
-        output_path = workflow_file.parent / f"{core_workflow.name}.svg" if output_file is None else output_file
+        output_path = config_dir.parent / f"{core_workflow.name}.svg" if output_file is None else output_file
 
         # Ensure the output directory exists
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -300,17 +192,17 @@ def visualize(
 
 @app.command()
 def represent(
-    workflow_file: Annotated[
+    config_dir: Annotated[
         Path,
         typer.Argument(
             ...,
             exists=True,
-            file_okay=True,
-            dir_okay=False,
+            file_okay=False,
+            dir_okay=True,
             readable=True,
             help="Path to the workflow definition YAML file.",
         ),
-    ],
+    ] = Path("."),
 ):
     """
     Display the text representation of the unrolled workflow graph.
@@ -318,9 +210,9 @@ def represent(
     Note: Uses auto-detected vars.yml/vars.yaml if present.
     Use 'sirocco resolve' first if you need custom variable substitution.
     """
-    console.print(f"📄 Representing workflow from: [cyan]{workflow_file}[/cyan]")
+    console.print(f"📄 Representing workflow from: [cyan]{config_dir}[/cyan]")
     try:
-        config_workflow = parsing.ConfigWorkflow.from_config_file(str(workflow_file))
+        config_workflow = parsing.ConfigWorkflow.from_config_path(config_dir)
         core_workflow = core.Workflow.from_config_workflow(config_workflow)
 
         printer = pretty_print.PrettyPrinter(colors=False)
@@ -347,13 +239,13 @@ def add_now(width: int = 25) -> str:
 
 @app.command(help=" [standalone] Start a workflow.")
 def start(
-    workflow_file: Annotated[
+    config_dir: Annotated[
         Path,
         typer.Argument(
             ...,
             exists=True,
-            file_okay=True,
-            dir_okay=False,
+            file_okay=False,
+            dir_okay=True,
             readable=True,
             help="Path to the workflow definition YAML file.",
         ),
@@ -366,7 +258,7 @@ def start(
         ),
     ] = False,
 ):
-    wf = core.Workflow.from_config_file(workflow_file)
+    wf = core.Workflow.from_config_path(config_dir)
     if cleanup:
         # Do it here oterwise the first few lines disappear from the log
         (wf.config_rootdir / SiroccoContinueTask.STDOUTERR_FILENAME).unlink(missing_ok=True)
@@ -395,19 +287,19 @@ def start(
 
 @app.command(help="[standalone] Restart a stopped workflow.")
 def restart(
-    workflow_file: Annotated[
+    config_dir: Annotated[
         Path,
         typer.Argument(
             ...,
             exists=True,
-            file_okay=True,
-            dir_okay=False,
+            file_okay=False,
+            dir_okay=True,
             readable=True,
             help="Path to the workflow definition YAML file.",
         ),
-    ],
+    ] = Path("."),
 ):
-    wf = core.Workflow.from_config_file(workflow_file)
+    wf = core.Workflow.from_config_path(config_dir)
     tee_console = log_console(wf)
     tee_console.print(add_now())
     tee_console.print(f"{CmdStatus.PLAY} Restarting workflow at {wf.config_rootdir} ...")
@@ -427,17 +319,17 @@ def restart(
 
 @app.command(help="[standalone] Stop a workflow.")
 def stop(
-    workflow_file: Annotated[
+    config_dir: Annotated[
         Path,
         typer.Argument(
             ...,
             exists=True,
-            file_okay=True,
-            dir_okay=False,
+            file_okay=False,
+            dir_okay=True,
             readable=True,
             help="Path to the workflow definition YAML file.",
         ),
-    ],
+    ] = Path("."),
     cool_down: Annotated[  # noqa: FBT002
         bool,
         typer.Option(
@@ -446,7 +338,7 @@ def stop(
         ),
     ] = False,
 ):
-    wf = core.Workflow.from_config_file(workflow_file)
+    wf = core.Workflow.from_config_path(config_dir)
     tee_console = log_console(wf)
     tee_console.print(add_now())
     msg = f"{CmdStatus.PLAY} Stopping workflow at {wf.config_rootdir}"
@@ -468,17 +360,17 @@ def stop(
 
 @app.command(name="continue", hidden=True)
 def continue_wf(
-    workflow_file: Annotated[
+    config_dir: Annotated[
         Path,
         typer.Argument(
             ...,
             exists=True,
-            file_okay=True,
-            dir_okay=False,
+            file_okay=False,
+            dir_okay=True,
             readable=True,
             help="Path to the workflow definition YAML file.",
         ),
-    ],
+    ] = Path("."),
     from_wf: Annotated[  # noqa: FBT002
         bool,
         typer.Option(
@@ -492,7 +384,7 @@ def continue_wf(
     if not from_wf:
         msg = "Do not use interactively, the continue command is reserved for internal use"
         raise ValueError(msg)
-    wf = core.Workflow.from_config_file(workflow_file)
+    wf = core.Workflow.from_config_path(config_dir)
     std_console.print(f"{CmdStatus.PLAY} Continue workflow ...")
     try:
         wf.continue_wf()
@@ -510,21 +402,21 @@ def continue_wf(
 
 @app.command(help="[standalone] Visualize workflow status.")
 def stviz(
-    workflow_file: Annotated[
+    config_dir: Annotated[
         Path,
         typer.Argument(
             ...,
             exists=True,
-            file_okay=True,
-            dir_okay=False,
+            file_okay=False,
+            dir_okay=True,
             readable=True,
             help="Path to the workflow definition YAML file.",
         ),
-    ],
+    ] = Path("."),
 ):
-    console.print(f"{CmdStatus.PLAY} Visualizing workflow status from: [cyan]{workflow_file!s}[/cyan]")
+    console.print(f"{CmdStatus.PLAY} Visualizing workflow status from: [cyan]{config_dir!s}[/cyan]")
     try:
-        wf = core.Workflow.from_config_file(workflow_file)
+        wf = core.Workflow.from_config_path(config_dir)
         wf.load_state()
         viz_graph = vizgraph.VizGraph.from_status_workflow(wf)
         viz_graph.draw(file_path=Path("./status.svg"))
@@ -554,16 +446,14 @@ def patch_aiida() -> None:
 
 
 def _create_aiida_workflow(
-    workflow_file: Path,
-    jinja_vars_file: Path | None = None,
+    config_dir: Path,
 ) -> tuple[core.Workflow, "WorkGraph"]:
     """Load workflow file and build WorkGraph.
 
     Uses configuration from config.yml (single source of truth).
 
     Args:
-        workflow_file: Path to workflow configuration file
-        jinja_vars_file: Optional path to variables file for Jinja2 templating
+        config_dir: Path to workflow configuration file
 
     Returns:
         Tuple of (core_workflow, aiida_workgraph)
@@ -574,10 +464,7 @@ def _create_aiida_workflow(
     from sirocco.engines.aiida import build_sirocco_workgraph
 
     load_profile()
-    config_workflow = parsing.ConfigWorkflow.from_config_file(
-        str(workflow_file),
-        jinja_vars_file_path=str(jinja_vars_file) if jinja_vars_file else None,
-    )
+    config_workflow = parsing.ConfigWorkflow.from_config_path(str(config_dir))
 
     core_wf = core.Workflow.from_config_workflow(config_workflow)
     wg = build_sirocco_workgraph(core_wf)
@@ -585,16 +472,14 @@ def _create_aiida_workflow(
 
 
 def create_aiida_workflow(
-    workflow_file: Path,
-    jinja_vars_file: Path | None = None,
+    config_dir: Path,
 ) -> tuple[core.Workflow, "WorkGraph"]:
     """Helper to prepare WorkGraph from workflow file.
 
     Uses configuration from config.yml (single source of truth).
 
     Args:
-        workflow_file: Path to workflow configuration file
-        jinja_vars_file: Optional path to variables file for Jinja2 templating
+        config_dir: Path to workflow configuration file
 
     Returns:
         Tuple of (core_workflow, aiida_workgraph)
@@ -603,7 +488,7 @@ def create_aiida_workflow(
     from aiida.common import ProfileConfigurationError
 
     try:
-        core_wf, wg = _create_aiida_workflow(workflow_file=workflow_file, jinja_vars_file=jinja_vars_file)
+        core_wf, wg = _create_aiida_workflow(config_dir=config_dir)
         console.print(f"⚙️ Workflow [magenta]'{wg.name}'[/magenta] prepared for AiiDA execution.")
         return core_wf, wg  # noqa: TRY300 | try-consider-else -> shouldn't move this to `else` block
     except ProfileConfigurationError as e:
@@ -619,40 +504,25 @@ def create_aiida_workflow(
 
 @app.command(help="[AiiDA] Run the workflow in a blocking fashion.")
 def run(
-    workflow_file: Annotated[
+    config_dir: Annotated[
         Path,
         typer.Argument(
             ...,
             exists=True,
-            file_okay=True,
-            dir_okay=False,
+            file_okay=False,
+            dir_okay=True,
             readable=True,
             help="Path to the workflow definition YAML file.",
         ),
-    ],
-    jinja_vars_file: Annotated[
-        Path | None,
-        typer.Option(
-            "--jinja-vars-file",
-            "-v",
-            exists=True,
-            file_okay=True,
-            dir_okay=False,
-            readable=True,
-            help="Path to variables file for Jinja2 templating. If not specified, auto-detects vars.yml/vars.yaml.",
-        ),
-    ] = None,
+    ] = Path("."),
 ):
     patch_aiida()
 
     # Load config and use values from config.yml (single source of truth)
-    config_workflow = parsing.ConfigWorkflow.from_config_file(
-        str(workflow_file),
-        jinja_vars_file_path=str(jinja_vars_file) if jinja_vars_file else None,
-    )
+    config_workflow = parsing.ConfigWorkflow.from_config_path(str(config_dir))
     front_depth = config_workflow.front_depth
 
-    core_wf, wg = create_aiida_workflow(workflow_file, jinja_vars_file)
+    core_wf, wg = create_aiida_workflow(config_dir)
     console.print(f"▶️ Running workflow [magenta]'{core_wf.name}'[/magenta] directly (blocking)...")
     if front_depth == 1:
         console.print("   Without pre-submission (front_depth=1)")
@@ -669,42 +539,27 @@ def run(
 
 @app.command(help="[AiiDA] Submit the workflow to the AiiDA daemon.")
 def submit(
-    workflow_file: Annotated[
+    config_dir: Annotated[
         Path,
         typer.Argument(
             ...,
             exists=True,
-            file_okay=True,
-            dir_okay=False,
+            file_okay=False,
+            dir_okay=True,
             readable=True,
             help="Path to the workflow definition YAML file.",
         ),
-    ],
-    jinja_vars_file: Annotated[
-        Path | None,
-        typer.Option(
-            "--jinja-vars-file",
-            "-v",
-            exists=True,
-            file_okay=True,
-            dir_okay=False,
-            readable=True,
-            help="Path to variables file for Jinja2 templating. If not specified, auto-detects vars.yml/vars.yaml.",
-        ),
-    ] = None,
+    ] = Path("."),
 ):
     """Submit the workflow to the AiiDA daemon."""
 
     patch_aiida()
 
     # Load config and use values from config.yml (single source of truth)
-    config_workflow = parsing.ConfigWorkflow.from_config_file(
-        str(workflow_file),
-        jinja_vars_file_path=str(jinja_vars_file) if jinja_vars_file else None,
-    )
+    config_workflow = parsing.ConfigWorkflow.from_config_path(str(config_dir))
     front_depth = config_workflow.front_depth
 
-    core_wf, wg = create_aiida_workflow(workflow_file, jinja_vars_file)
+    core_wf, wg = create_aiida_workflow(config_dir)
     try:
         console.print(f"🚀 Submitting workflow [magenta]'{core_wf.name}'[/magenta] to AiiDA daemon...")
         if front_depth == 1:
