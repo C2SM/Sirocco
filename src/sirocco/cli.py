@@ -234,7 +234,7 @@ def add_now(width: int = 25) -> str:
     return "\n".join([f"{space}╭{date_rule}╮", f"{rule}┤ {date_str} ├{rule}", f"{space}╰{date_rule}╯"])
 
 
-@app.command(help=" [standalone] Start a workflow.")
+@app.command(help="\\[Standalone] Start a workflow.")
 def start(
     config_dir: Annotated[
         Path,
@@ -282,7 +282,7 @@ def start(
         raise typer.Exit(code=1) from e
 
 
-@app.command(help="[standalone] Restart a stopped workflow.")
+@app.command(help="\\[Standalone] Restart a stopped workflow.")
 def restart(
     config_dir: Annotated[
         Path,
@@ -313,7 +313,7 @@ def restart(
         raise typer.Exit(code=1) from e
 
 
-@app.command(help="[standalone] Stop a workflow.")
+@app.command(help="\\[Standalone] Stop a workflow.")
 def stop(
     config_dir: Annotated[
         Path,
@@ -396,7 +396,7 @@ def continue_wf(
         raise typer.Exit(code=1) from e
 
 
-@app.command(help="[standalone] Visualize workflow status.")
+@app.command(help="\\[Standalone] Visualize workflow status.")
 def stviz(
     config_dir: Annotated[
         Path,
@@ -497,7 +497,7 @@ def create_aiida_workflow(
         raise typer.Exit(code=1) from e
 
 
-@app.command(help="[AiiDA] Run the workflow in a blocking fashion.")
+@app.command(help="\\[AiiDA] Run the workflow in a blocking fashion.")
 def run(
     config_dir: Annotated[
         Path,
@@ -531,7 +531,7 @@ def run(
         raise typer.Exit(code=1) from e
 
 
-@app.command(help="[AiiDA] Submit the workflow to the AiiDA daemon.")
+@app.command(help="\\[AiiDA] Submit the workflow to the AiiDA daemon.")
 def submit(
     config_dir: Annotated[
         Path,
