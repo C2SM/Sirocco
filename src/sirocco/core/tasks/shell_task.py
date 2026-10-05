@@ -34,11 +34,12 @@ class ShellTask(models.ConfigShellTaskSpecs, Task):
         return self
 
     def __post_init__(self) -> None:
+        super().__post_init__()
         if self.src is None:
             return
-        src_path = self.config_rootdir / self.src
-        if not src_path.exists():
-            msg = f"{self.label}: src not found at {src_path}, must be a path relative to the config dir."
+        self.src = self.config_rootdir / self.src
+        if not self.src.exists():
+            msg = f"{self.label}: src not found at {self.src}, must be a path relative to the config dir."
             raise FileNotFoundError(msg)
 
     @property
