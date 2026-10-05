@@ -430,6 +430,12 @@ class ConfigShellTaskSpecs:
             './my_script --input input_1 --input input_2 --input input_3'
 
             >>> task_specs = ConfigShellTaskSpecs(
+            ...     command="./my_script --input={PORT[sep= --input=]::repeat_input}"
+            ... )
+            >>> task_specs.resolve_ports({"repeat_input": ["input_1", "input_2", "input_3"]})
+            './my_script --input=input_1 --input=input_2 --input=input_3'
+
+            >>> task_specs = ConfigShellTaskSpecs(
             ...     command="./my_script [--when_opt {PORT::when_input}] --input {PORT[sep= --input ]::repeat_input}"
             ... )
             >>> task_specs.resolve_ports(
@@ -449,6 +455,7 @@ class ConfigShellTaskSpecs:
             ...     {"when_input": [], "repeat_input": ["input_1", "input_2", "input_3"]}
             ... )
             './my_script --input input_1 --input input_2 --input input_3'
+
             >>> task_specs = ConfigShellTaskSpecs(
             ...     command="./my_script [--when_opt_1 {PORT::when_input_1}] [--when_opt_2 {PORT::when_input_2}]"
             ... )

@@ -39,7 +39,7 @@ parameters:
 
 **type**: string
 <br>
-**possible values**: `"slurm"`
+**choices**: `"slurm"`
 <br>
 **required** for the standalone engine
 <br>
@@ -49,7 +49,7 @@ parameters:
 
 **type**: integer
 <br>
-**possible values**: $\geq 1$
+**choices**: $\geq 1$
 <br>
 **default**: `2`
 <br>
