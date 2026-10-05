@@ -3,6 +3,13 @@ title: Cycles
 icon: lucide/refresh-cw
 ---
 
+<!-- Cap headersize to 0.8rem for this page. Otherwise specifications like `target_cycle` don't read well -->
+<style>
+h4, h5, h6 {
+  font-size: 0.8rem !important;
+}
+</style>
+
 # Cycles
 
 Sirocco represents workflows as [directed acyclic graphs :lucide-external-link:](https://en.wikipedia.org/wiki/Directed_acyclic_graph), like the one displayed below, where nodes are instances of a task or a piece of data. Their **content**, _e.g._ task scripts or data path, is declared in the dedicated [`tasks`](tasks) and [`data`](data) sections while the current `cylces` section is only concerned with the **graph topology**, _i.e._ the relationships between the nodes. Yet, each mention of them, as well as potential [parameters](parameters), must refer to a declared counterpart.
@@ -176,7 +183,7 @@ cycles:
 
 #### Ports
 
-In all generality, from a task perspective, linking a piece of data as an input or an output is not sufficient to be able to use it unambiguously. In some cases, the data path might contain enough information to do so but it is not guaranteed. The missing piece of information is the role that this piece (potentially these pieces) of data plays for that specific task, which is what the **port** concept introduces. Ports are indeed specified as mappings between a role, the port name,  and a sequence of associated pieces of data. For instance, in [the example](#example), the `inputs` section for the task `model` is composed of 3 ports: `init`, `bc` and `restart_in`. Together with the inclusion of data as proper graph nodes, ports thus make Sirocco workflows truly composable, in that no task needs to make assumptions on the behavior of others, essentially which piece of data is written where.
+In all generality, from a task perspective, linking a piece of data as an input or an output is not sufficient to be able to use it unambiguously. In some cases, the data path might contain enough information to do so but it is not guaranteed. The missing piece of information is the role that this piece (potentially these pieces) of data plays for that specific task, which is what the **port** concept introduces. Ports are indeed specified as mappings between a role, the port name,  and a sequence of associated pieces of data. For instance, in [the example](#example), the `inputs` section for the task `model` is composed of 3 ports: `init`, `bc` and `restart_in`. They can also be understood as a formal equivalent of command line arguments.  Together with the inclusion of data as proper graph nodes, ports thus make Sirocco workflows truly composable, in that no task needs to make assumptions on the behavior of others, essentially which piece of data is written where.
 
 #### `inputs`
 

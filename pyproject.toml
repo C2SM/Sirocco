@@ -89,7 +89,10 @@ log_cli = true
 log_cli_level = "ERROR"
 log_cli_format = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 addopts = "--pdbcls=IPython.terminal.debugger:TerminalPdb"
-norecursedirs = "tests/cases"
+norecursedirs = [
+  "tests/cases",
+  "docs"
+]
 markers = [
   "slow: slow integration tests which are not recommended to run locally for normal development",
   "requires_icon: marks test to require icon installation"
