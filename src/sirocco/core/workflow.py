@@ -94,7 +94,7 @@ class Workflow:
         config_sirocco_task: ConfigSiroccoTask | None = None,
     ) -> None:
         self.name: str = name
-        self._config_rootdir: Path = config_rootdir
+        self.config_rootdir: Path = config_rootdir
         self.scheduler = scheduler
         self.front_depth = front_depth
         self.front: list[list[Task]] = [[] for _ in range(self.front_depth)]
@@ -147,7 +147,7 @@ class Workflow:
                             raise TypeError(msg)
                         task = Task.from_config(
                             config=task_config,
-                            config_rootdir=self._config_rootdir,
+                            config_rootdir=self.config_rootdir,
                             cycle_point=cycle_point,
                             coordinates=coordinates,
                             datastore=self.data,
@@ -188,10 +188,6 @@ class Workflow:
             base_env=self.base_env,
             **config_kwargs,
         )
-
-    @property
-    def config_rootdir(self) -> Path:
-        return self._config_rootdir
 
     @property
     def rundir(self) -> Path:
