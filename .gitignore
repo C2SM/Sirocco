@@ -4,7 +4,7 @@ tests/cases/*/svg/*
 !tests/cases/*/svg/.gitkeep
 
 # Docs
-docs/assets/.comments
+docs/assets/.comments/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
