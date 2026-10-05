@@ -31,9 +31,15 @@ class ShellTask(models.ConfigShellTaskSpecs, Task):
             **kwargs,
             **config_kwargs,
         )
-        if config.src is not None:
-            self.src = self._validate_path(config.src, config_rootdir)
         return self
+
+    def __post_init__(self) -> None:
+        if self.src is None:
+            return
+        src_path = self.config_rootdir / self.src
+        if not src_path.exists():
+            msg = f"{self.label}: src not found at {src_path}, must be a path relative to the config dir."
+            raise FileNotFoundError(msg)
 
     @property
     def inputs(self) -> dict[str, list[Data]]:
@@ -52,14 +58,6 @@ class ShellTask(models.ConfigShellTaskSpecs, Task):
             msg = "Only single component taks can unambiguously define outputs"
             raise ValueError(msg)
         return next(iter(self.components.values())).outputs
-
-    @staticmethod
-    def _validate_path(path: Path, config_rootdir: Path) -> Path:
-        path = config_rootdir / path
-        if not path.exists():
-            msg = f"Script in path {path} does not exist."
-            raise FileNotFoundError(msg)
-        return path
 
     def runscript_lines(self) -> list[str]:
         return [
