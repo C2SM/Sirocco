@@ -52,14 +52,14 @@
     --md-code-hl-variable-color:       var(--md-default-fg-color--light);
 
     h1, h2, h3, h4, h5, h6 {
-        color: var(--md-default-fg-color);
+      color: var(--md-default-fg-color);
     }
-    h4, h5, h6 {
-      font-size: 0.8rem;
-    }
+    /* h4, h5, h6 { */
+    /*   font-size: 0.8rem; */
+    /* } */
 
     .md-header__title {
-        color: var(--md-default-fg-color);
+      color: var(--md-default-fg-color);
     }
 
 }

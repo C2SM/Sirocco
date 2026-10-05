@@ -21,8 +21,9 @@ nav = [
     "configuration/data.md",
     "configuration/parameters.md",
   ]  },
-  { "Task plugins" = [
-    "plugins/index.md",
+  { "Plugins" = [
+    # "plugins/index.md",
+    {"Plugins" = "plugins/plugins.md"},
     {"Shell" = "plugins/shell.md"},
     {"ICON" = "plugins/icon.md"}
   ] },
