@@ -523,7 +523,7 @@ class ConfigShellTask(ConfigBaseTask, ConfigShellTaskSpecs):
         ...       plugin: shell
         ...       computer: localhost
         ...       command: "my_script.sh -n 1024 {PORT::current_sim_output}"
-        ...       path: post_run_scripts/my_script.sh
+        ...       src: post_run_scripts/my_script.sh
         ...       walltime: 00:01:00
         ...     '''
         ...     ),
