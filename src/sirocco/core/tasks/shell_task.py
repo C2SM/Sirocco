@@ -22,7 +22,6 @@ class ShellTask(models.ConfigShellTaskSpecs, Task):
     ) -> Self:
         config_kwargs = dict(config)
         del config_kwargs["parameters"]
-        del config_kwargs["src"]
         # The following check is here for type checkers.
         # We don't want to narrow the type in the signature, as that would break liskov substitution.
         # We guarantee elsewhere this is called with the correct type at runtime
@@ -39,12 +38,11 @@ class ShellTask(models.ConfigShellTaskSpecs, Task):
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        if self.src is None:
-            return
-        self.src = self.config_rootdir / self.src
-        if not self.src.exists():
-            msg = f"{self.label}: src not found at {self.src}, must be a path relative to the config dir."
-            raise FileNotFoundError(msg)
+        if self.src is not None:
+            self.src = self.config_rootdir / self.src
+            if not self.src.exists():
+                msg = f"{self.label}: src not found at {self.src}, must be a path relative to the config dir."
+                raise FileNotFoundError(msg)
 
     @property
     def inputs(self) -> dict[str, list[Data]]:
