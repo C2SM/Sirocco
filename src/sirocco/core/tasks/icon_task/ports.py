@@ -261,7 +261,7 @@ def restart_in_handler_callable(port_name: str, model: IconModel) -> None:
 
 
 restart_in_handler = PortHandler(
-    port_name="restart_file",
+    port_name="restart_in",
     valid_model_types=[ModelType.ATMOSPHERE, ModelType.OCEAN],
     custom_callable=restart_in_handler_callable,
 )
@@ -283,7 +283,7 @@ def restart_out_handler_callable(port_name: str, model: IconModel) -> None:
 
 
 restart_out_handler = PortHandler(
-    port_name="latest_restart_file",
+    port_name="restart_out",
     valid_model_types=[ModelType.ATMOSPHERE, ModelType.OCEAN],
     custom_callable=restart_out_handler_callable,
 )

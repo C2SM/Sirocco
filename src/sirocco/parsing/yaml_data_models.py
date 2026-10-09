@@ -777,7 +777,7 @@ class ConfigAvailableData(ConfigBaseData, ConfigAvailableDataSpecs):
 class ConfigGeneratedDataSpecs:
     # Path is optional because certain task types (e.g., ICON tasks) compute
     # output paths programmatically at runtime based on port names
-    # (e.g., 'finish_status' -> 'finish_xxx.status', 'latest_restart_file' -> computed from namelist).
+    # (e.g., 'finish_status' -> 'finish_xxx.status', 'restart_in' -> computed from namelist).
     path: Path | None = None
 
 

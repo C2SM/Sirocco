@@ -17,7 +17,7 @@ cycles:
                   cloud_opt_props: [ECHAM6_CldOptProps]
                   rrtmg_lw: [rrtmg_lw]
                   dynamics_grid_file: [icon_grid]
-                  restart_file:
+                  restart_in:
                     - restart:
                         when:
                           after: *root_start_date
@@ -25,7 +25,7 @@ cycles:
                           lag: -PT1H
                 outputs:
                   finish_status: [finish]
-                  latest_restart_file: [restart]
+                  restart_out: [restart]
                   output_streams: [atm_2d, atm_3d_pl]
         - post_proc:
             inputs:

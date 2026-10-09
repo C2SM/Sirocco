@@ -62,12 +62,12 @@ cycles:
                     - grid_file
                   lbc:
                     - icon_input [date: 2025-01-01 00:00:00+00:00]
-                  restart_file: []
+                  restart_in: []
                 outputs:
                   output_streams:
                     - stream_1 [date: 2025-01-01 00:00:00+00:00]
                     - stream_2 [date: 2025-01-01 00:00:00+00:00]
-                  latest_restart_file:
+                  restart_out:
                     - icon_restart [date: 2025-01-01 00:00:00+00:00]
             exe:
               cpu:
@@ -165,13 +165,13 @@ cycles:
                     - grid_file
                   lbc:
                     - icon_input [date: 2025-03-01 00:00:00+00:00]
-                  restart_file:
+                  restart_in:
                     - icon_restart [date: 2025-01-01 00:00:00+00:00]
                 outputs:
                   output_streams:
                     - stream_1 [date: 2025-03-01 00:00:00+00:00]
                     - stream_2 [date: 2025-03-01 00:00:00+00:00]
-                  latest_restart_file:
+                  restart_out:
                     - icon_restart [date: 2025-03-01 00:00:00+00:00]
             exe:
               cpu:
@@ -271,13 +271,13 @@ cycles:
                     - grid_file
                   lbc:
                     - icon_input [date: 2025-05-01 00:00:00+00:00]
-                  restart_file:
+                  restart_in:
                     - icon_restart [date: 2025-03-01 00:00:00+00:00]
                 outputs:
                   output_streams:
                     - stream_1 [date: 2025-05-01 00:00:00+00:00]
                     - stream_2 [date: 2025-05-01 00:00:00+00:00]
-                  latest_restart_file:
+                  restart_out:
                     - icon_restart [date: 2025-05-01 00:00:00+00:00]
             exe:
               cpu:
@@ -377,13 +377,13 @@ cycles:
                     - grid_file
                   lbc:
                     - icon_input [date: 2025-07-01 00:00:00+00:00]
-                  restart_file:
+                  restart_in:
                     - icon_restart [date: 2025-05-01 00:00:00+00:00]
                 outputs:
                   output_streams:
                     - stream_1 [date: 2025-07-01 00:00:00+00:00]
                     - stream_2 [date: 2025-07-01 00:00:00+00:00]
-                  latest_restart_file:
+                  restart_out:
                     - icon_restart [date: 2025-07-01 00:00:00+00:00]
             exe:
               cpu:
@@ -483,13 +483,13 @@ cycles:
                     - grid_file
                   lbc:
                     - icon_input [date: 2025-09-01 00:00:00+00:00]
-                  restart_file:
+                  restart_in:
                     - icon_restart [date: 2025-07-01 00:00:00+00:00]
                 outputs:
                   output_streams:
                     - stream_1 [date: 2025-09-01 00:00:00+00:00]
                     - stream_2 [date: 2025-09-01 00:00:00+00:00]
-                  latest_restart_file:
+                  restart_out:
                     - icon_restart [date: 2025-09-01 00:00:00+00:00]
             exe:
               cpu:
@@ -589,13 +589,13 @@ cycles:
                     - grid_file
                   lbc:
                     - icon_input [date: 2025-11-01 00:00:00+00:00]
-                  restart_file:
+                  restart_in:
                     - icon_restart [date: 2025-09-01 00:00:00+00:00]
                 outputs:
                   output_streams:
                     - stream_1 [date: 2025-11-01 00:00:00+00:00]
                     - stream_2 [date: 2025-11-01 00:00:00+00:00]
-                  latest_restart_file:
+                  restart_out:
                     - icon_restart [date: 2025-11-01 00:00:00+00:00]
             exe:
               cpu:
@@ -695,13 +695,13 @@ cycles:
                     - grid_file
                   lbc:
                     - icon_input [date: 2026-01-01 00:00:00+00:00]
-                  restart_file:
+                  restart_in:
                     - icon_restart [date: 2025-11-01 00:00:00+00:00]
                 outputs:
                   output_streams:
                     - stream_1 [date: 2026-01-01 00:00:00+00:00]
                     - stream_2 [date: 2026-01-01 00:00:00+00:00]
-                  latest_restart_file:
+                  restart_out:
                     - icon_restart [date: 2026-01-01 00:00:00+00:00]
             exe:
               cpu:
@@ -801,13 +801,13 @@ cycles:
                     - grid_file
                   lbc:
                     - icon_input [date: 2026-03-01 00:00:00+00:00]
-                  restart_file:
+                  restart_in:
                     - icon_restart [date: 2026-01-01 00:00:00+00:00]
                 outputs:
                   output_streams:
                     - stream_1 [date: 2026-03-01 00:00:00+00:00]
                     - stream_2 [date: 2026-03-01 00:00:00+00:00]
-                  latest_restart_file:
+                  restart_out:
                     - icon_restart [date: 2026-03-01 00:00:00+00:00]
             exe:
               cpu:
@@ -907,13 +907,13 @@ cycles:
                     - grid_file
                   lbc:
                     - icon_input [date: 2026-05-01 00:00:00+00:00]
-                  restart_file:
+                  restart_in:
                     - icon_restart [date: 2026-03-01 00:00:00+00:00]
                 outputs:
                   output_streams:
                     - stream_1 [date: 2026-05-01 00:00:00+00:00]
                     - stream_2 [date: 2026-05-01 00:00:00+00:00]
-                  latest_restart_file:
+                  restart_out:
                     - icon_restart [date: 2026-05-01 00:00:00+00:00]
             exe:
               cpu:
@@ -1013,13 +1013,13 @@ cycles:
                     - grid_file
                   lbc:
                     - icon_input [date: 2026-07-01 00:00:00+00:00]
-                  restart_file:
+                  restart_in:
                     - icon_restart [date: 2026-05-01 00:00:00+00:00]
                 outputs:
                   output_streams:
                     - stream_1 [date: 2026-07-01 00:00:00+00:00]
                     - stream_2 [date: 2026-07-01 00:00:00+00:00]
-                  latest_restart_file:
+                  restart_out:
                     - icon_restart [date: 2026-07-01 00:00:00+00:00]
             exe:
               cpu:
@@ -1119,13 +1119,13 @@ cycles:
                     - grid_file
                   lbc:
                     - icon_input [date: 2026-09-01 00:00:00+00:00]
-                  restart_file:
+                  restart_in:
                     - icon_restart [date: 2026-07-01 00:00:00+00:00]
                 outputs:
                   output_streams:
                     - stream_1 [date: 2026-09-01 00:00:00+00:00]
                     - stream_2 [date: 2026-09-01 00:00:00+00:00]
-                  latest_restart_file:
+                  restart_out:
                     - icon_restart [date: 2026-09-01 00:00:00+00:00]
             exe:
               cpu:
@@ -1225,13 +1225,13 @@ cycles:
                     - grid_file
                   lbc:
                     - icon_input [date: 2026-11-01 00:00:00+00:00]
-                  restart_file:
+                  restart_in:
                     - icon_restart [date: 2026-09-01 00:00:00+00:00]
                 outputs:
                   output_streams:
                     - stream_1 [date: 2026-11-01 00:00:00+00:00]
                     - stream_2 [date: 2026-11-01 00:00:00+00:00]
-                  latest_restart_file:
+                  restart_out:
                     - icon_restart [date: 2026-11-01 00:00:00+00:00]
             exe:
               cpu:
