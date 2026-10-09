@@ -303,6 +303,8 @@ Concretely `wait_on` is a list of task instances. Exactly as input data instance
 
 ### Special input linking ports
 
+As explained in the [definition above](#ports) above, ports are required to define inputs and outputs in all generality but can sometimes be superfluous. In the case where a task expects inputs with a predefined path or name (or has defaults for it), Sirocco provides the two following reserved port names that will simply link the target piece(s) of data in the task run directory.
+
 The following port names are reserved and have a special meaning.
 
 #### `link`
@@ -311,7 +313,15 @@ The following port names are reserved and have a special meaning.
 <br>
 **optional**
 <br>
-**description**:
+**description**: link any referenced piece of data in the task run directory. Since data might not exist yet at submission time, linking happens at run time through injected commands in the submitted task run script.
+
+#### `link_content`
+
+**type**: sequence
+<br>
+**optional**
+<br>
+**description**: assume each referenced piece of data is a directory and link all elements under it in the task run directory. Since data might not exist yet at submission time, linking happens at run time through injected commands in the submitted task run script.
 
 
 <!-- Local Variables: -->
