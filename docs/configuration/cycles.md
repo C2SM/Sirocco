@@ -7,6 +7,8 @@ icon: lucide/refresh-cw
 <style>
 h4, h5, h6 {
   font-size: 0.8rem !important;
+  text-transform: none !important;
+  text-width: bold;
 }
 </style>
 
@@ -177,9 +179,9 @@ cycles:
 
     These task names must be references to tasks declared in the [root level `tasks`](tasks) section, which can be confusing at first.
 
-??? info "Tasks components"
+!!! info "Tasks components"
 
-    In reality a `components` level is introduced between the task name and `inputs` and `outputs` (`wait_on` stays right bellow the task name). This is hidden to the user for basic ["shell tasks"](/plugins/shell), while it needs to be explicitly provided for ["icon tasks"](/plugins/icon). It is omitted here for simplicity.
+    In reality a `components` level is introduced between the task name and `inputs` and `outputs` (`wait_on` stays right bellow the task name). This is hidden to the user for basic ["shell tasks"](/plugins/shell), while it needs to be explicitly provided for ["icon tasks"](/plugins/icon#components). It is omitted here for simplicity.
 
 #### Ports
 
@@ -191,7 +193,7 @@ In all generality, from a task perspective, linking a piece of data as an input 
 <br>
 **optional**
 <br>
-**description**: The `inputs` section is a mapping between port names and a sequence of associated data instances. Elements of that sequence might be a simple data name or, in ambiguous cases, a mapping of that data name to some more information.
+**description**: The `inputs` section is a mapping between port names and a sequence of associated data instances. Elements of that sequence might be a simple data name or, in ambiguous cases, a mapping of that data name to some more information. Note that some [special port names](#special-input-linking-ports) are reserved for a specific behaviour.
 
 !!! warning "Data declaration and references"
 
@@ -280,8 +282,6 @@ For now, 2 options are supported, namely `"all"` and `"single"`.
 
     Even though workflows with parameterized tasks and pieces of data can be generated, the parameter values are not yet exposed to the tasks themselves.
 
-
-
 #### `outputs`
 
 **type**: mapping
@@ -300,6 +300,19 @@ For now, 2 options are supported, namely `"all"` and `"single"`.
 `clean up` task has an explicit dependency on `post proc` to avoid deleting data the later still needs.
 
 Concretely `wait_on` is a list of task instances. Exactly as input data instances, they can be further specified using the [`target_cycle`](#target_cycle), [`parameters`](#parameters) (both applied to tasks instead of data) and [`when`](#when) keywords.
+
+### Special input linking ports
+
+The following port names are reserved and have a special meaning.
+
+#### `link`
+
+**type**: sequence
+<br>
+**optional**
+<br>
+**description**:
+
 
 <!-- Local Variables: -->
 <!-- jinx-local-words: "composable" -->
