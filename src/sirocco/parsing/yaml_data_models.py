@@ -430,6 +430,12 @@ class ConfigShellTaskSpecs:
             './my_script --input input_1 --input input_2 --input input_3'
 
             >>> task_specs = ConfigShellTaskSpecs(
+            ...     command="./my_script --input={PORT[sep= --input=]::repeat_input}"
+            ... )
+            >>> task_specs.resolve_ports({"repeat_input": ["input_1", "input_2", "input_3"]})
+            './my_script --input=input_1 --input=input_2 --input=input_3'
+
+            >>> task_specs = ConfigShellTaskSpecs(
             ...     command="./my_script [--when_opt {PORT::when_input}] --input {PORT[sep= --input ]::repeat_input}"
             ... )
             >>> task_specs.resolve_ports(
@@ -449,6 +455,7 @@ class ConfigShellTaskSpecs:
             ...     {"when_input": [], "repeat_input": ["input_1", "input_2", "input_3"]}
             ... )
             './my_script --input input_1 --input input_2 --input input_3'
+
             >>> task_specs = ConfigShellTaskSpecs(
             ...     command="./my_script [--when_opt_1 {PORT::when_input_1}] [--when_opt_2 {PORT::when_input_2}]"
             ... )
@@ -516,7 +523,7 @@ class ConfigShellTask(ConfigBaseTask, ConfigShellTaskSpecs):
         ...       plugin: shell
         ...       computer: localhost
         ...       command: "my_script.sh -n 1024 {PORT::current_sim_output}"
-        ...       path: post_run_scripts/my_script.sh
+        ...       src: post_run_scripts/my_script.sh
         ...       walltime: 00:01:00
         ...     '''
         ...     ),
@@ -637,14 +644,10 @@ class ConfigHiopyExe:
 
 
 def validate_executables(exes: ConfigIconExecutables) -> ConfigIconExecutables:
-    if exes.cpu is None and exes.gpu is None:
-        msg = "At least one of cpu or gpu executable must be specified"
-        raise ValueError(msg)
-
     gpu_models = set(exes.gpu.model_names()) if exes.gpu else set()
     cpu_models = set(exes.cpu.model_names()) if exes.cpu else set()
     if common_models := gpu_models & cpu_models:
-        msg = f"{common_models} sepcified for both cpu and gpu executables"
+        msg = f"{common_models} sepcified for both cpu and gpu executables, must be exclusive."
         raise ValueError(msg)
 
     if exes.separate_io and exes.procs_per_io_node == 0:

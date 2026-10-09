@@ -32,25 +32,25 @@ dependencies = [
   "isoduration",
   "pydantic",
   "ruamel.yaml",
-  "aiida-core==2.7.3",
-  # pinned to my branch with the temporary fix
-  "aiida-firecrest @ git+https://github.com/aiidateam/aiida-firecrest.git@c4e287ffe40ae57db7032fe1c80d2c4def0dc7fa",
-  # pinned on my branch that contains all the changes for DYAMOND, so far
-  "aiida-icon @ git+https://github.com/aiida-icon/aiida-icon.git@6a15937b3656242cfd9812b1dd5046216547b9ca",  
-  # pinned on main
-  "aiida-workgraph @ git+https://github.com/aiidateam/aiida-workgraph.git",
-  # aiida-shell
-  "aiida-shell>=0.8.2",
-  "aiida-gui",
+  # "aiida-core==2.7.3",
+  # # pinned to my branch with the temporary fix
+  # "aiida-firecrest @ git+https://github.com/aiidateam/aiida-firecrest.git@c4e287ffe40ae57db7032fe1c80d2c4def0dc7fa",
+  # # pinned on my branch that contains all the changes for DYAMOND, so far
+  # "aiida-icon @ git+https://github.com/aiida-icon/aiida-icon.git@6a15937b3656242cfd9812b1dd5046216547b9ca",  
+  # # pinned on main
+  # "aiida-workgraph @ git+https://github.com/aiidateam/aiida-workgraph.git",
+  # # aiida-shell
+  # "aiida-shell>=0.8.2",
+  # "aiida-gui",
+  # "aiida-shell>=0.8.1",
+  # "aiida-gui-workgraph>=0.1.3",
   "ipdb",
   "termcolor",
   "pygraphviz~=2.0",
   "lxml",
   "f90nml",
-  "aiida-shell>=0.8.1",
   "rich~=15.0.0",
   "typer~=0.27.2",
-  "aiida-gui-workgraph>=0.1.3",
   "jinja2>=3.0",
   "types-PyYAML",
   "coverage",
@@ -58,6 +58,21 @@ dependencies = [
   "dotenv"
 ]
 license = {file = "LICENSE"}
+
+[project.optional-dependencies]
+aiida = [
+  "aiida-core==2.7.3",
+  # pinned to my branch with the temporary fix
+  "aiida-firecrest @ git+https://github.com/aiidateam/aiida-firecrest.git@c4e287ffe40ae57db7032fe1c80d2c4def0dc7fa",
+  # pinned on my branch that contains all the changes for DYAMOND, so far
+  "aiida-icon @ git+https://github.com/aiida-icon/aiida-icon.git@6a15937b3656242cfd9812b1dd5046216547b9ca",
+  # pinned on main
+  "aiida-workgraph @ git+https://github.com/aiidateam/aiida-workgraph.git",
+  "aiida-shell>=0.8.2",
+  "aiida-gui",
+  "aiida-gui-workgraph>=0.1.3",
+]
+ 
 
 [project.urls]
 Repository = "https://github.com/C2SM/Sirocco.git"
@@ -74,7 +89,10 @@ log_cli = true
 log_cli_level = "ERROR"
 log_cli_format = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 addopts = "--pdbcls=IPython.terminal.debugger:TerminalPdb"
-norecursedirs = "tests/cases"
+norecursedirs = [
+  "tests/cases",
+  "docs"
+]
 markers = [
   "slow: slow integration tests which are not recommended to run locally for normal development",
   "requires_icon: marks test to require icon installation"
@@ -134,12 +152,13 @@ python = "3.12"
 
 [tool.hatch.envs.hatch-test]
 installer = "uv"
+features = ["aiida"]  # install aiida extra dependencies
 extra-dependencies = [
-    "ipdb",
-    "pytest-cov",
-    "pytest-sugar",  # Nicer pytest output
-    "pytest-xdist",  # Parallel test execution
-    "coverage",      # For showing coverage gutter in IDEs
+  "ipdb",
+  "pytest-cov",
+  "pytest-sugar",  # Nicer pytest output
+  "pytest-xdist",  # Parallel test execution
+  "coverage",      # For showing coverage gutter in IDEs
 ]
 default-args = []
 extra-args = ["--doctest-modules", "-m", "not slow and not requires_icon"]
@@ -149,23 +168,25 @@ python = ["3.12"]
 
 [tool.hatch.envs.docs]
 installer = "uv"
+skip-instal = true  # Don't install sirocco itself for docs
 description = "Build the documentation"
 dependencies = [
-    "mkdocs-material",
+  "zensical",
+  "sirocco_yaml_lexer @ {root:uri}/docs/tools",
 ]
 
 [tool.hatch.envs.docs.scripts]
 build = [
-  "mkdocs build -f docs/mkdocs.yml",
-  "echo 'Now open docs/build/index.html with your browser'"
+  "zensical build",
+  "echo 'Now open docs/site/index.html with your browser'"
 ]
 serve = [
-  "mkdocs serve -f docs/mkdocs.yml",
+  "zensical serve",
 ]
 
-deploy = [
-  "mkdocs gh-deploy --no-history -f docs/mkdocs.yml"
-]
+# deploy = [
+#   "mkdocs gh-deploy --no-history -f docs/mkdocs.yml"
+# ]
 
 [tool.hatch.envs.types]
 python = "3.12"
