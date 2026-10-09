@@ -644,14 +644,10 @@ class ConfigHiopyExe:
 
 
 def validate_executables(exes: ConfigIconExecutables) -> ConfigIconExecutables:
-    if exes.cpu is None and exes.gpu is None:
-        msg = "At least one of cpu or gpu executable must be specified"
-        raise ValueError(msg)
-
     gpu_models = set(exes.gpu.model_names()) if exes.gpu else set()
     cpu_models = set(exes.cpu.model_names()) if exes.cpu else set()
     if common_models := gpu_models & cpu_models:
-        msg = f"{common_models} sepcified for both cpu and gpu executables"
+        msg = f"{common_models} sepcified for both cpu and gpu executables, must be exclusive."
         raise ValueError(msg)
 
     if exes.separate_io and exes.procs_per_io_node == 0:
