@@ -39,7 +39,7 @@ cycles:
               dynamics_grid_file: [icon_grid]
               extpar_file: [extpar_file]
               ifs2icon: [analysis_file]
-              restart_file:
+              restart_in:
                 - restart:
                     when:
                       after: *root_start_date
@@ -47,7 +47,7 @@ cycles:
                       # lag: -PT6H
                       lag: -PT30S
             outputs:
-              latest_restart_file: [restart]
+              restart_out: [restart]
               output_streams: [stream_1, stream_2]
         - post_proc:
             inputs:

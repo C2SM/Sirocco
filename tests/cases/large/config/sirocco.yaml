@@ -35,7 +35,7 @@ cycles:
                 inputs:
                   grid: [grid_file]
                   lbc: [icon_input]
-                  restart_file:
+                  restart_in:
                     - icon_restart:
                         when:
                           after: *root_start_date
@@ -43,7 +43,7 @@ cycles:
                           lag: '-P2M'
                 outputs:
                   output_streams: [stream_1, stream_2]
-                  latest_restart_file: [icon_restart]
+                  restart_out: [icon_restart]
         - postproc_1:
             inputs:
               dummy: [stream_1]
