@@ -3,7 +3,7 @@ icon: simple/shell
 title: Shell task
 ---
 
-# Shell task plugin
+# Shell task
 
 The `shell` plugin allows users to bring their own set of files to specify the task content. These files can be of any nature: shell scripts, python code, a source tree to compile, configuration files, etc ... The only requirement is the ability to interface with the Sirocco workflow, _i.e_. use inputs and outputs as defined in the [`cycles` section](../../configuration/cycles).This is done through the `command` specification (see below).
 
@@ -90,8 +90,10 @@ tasks:
   - task name 1:
       plugin: shell
       [...]
-      command: my_coammnd --repeat-arg={PORT[sep= --repeat-arg=]::port_name}
+      command: my_coammnd --repeat-arg={PORT[sep= --repeat-arg=]::port_name}  # (1)!
 ```
+
+1. Note the sapce at the beginning of the separator. Otherwise arguments will not be separated.
 
 will resolve the command as
 
@@ -102,8 +104,21 @@ my_coammnd --repeat-arg=data_path_1 --repeat-arg=data_path_2 ...
 
 ##### Vanishing placeholders
 
-For some instances of a task, typically the first or last one, it can also necessary that port placeholders vanish. In a Sirocco workflow, this happens when using the [`when` keyword](../../configuration/cycles#when). In such a case the port placeholder can be made vanishing by using extra brackets surrounding the entire part of the command that needs to be ignored if the port does not link any data. For isntance
+For some instances of a task, typically the first or last one of a cycle, it can also be necessary that port placeholders vanish. In a Sirocco workflow, this happens when using the [`when` keyword](../../configuration/cycles#when). In such a case the port placeholder can be made vanishing by using extra brackets surrounding the entire part of the command that needs to be ignored if the port does not link any data. For isntance
+```sirocco-yaml
+tasks:
+  - task name 1:
+      plugin: shell
+      [...]
+      command: my_command {PORT::port_name_1} [--opt-arg {PORT::port_name_2}]
 ```
-my_command {PORT::port_name_1} [--opt-arg {PORT::port_name_2}]
-```
-might either be resolved as `my_command data_path_1 --opt-arg data_path_2` or `my_command data_path_1` depending if `port_name_2` links data or not.
+
+might either be resolved as
+
+```my_command data_path_1 --opt-arg data_path_2```
+
+or
+
+```my_command data_path_1```
+
+depending if `port_name_2` links data or not.
