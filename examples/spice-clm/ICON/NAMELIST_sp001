@@ -304,7 +304,7 @@
   icapdcycl        = 3
   icpl_aero_conv   = 0
   icpl_aero_gscp   = 3
-  scale_cdnc_mode  = 1
+  scale_cdnc_mode  = 0
   icpl_o3_tp       = 1
   dt_rad    = 900
   dt_conv   = 300
