@@ -36,7 +36,7 @@ Task run directories are created in `examples/spice-clm/run/`.
 - Restarts use `joint procs multifile` (required by Sirocco) instead of a dedicated restart process.
 - Output windows use `output_bounds` instead of absolute `output_start`/`output_end`,
   because Sirocco only updates the experiment dates per chunk.
-- `irad_aero = 18` and `init_latbc_from_fg = .false.` are set explicitly. The SPICE
-  2025.10 patch leaves `irad_aero` empty, and the SPICE scripts set `init_latbc_from_fg` to `.true.` by mistake.
+- `init_latbc_from_fg = .false.` is set explicitly. The SPICE
+  scripts never set the shell variable `init_mode`, which turns `init_latbc_from_fg` into `.true.` by mistake.
 - Archives, time series, restart files and logs stay in the task run directories; SPICE moves
   them to separate directories and deletes the whole scratch directory at the end of the chain.
