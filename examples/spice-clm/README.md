@@ -1,0 +1,37 @@
+# SPICE sp001 (gcm2icon) with Sirocco
+
+ICON-CLM limited-area simulation over Germany (0.11 deg) driven by ERA5, reproducing the
+SPICE experiment `sp001` on CSCS Alps (santis). ICON runs through the Sirocco ICON plugin;
+all other steps are shell tasks.
+
+## Workflow
+
+| Task | Cycle | SPICE equivalent | Purpose |
+|------|-------|------------------|---------|
+| `prep` | monthly | `prep.job.sh` | untar ERA5 (3-hourly), unzip, `ccaf2icaf` |
+| `init` | once | `conv2icon.job.sh` part I, links of `icon.job.sh` | initial state, remapping helpers, aerosol/ozone links |
+| `conv2icon` | monthly | `conv2icon.job.sh` parts II, III | `LOWBC.nc` and lateral boundary files in `latbc/` |
+| `icon` | monthly | `icon.job.sh` | ICON on 4 GPU nodes, restart from previous month |
+| `arch` | monthly | `arch.job.sh` | completeness and SAMOVAR checks, CF correction, tar files |
+| `post` | monthly | `post.job.sh` | monthly time series on the rotated lat/lon grid |
+
+The shell scripts use the tools of a configured SPICE installation (`cfu`, `ccaf2icaf`,
+Python venv, SAMOVAR and `functions.inc`), set by `SPICE_DIR` in `scripts/common.sh`.
+
+## Running
+
+1. Set `SIROCCO_VENV` (and, if needed, `ACCOUNT` and dates) in `sirocco_vars.yaml`.
+2. `sirocco verify examples/spice-clm`
+3. `sirocco start examples/spice-clm` (standalone engine; status with `sirocco stviz`)
+
+Task run directories are created in `examples/spice-clm/run/`.
+
+## Differences from SPICE
+
+- Restarts use `joint procs multifile` (required by Sirocco) instead of a dedicated restart process.
+- Output windows use `output_bounds` instead of absolute `output_start`/`output_end`,
+  because Sirocco only updates the experiment dates per chunk.
+- `irad_aero = 18` and `init_latbc_from_fg = .false.` are set explicitly. The SPICE
+  2025.10 patch leaves `irad_aero` empty, and the SPICE scripts set `init_latbc_from_fg` to `.true.` by mistake.
+- `allow_overcast` is fixed to the January value (0.917); SPICE changes it every month.
+- Outputs stay in the task run directories; SPICE deletes scratch data after `post`.
