@@ -103,6 +103,13 @@ cycles:
                       date: '{{ START_DATE }}'
             outputs:
               ts: [post_ts]
+        - clean:
+            inputs:
+              latbc: [latbc]
+              streams: [out01, out02, out03, out04, out05, out06, out07, out08, out09, out10]
+              corrected: [corrected]
+              # Only orders the clean-up after a successful post-processing
+              post: [post_ts]
 
 tasks:
   - ROOT:
@@ -187,6 +194,11 @@ tasks:
       command: >-
         CLM_TOOLS={PORT::tools} YDATE_START={{ START_DATE }} bash scripts/post.sh
         {PORT::corrected} {PORT::target_grid} {PORT::extpar} {PORT::ts}[ {PORT::first}]
+  - clean:
+      plugin: shell
+      walltime: 00:15:00
+      src: scripts
+      command: bash scripts/clean.sh {PORT::latbc} {PORT::streams} {PORT::corrected}
 
 data:
   available:
