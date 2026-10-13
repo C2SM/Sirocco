@@ -175,6 +175,10 @@ tasks:
               radiation_grid_filename: '{{ RCM_DIR }}/germany011/Germany011_DOM01.parent.nc'
             limarea_nml:
               latbc_varnames_map_file: '{{ RCM_DIR }}/dict.latbc'
+            # Annual cycle of SPICE (allow_overcast_yc in job_settings)
+            nwp_tuning_nml:
+              allow_overcast:
+                by_month: [0.917, 0.884, 0.909, 0.951, 0.976, 0.951, 0.951, 0.951, 0.917, 0.901, 0.901, 0.909]
   - arch:
       plugin: shell
       uenv: '{{ UENV_TOOLS }}'
