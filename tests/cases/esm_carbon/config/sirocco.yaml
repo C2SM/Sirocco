@@ -98,6 +98,9 @@ tasks:
   - ROOT:
       computer: "{{ SIROCCO_COMPUTER }}"
       account: "{{ SLURM_ACCOUNT }}"
+  - SIROCCO:
+      walltime: 00:10:00
+      venv: "{{ SIROCCO_VENV }}"
   - icon:
       plugin: icon
       partition: tier0
