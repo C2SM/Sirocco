@@ -1,0 +1,244 @@
+---
+# ICON-CLM limited-area run driven by ERA5 over Germany (0.11 deg), mimicking the
+# SPICE experiment sp001 (gcm2icon). Run with the standalone engine: `sirocco start`.
+name: spice-sp001
+scheduler: slurm
+front_depth: 2
+
+cycles:
+  - init:
+      tasks:
+        - init:
+            inputs:
+              forcing:
+                - icaf_forcing:
+                    target_cycle:
+                      date: '{{ START_DATE }}'
+              lam_grid: [icon_grid]
+              extpar: [extpar]
+              kinne: [kinne_aerosols]
+              volc: [volcanic_aerosols]
+              ozone: [ozone]
+            outputs:
+              inidata: [inidata]
+              ifs2icon: [ifs2icon_file]
+              radiation: [radiation]
+  - monthly:
+      cycling:
+        start_date: '{{ START_DATE }}'
+        stop_date: '{{ STOP_DATE }}'
+        period: P1M
+      tasks:
+        - prep:
+            inputs:
+              era5: [era5]
+              soiltype: [era5_soiltype]
+            outputs:
+              forcing: [icaf_forcing]
+        - conv2icon:
+            inputs:
+              forcing: [icaf_forcing]
+              inidata: [inidata]
+            outputs:
+              latbc: [latbc]
+        - icon:
+            components:
+              atm:
+                inputs:
+                  dynamics_grid_file: [icon_grid]
+                  extpar_file: [extpar]
+                  ghg_file: [greenhouse_gases]
+                  ecrad_data: [ecrad_data]
+                  bc_solar_sw: [solar_irradiance]
+                  atm_plumes: [macv2_plumes]
+                  ifs2icon: [ifs2icon_file]
+                  restart_in:
+                    - icon_restart:
+                        when:
+                          after: '{{ START_DATE }}'
+                        target_cycle:
+                          lag: -P1M
+                outputs:
+                  output_streams: [out01, out02, out03, out04, out05, out06, out07, out08, out09, out10, out_const]
+                  restart_out: [icon_restart]
+              master:
+                inputs:
+                  link: [latbc]
+                  link_content: [radiation]
+        - arch:
+            inputs:
+              streams: [out01, out02, out03, out04, out05, out06, out07, out08, out09, out10]
+              icon_const:
+                - out_const:
+                    when:
+                      at: '{{ START_DATE }}'
+              const_in:
+                - arch_const:
+                    when:
+                      after: '{{ START_DATE }}'
+                    target_cycle:
+                      date: '{{ START_DATE }}'
+            outputs:
+              corrected: [corrected]
+              archive: [archive]
+              const_out: [arch_const]
+        - post:
+            inputs:
+              corrected: [corrected]
+              target_grid: [target_grid]
+              extpar: [extpar]
+              first:
+                - post_ts:
+                    when:
+                      after: '{{ START_DATE }}'
+                    target_cycle:
+                      date: '{{ START_DATE }}'
+            outputs:
+              ts: [post_ts]
+
+tasks:
+  - ROOT:
+      computer: santis
+      account: '{{ ACCOUNT }}'
+      partition: normal
+  - SIROCCO:
+      computer: santis
+      venv: '{{ SIROCCO_VENV }}'
+      walltime: 00:05:00
+  - init:
+      plugin: shell
+      uenv: '{{ UENV_TOOLS }}'
+      view: climtools
+      walltime: 00:30:00
+      src: scripts
+      command: >-
+        YDATE_START={{ START_DATE }} YDATE_STOP={{ STOP_DATE }} bash scripts/init.sh
+        {PORT::forcing} {PORT::lam_grid} {PORT::extpar} {PORT::kinne} {PORT::volc} {PORT::ozone}
+        {PORT::inidata} {PORT::ifs2icon} {PORT::radiation}
+  - prep:
+      plugin: shell
+      uenv: '{{ UENV_TOOLS }}'
+      view: climtools
+      walltime: 00:15:00
+      src: scripts
+      command: >-
+        YDATE_START={{ START_DATE }} bash scripts/prep.sh {PORT::era5} {PORT::soiltype} {PORT::forcing}
+  - conv2icon:
+      plugin: shell
+      uenv: '{{ UENV_TOOLS }}'
+      view: climtools
+      walltime: 00:30:00
+      src: scripts
+      command: >-
+        YDATE_START={{ START_DATE }} bash scripts/conv2icon.sh {PORT::forcing} {PORT::inidata} {PORT::latbc}
+  - icon:
+      plugin: icon
+      uenv: '{{ UENV_ICON }}'
+      nodes: 4
+      sockets_per_node: 4
+      walltime: 00:30:00
+      exe:
+        gpu:
+          path: '{{ ICON_DIR }}/nvhpc_gpu/bin/icon'
+          compute_procs_per_node: 4
+          procs:
+            atm:
+              streams: 1
+              prefetch: 1
+      namelists:
+        - ./ICON/icon_master.namelist
+        - ./ICON/NAMELIST_sp001:
+            grid_nml:
+              radiation_grid_filename: '{{ RCM_DIR }}/germany011/Germany011_DOM01.parent.nc'
+            limarea_nml:
+              latbc_varnames_map_file: '{{ RCM_DIR }}/dict.latbc'
+  - arch:
+      plugin: shell
+      uenv: '{{ UENV_TOOLS }}'
+      view: climtools
+      walltime: 00:30:00
+      src: scripts
+      command: >-
+        YDATE_START={{ START_DATE }} bash scripts/arch.sh
+        --corrected {PORT::corrected} --archive {PORT::archive} --const-out {PORT::const_out}
+        [--icon-const {PORT::icon_const}] [--const-in {PORT::const_in}] {PORT::streams}
+  - post:
+      plugin: shell
+      uenv: '{{ UENV_TOOLS }}'
+      view: climtools
+      walltime: 01:00:00
+      src: scripts
+      command: >-
+        YDATE_START={{ START_DATE }} bash scripts/post.sh
+        {PORT::corrected} {PORT::target_grid} {PORT::extpar} {PORT::ts}[ {PORT::first}]
+
+data:
+  available:
+    - era5:
+        computer: santis
+        path: '{{ ERA5_DIR }}'
+    - era5_soiltype:
+        computer: santis
+        path: '{{ ERA5_DIR }}/diagnostics/ERA5_soiltype_europe.nc'
+    - icon_grid:
+        computer: santis
+        path: '{{ RCM_DIR }}/germany011/Germany011_DOM01.nc'
+    - extpar:
+        computer: santis
+        path: '{{ RCM_DIR }}/germany011/Germany011_DOM01_external_parameter.HWSD2-SOILTYP_9_5.nc'
+    - target_grid:
+        computer: santis
+        path: '{{ RCM_DIR }}/germany011/Germany011_DOM01_latlon_rotated.nc'
+    - greenhouse_gases:
+        computer: santis
+        path: '{{ RCM_DIR }}/independent/greenhouse_gases/greenhouse_ssp245.nc'
+    - ecrad_data:
+        computer: santis
+        path: '{{ ICON_DIR }}/externals/ecrad/data'
+    - solar_irradiance:
+        computer: santis
+        path: '{{ RCM_DIR }}/independent/solar_radiation/swflux_14band_cmip6_1850-2299-v3.2.nc'
+    - macv2_plumes:
+        computer: santis
+        path: '{{ RCM_DIR }}/independent/MACv2_simple_plumes_merged/MACv2.0-SP-merged-historical-and-SSP2-45_v1.nc'
+    - kinne_aerosols:
+        computer: santis
+        path: '{{ RCM_DIR }}/germany011/aeropt_kinne_germany011'
+    - volcanic_aerosols:
+        computer: santis
+        path: '{{ RCM_DIR }}/independent/volcanic_aeropt'
+    - ozone:
+        computer: santis
+        path: '{{ RCM_DIR }}/germany011/ozone_germany011'
+  generated:
+    - inidata:
+        path: inidata
+    - ifs2icon_file:
+        path: ifs2icon.nc
+    - radiation:
+        path: radiation
+    - icaf_forcing:
+        path: icaf
+    # The directory name must stay "latbc", it is linked into the ICON run directory
+    - latbc:
+        path: latbc
+    - out01: {}
+    - out02: {}
+    - out03: {}
+    - out04: {}
+    - out05: {}
+    - out06: {}
+    - out07: {}
+    - out08: {}
+    - out09: {}
+    - out10: {}
+    - out_const: {}
+    - icon_restart: {}
+    - corrected:
+        path: corrected
+    - archive:
+        path: archive
+    - arch_const:
+        path: const
+    - post_ts:
+        path: post

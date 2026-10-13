@@ -1,0 +1,20 @@
+&master_nml
+  lrestart             = .false.
+  lrestart_write_last  = .true.
+  read_restart_namelists = .false.
+/
+&master_model_nml
+  model_type              = 1
+  model_name              = "atm"
+  model_namelist_filename = "NAMELIST_sp001"
+  model_min_rank          = 0
+  model_max_rank          = 65535
+  model_inc_rank          = 1
+/
+&master_time_control_nml
+  calendar             = "proleptic gregorian"
+  experimentStartDate  = "2002-01-01T00:00:00Z"
+  experimentStopDate   = "2002-03-01T00:00:00Z"
+  restartTimeIntval    = "P1M"
+  checkpointTimeIntval = "P1M"
+/
