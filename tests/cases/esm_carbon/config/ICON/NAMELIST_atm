@@ -1,0 +1,208 @@
+!
+&coupling_mode_nml
+  coupled_to_ocean = .TRUE.
+/
+&parallel_nml
+ nproma_sub        = 8000
+ nblocks_e         = 1
+ num_io_procs      = 10
+ num_restart_procs = 0
+ io_process_stride = 8
+ io_proc_chunk_size = 16
+ pio_type          = 1
+ iorder_sendrecv   = 3
+/
+&grid_nml
+ dynamics_grid_filename = "icon_grid_0054_R02B08_G.nc"
+/
+&run_nml
+ num_lev          = 90          ! number of full levels
+ modelTimeStep    = "PT20S"
+ icon4py_mode     = 1
+ icon4py_backend  = 0
+ ltestcase        = .FALSE.     ! run testcase
+ ldynamics        = .TRUE.      ! dynamics
+ ltransport       = .TRUE.      ! transport
+ iforcing         = 2           ! 0: none, 1: HS, 2: ECHAM, 3: NWP
+ output           = 'nml'
+ msg_level        = 10          ! level of details report during integration
+ timers_level     = 4
+ restart_filename = "jcp_r2b8_icon4py_restart_atm_<rsttime>.mfr"
+ activate_sync_timers = .TRUE.
+ l_disable_print_gpu_mem = .TRUE.
+/
+&extpar_nml
+ itopo            = 1           ! 1: read topography from the grid file
+/
+&initicon_nml
+ init_mode        = 2           ! 2: initialize from IFS analysis
+ ifs2icon_filename= "ifs2icon.nc"
+/
+&nonhydrostatic_nml
+ ndyn_substeps    = 5 ! dtime/dt_dyn
+ damp_height      = 44000. ! [m]
+ rayleigh_coeff   = 1.0
+ vwind_offctr     = 0.2
+ divdamp_fac      = 0.004
+ divdamp_order    = 24
+ divdamp_trans_end = 17500
+ divdamp_trans_start = 12500
+ divdamp_type     = 32
+ exner_expol      = 0.333
+ hbot_qvsubstep   = 16000.
+ htop_moist_proc  = 22500.
+ iadv_rhotheta    = 2
+ igradp_method    = 3
+ itime_scheme     = 4
+ ivctype          = 2
+ l_zdiffu_t       = .true.
+ thhgtd_zdiffu    = 125.
+ thslp_zdiffu     = 0.02
+/
+&sleve_nml
+ min_lay_thckn    = 25.    ! [m]
+ max_lay_thckn    = 400.   ! [m]
+ top_height       = 75000. ! [m]
+ stretch_fac      = 0.9
+ decay_scale_1    = 4000.  ! [m]
+ decay_scale_2    = 2500.  ! [m]
+ decay_exp        = 1.2
+ flat_height      = 22500. ! [m]
+ htop_thcknlimit  = 14000.
+/
+&diffusion_nml
+/
+&transport_nml
+    ihadv_tracer = 20, 20, 20, 20, 20, 20, 20, 20
+    itype_hlimit = 3, 4, 4, 4, 4, 4, 4, 4
+    ivadv_tracer = 3, 3, 3, 3, 3, 3, 3, 3
+    tracer_names = 'hus', 'clw', 'cli', 'qr', 'qs', 'qg', 'o3', 'co2'
+/
+&aes_phy_nml
+!
+! domain 1
+! --------
+!
+! atmospheric physics (""=never)
+ aes_phy_config(1)%dt_rad = "PT12M"
+ aes_phy_config(1)%dt_vdf = "PT20S"
+ aes_phy_config(1)%dt_mig = "PT20S"
+ aes_phy_config(1)%dt_car = "PT20S"
+!
+! surface (.TRUE. or .FALSE.)
+ aes_phy_config(1)%ljsb   = .TRUE.
+ aes_phy_config(1)%lamip  = .FALSE.
+ aes_phy_config(1)%lice   = .TRUE.
+ aes_phy_config(1)%lmlo   = .FALSE.
+ aes_phy_config(1)%llake  = .FALSE.
+ aes_phy_config(1)%use_shflx_adjustment = .FALSE.
+ aes_phy_config(1)%iqneg_d2p = 2
+ aes_phy_config(1)%iqneg_p2d = 2
+/
+&aes_rad_nml
+! domain 1
+! Perpetual-2020 forcing: fixed solar and fixed greenhouse gas concentrations.
+ aes_rad_config(1)%isolrad    =  2 ! average 1850-1873 of transient CMIP6 solar, TSI = 1360.744 W/m2
+ aes_rad_config(1)%irad_h2o   =  1
+ aes_rad_config(1)%irad_co2   =  1
+ aes_rad_config(1)%irad_ch4   = 12
+ aes_rad_config(1)%irad_n2o   = 12
+ aes_rad_config(1)%irad_o3    =  1 ! tracer (Cariolle) -- R2B8 input set has no transient monthly-mean ozone files
+ aes_rad_config(1)%irad_o2    =  2
+ aes_rad_config(1)%irad_cfc11 =  2
+ aes_rad_config(1)%irad_cfc12 =  2
+ aes_rad_config(1)%irad_aero  = 12 ! Kinne tropospheric aerosol optics, filenames withOUT year
+ aes_rad_config(1)%lyr_perp   = .TRUE. ! for irad_aero = 12
+ aes_rad_config(1)%yr_perp    = 2020   ! for irad_aero = 12
+ aes_rad_config(1)%vmr_co2    = 415.15e-06  ! constant 2020 ratio
+ aes_rad_config(1)%vmr_ch4    = 1921.40e-09 ! constant 2020 ratio
+ aes_rad_config(1)%vmr_n2o    = 332.16e-09  ! constant 2020 ratio
+ aes_rad_config(1)%vmr_cfc11  = 218.23e-12  ! constant 2020 ratio
+ aes_rad_config(1)%vmr_cfc12  = 495.02e-12  ! constant 2020 ratio
+/
+&aes_vdf_nml
+ aes_vdf_config(1)%pr0                =  0.7
+ aes_vdf_config(1)%turb               =  2
+ aes_vdf_config(1)%use_tmx            = .TRUE.
+ aes_vdf_config(1)%energy_type        = 2     ! Only used for tmx
+ aes_vdf_config(1)%dissipation_factor = 1.3   ! Only used for tmx
+ aes_vdf_config(1)%use_louis          = .TRUE.
+ aes_vdf_config(1)%use_louis_land     = .FALSE.
+ aes_vdf_config(1)%use_louis_ice      = .FALSE.
+ aes_vdf_config(1)%louis_constant_b   = 3.2 ! calculated internally depending on res
+ aes_vdf_config(1)%lcuda_graph_vdf    = .TRUE.
+/
+&ccycle_nml
+ ccycle_config(1)%iccycle=2  ! 2: prescribed atmospheric CO2, 1: interactive
+ ccycle_config(1)%ico2conc=4 ! read from bc_greenhouse_gases.nc
+/
+&aes_cov_nml
+ aes_cov_config(1)%cqx     = 1.e-6
+/
+&aes_cop_nml
+ aes_cop_config(1)%cinhomi =   1.5
+ aes_cop_config(1)%cinhoml_cfo = 0.485
+ aes_cop_config(1)%cinhoml_cfl = 0.485
+ aes_cop_config(1)%cinhoml_sf = 1.0
+ aes_cop_config(1)%cn1lnd  = 300.0
+ aes_cop_config(1)%cn1sea  = 100.0
+ aes_cop_config(1)%cn2lnd  = 300.0
+ aes_cop_config(1)%cn2sea  = 300.0
+ aes_cop_config(1)%cinhoml_del2 = 22.
+/
+&sea_ice_nml
+    albedow_sim  = 0.10
+    albi         = 0.70
+    albim        = 0.68
+    albs         = 0.81
+    albsm        = 0.77
+    i_ice_dyn    = 1
+    i_ice_therm  = 1
+    leadclose_1  = 0.25
+    leadclose_2n = 0.0
+    delta_min    = 2.0e-09
+    cd_io        = 5.5e-3
+    luse_replacement_pressure = .TRUE.
+/
+&output_nml
+  output_filename  = 'jcp_r2b8_icon4py_core_atm_2d_lf'
+  filename_format  = 'core_atm_2d_lf/<output_filename>_<datetime2>'
+  filetype         = 5
+  mode             = 1
+  operation        = 'mean'
+  output_start     = "2020-01-01T00:00:00Z"
+  output_end       = "2020-06-01T00:00:00Z"
+  output_interval  = "P1D"
+  file_interval    = "P1D"
+  ml_varlist       = 'hfls', 'hfss', 'evspsbl', 'prlr', 'prw', 'clt', 'clivi', 'cllvi', 'qrvi', 'qsvi', 'qgvi', 'rlds', 'rlus', 'rsdt', 'rsus', 'sic', 'sit', 'tauu', 'tauv', 'ts', 'o3vi', 'pres_msl', 
+/
+&output_nml
+  output_filename  = 'jcp_r2b8_icon4py_core_atm_2d_hf'
+  filename_format  = 'core_atm_2d_hf/<output_filename>_<datetime2>'
+  filetype         = 5
+  mode             = 1
+  operation        = 'point'
+  output_start     = "2020-01-01T00:00:00Z"
+  output_end       = "2020-06-01T00:00:00Z"
+  output_interval  = "PT1H"
+  file_interval    = "P1D"
+  ml_varlist       = 'pr', 'pres_sfc', 'tas', 'sfcwind', 'uas', 'vas', 'rlut', 'rsds', 'rsut', 
+/
+&output_nml
+  output_filename  = 'jcp_r2b8_icon4py_core_atm_3d_pl'
+  filename_format  = 'core_atm_3d_pl/<output_filename>_<datetime2>'
+  filetype         = 5
+  mode             = 1
+  operation        = 'point'
+  output_start     = "2020-01-01T00:00:00Z"
+  output_end       = "2020-06-01T00:00:00Z"
+  output_interval  = "P1D"
+  file_interval    = "P1D"
+  p_levels         = 100,500,1000,2000,3000,5000,7000,10000,15000,20000,25000,30000,40000,50000,60000,70000,75000,80000,85000,87500,90000,92500,95000,97500,100000
+  pl_varlist       = 'ta', 'ua', 'va', 'w', 'o3', 'rho', 'clw', 'cli', 'qg', 'qr', 'qs', 'hus', 'gpsm', 'vor', 
+/
+&io_nml
+ itype_pres_msl   = 4
+ restart_file_type= 5
+ restart_write_mode = "joint procs multifile"
+/
