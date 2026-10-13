@@ -146,6 +146,16 @@ aes_land_phys_handler = PortHandler(
     valid_model_types=[ModelType.ATMOSPHERE],
     target_link_name="bc_land_phys.nc",
 )
+aes_bc_sst_handler = PortHandler(
+    port_name="aes_bc_sst",
+    valid_model_types=[ModelType.ATMOSPHERE],
+    target_link_name="bc_sst.nc",
+)
+aes_bc_sic_handler = PortHandler(
+    port_name="aes_bc_sic",
+    valid_model_types=[ModelType.ATMOSPHERE],
+    target_link_name="bc_sic.nc",
+)
 cariolle_coeff_handler = PortHandler(
     port_name="cariolle_coeff",
     valid_model_types=[ModelType.ATMOSPHERE],
