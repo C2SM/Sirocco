@@ -32,4 +32,7 @@ wait_or_fail "LATERAL_BOUNDARY_DATA"
   ln -s "${INIDIR}/${GCM_PREFIX}${YDATE_START}_lbc.nc" "${OUT}/"
 
 check_forcing_files "${OUT}" _lbc.nc
+
+# The prepared input of this month is no longer needed (as in SPICE)
+rm -rf -- "${PIN:?}"
 echo "[CONV2ICON] finished ${YYYY_MM}"

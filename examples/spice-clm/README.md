@@ -11,10 +11,11 @@ all other steps are shell tasks.
 | `install` | once | `config.sh` (build part) | clone and build [clm-tools](https://github.com/C2SM/clm-tools) |
 | `prep` | monthly | `prep.job.sh` | untar ERA5 (3-hourly), unzip, `ccaf2icaf` |
 | `init` | once | `conv2icon.job.sh` part I, links of `icon.job.sh` | initial state, remapping helpers, aerosol/ozone links |
-| `conv2icon` | monthly | `conv2icon.job.sh` parts II, III | `LOWBC.nc` and lateral boundary files in `latbc/` |
+| `conv2icon` | monthly | `conv2icon.job.sh` parts II, III | `LOWBC.nc` and lateral boundary files in `latbc/`; deletes the `prep` output |
 | `icon` | monthly | `icon.job.sh` | ICON on 4 GPU nodes, restart from previous month |
 | `arch` | monthly | `arch.job.sh` | completeness and SAMOVAR checks, CF correction, tar files |
 | `post` | monthly | `post.job.sh` | monthly time series on the rotated lat/lon grid |
+| `clean` | monthly | clean-up in `post.job.sh` | deletes boundary data, raw ICON output and corrected streams after a successful `post` |
 
 The shell scripts use [clm-tools](https://github.com/C2SM/clm-tools) (`cfu`, `ccaf2icaf`,
 Python venv, SAMOVAR and `functions.sh`), which are taken from SPICE and licensed under
@@ -38,4 +39,5 @@ Task run directories are created in `examples/spice-clm/run/`.
 - `irad_aero = 18` and `init_latbc_from_fg = .false.` are set explicitly. The SPICE
   2025.10 patch leaves `irad_aero` empty, and the SPICE scripts set `init_latbc_from_fg` to `.true.` by mistake.
 - `allow_overcast` is fixed to the January value (0.917); SPICE changes it every month.
-- Outputs stay in the task run directories; SPICE deletes scratch data after `post`.
+- Archives, time series, restart files and logs stay in the task run directories; SPICE moves
+  them to separate directories and deletes the whole scratch directory at the end of the chain.
