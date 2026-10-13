@@ -131,6 +131,21 @@ aes_ghg_file_handler = PortHandler(
     valid_model_types=[ModelType.ATMOSPHERE],
     target_link_name="bc_greenhouse_gases.nc",
 )
+aes_land_sso_handler = PortHandler(
+    port_name="aes_land_sso",
+    valid_model_types=[ModelType.ATMOSPHERE],
+    target_link_name="bc_land_sso.nc",
+)
+aes_land_frac_handler = PortHandler(
+    port_name="aes_land_frac",
+    valid_model_types=[ModelType.ATMOSPHERE],
+    target_link_name="bc_land_frac.nc",
+)
+aes_land_phys_handler = PortHandler(
+    port_name="aes_land_phys",
+    valid_model_types=[ModelType.ATMOSPHERE],
+    target_link_name="bc_land_phys.nc",
+)
 cariolle_coeff_handler = PortHandler(
     port_name="cariolle_coeff",
     valid_model_types=[ModelType.ATMOSPHERE],
