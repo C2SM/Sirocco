@@ -29,6 +29,8 @@ cycles:
                   aes_land_sso: [land_sso]
                   aes_land_frac: [land_frac]
                   aes_land_phys: [land_phys]
+                  aes_bc_sst: [sst]
+                  aes_bc_sic: [sic]
                   aeropt_kinne_lw_coa: [kinne_lw_coa]
                   aeropt_kinne_sw_coa: [kinne_sw_coa]
                   aeropt_kinne_sw_fin: [kinne_sw_fin_2020]
@@ -199,6 +201,12 @@ data:
     - land_sso:
         computer: "{{ SIROCCO_COMPUTER }}"
         path: "{{ INPUT_DIR }}/bc_land_sso.nc"
+    - sst:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ INPUT_DIR }}/bc_sst_2019-2021.nc"
+    - sic:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ INPUT_DIR }}/bc_sic_2019-2021.nc"
     - land_soil_ic:
         computer: "{{ SIROCCO_COMPUTER }}"
         path: "{{ INPUT_DIR }}/ic_land_soil.nc"
