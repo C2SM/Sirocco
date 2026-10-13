@@ -38,6 +38,5 @@ Task run directories are created in `examples/spice-clm/run/`.
   because Sirocco only updates the experiment dates per chunk.
 - `irad_aero = 18` and `init_latbc_from_fg = .false.` are set explicitly. The SPICE
   2025.10 patch leaves `irad_aero` empty, and the SPICE scripts set `init_latbc_from_fg` to `.true.` by mistake.
-- `allow_overcast` is fixed to the January value (0.917); SPICE changes it every month.
 - Archives, time series, restart files and logs stay in the task run directories; SPICE moves
   them to separate directories and deletes the whole scratch directory at the end of the chain.
