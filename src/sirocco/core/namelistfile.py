@@ -1,12 +1,14 @@
 import re
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+from datetime import timedelta
 from pathlib import Path
 from typing import Any, Self
 
 import f90nml
 
 from sirocco.parsing import yaml_data_models as models
+from sirocco.parsing.cycling import CyclePoint, DateCyclePoint
 
 
 @dataclass(kw_only=True)
@@ -44,11 +46,40 @@ class NamelistFile(models.ConfigNamelistFileSpec):
                 yield from nmls
 
     @classmethod
-    def from_config(cls: type[Self], config: models.ConfigNamelistFile, config_rootdir: Path) -> Self:
+    def from_config(
+        cls: type[Self],
+        config: models.ConfigNamelistFile,
+        config_rootdir: Path,
+        cycle_point: CyclePoint | None = None,
+    ) -> Self:
         path = cls._validate_namelist_path(config.path, config_rootdir)
         self = cls(path=path)
-        self.update_from_specs(config.specs)
+        self.update_from_specs(cls.resolve_by_month(config.specs, cycle_point))
         return self
+
+    @staticmethod
+    def resolve_by_month(specs: dict[str, Any], cycle_point: CyclePoint | None) -> dict[str, Any]:
+        """Replace parameters given as {"by_month": [12 values]} by the value of the chunk's calendar month."""
+        resolved: dict[str, Any] = {}
+        for section, params in specs.items():
+            if not isinstance(params, dict):
+                resolved[section] = params
+                continue
+            resolved[section] = {}
+            for key, value in params.items():
+                if not models.is_by_month(value):
+                    resolved[section][key] = value
+                    continue
+                if not isinstance(cycle_point, DateCyclePoint):
+                    msg = f"{section}.{key}: {models.BY_MONTH_KEY!r} requires date cycling"
+                    raise TypeError(msg)
+                start = cycle_point.chunk_start_date
+                last = cycle_point.chunk_stop_date - timedelta(microseconds=1)
+                if (start.year, start.month) != (last.year, last.month):
+                    msg = f"{section}.{key}: {models.BY_MONTH_KEY!r} requires chunks within one calendar month, got {cycle_point}"
+                    raise ValueError(msg)
+                resolved[section][key] = value[models.BY_MONTH_KEY][start.month - 1]
+        return resolved
 
     def update_from_specs(self, specs: dict[str, Any]) -> None:
         """Updates the internal namelist from the specs."""
