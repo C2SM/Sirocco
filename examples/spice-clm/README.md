@@ -8,6 +8,7 @@ all other steps are shell tasks.
 
 | Task | Cycle | SPICE equivalent | Purpose |
 |------|-------|------------------|---------|
+| `install` | once | `config.sh` (build part) | clone and build [clm-tools](https://github.com/C2SM/clm-tools) |
 | `prep` | monthly | `prep.job.sh` | untar ERA5 (3-hourly), unzip, `ccaf2icaf` |
 | `init` | once | `conv2icon.job.sh` part I, links of `icon.job.sh` | initial state, remapping helpers, aerosol/ozone links |
 | `conv2icon` | monthly | `conv2icon.job.sh` parts II, III | `LOWBC.nc` and lateral boundary files in `latbc/` |
@@ -15,8 +16,11 @@ all other steps are shell tasks.
 | `arch` | monthly | `arch.job.sh` | completeness and SAMOVAR checks, CF correction, tar files |
 | `post` | monthly | `post.job.sh` | monthly time series on the rotated lat/lon grid |
 
-The shell scripts use the tools of a configured SPICE installation (`cfu`, `ccaf2icaf`,
-Python venv, SAMOVAR and `functions.inc`), set by `SPICE_DIR` in `scripts/common.sh`.
+The shell scripts use [clm-tools](https://github.com/C2SM/clm-tools) (`cfu`, `ccaf2icaf`,
+Python venv, SAMOVAR and `functions.sh`), which are taken from SPICE and licensed under
+GPL-3.0-or-later. The `install` task clones the version given by `TOOLS_REPO` and
+`TOOLS_VERSION` in `sirocco_vars.yaml` and builds it, so no SPICE installation is needed.
+The compute nodes need outbound internet access for `git clone` and `pip install`.
 
 ## Running
 

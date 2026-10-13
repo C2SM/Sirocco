@@ -8,6 +8,10 @@ STOP_DATE: '2002-03-01T00:00:00'
 # Python environment with Sirocco installed, used by the standalone continuation job
 SIROCCO_VENV: /path/to/sirocco/.venv
 
+# GPL tools taken from SPICE, cloned and built by the install task
+TOOLS_REPO: https://github.com/C2SM/clm-tools.git
+TOOLS_VERSION: v0.2.0
+
 UENV_TOOLS: climtools/25.2:v1
 UENV_ICON: icon/25.2:v4
 ICON_DIR: /capstor/store/cscs/userlab/cws01/icon-model/release-2025.10-public

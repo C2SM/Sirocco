@@ -2,10 +2,10 @@
 # Sourced by every task script; tasks run inside the climtools uenv (sbatch --uenv).
 set -e
 
-# -- SPICE installation providing cfu, ccaf2icaf, the Python venv, SAMOVAR and functions.inc
-SPICE_DIR=/capstor/scratch/cscs/mjaehn/spice
-SRCDIR=${SPICE_DIR}/src
-PYTHON_VENVDIR=${SRCDIR}/python_util/venv
+# -- clm-tools built by the install task (cfu, ccaf2icaf, Python venv, SAMOVAR, functions.sh)
+CLM_TOOLS=$(realpath "${CLM_TOOLS:?CLM_TOOLS must be set}")
+SRCDIR=${CLM_TOOLS}/src
+PYTHON_VENVDIR=${CLM_TOOLS}/venv
 EXPID=sp001
 
 # -- Tools (no "uenv run" wrapper needed, the uenv is mounted by the job)
@@ -29,7 +29,7 @@ export SAMOVAR_EXE="${PYTHON_VENVDIR}/bin/python ${SRCDIR}/python_util/samovar.p
 SAMOVAR_SH=("${SRCDIR}/samovar/samovar.sh")
 SAMOVAR_LIST=${SRCDIR}/samovar/samovar.csv
 SAMOVAR_LIST_TS=${SRCDIR}/samovar/samovar_ts.csv
-OUTPUT_MAPPING_FILE=${SPICE_DIR}/data/csv/mapping_to_cosmo.csv
+OUTPUT_MAPPING_FILE=${CLM_TOOLS}/data/csv/mapping_to_cosmo.csv
 
 # -- Experiment settings (SPICE job_settings of sp001)
 ITYPE_CALENDAR=0          # proleptic gregorian
@@ -80,10 +80,8 @@ fi
 PFDIR=${PWD}/.spice
 WORKDIR=${PFDIR}
 mkdir -p "${PFDIR}/${EXPID}/scripts" "${WORKDIR}/${EXPID}/post"
-ln -sf "${SPICE_DIR}/configure_scripts/template_gcm2icon/scripts/calc_potevap_s.py" "${PFDIR}/${EXPID}/scripts/"
-"${CFU[@]}" shellpp "${SPICE_DIR}/configure_scripts/template_gcm2icon/scripts/functions.inc" \
-  "${PFDIR}/functions.inc" cscs-alps > /dev/null
-source "${PFDIR}/functions.inc"
+ln -sf "${CLM_TOOLS}/scripts/calc_potevap_s.py" "${PFDIR}/${EXPID}/scripts/"
+source "${CLM_TOOLS}/scripts/functions.sh"
 
 # Abort unless all files between CURRENT_DATE and NEXT_DATE exist (args: directory, suffix)
 check_forcing_files() {

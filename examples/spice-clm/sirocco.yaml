@@ -1,6 +1,6 @@
 ---
 # ICON-CLM limited-area run driven by ERA5 over Germany (0.11 deg), mimicking the
-# SPICE experiment sp001 (gcm2icon). Run with the standalone engine: `sirocco start`.
+# SPICE experiment sp001 (gcm2icon) without a SPICE installation. Run with the standalone engine: `sirocco start`.
 name: spice-sp001
 scheduler: slurm
 front_depth: 2
@@ -8,8 +8,12 @@ front_depth: 2
 cycles:
   - init:
       tasks:
+        - install:
+            outputs:
+              tools: [clm_tools]
         - init:
             inputs:
+              tools: [clm_tools]
               forcing:
                 - icaf_forcing:
                     target_cycle:
@@ -31,12 +35,14 @@ cycles:
       tasks:
         - prep:
             inputs:
+              tools: [clm_tools]
               era5: [era5]
               soiltype: [era5_soiltype]
             outputs:
               forcing: [icaf_forcing]
         - conv2icon:
             inputs:
+              tools: [clm_tools]
               forcing: [icaf_forcing]
               inidata: [inidata]
             outputs:
@@ -67,6 +73,7 @@ cycles:
                   link_content: [radiation]
         - arch:
             inputs:
+              tools: [clm_tools]
               streams: [out01, out02, out03, out04, out05, out06, out07, out08, out09, out10]
               icon_const:
                 - out_const:
@@ -84,6 +91,7 @@ cycles:
               const_out: [arch_const]
         - post:
             inputs:
+              tools: [clm_tools]
               corrected: [corrected]
               target_grid: [target_grid]
               extpar: [extpar]
@@ -105,6 +113,14 @@ tasks:
       computer: santis
       venv: '{{ SIROCCO_VENV }}'
       walltime: 00:05:00
+  - install:
+      plugin: shell
+      uenv: '{{ UENV_TOOLS }}'
+      view: climtools
+      walltime: 00:15:00
+      command: >-
+        git clone --quiet --depth 1 --branch {{ TOOLS_VERSION }} {{ TOOLS_REPO }} {PORT::tools}
+        && {PORT::tools}/install.sh cscs-alps
   - init:
       plugin: shell
       uenv: '{{ UENV_TOOLS }}'
@@ -112,7 +128,7 @@ tasks:
       walltime: 00:30:00
       src: scripts
       command: >-
-        YDATE_START={{ START_DATE }} YDATE_STOP={{ STOP_DATE }} bash scripts/init.sh
+        CLM_TOOLS={PORT::tools} YDATE_START={{ START_DATE }} YDATE_STOP={{ STOP_DATE }} bash scripts/init.sh
         {PORT::forcing} {PORT::lam_grid} {PORT::extpar} {PORT::kinne} {PORT::volc} {PORT::ozone}
         {PORT::inidata} {PORT::ifs2icon} {PORT::radiation}
   - prep:
@@ -122,7 +138,7 @@ tasks:
       walltime: 00:15:00
       src: scripts
       command: >-
-        YDATE_START={{ START_DATE }} bash scripts/prep.sh {PORT::era5} {PORT::soiltype} {PORT::forcing}
+        CLM_TOOLS={PORT::tools} YDATE_START={{ START_DATE }} bash scripts/prep.sh {PORT::era5} {PORT::soiltype} {PORT::forcing}
   - conv2icon:
       plugin: shell
       uenv: '{{ UENV_TOOLS }}'
@@ -130,7 +146,7 @@ tasks:
       walltime: 00:30:00
       src: scripts
       command: >-
-        YDATE_START={{ START_DATE }} bash scripts/conv2icon.sh {PORT::forcing} {PORT::inidata} {PORT::latbc}
+        CLM_TOOLS={PORT::tools} YDATE_START={{ START_DATE }} bash scripts/conv2icon.sh {PORT::forcing} {PORT::inidata} {PORT::latbc}
   - icon:
       plugin: icon
       uenv: '{{ UENV_ICON }}'
@@ -159,7 +175,7 @@ tasks:
       walltime: 00:30:00
       src: scripts
       command: >-
-        YDATE_START={{ START_DATE }} bash scripts/arch.sh
+        CLM_TOOLS={PORT::tools} YDATE_START={{ START_DATE }} bash scripts/arch.sh
         --corrected {PORT::corrected} --archive {PORT::archive} --const-out {PORT::const_out}
         [--icon-const {PORT::icon_const}] [--const-in {PORT::const_in}] {PORT::streams}
   - post:
@@ -169,7 +185,7 @@ tasks:
       walltime: 01:00:00
       src: scripts
       command: >-
-        YDATE_START={{ START_DATE }} bash scripts/post.sh
+        CLM_TOOLS={PORT::tools} YDATE_START={{ START_DATE }} bash scripts/post.sh
         {PORT::corrected} {PORT::target_grid} {PORT::extpar} {PORT::ts}[ {PORT::first}]
 
 data:
@@ -211,6 +227,8 @@ data:
         computer: santis
         path: '{{ RCM_DIR }}/germany011/ozone_germany011'
   generated:
+    - clm_tools:
+        path: clm-tools
     - inidata:
         path: inidata
     - ifs2icon_file:
