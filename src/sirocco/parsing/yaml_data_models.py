@@ -533,6 +533,14 @@ class ConfigShellTask(ConfigBaseTask, ConfigShellTaskSpecs):
 class ConfigNamelistFileSpec: ...
 
 
+BY_MONTH_KEY = "by_month"
+
+
+def is_by_month(value: Any) -> bool:
+    """Check if a namelist parameter is given as one value per calendar month."""
+    return isinstance(value, dict) and value.keys() == {BY_MONTH_KEY}
+
+
 class ConfigNamelistFile(BaseModel, ConfigNamelistFileSpec):
     """
     Validated namelist specifications.
@@ -540,6 +548,8 @@ class ConfigNamelistFile(BaseModel, ConfigNamelistFileSpec):
     - path is the path to the namelist file considered as template
     - specs is a dictionnary containing the specifications of parameters
       to change in the original namelist file
+    - a parameter given as {"by_month": [12 values]} takes the value of the
+      calendar month of the chunk (requires date cycling with chunks of at most one month)
 
     Example:
 
@@ -576,6 +586,15 @@ class ConfigNamelistFile(BaseModel, ConfigNamelistFileSpec):
             return merged
         path = merged.pop("path")
         return {"path": path, "specs": merged or {}}
+
+    @model_validator(mode="after")
+    def check_by_month_values(self) -> Self:
+        for section, params in self.specs.items():
+            for key, value in params.items() if isinstance(params, dict) else ():
+                if is_by_month(value) and (not isinstance(value[BY_MONTH_KEY], list) or len(value[BY_MONTH_KEY]) != 12):  # noqa: PLR2004
+                    msg = f"{section}.{key}: {BY_MONTH_KEY!r} requires a list of 12 values"
+                    raise ValueError(msg)
+        return self
 
 
 @dataclass(kw_only=True)

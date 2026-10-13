@@ -536,7 +536,9 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
             raise TypeError
 
         config_kwargs["namelists"] = [
-            NamelistFile.from_config(config=config_namelist, config_rootdir=config_rootdir)
+            NamelistFile.from_config(
+                config=config_namelist, config_rootdir=config_rootdir, cycle_point=kwargs.get("cycle_point")
+            )
             for config_namelist in config_kwargs["namelists"]
         ]
 
