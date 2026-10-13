@@ -1,0 +1,232 @@
+---
+# Coupled ICON-ESM R02B08 experiment with carbon cycle (atmosphere and JSBACH land on GPU
+# with ICON4Py, ocean and HAMOCC on CPU, coupled through YAC). Translated from
+# jcp/run_scripts/santis/jcp_r2b8_icon4py.run
+name: esm_carbon_r2b8
+start_date: &root_start_date '2020-01-01T00:00:00'
+stop_date: &root_stop_date '2020-06-01T00:00:00'
+scheduler: slurm
+
+cycles:
+  - coupled:
+      cycling:
+        start_date: *root_start_date
+        stop_date: *root_stop_date
+        period: P1M
+      tasks:
+        - icon:
+            components:
+              atmo:
+                inputs:
+                  dynamics_grid_file: [atm_grid]
+                  ifs2icon: [ifs2icon]
+                  rrtmgp_gas_lw: [rrtmgp_gas_lw]
+                  rrtmgp_gas_sw: [rrtmgp_gas_sw]
+                  rrtmgp_cloud_optics_lw: [rrtmgp_cloud_optics_lw]
+                  rrtmgp_cloud_optics_sw: [rrtmgp_cloud_optics_sw]
+                  aes_ghg_file: [greenhouse_gases]
+                  cariolle_coeff: [ozone_cariolle]
+                  aeropt_kinne_lw_coa: [kinne_lw_coa]
+                  aeropt_kinne_sw_coa: [kinne_sw_coa]
+                  aeropt_kinne_sw_fin: [kinne_sw_fin_2020]
+                  bc_solar_sw: [solar_irradiance]
+                  output_dict: [output_dict]
+                  restart_in:
+                    - atmo_restart:
+                        when:
+                          after: *root_start_date
+                        target_cycle:
+                          lag: -P1M
+                outputs:
+                  restart_out: [atmo_restart]
+                  output_streams: [core_atm_2d_lf, core_atm_2d_hf, core_atm_3d_pl]
+              JSBACH:
+                inputs:
+                  jsb_fract: [land_frac]
+                  jsb_seb_bc: [land_phys]
+                  jsb_seb_ic: [land_soil_ic]
+                  jsb_rad_bc: [land_phys]
+                  jsb_rad_ic: [land_soil_ic]
+                  jsb_turb_bc: [land_phys]
+                  jsb_turb_ic: [land_soil_ic]
+                  jsb_sse_bc: [land_soil]
+                  jsb_sse_ic: [land_soil_ic]
+                  jsb_hydro_bc: [land_soil]
+                  jsb_hydro_bc_sso: [land_sso]
+                  jsb_hydro_ic: [land_soil_ic]
+                  jsb_pheno_bc: [land_phys]
+                  jsb_pheno_ic: [land_soil_ic]
+                  jsb_disturb_bc: [land_phys]
+                  jsb_disturb_ic: [land_soil_ic]
+                  jsb_hd_bc: [hd_para]
+                  jsb_hd_ic: [hd_start]
+                  jsb_lctlib: [lctlib]
+                outputs:
+                  output_streams: [core_carbon_2d_hf]
+              ocean:
+                inputs:
+                  dynamics_grid_file: [oce_grid]
+                  hamocc_dust: [hamocc_dust]
+                  hamocc_nitrogen: [hamocc_nitrogen]
+                  ocean_restart_init:
+                    - ocean_spinup_restart:
+                        when:
+                          at: *root_start_date
+                  restart_in:
+                    - ocean_restart:
+                        when:
+                          after: *root_start_date
+                        target_cycle:
+                          lag: -P1M
+                outputs:
+                  restart_out: [ocean_restart]
+                  # Same order as the output_nml blocks in NAMELIST_oce
+                  output_streams:
+                    - budget_day_mean_3d_5levels_dic
+                    - budget_day_mean_3d_5levels_det
+                    - budget_day_mean_3d_5levels_doc
+                    - budget_day_mean_3d_5levels_no3
+                    - core_ocean_2d_lf
+                    - core_ocean_2d_hf
+                    - core_ocean_3d_full_lf
+                    - core_ocean_3d_half_lf
+                    - core_hamocc_2d_lf
+                    - core_hamocc_2d_hf
+                    - core_hamocc_3d_lf
+
+tasks:
+  - ROOT:
+      computer: "{{ SIROCCO_COMPUTER }}"
+      account: "{{ SLURM_ACCOUNT }}"
+  - icon:
+      plugin: icon
+      partition: tier0
+      uenv: icon/26.7:v1
+      view: default
+      walltime: 12:00:00
+      nodes: 16
+      # 4 GPU ranks (atmosphere) + 100 CPU ranks (ocean) per node, one NUMA node per GPU
+      procs_per_node: 104
+      cores_per_proc: 1
+      sockets_per_node: 4
+      runtime: ./runtime
+      yac_coupling: ICON/coupling.yaml
+      exe:
+        gpu:
+          path: "{{ ICON_GPU_BUILD }}/bin/icon"
+          icon4py_venv: "{{ ICON_GPU_BUILD }}/externals/icon4py/.venv"
+          gt4py_build_cache_dir: "{{ CACHE_DIR }}/gt4py"
+          compute_procs_per_node: 4
+          procs:
+            atmo:
+              streams: 10
+        cpu:
+          path: "{{ ICON_CPU_BUILD }}/bin/icon"
+          procs:
+            ocean:
+              streams: 14
+      namelists:
+        - ./ICON/icon_master.namelist
+        - ./ICON/NAMELIST_atm
+        - ./ICON/NAMELIST_lnd
+        - ./ICON/NAMELIST_oce
+
+data:
+  available:
+    # Grids and initial state
+    - atm_grid:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ INPUT_DIR }}/icon_grid_0054_R02B08_G.nc"
+    - oce_grid:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ INPUT_DIR }}/icon_grid_0058_R02B08_O.nc"
+    - ifs2icon:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ INPUT_DIR }}/ifs2icon_2020010100_0054_R02B08_G.nc"
+    - ocean_spinup_restart:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ INPUT_DIR }}/MSM13_r2b8L72_ERA5_budget_restart_oce_20200101T000000Z.nc"
+    # Radiation
+    - rrtmgp_gas_lw:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ ICON_SRC }}/data/rrtmgp-gas-lw-g128.nc"
+    - rrtmgp_gas_sw:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ ICON_SRC }}/data/rrtmgp-gas-sw-g112.nc"
+    - rrtmgp_cloud_optics_lw:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ ICON_SRC }}/data/ECHAM6_CldOptProps_rrtmgp_lw.nc"
+    - rrtmgp_cloud_optics_sw:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ ICON_SRC }}/data/ECHAM6_CldOptProps_rrtmgp_sw.nc"
+    - greenhouse_gases:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ INPUT_DIR }}/greenhouse_ssp370.nc"
+    - ozone_cariolle:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ INPUT_DIR }}/bc_ozone_cariolle.nc"
+    - kinne_lw_coa:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ INPUT_DIR }}/bc_aeropt_kinne_lw_b16_coa.nc"
+    - kinne_sw_coa:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ INPUT_DIR }}/bc_aeropt_kinne_sw_b14_coa.nc"
+    - kinne_sw_fin_2020:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ INPUT_DIR }}/bc_aeropt_kinne_sw_b14_fin_2020.nc"
+    - solar_irradiance:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ INPUT_DIR }}/swflux_14band_cmip6_1850-2299-v3.2.nc"
+    - output_dict:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ ICON_CPU_BUILD }}/run/dict.iconam.mpim"
+    # Land
+    - land_frac:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ INPUT_DIR }}/bc_land_frac_11pfts_2015.nc"
+    - land_phys:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ INPUT_DIR }}/bc_land_phys.nc"
+    - land_soil:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ INPUT_DIR }}/bc_land_soil.nc"
+    - land_sso:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ INPUT_DIR }}/bc_land_sso.nc"
+    - land_soil_ic:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ INPUT_DIR }}/ic_land_soil.nc"
+    - hd_para:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ INPUT_DIR }}/hdpara_r2b8_0054_0058_mc_s_v1.nc"
+    - hd_start:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ INPUT_DIR }}/hdstart_r2b8_0054_0058_mc_s_v1_1.nc"
+    - lctlib:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ ICON_SRC }}/externals/jsbach/data/lctlib_nlct21.def"
+    # Ocean biogeochemistry
+    - hamocc_dust:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ INPUT_DIR }}/MAHOWALDDUST_OceanOnly_Global_IcosSymmetric_0010km_rotatedZ37d_modified_sills_srtm30_1min.nc"
+    - hamocc_nitrogen:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ INPUT_DIR }}/ndepo_1-0_gr_201401-201412_OceanOnly_Global_IcosSymmetric_0010km_rotatedZ37d_modified_sills_srtm30_1min.nc"
+  generated:
+    - atmo_restart: {}
+    - ocean_restart: {}
+    - core_atm_2d_lf: {}
+    - core_atm_2d_hf: {}
+    - core_atm_3d_pl: {}
+    - core_carbon_2d_hf: {}
+    - budget_day_mean_3d_5levels_dic: {}
+    - budget_day_mean_3d_5levels_det: {}
+    - budget_day_mean_3d_5levels_doc: {}
+    - budget_day_mean_3d_5levels_no3: {}
+    - core_ocean_2d_lf: {}
+    - core_ocean_2d_hf: {}
+    - core_ocean_3d_full_lf: {}
+    - core_ocean_3d_half_lf: {}
+    - core_hamocc_2d_lf: {}
+    - core_hamocc_2d_hf: {}
+    - core_hamocc_3d_lf: {}
