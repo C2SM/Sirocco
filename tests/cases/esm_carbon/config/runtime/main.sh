@@ -106,7 +106,8 @@ hang_watchdog(){
         squeue -s -j ${SLURM_JOB_ID} > "${DIAG_DIR}/squeue_steps.txt"
         env -u SLURM_HOSTFILE timeout 1200 srun --overlap --jobid=${SLURM_JOB_ID} --nodes=${SLURM_JOB_NUM_NODES} \
             --ntasks-per-node=1 --distribution=block --mem=0 --gpus-per-node=${SLURM_GPUS_ON_NODE}${uenv_opts} \
-            ./diag_collect.sh "${DIAG_DIR}" > "${DIAG_DIR}/collect.log" 2>&1
+            ./diag_collect.sh "${DIAG_DIR}" > "${DIAG_DIR}/collect.log" 2>&1 \
+            || echo "WATCHDOG: diagnostics step failed, see ${DIAG_DIR}/collect.log"
         echo "WATCHDOG: diagnostics done, sending SIGABRT to step ${main_step}"
         scancel --signal=ABRT ${main_step}
         sleep 120
