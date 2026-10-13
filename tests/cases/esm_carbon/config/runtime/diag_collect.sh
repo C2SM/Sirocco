@@ -16,8 +16,9 @@ for pid in $(pgrep -u $USER -x 'icon_(gpu|cpu)'); do
   rank=$(tr '\0' '\n' < /proc/$pid/environ | sed -n 's/^SLURM_PROCID=//p')
   { cat /proc/$pid/status; echo "wchan: $(cat /proc/$pid/wchan)"; } > proc_rank${rank}.txt 2>&1
   if [[ $(readlink /proc/$pid/exe) -ef $ICON_GPU_EXE ]] || (( n_cpu++ < WATCHDOG_GDB_CPU_PER_NODE )); then
-    timeout 300 gdb -p $pid -batch -nx -q -ex 'set pagination off' -ex 'info threads' -ex 'thread apply all bt' \
-      > gdb_rank${rank}.txt 2>&1 &
+    # Read binaries through this step's mounts, the target's mount namespace is not accessible
+    timeout -k 10 120 gdb -batch -nx -q -ex 'set sysroot /' -ex 'set pagination off' -ex 'info threads' \
+      -ex 'thread apply all bt' "$(readlink /proc/$pid/exe)" $pid > gdb_rank${rank}.txt 2>&1 &
   fi
 done
 wait
