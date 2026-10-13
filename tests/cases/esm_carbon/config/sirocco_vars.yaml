@@ -4,6 +4,8 @@
 # Compute configuration
 SIROCCO_COMPUTER: "santis"
 SLURM_ACCOUNT: "cwd01"
+# Python environment providing the sirocco command for the continuation jobs
+SIROCCO_VENV: "/capstor/scratch/cscs/mjaehn/SIROCCO/cwp_case_esm_carbon/.venv"
 
 # ICON source tree and builds (GPU: atmosphere and land with ICON4Py, CPU: ocean and HAMOCC)
 ICON_SRC: "/capstor/scratch/cscs/mjaehn/jcp/jcp/jcp_build/icon-mpim"
