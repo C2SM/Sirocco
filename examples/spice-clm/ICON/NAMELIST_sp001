@@ -33,7 +33,7 @@
 /
 &limarea_nml
   itype_latbc     = 1
-  init_latbc_from_fg = .false.  ! .true. only for init_mode 1, 3 and 7
+  init_latbc_from_fg = .true.   ! lateral boundaries at the start date from the initial state
   dtime_latbc     = 10800.0
   latbc_varnames_map_file = 'dict.latbc'
   latbc_path      = './latbc'
