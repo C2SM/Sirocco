@@ -259,7 +259,8 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
             {
                 "master_time_control_nml": {
                     # Use Z instead of +00:00 for UTC (ISO 8601 compact form)
-                    "experimentStartDate": self.cycle_point.chunk_start_date.isoformat().replace("+00:00", "Z"),
+                    # The experiment start stays fixed across restarts, ICON components rely on it
+                    "experimentStartDate": self.cycle_point.start_date.isoformat().replace("+00:00", "Z"),
                     "experimentStopDate": self.cycle_point.chunk_stop_date.isoformat().replace("+00:00", "Z"),
                     "restartTimeIntval": str(self.cycle_point.period),
                     "checkpointTimeIntval": str(self.cycle_point.period),
