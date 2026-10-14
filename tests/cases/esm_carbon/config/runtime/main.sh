@@ -43,7 +43,9 @@ done
 if [ -n "${ICON4PY_VENV}" ]; then
     export GT4PY_BUILD_CACHE_DIR=${GT4PY_BUILD_CACHE_DIR:-".."}
     export CUPY_CACHE_DIR="$(dirname "${GT4PY_BUILD_CACHE_DIR}")/cupy"
-    mkdir -p "${GT4PY_BUILD_CACHE_DIR}" "${CUPY_CACHE_DIR}"
+    # The default CUDA JIT cache in the NFS home stalled GPU ranks when written concurrently
+    export CUDA_CACHE_PATH="$(dirname "${GT4PY_BUILD_CACHE_DIR}")/cuda"
+    mkdir -p "${GT4PY_BUILD_CACHE_DIR}" "${CUPY_CACHE_DIR}" "${CUDA_CACHE_PATH}"
 fi
 
 # Generate SLURM hostfile for arbitrary task distribution
