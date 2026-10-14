@@ -17,7 +17,7 @@ for pid in $(pgrep -u $USER -x 'icon_(gpu|cpu)'); do
   { cat /proc/$pid/status; echo "wchan: $(cat /proc/$pid/wchan)"; } > proc_rank${rank}.txt 2>&1
   if [[ $(readlink /proc/$pid/exe) -ef $ICON_GPU_EXE ]] || (( n_cpu++ < WATCHDOG_GDB_CPU_PER_NODE )); then
     # Read binaries through this step's mounts, the target's mount namespace is not accessible
-    timeout -k 10 120 gdb -batch -nx -q -ex 'set sysroot /' -ex 'set pagination off' -ex 'info threads' \
+    timeout -k 10 120 gdb -batch -nx -q -iex 'set sysroot /' -ex 'set pagination off' -ex 'info threads' \
       -ex 'thread apply all bt' "$(readlink /proc/$pid/exe)" $pid > gdb_rank${rank}.txt 2>&1 &
   fi
 done
