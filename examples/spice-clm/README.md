@@ -42,8 +42,6 @@ Task run directories are created in `examples/spice-clm/run/`.
   of the ICON output and of the time series refers to the start of the month
   (e.g. `minutes since 2002-2-1`), while SPICE refers to the start of the experiment
   (`minutes since 2002-1-1`). The dates are the same.
-- `init_latbc_from_fg = .false.` is set explicitly. The SPICE
-  scripts never set the shell variable `init_mode`, which turns `init_latbc_from_fg` into `.true.` by mistake.
 - Archives, time series, restart files and logs stay in the task run directories; SPICE moves
   them to separate directories and deletes the whole scratch directory at the end of the chain.
 - The topography reference `z_mc-topography_c.nc` is an output of `arch` (`const/`); SPICE
@@ -58,16 +56,18 @@ The reference is [SPICE](https://clm-community.gitlab-pages.dkrz.de/public/spice
 identical results, the generated SPICE experiment was adapted as follows:
 
 - `job_settings`: `ICONDIR` points to the ICON 2025.10 build and `NUM_RESTART_PROCS=0`.
-- `scripts/icon.job.sh`: `init_mode=2` is set as a shell variable, and ICON is launched with
-  the run scripts of the Sirocco ICON plugin (16 compute ranks, 1 output and 1 prefetch rank).
+- `scripts/icon.job.sh`: ICON is launched with the run scripts of the Sirocco ICON plugin
+  (16 compute ranks, 1 output and 1 prefetch rank).
 - `subchain`: the ICON job requests `--gpus-per-node=4`.
 
 All data variables of the archived ICON output (3550 files), the monthly time series
 (296 files) and the constant fields (5 files) are bit-identical.
 
 `scale_cdnc_mode` must be `0` for historical runs before 2015, as set by SPICE rc-2.4.1.
-Earlier versions of the SPICE ICON 2025.10 patch set it to `1`, which changes the results
-considerably (e.g. 2 m temperature by up to 7 K within the first month).
+Earlier versions of the SPICE ICON 2025.10 patch set it to `1`. Like any other change of the
+model configuration, this alters the results at almost every grid point within the first month
+(e.g. 2 m temperature by up to 7 K), because small perturbations grow in the chaotic flow. The
+monthly mean over the domain changes only little (2 m temperature by 0.003 K in January 2002).
 
 To repeat the comparison, run (with a Python that provides `netCDF4` and `cftime`, e.g. the
 venv of clm-tools):
@@ -83,8 +83,11 @@ history and the ICON version label.
 
 ### Known issues in SPICE rc-2.4.1
 
-- The shell variable `init_mode` is not set in `icon.job.sh`, so `init_latbc_from_fg`
-  becomes `.true.` for every `init_mode`.
+- The shell variable `init_mode` is not set in `icon.job.sh`, so `init_latbc_from_fg` is taken
+  from the last entry of `init_latbc_from_fg_options` and becomes `.true.` for every `init_mode`,
+  contrary to the comment in the script. `.true.` is the intended setting: at a cold start, ICON
+  then takes the lateral boundary data at the start date from the initial state instead of a
+  separately remapped boundary file, so both are consistent.
 - `GA_ICON_CLM_VERSION` in `job_settings` is `ICON-2024.07`, also when ICON 2025.10 is used.
 - The last `post` job of a chain exits with status 1, although all steps succeed, because it
   tries to remove the file `finish_message`, which only exists if `NOTIFICATION_ADDRESS` is set.
