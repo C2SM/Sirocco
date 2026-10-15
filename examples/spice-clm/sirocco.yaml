@@ -166,7 +166,7 @@ tasks:
       plugin: shell
       uenv: '{{ UENV_TOOLS }}'
       view: climtools
-      walltime: 00:15:00
+      walltime: 00:30:00
       src: scripts
       command: >-
         CLM_TOOLS={PORT::tools} YDATE_START={{ START_DATE }} bash scripts/prep.sh {PORT::era5} {PORT::soiltype} {PORT::forcing}
