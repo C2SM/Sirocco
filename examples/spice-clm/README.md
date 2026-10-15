@@ -16,6 +16,7 @@ all other steps are shell tasks.
 | `arch` | monthly | `arch.job.sh` | completeness and SAMOVAR checks, CF correction, tar files |
 | `post` | monthly | `post.job.sh` | monthly time series on the rotated lat/lon grid |
 | `clean` | monthly | clean-up in `post.job.sh` | deletes boundary data, raw ICON output and corrected streams after a successful `post` |
+| `post_yearly` | yearly | `post_yearly_cmor.sh` | yearly time series from the monthly ones (only with `ITYPE_TS` 2 or 3) |
 
 The shell scripts use [clm-tools](https://github.com/C2SM/clm-tools) (`cfu`, `ccaf2icaf`,
 Python venv, SAMOVAR and `functions.sh`), which are taken from SPICE and licensed under
@@ -34,6 +35,29 @@ The monthly values of `allow_overcast` (`by_month`) require Sirocco with
 
 Task run directories are created in `examples/spice-clm/run/`.
 
+## One-year case
+
+`examples/spice-clm-1year` runs the same workflow from 2002-01-01 to 2003-01-01 and adds the
+yearly time series. It contains only its own `sirocco_vars.yaml`; `sirocco.yaml`, `scripts/` and
+`ICON/` are links to `spice-clm`. Run it with `sirocco start examples/spice-clm-1year`.
+
+`ITYPE_TS` in `sirocco_vars.yaml` selects the time series as in SPICE:
+
+| `ITYPE_TS` | Time series |
+|------------|-------------|
+| 1 | monthly (`spice-clm`) |
+| 2 | yearly; `post_yearly` deletes the monthly ones it has combined |
+| 3 | monthly and yearly (`spice-clm-1year`) |
+
+With 2 or 3, the workflow gets a yearly cycle with one `post_yearly` task per year, which
+starts when `post` has finished for all twelve months (and for December of the previous year).
+`START_DATE` and `STOP_DATE` must therefore be on 1 January. The yearly time series are written
+to `yearly/<variable>/<variable>_<first>-<last>.nc` in the run directory of `post_yearly`,
+together with `HSURF` and `FR_LAND`. For instantaneous variables, the last time step of
+December (1 January, 00 UTC) is moved to the next year; after the last year it is stored as
+`<variable>_<YYYYMMDDHH>.nc`. With `ITYPE_TS: 2`, the time series of December are kept until
+`post_yearly` of the following year has used them.
+
 ## Differences from SPICE
 
 - Restarts use `joint procs multifile` (required by Sirocco) instead of a dedicated restart process.
@@ -47,6 +71,10 @@ Task run directories are created in `examples/spice-clm/run/`.
 - The topography reference `z_mc-topography_c.nc` is an output of `arch` (`const/`); SPICE
   stores it with the time series in `post/`.
 - The global attribute `icon-clm_version` is `ICON-2025.10`; SPICE rc-2.4.1 writes `ICON-2024.07`.
+- The yearly time series are built by a separate `post_yearly` task, while SPICE builds them in the
+  `post` job of the following January (or of the last month). Partial years are not supported.
+  With `ITYPE_TS: 2`, SPICE keeps the time series of all Januaries and Decembers until the end of
+  the run.
 
 ## Comparison with SPICE
 

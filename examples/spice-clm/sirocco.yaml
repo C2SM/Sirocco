@@ -110,6 +110,30 @@ cycles:
               corrected: [corrected]
               # Only orders the clean-up after a successful post-processing
               post: [post_ts]
+{% if ITYPE_TS > 1 %}
+  # Requires START_DATE and STOP_DATE on 1 January, since every year needs all 12 months
+  - yearly:
+      cycling:
+        start_date: '{{ START_DATE }}'
+        stop_date: '{{ STOP_DATE }}'
+        period: P1Y
+      tasks:
+        - post_yearly:
+            inputs:
+              tools: [clm_tools]
+              months:
+                - post_ts:
+                    target_cycle:
+                      lag: [P0M, P1M, P2M, P3M, P4M, P5M, P6M, P7M, P8M, P9M, P10M, P11M]
+              prev_dec:
+                - post_ts:
+                    when:
+                      after: '{{ START_DATE }}'
+                    target_cycle:
+                      lag: -P1M
+            outputs:
+              yearly: [post_yearly_ts]
+{% endif %}
 
 tasks:
   - ROOT:
@@ -203,6 +227,15 @@ tasks:
       walltime: 00:15:00
       src: scripts
       command: bash scripts/clean.sh {PORT::latbc} {PORT::streams} {PORT::corrected}
+  - post_yearly:
+      plugin: shell
+      uenv: '{{ UENV_TOOLS }}'
+      view: climtools
+      walltime: 02:00:00
+      src: scripts
+      command: >-
+        CLM_TOOLS={PORT::tools} YDATE_START={{ START_DATE }} YDATE_STOP={{ STOP_DATE }} ITYPE_TS={{ ITYPE_TS }}
+        bash scripts/post_yearly.sh {PORT::yearly}[ --prev {PORT::prev_dec}] {PORT::months}
 
 data:
   available:
@@ -276,3 +309,5 @@ data:
         path: const
     - post_ts:
         path: post
+    - post_yearly_ts:
+        path: yearly

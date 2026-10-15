@@ -4,6 +4,8 @@
 ACCOUNT: cwd01
 START_DATE: '2002-01-01T00:00:00'
 STOP_DATE: '2002-03-01T00:00:00'
+# Time series: 1 = monthly, 2 = yearly (monthly ones deleted), 3 = monthly and yearly
+ITYPE_TS: 1
 
 # Python environment with Sirocco installed, used by the standalone continuation job
 SIROCCO_VENV: /path/to/sirocco/.venv
