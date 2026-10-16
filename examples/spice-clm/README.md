@@ -58,6 +58,34 @@ December (1 January, 00 UTC) is moved to the next year; after the last year it i
 `<variable>_<YYYYMMDDHH>.nc`. With `ITYPE_TS: 2`, the time series of December are kept until
 `post_yearly` of the following year has used them.
 
+### Results of the one-year run
+
+The one-year case was run on santis for 2002 with `ITYPE_TS: 3` and completed in about
+6 hours 50 minutes, including queue waiting time. The tasks of different months run in parallel
+as far as their dependencies allow; the longest task runtimes were:
+
+| Task | Longest runtime | Walltime |
+|------|-----------------|----------|
+| `prep` | 13:25 | 30:00 |
+| `conv2icon` | 1:37 | 30:00 |
+| `icon` | 19:39 | 30:00 |
+| `arch` | 7:46 | 30:00 |
+| `post` | 2:57 | 1:00:00 |
+| `clean` | 0:13 | 15:00 |
+| `post_yearly` | 0:46 | 2:00:00 |
+
+All `prep` jobs start at once and several of them share a node, which slows them down; with a
+walltime of 15 minutes, `prep` of July 2002 timed out.
+
+`post_yearly` produced 148 yearly time series (17 GB), the same number as the monthly time
+series, plus `HSURF` and `FR_LAND` and 115 files with the time step 2003-01-01 00 UTC of the
+instantaneous variables. For all 148 variables, the time steps and values of the yearly time
+series are identical to those of the twelve monthly ones (e.g. 2920 three-hourly steps of
+`T_2M`). Before this run, `post_yearly.sh` and SPICE `post_yearly_cmor.sh` were applied to the
+monthly time series of January and February 2002 (as a final partial year); all 148 yearly time
+series are bit-identical. The combination with December of the previous year (runs of more than
+one year) and the deletion with `ITYPE_TS: 2` have not yet been tested with a full run.
+
 ## Differences from SPICE
 
 - Restarts use `joint procs multifile` (required by Sirocco) instead of a dedicated restart process.
