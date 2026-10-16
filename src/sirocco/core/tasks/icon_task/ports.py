@@ -125,6 +125,94 @@ ghg_filename_handler = PortHandler(
     section="radiation_nml",
     parameter="ghg_filename",
 )
+# AES physics reads the following files under fixed names
+aes_ghg_file_handler = PortHandler(
+    port_name="aes_ghg_file",
+    valid_model_types=[ModelType.ATMOSPHERE],
+    target_link_name="bc_greenhouse_gases.nc",
+)
+aes_land_sso_handler = PortHandler(
+    port_name="aes_land_sso",
+    valid_model_types=[ModelType.ATMOSPHERE],
+    target_link_name="bc_land_sso.nc",
+)
+aes_land_frac_handler = PortHandler(
+    port_name="aes_land_frac",
+    valid_model_types=[ModelType.ATMOSPHERE],
+    target_link_name="bc_land_frac.nc",
+)
+aes_land_phys_handler = PortHandler(
+    port_name="aes_land_phys",
+    valid_model_types=[ModelType.ATMOSPHERE],
+    target_link_name="bc_land_phys.nc",
+)
+aes_bc_sst_handler = PortHandler(
+    port_name="aes_bc_sst",
+    valid_model_types=[ModelType.ATMOSPHERE],
+    target_link_name="bc_sst.nc",
+)
+aes_bc_sic_handler = PortHandler(
+    port_name="aes_bc_sic",
+    valid_model_types=[ModelType.ATMOSPHERE],
+    target_link_name="bc_sic.nc",
+)
+cariolle_coeff_handler = PortHandler(
+    port_name="cariolle_coeff",
+    valid_model_types=[ModelType.ATMOSPHERE],
+    target_link_name="cariolle_coeff.nc",
+)
+rrtmgp_gas_lw_handler = PortHandler(
+    port_name="rrtmgp_gas_lw",
+    valid_model_types=[ModelType.ATMOSPHERE],
+    target_link_name="coefficients_lw.nc",
+)
+rrtmgp_gas_sw_handler = PortHandler(
+    port_name="rrtmgp_gas_sw",
+    valid_model_types=[ModelType.ATMOSPHERE],
+    target_link_name="coefficients_sw.nc",
+)
+rrtmgp_cloud_optics_lw_handler = PortHandler(
+    port_name="rrtmgp_cloud_optics_lw",
+    valid_model_types=[ModelType.ATMOSPHERE],
+    target_link_name="rrtmgp-cloud-optics-coeffs-lw.nc",
+)
+rrtmgp_cloud_optics_sw_handler = PortHandler(
+    port_name="rrtmgp_cloud_optics_sw",
+    valid_model_types=[ModelType.ATMOSPHERE],
+    target_link_name="rrtmgp-cloud-optics-coeffs-sw.nc",
+)
+aeropt_kinne_lw_coa_handler = PortHandler(
+    port_name="aeropt_kinne_lw_coa",
+    valid_model_types=[ModelType.ATMOSPHERE],
+    target_link_name="bc_aeropt_kinne_lw_b16_coa.nc",
+)
+aeropt_kinne_sw_coa_handler = PortHandler(
+    port_name="aeropt_kinne_sw_coa",
+    valid_model_types=[ModelType.ATMOSPHERE],
+    target_link_name="bc_aeropt_kinne_sw_b14_coa.nc",
+)
+aeropt_kinne_sw_fin_handler = PortHandler(
+    port_name="aeropt_kinne_sw_fin",
+    valid_model_types=[ModelType.ATMOSPHERE],
+    target_link_name="bc_aeropt_kinne_sw_b14_fin.nc",
+)
+
+
+def output_dict_handler_callable(port_name: str, model: IconModel) -> None:
+    if len(data_list := model.inputs[port_name]) != 1:
+        msg = f"port {port_name} accepts one and only one data object"
+        raise ValueError(msg)
+    if "io_nml" not in model.namelist:
+        model.namelist["io_nml"] = {}
+    for parameter in ("output_nml_dict", "netcdf_dict"):
+        model.namelist["io_nml"][parameter] = str(data_list[0].resolved_path)
+
+
+output_dict_handler = PortHandler(
+    port_name="output_dict",
+    valid_model_types=[ModelType.ATMOSPHERE, ModelType.OCEAN],
+    custom_callable=output_dict_handler_callable,
+)
 jsb_ifs_handler = PortHandler(
     port_name="jsb_ifs",
     valid_model_types=[ModelType.LAND],
@@ -239,11 +327,47 @@ jsb_fract_handler = PortHandler(
     section="jsb_model_nml",
     parameter="fract_filename",
 )
+jsb_lctlib_handler = PortHandler(
+    port_name="jsb_lctlib",
+    valid_model_types=[ModelType.LAND],
+    target_link_name="lctlib_nlct21.def",
+)
 ocean_inistate = PortHandler(
     port_name="ocean_inistate",
     valid_model_types=[ModelType.OCEAN],
     section="ocean_initialConditions_nml",
     parameter="InitialState_InputFileName",
+)
+# HAMOCC reads the following files under fixed names
+hamocc_dust_handler = PortHandler(
+    port_name="hamocc_dust",
+    valid_model_types=[ModelType.OCEAN],
+    target_link_name="dust.nc",
+)
+hamocc_nitrogen_handler = PortHandler(
+    port_name="hamocc_nitrogen",
+    valid_model_types=[ModelType.OCEAN],
+    target_link_name="nitrogen.nc",
+)
+
+
+def ocean_restart_init_handler_callable(port_name: str, model: IconModel) -> None:
+    """Initialize the ocean state from a restart file without making the whole task a restart run"""
+    if not (data_list := model.inputs[port_name]):
+        return
+    if len(data_list) > 1:
+        msg = f"port '{port_name}' only accepts a single data object"
+        raise ValueError(msg)
+    if "ocean_initialConditions_nml" not in model.namelist:
+        model.namelist["ocean_initialConditions_nml"] = {}
+    model.namelist["ocean_initialConditions_nml"]["initialize_fromRestart"] = True
+    (model.task_run_dir / f"multifile_restart_{model.name}.mfr").symlink_to(data_list[0].resolved_path)
+
+
+ocean_restart_init_handler = PortHandler(
+    port_name="ocean_restart_init",
+    valid_model_types=[ModelType.OCEAN],
+    custom_callable=ocean_restart_init_handler_callable,
 )
 
 
@@ -311,7 +435,7 @@ def output_streams_handler_callable(port_name: str, model: IconModel) -> None:
 
 output_streams_handler = PortHandler(
     port_name="output_streams",
-    valid_model_types=[ModelType.ATMOSPHERE, ModelType.OCEAN],
+    valid_model_types=[ModelType.ATMOSPHERE, ModelType.OCEAN, ModelType.LAND],
     custom_callable=output_streams_handler_callable,
 )
 
