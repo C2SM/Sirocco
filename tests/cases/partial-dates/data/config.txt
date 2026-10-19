@@ -1,0 +1,143 @@
+cycles:
+  - yearly [date: 2026-01-01 00:00:00+00:00]:
+      tasks:
+        - icon [date: 2026-01-01 00:00:00+00:00]:
+            plugin: 'shell'
+            computer: 'localhost'
+            nodes: 1
+            sockets_per_node: 1
+            cycle_point: [2026-01-01 00:00:00+00:00 -- 2027-01-01 00:00:00+00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs: {}
+                outputs:
+                  output:
+                    - annual_icon [date: 2026-01-01 00:00:00+00:00]
+            command: 'true'
+  - yearly [date: 2027-01-01 00:00:00+00:00]:
+      tasks:
+        - icon [date: 2027-01-01 00:00:00+00:00]:
+            plugin: 'shell'
+            computer: 'localhost'
+            nodes: 1
+            sockets_per_node: 1
+            cycle_point: [2027-01-01 00:00:00+00:00 -- 2028-01-01 00:00:00+00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs: {}
+                outputs:
+                  output:
+                    - annual_icon [date: 2027-01-01 00:00:00+00:00]
+            command: 'true'
+  - half_yearly [date: 2026-01-01 00:00:00+00:00]:
+      tasks:
+        - biannual_postprocessing [date: 2026-01-01 00:00:00+00:00]:
+            plugin: 'shell'
+            computer: 'localhost'
+            nodes: 1
+            sockets_per_node: 1
+            cycle_point: [2026-01-01 00:00:00+00:00 -- 2026-07-01 00:00:00+00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  input:
+                    - annual_icon [date: 2026-01-01 00:00:00+00:00]
+                outputs: {}
+            command: 'true'
+        - waiter [date: 2026-01-01 00:00:00+00:00]:
+            plugin: 'shell'
+            computer: 'localhost'
+            nodes: 1
+            sockets_per_node: 1
+            cycle_point: [2026-01-01 00:00:00+00:00 -- 2026-07-01 00:00:00+00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs: {}
+                outputs: {}
+            wait_on:
+              - 'icon [date: 2026-01-01 00:00:00+00:00]'
+            command: 'true'
+  - half_yearly [date: 2026-07-01 00:00:00+00:00]:
+      tasks:
+        - biannual_postprocessing [date: 2026-07-01 00:00:00+00:00]:
+            plugin: 'shell'
+            computer: 'localhost'
+            nodes: 1
+            sockets_per_node: 1
+            cycle_point: [2026-07-01 00:00:00+00:00 -- 2027-01-01 00:00:00+00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  input:
+                    - annual_icon [date: 2026-01-01 00:00:00+00:00]
+                outputs: {}
+            command: 'true'
+        - waiter [date: 2026-07-01 00:00:00+00:00]:
+            plugin: 'shell'
+            computer: 'localhost'
+            nodes: 1
+            sockets_per_node: 1
+            cycle_point: [2026-07-01 00:00:00+00:00 -- 2027-01-01 00:00:00+00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs: {}
+                outputs: {}
+            wait_on:
+              - 'icon [date: 2026-01-01 00:00:00+00:00]'
+            command: 'true'
+  - half_yearly [date: 2027-01-01 00:00:00+00:00]:
+      tasks:
+        - biannual_postprocessing [date: 2027-01-01 00:00:00+00:00]:
+            plugin: 'shell'
+            computer: 'localhost'
+            nodes: 1
+            sockets_per_node: 1
+            cycle_point: [2027-01-01 00:00:00+00:00 -- 2027-07-01 00:00:00+00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  input:
+                    - annual_icon [date: 2027-01-01 00:00:00+00:00]
+                outputs: {}
+            command: 'true'
+        - waiter [date: 2027-01-01 00:00:00+00:00]:
+            plugin: 'shell'
+            computer: 'localhost'
+            nodes: 1
+            sockets_per_node: 1
+            cycle_point: [2027-01-01 00:00:00+00:00 -- 2027-07-01 00:00:00+00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs: {}
+                outputs: {}
+            wait_on:
+              - 'icon [date: 2027-01-01 00:00:00+00:00]'
+            command: 'true'
+  - half_yearly [date: 2027-07-01 00:00:00+00:00]:
+      tasks:
+        - biannual_postprocessing [date: 2027-07-01 00:00:00+00:00]:
+            plugin: 'shell'
+            computer: 'localhost'
+            nodes: 1
+            sockets_per_node: 1
+            cycle_point: [2027-07-01 00:00:00+00:00 -- 2028-01-01 00:00:00+00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs:
+                  input:
+                    - annual_icon [date: 2027-01-01 00:00:00+00:00]
+                outputs: {}
+            command: 'true'
+        - waiter [date: 2027-07-01 00:00:00+00:00]:
+            plugin: 'shell'
+            computer: 'localhost'
+            nodes: 1
+            sockets_per_node: 1
+            cycle_point: [2027-07-01 00:00:00+00:00 -- 2028-01-01 00:00:00+00:00]
+            components:
+              __SINGLE_COMPONENT__:
+                inputs: {}
+                outputs: {}
+            wait_on:
+              - 'icon [date: 2027-01-01 00:00:00+00:00]'
+            command: 'true'
