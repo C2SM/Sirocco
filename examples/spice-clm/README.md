@@ -133,9 +133,11 @@ PYTHON=/path/to/clm-tools/venv/bin/python examples/spice-clm/compare/compare_run
   /path/to/spice/chain examples/spice-clm/run /path/to/scratch/dir 2002-01 2002-02
 ```
 
-`compare/compare_nc.py` compares two directory trees of netCDF files variable by variable. It
-compares time axes as dates and ignores global attributes that record the host or software
-history and the ICON version label.
+`compare/compare_nc.py` compares two directory trees of netCDF files variable by variable: the
+file format, the global attributes and, for each variable, the data type, dimensions,
+attributes, compression, chunking and all values, which must be exactly equal. It compares time
+axes as dates and ignores global attributes that record the host or software history and the
+ICON version label. File sizes are not compared, since these attributes differ in length.
 
 ### Known issues in SPICE rc-2.4.1
 
