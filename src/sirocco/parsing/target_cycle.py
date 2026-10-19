@@ -4,7 +4,7 @@ from typing import Annotated
 from isoduration.types import Duration
 from pydantic import BaseModel, BeforeValidator, ConfigDict
 
-from sirocco.parsing._utils import convert_target_dates, convert_to_duration_list 
+from sirocco.parsing._utils import convert_target_dates, convert_to_duration_list
 
 
 class TargetCycle:

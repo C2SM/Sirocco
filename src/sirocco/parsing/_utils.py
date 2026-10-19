@@ -53,8 +53,10 @@ def convert_target_dates(values: Any) -> list[datetime | str]:
     dates: list[datetime | str] = []
     for value in iter_yaml_item(values):
         if isinstance(value, str) and "%" in value:
-            pattern = (r"(?:%Y|[0-9]{4})-(?:%m|[0-9]{2})-(?:%d|[0-9]{2})"
-                       r"T(?:%H|[0-9]{2}):(?:%M|[0-9]{2})(?::(?:%S|[0-9]{2}))?")
+            pattern = (
+                r"(?:%Y|[0-9]{4})-(?:%m|[0-9]{2})-(?:%d|[0-9]{2})"
+                r"T(?:%H|[0-9]{2}):(?:%M|[0-9]{2})(?::(?:%S|[0-9]{2}))?"
+            )
             if re.fullmatch(pattern, value) is None:
                 raise ValueError("Target date formats support only %Y, %m, %d, %H, %M, and %S")
             dates.append(value)
