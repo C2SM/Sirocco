@@ -2,8 +2,10 @@
 
 Usage: python compare_nc.py DIR_A DIR_B
 
-Time axes are compared as absolute dates. Global attributes that record the host, the
-software history or the ICON version label (wrong in SPICE rc-2.4.1) are ignored.
+Compared are the file format, the global attributes and, for each variable, the data type,
+dimensions, attributes, compression and chunking, and all values. Time axes are compared as
+absolute dates. Global attributes that record the host, the software history or the ICON
+version label (wrong in SPICE rc-2.4.1) are ignored.
 """
 import sys
 from pathlib import Path
@@ -28,10 +30,25 @@ def compare_file(fa, fb):
             x, y = getattr(a, k, None), getattr(b, k, None)
             if str(x) != str(y):
                 out.append(f"  global attr {k}: {x!r} vs {y!r}")
+        if a.data_model != b.data_model:
+            out.append(f"  format: {a.data_model} vs {b.data_model}")
         for v in sorted(va & vb):
             x, y = a.variables[v], b.variables[v]
             x.set_auto_mask(False)
             y.set_auto_mask(False)
+            if x.dtype != y.dtype:
+                out.append(f"  {v}: dtype {x.dtype} vs {y.dtype}")
+            if x.dimensions != y.dimensions:
+                out.append(f"  {v}: dimensions {x.dimensions} vs {y.dimensions}")
+            for k in sorted(set(x.ncattrs()) | set(y.ncattrs())):
+                # The reference date of the time units may differ, the dates are compared below
+                if k == "units" and v in ("time", "time_bnds"):
+                    continue
+                p, q = getattr(x, k, None), getattr(y, k, None)
+                if str(p) != str(q):
+                    out.append(f"  {v}: attr {k}: {p!r} vs {q!r}")
+            if (x.filters(), x.chunking()) != (y.filters(), y.chunking()):
+                out.append(f"  {v}: storage {x.filters()} {x.chunking()} vs {y.filters()} {y.chunking()}")
             if x.shape != y.shape:
                 out.append(f"  {v}: shape {x.shape} vs {y.shape}")
                 continue
