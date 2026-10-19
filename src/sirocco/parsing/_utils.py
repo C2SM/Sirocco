@@ -1,3 +1,4 @@
+import re
 import time
 from collections.abc import Iterator
 from datetime import UTC, datetime
@@ -47,6 +48,21 @@ class TimeUtils:
             raise ValueError(msg) from e
 
 
+def convert_target_dates(values: Any) -> list[datetime | str]:
+    """Parse absolute dates and allow relative dates for later processing"""
+    dates: list[datetime | str] = []
+    for value in iter_yaml_item(values):
+        if isinstance(value, str) and "%" in value:
+            pattern = (r"(?:%Y|[0-9]{4})-(?:%m|[0-9]{2})-(?:%d|[0-9]{2})"
+                       r"T(?:%H|[0-9]{2}):(?:%M|[0-9]{2})(?::(?:%S|[0-9]{2}))?")
+            if re.fullmatch(pattern, value) is None:
+                raise ValueError("Target date formats support only %Y, %m, %d, %H, %M, and %S")
+            dates.append(value)
+        else:
+            dates.append(convert_to_date(value))
+    return dates
+
+
 def convert_to_date(value: Any) -> datetime:
     """Convert value to timezone-aware datetime (UTC).
 
@@ -94,10 +110,6 @@ def iter_yaml_item(values: Any) -> Iterator[Any]:
         yield from values
     else:
         yield values
-
-
-def convert_to_date_list(values: Any) -> list[datetime]:
-    return [convert_to_date(item) for item in iter_yaml_item(values)]
 
 
 def convert_to_duration_list(values: Any) -> list[Duration]:
