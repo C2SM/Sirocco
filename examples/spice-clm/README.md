@@ -27,7 +27,10 @@ The compute nodes need outbound internet access for `git clone` and `pip install
 ## Running
 
 The monthly values of `allow_overcast` (`by_month`) require Sirocco with
-[#269](https://github.com/C2SM/Sirocco/pull/269).
+[#269](https://github.com/C2SM/Sirocco/pull/269). Results identical to SPICE beyond the first
+two months also require [#273](https://github.com/C2SM/Sirocco/pull/273), which keeps
+`experimentStartDate` at the start of the experiment (see
+[Experiment start date](#experiment-start-date)).
 
 1. Set `SIROCCO_VENV` (and, if needed, `ACCOUNT` and dates) in `sirocco_vars.yaml`.
 2. `sirocco verify examples/spice-clm`
@@ -61,7 +64,10 @@ December (1 January, 00 UTC) is moved to the next year; after the last year it i
 ### Results of the one-year run
 
 The one-year case was run on santis for 2002 with `ITYPE_TS: 3` and completed in about
-6 hours 50 minutes, including queue waiting time. The tasks of different months run in parallel
+6 hours 50 minutes, including queue waiting time. This run used Sirocco without
+[#273](https://github.com/C2SM/Sirocco/pull/273), so its results differ from SPICE from March on
+(see [Experiment start date](#experiment-start-date)); the runtimes and the checks of
+`post_yearly` below are not affected. The tasks of different months run in parallel
 as far as their dependencies allow; the longest task runtimes were:
 
 | Task | Longest runtime | Walltime |
@@ -90,10 +96,11 @@ one year) and the deletion with `ITYPE_TS: 2` have not yet been tested with a fu
 
 - Restarts use `joint procs multifile` (required by Sirocco) instead of a dedicated restart process.
 - Output windows use `output_bounds` instead of absolute `output_start`/`output_end`,
-  because Sirocco only updates the experiment dates per chunk. For the same reason, the time axis
-  of the ICON output and of the time series refers to the start of the month
-  (e.g. `minutes since 2002-2-1`), while SPICE refers to the start of the experiment
-  (`minutes since 2002-1-1`). The dates are the same.
+  because Sirocco only updates the experiment dates per chunk. With
+  [#273](https://github.com/C2SM/Sirocco/pull/273), the time axis of the ICON output and of the
+  time series refers to the start of the experiment (e.g. `seconds since 2002-1-1`), as in
+  SPICE. Without it, the time axis refers to the start of the month
+  (e.g. `seconds since 2002-3-1`); the dates are the same.
 - Archives, time series, restart files and logs stay in the task run directories; SPICE moves
   them to separate directories and deletes the whole scratch directory at the end of the chain.
 - The topography reference `z_mc-topography_c.nc` is an output of `arch` (`const/`); SPICE
@@ -116,14 +123,34 @@ identical results, the generated SPICE experiment was adapted as follows:
   (16 compute ranks, 1 output and 1 prefetch rank).
 - `subchain`: the ICON job requests `--gpus-per-node=4`.
 
-All data variables of the archived ICON output (3550 files), the monthly time series
-(296 files) and the constant fields (5 files) are bit-identical.
+All archived ICON output files (3550), monthly time series (296) and constant fields (5) are
+identical: all values, data types, dimensions, attributes and the storage layout agree.
 
 `scale_cdnc_mode` must be `0` for historical runs before 2015, as set by SPICE rc-2.4.1.
 Earlier versions of the SPICE ICON 2025.10 patch set it to `1`. Like any other change of the
 model configuration, this alters the results at almost every grid point within the first month
 (e.g. 2 m temperature by up to 7 K), because small perturbations grow in the chaotic flow. The
 monthly mean over the domain changes only little (2 m temperature by 0.003 K in January 2002).
+
+### Experiment start date
+
+SPICE keeps `experimentStartDate` at the start of the experiment (2002-01-01) in every month.
+Sirocco without [#273](https://github.com/C2SM/Sirocco/pull/273) sets it to the start of each
+month. In the one-year comparison, this was the only reason for differing results:
+
+- January and February 2002 are identical in both cases.
+- Without #273, the results differ from 2002-03-02 06 UTC on. The differences first appear
+  in the outermost rows of the lateral boundary zone and then spread over the whole domain.
+- The lateral and lower boundary data of March, produced again with the scripts of SPICE and
+  of this example, are identical (250 files). Repeated ICON runs reproduce the results of both
+  SPICE and Sirocco exactly, so the difference is systematic.
+- With `experimentStartDate` set to 2002-01-01 and otherwise unchanged input, the Sirocco run
+  of March is identical to SPICE at all 744 hourly output times.
+
+ICON thus depends on the time elapsed since `experimentStartDate` in a way that only shows up
+at some boundary update times; the exact mechanism in ICON was not investigated. With #273,
+January to April 2002 are identical to SPICE (archived ICON output, monthly time series and
+constant fields).
 
 To repeat the comparison, run (with a Python that provides `netCDF4` and `cftime`, e.g. the
 venv of clm-tools):
