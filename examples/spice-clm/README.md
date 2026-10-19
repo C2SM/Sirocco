@@ -63,34 +63,38 @@ December (1 January, 00 UTC) is moved to the next year; after the last year it i
 
 ### Results of the one-year run
 
-The one-year case was run on santis for 2002 with `ITYPE_TS: 3` and completed in about
-6 hours 50 minutes, including queue waiting time. This run used Sirocco without
-[#273](https://github.com/C2SM/Sirocco/pull/273), so its results differ from SPICE from March on
-(see [Experiment start date](#experiment-start-date)); the runtimes and the checks of
-`post_yearly` below are not affected. The tasks of different months run in parallel
-as far as their dependencies allow; the longest task runtimes were:
+The one-year case was run twice on santis for 2002 with `ITYPE_TS: 3`: first with Sirocco
+without [#273](https://github.com/C2SM/Sirocco/pull/273), then with #273. The first run
+completed in about 6 hours 50 minutes, including queue waiting time. The second run took about
+5 hours 10 minutes, not counting an interruption of about 4 hours, during which Slurm cancelled
+all new jobs because of an exceeded file quota on scratch. The tasks of different months run in
+parallel as far as their dependencies allow; the longest task runtimes were:
 
-| Task | Longest runtime | Walltime |
-|------|-----------------|----------|
-| `prep` | 13:25 | 30:00 |
-| `conv2icon` | 1:37 | 30:00 |
-| `icon` | 19:39 | 30:00 |
-| `arch` | 7:46 | 30:00 |
-| `post` | 2:57 | 1:00:00 |
-| `clean` | 0:13 | 15:00 |
-| `post_yearly` | 0:46 | 2:00:00 |
+| Task | First run | Second run | Walltime |
+|------|-----------|------------|----------|
+| `prep` | 13:25 | 17:17 | 30:00 |
+| `conv2icon` | 1:37 | 1:23 | 30:00 |
+| `icon` | 19:39 | 18:47 | 30:00 |
+| `arch` | 7:46 | 6:05 | 30:00 |
+| `post` | 2:57 | 4:22 | 1:00:00 |
+| `clean` | 0:13 | 0:09 | 15:00 |
+| `post_yearly` | 0:46 | 0:19 | 2:00:00 |
 
 All `prep` jobs start at once and several of them share a node, which slows them down; with a
-walltime of 15 minutes, `prep` of July 2002 timed out.
+walltime of 15 minutes, `prep` of July 2002 timed out in an earlier attempt.
 
 `post_yearly` produced 148 yearly time series (17 GB), the same number as the monthly time
 series, plus `HSURF` and `FR_LAND` and 115 files with the time step 2003-01-01 00 UTC of the
 instantaneous variables. For all 148 variables, the time steps and values of the yearly time
 series are identical to those of the twelve monthly ones (e.g. 2920 three-hourly steps of
-`T_2M`). Before this run, `post_yearly.sh` and SPICE `post_yearly_cmor.sh` were applied to the
-monthly time series of January and February 2002 (as a final partial year); all 148 yearly time
-series are bit-identical. The combination with December of the previous year (runs of more than
-one year) and the deletion with `ITYPE_TS: 2` have not yet been tested with a full run.
+`T_2M`).
+
+The second run is identical to SPICE for the whole year (see
+[Comparison with SPICE](#comparison-with-spice)): all archived ICON output files (21910), monthly
+time series (1776), constant fields (5) and yearly output files (265). The results of the first
+run differ from SPICE from March on (see [Experiment start date](#experiment-start-date)). The
+combination with December of the previous year (runs of more than one year) and the deletion with
+`ITYPE_TS: 2` have not yet been tested with a full run.
 
 ## Differences from SPICE
 
@@ -115,16 +119,21 @@ one year) and the deletion with `ITYPE_TS: 2` have not yet been tested with a fu
 
 The reference is [SPICE](https://clm-community.gitlab-pages.dkrz.de/public/spice/) rc-2.4.1
 (commit `383eb47`) with `src/patches/icon-2025.10.patch` applied, configured with
-`config.sh -s cscs-alps` and run for 2002-01 and 2002-02 with ICON 2025.10. To obtain
-identical results, the generated SPICE experiment was adapted as follows:
+`config.sh -s cscs-alps` and run with ICON 2025.10 for 2002-01 and 2002-02 and, with
+`ITYPE_TS=3` (monthly and yearly time series), for the whole year 2002. To obtain identical
+results, the generated SPICE experiment was adapted as follows:
 
 - `job_settings`: `ICONDIR` points to the ICON 2025.10 build and `NUM_RESTART_PROCS=0`.
 - `scripts/icon.job.sh`: ICON is launched with the run scripts of the Sirocco ICON plugin
   (16 compute ranks, 1 output and 1 prefetch rank).
 - `subchain`: the ICON job requests `--gpus-per-node=4`.
 
-All archived ICON output files (3550), monthly time series (296) and constant fields (5) are
-identical: all values, data types, dimensions, attributes and the storage layout agree.
+For 2002-01 and 2002-02, all archived ICON output files (3550), monthly time series (296) and
+constant fields (5) are identical: all values, data types, dimensions, attributes and the
+storage layout agree. For the whole year 2002 with
+[#273](https://github.com/C2SM/Sirocco/pull/273), all archived ICON output files (21910),
+monthly time series (1776), constant fields (5) and yearly output files of `post_yearly` (265)
+are identical.
 
 `scale_cdnc_mode` must be `0` for historical runs before 2015, as set by SPICE rc-2.4.1.
 Earlier versions of the SPICE ICON 2025.10 patch set it to `1`. Like any other change of the
@@ -149,8 +158,7 @@ month. In the one-year comparison, this was the only reason for differing result
 
 ICON thus depends on the time elapsed since `experimentStartDate` in a way that only shows up
 at some boundary update times; the exact mechanism in ICON was not investigated. With #273,
-January to April 2002 are identical to SPICE (archived ICON output, monthly time series and
-constant fields).
+the whole year 2002 is identical to SPICE.
 
 To repeat the comparison, run (with a Python that provides `netCDF4` and `cftime`, e.g. the
 venv of clm-tools):
@@ -158,6 +166,14 @@ venv of clm-tools):
 ```bash
 PYTHON=/path/to/clm-tools/venv/bin/python examples/spice-clm/compare/compare_runs.sh \
   /path/to/spice/chain examples/spice-clm/run /path/to/scratch/dir 2002-01 2002-02
+```
+
+For the one-year case, list all months and compare the yearly output separately:
+
+```bash
+/path/to/clm-tools/venv/bin/python examples/spice-clm/compare/compare_nc.py \
+  /path/to/spice/chain/work/sp001/post/yearly \
+  examples/spice-clm-1year/run/post_yearly__date_2002-01-01T00-00-00/yearly
 ```
 
 `compare/compare_nc.py` compares two directory trees of netCDF files variable by variable: the
