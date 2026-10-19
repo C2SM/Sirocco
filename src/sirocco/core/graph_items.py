@@ -404,7 +404,8 @@ class Array[GRAPH_ITEM_T: GraphItem]:
                         if isinstance(date, str):
                             reference_date = ref_coordinates.get("date")
                             if reference_date is None:
-                                raise ValueError("Target date formats require a current cycle date")
+                                msg = "Target date formats require a current cycle date"
+                                raise ValueError(msg)
                             # Convert relative dates using the curent cycle's date as reference
                             yield convert_to_date(reference_date.strftime(date))
                         else:

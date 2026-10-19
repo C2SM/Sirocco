@@ -58,7 +58,8 @@ def convert_target_dates(values: Any) -> list[datetime | str]:
                 r"T(?:%H|[0-9]{2}):(?:%M|[0-9]{2})(?::(?:%S|[0-9]{2}))?"
             )
             if re.fullmatch(pattern, value) is None:
-                raise ValueError("Target date formats support only %Y, %m, %d, %H, %M, and %S")
+                msg = f"Target date formats support only %Y, %m, %d, %H, %M, and %S. Got '{value}'"
+                raise ValueError(msg)
             dates.append(value)
         else:
             dates.append(convert_to_date(value))
