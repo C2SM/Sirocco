@@ -196,23 +196,6 @@ aeropt_kinne_sw_fin_handler = PortHandler(
     valid_model_types=[ModelType.ATMOSPHERE],
     target_link_name="bc_aeropt_kinne_sw_b14_fin.nc",
 )
-
-
-def output_dict_handler_callable(port_name: str, model: IconModel) -> None:
-    if len(data_list := model.inputs[port_name]) != 1:
-        msg = f"port {port_name} accepts one and only one data object"
-        raise ValueError(msg)
-    if "io_nml" not in model.namelist:
-        model.namelist["io_nml"] = {}
-    for parameter in ("output_nml_dict", "netcdf_dict"):
-        model.namelist["io_nml"][parameter] = str(data_list[0].resolved_path)
-
-
-output_dict_handler = PortHandler(
-    port_name="output_dict",
-    valid_model_types=[ModelType.ATMOSPHERE, ModelType.OCEAN],
-    custom_callable=output_dict_handler_callable,
-)
 jsb_ifs_handler = PortHandler(
     port_name="jsb_ifs",
     valid_model_types=[ModelType.LAND],
