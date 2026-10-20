@@ -55,7 +55,6 @@ cycles:
               atmo:
                 inputs:
                   aes_ghg_file: [ghg]
-                  output_dict: [dict]
                   restart_in:
                     - atmo_restart:
                         when:
@@ -108,7 +107,7 @@ data:
     - ocean_restart: {{}}
 """
 
-AVAILABLE = ["ghg", "dict", "lctlib", "dust", "spinup_restart"]
+AVAILABLE = ["ghg", "lctlib", "dust", "spinup_restart"]
 
 
 @pytest.fixture
@@ -139,11 +138,6 @@ def test_fixed_name_links(coupled_tasks, tmp_path):
     assert (run_dir / "bc_greenhouse_gases.nc").readlink() == tmp_path / "ghg"
     assert (run_dir / "lctlib_nlct21.def").readlink() == tmp_path / "lctlib"
     assert (run_dir / "dust.nc").readlink() == tmp_path / "dust"
-
-
-def test_output_dict(coupled_tasks, tmp_path):
-    io_nml = coupled_tasks[0].models["atmo"].namelist["io_nml"]
-    assert io_nml["output_nml_dict"] == io_nml["netcdf_dict"] == str(tmp_path / "dict")
 
 
 def test_ocean_restart_init_first_chunk(coupled_tasks, tmp_path):
