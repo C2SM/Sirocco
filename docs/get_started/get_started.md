@@ -236,3 +236,5 @@ $$
 [Hover me][example]
 
   [example]: https://example.com "I'm a tooltip!"
+
+[Hover me](https://example.com "I'm a tooltip as well!")

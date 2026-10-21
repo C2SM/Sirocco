@@ -18,7 +18,7 @@ class SiroccoYamlLexer(YamlLexer):
       "stop_date",
       "period",
       "tasks",
-      "components"
+      "components",
       "master",
       "inputs",
       "target_cycle",
@@ -49,6 +49,7 @@ class SiroccoYamlLexer(YamlLexer):
       "cores_per_proc",
       "uenv",
       "view",
+      "sockets_per_node",
       # shell plugin
       "src",
       "command",
@@ -71,6 +72,7 @@ class SiroccoYamlLexer(YamlLexer):
       "restart",
       "streams",
       "runtime",
+      "squash_mount",
       # Hiopy
       "venv",
       "procs",

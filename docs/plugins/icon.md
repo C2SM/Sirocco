@@ -7,134 +7,384 @@ title: ICON task
 
 The ICON plugin is designed as an interface between the Sirocco workflow and the [ICON model :lucide-external-link:](icon-model.org). It will generate the final run scripts executed on the system based on specifications like namelists, MPI ranks distribution, hardware properties, etc ...
 
-## Example
+## Components
+As mentioned in the [cycles](../../configuration/cycles#tasks) section, we need to introduce the `components` level between tasks and there inputs/outputs in the `cycles` root section where the workflow graph topology is defined. In order to avoid conflicts between identical ports of models listed in `icon_master.namelist` (and bring clarity), each of them is mapped to a component with its own inouts and outouts. Restart state or output streams would be typical conflicting inputs without the component level. The `cycles` section hence reads like the following
+
 ```sirocco-yaml
 cycles:
-  - dayly:
-      [...]
+  - cycle_name:
       tasks:
-        - icon:
+        - icon_task:
             components:
               master:
-                inputs:
-                  squash: [icon_squash]
-                  link_content: [icon_link_input]
-                  link: [lctlib_nlct21]
+                inputs: [...]
               atmo:
-                inputs:
-                  # TODO: ecrad or rrtmg ? => Probably remove rrtmg
-                  ecrad_data: [ecrad_data]
-                  cloud_opt_props: [ECHAM6_CldOptProps]
-                  rrtmg_lw: [rrtmg_lw]
-                  rrtmg_sw: [rrtmg_sw]
-                  dynamics_grid_file: [atmo_grid]
-                  extpar_file: [extpar_file]
-                  ifs2icon: [analysis_file]
-                  bc_solar_sw: [solar_irradiance]
-                  restart_file:
-                    - restart_atm:
-                        when:
-                          after: *root_start_date
-                        target_cycle:
-                          lag: -P1D
-                outputs:
-                  latest_restart_file: [restart_atm]
-                  output_streams: [atm_mon, atm_mon2d]
+                inputs: [...]
+                outputs: [...]
               ocean:
-                inputs:
-                  dynamics_grid_file: [ocean_grid]
-                  ocean_inistate: [ocean_init_state]
-                  restart_file:
-                    - restart_ocean:
-                        when:
-                          after: *root_start_date
-                        target_cycle:
-                          lag: -P1D
-                outputs:
-                  latest_restart_file: [restart_ocean]
-                  output_streams: [oce_3h, oce_day]
+                inputs: [...]
+                outputs: [...]
               land:
-                inputs:
-                  jsb_ifs: [analysis_file]
-                  jsb_fract: [land_frac]
-                  jsb_hd_bc: [bc_land_hd]
-                  jsb_hd_ic: [ic_land_hd]
-                  jsb_seb_bc: [bc_land_phys]
-                  jsb_seb_ic: [ic_land_soil]
-                  jsb_rad_bc: [bc_land_phys]
-                  jsb_rad_ic: [ic_land_soil]
-                  jsb_turb_bc: [bc_land_phys]
-                  jsb_turb_ic: [ic_land_soil]
-                  jsb_sse_bc: [bc_land_soil]
-                  jsb_sse_ic: [ic_land_soil]
-                  jsb_hydro_bc: [bc_land_soil]
-                  jsb_hydro_ic: [ic_land_soil]
-                  jsb_hydro_bc_sso: [bc_land_sso]
-                  jsb_pheno_bc: [bc_land_phys]
-                  jsb_pheno_ic: [ic_land_soil]
-                  jsb_disturb_bc: [bc_land_phys]
-                  jsb_disturb_ic: [ic_land_soil]
-tasks:
-  - icon:
-      plugin: icon
-      uenv: "icon-dsl/25.12:2454892898"
-      view: "default"
-      squash_mount: [ICON_MOUNT]
-      partition: tier0
-      walltime: 01:00:00
-      nodes: 4
-      sockets_per_node: 4
-      procs_per_node: 24
-      cores_per_proc: 12
-      exe:
-        gpu:
-          compute_procs_per_node: 4
-          path: "/path/to/icon_gpu"
-          icon4py_venv: "/path/to/icon4py/venv"
-          gt4py_build_cache_dir: "../.."
-          procs:
-            atmo:
-              compute_weight: 1
-              streams: 2
-        cpu:
-          path: "/path/to/icon_cpu"
-          procs:
-            ocean:
-              compute_weight: 1
-              streams: 2
-      namelists:
-        - ./ICON/icon_master.namelist
-        - ./ICON/NAMELIST_R02B07-R02B07_control_1979_atmo:
-            parallel_nml:
-              nblocks_e: 1
-              nproma_sub: 10469
-              io_proc_chunk_size: 12
-            run_nml:
-              modelTimeStep: "PT20S"
-              num_lev: 120
-              msg_level: 10
-            io_nml:
-              restart_write_mode: "joint procs multifile"
-            nwp_phy_nml:
-              dt_rad: 600
-              dt_conv: 20
-              dt_sso: 20
-              dt_gwd: 20
-            radiation_nml:
-              ecrad_isolver: 2
-        - ./ICON/NAMELIST_R02B07-R02B07_control_1979_ocean:
-            parallel_nml:
-              nproma: 16
-            run_nml:
-              modelTimeStep: "PT2M"
-        - ./ICON/NAMELIST_R02B07-R02B07_control_1979_land
-      yac_coupling: "ICON/coupling.yaml"
+                inputs: [...]
 ```
-
-## Components
-As mentioned in the [cycles](../../configuration/cycles#tasks) section,
+Each of the models listed in `icon_master.namelist` must have a correponding component specified. So `atmo`, `ocean` and `land` in this example. On top of these, a special and optional `master` component is avaialble to host ports that are not specifically linked to a compomnent, like [basic input linking](../../configuration/cycles/#special-input-linking-ports).
 
 ## Ports
+
+Listed below are the currently supported ports for icon tasks. What they typically do is adapting namelists to refelct an input data path or link input data in the task run directory.
+
+This list regularly gets extended as use cases start to cover more ICON features. Should a port be missing, the [basic input linking](../../configuration/cycles/#special-input-linking-ports) might first help circumventing this lack. Then please open a pull request on the [Sirocco repository :lucide-external-link:](https://github.com/C2SM/Sirocco/pulls).
+
+### `restart_in`
+
+**valid models**: atmosphere, ocean
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+- Check `io_nml:restart_write_mode` for supported options, so far only `"joint procs multifile"`.
+- Link the associated data as `multifile_restart_{model.name}.mfr` in the task run directory.
+
+### `restart_out`
+
+**valid models**: atmosphere, ocean
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+- Check `io_nml:restart_write_mode` for supported options, so far only `"joint procs multifile"`.
+
+### `output_streams`
+
+**valid models**: atmosphere, ocean
+<br>
+**number of data pieces**: any
+<br>
+**actions**:
+
+- Check that the number of output streams declared as `output_nml` sections matches the number of associated data pieces.
+- Check that all output streams specify an output sub-directory using the combinaiton of `filename_format` and `output_filename` parameters (see in [ICON namelist overiew :lucide-external-link:](https://docs.icon-model.org/2026.04/documentation/buildrun/buildrun_namelist_overview.html#output-nml) ). For instance `filename_format = 'atm_mon/atm_mon_<datetime2>'` is a valid entry while `filename_format = 'atm_mon_<datetime2>'` isn't.
+- Create these sub-directories in the task run directory.
+
+### `finish_status`
+
+**valid models**: atmosphere, ocean
+<br>
+**number of data pieces**: 1
+<br>
+**actions**: None
+
+
+### `dynamics_grid_file`
+
+**valid models**: atmosphere, ocean
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+- If the associated data is generated, link it in the task run directory with its original name.
+- Reflect data path in `grid_nml > dynamics_grid_filename`.
+
+### `ifs2icon`
+
+**valid models**: atmosphere
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+- If the associated data is generated, link it in the task run directory with its original name.
+- Reflect data path in `initicon_nml > ifs2icon_filename`.
+
+### `extpar_file`
+
+**valid models**: atmosphere
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+- If the associated data is generated, link it in the task run directory with its original name.
+- Reflect data path in `extpar_nml > extpar_filename`.
+
+### `ecrad_data`
+
+**valid models**: atmosphere
+<br>
+**number of data pieces**: 1
+<br>
+
+**actions**:
+
+- If the associated data is generated, link it as `ecrad_data` in the task run directory.
+- Reflect data path in `radiation_nml > ecrad_data_path`.
+
+### `ghg_file`
+
+**valid models**: atmosphere
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+- If the associated data is generated, link it in the task run directory with its original name.
+- Reflect data path in `radiation_nml > ghg_filename` namelist parameter.
+
+### `rrtmg_lw`
+
+**valid models**: atmosphere
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+- If the associated data is generated, link it in the task run directory with its original name.
+- Reflect the data path in `nwp_phy_nml > lrtm_filename` namelist parameter.
+
+### `rrtmg_sw`
+
+**valid models**: atmosphere
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+- Link associated data in the task run directory as `rrtmg_sw.nc`.
+
+### `bc_solar_sw`
+
+**valid models**: atmosphere
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+- Link associated data in the task run directory as `bc_solar_irradiance_sw_b14.nc`.
+
+### `atm_plumes`
+
+**valid models**: atmosphere
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+- Link associated data in the task run directory as `MACv2.0-SP_v1.nc`.
+
+### `cloud_opt_props`
+
+**valid models**: atmosphere
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+- If the associated data is generated, link it as `CldOptProps.nc` in the task run directory.
+-  Reflect data path in `nwp_phy_nml > cldopt_filename`.
+
+### `jsb_ifs`
+
+**valid models**: land
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+ - If the associated data is generated, link it in the task run directory with its original name.
+ - Reflect data path in the `jsb_model_nml > ifs_filename`.
+
+### `jsb_fract`
+**valid models**: land
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+- If the associated data is generated, link it in the task run directory with its original name.
+- Reflect data path in `jsb_model_nml > fract_filename`.
+
+### `jsb_seb_bc`
+**valid models**: land
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+- If the associated data is generated, link it in the task run directory with its original name.
+- Reflect data path in `jsb_seb_nml > bc_filename`.
+
+### `jsb_seb_ic`
+**valid models**: land
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+- If the associated data is generated, link it in the task run directory with its original name.
+- Reflect data path in `jsb_seb_nml > ic_filename`.
+
+### `jsb_rad_bc`
+**valid models**: land
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+- If the associated data is generated, link it in the task run directory with its original name.
+- Reflect data path in `jsb_rad_nml > bc_filename`.
+
+### `jsb_rad_ic`
+**valid models**: land
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+- If the associated data is generated, link it in the task run directory with its original name.
+- Reflect data path in `jsb_rad_nml > ic_filename`.
+
+### `jsb_turb_bc`
+**valid models**: land
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+- If the associated data is generated, link it in the task run directory with its original name.
+- Reflect data path in `jsb_turb_nml > bc_filename`.
+
+### `jsb_turb_ic`
+**valid models**: land
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+- If the associated data is generated, link it in the task run directory with its original name.
+- Reflect data path in `jsb_turb_nml > ic_filename`.
+
+### `jsb_sse_bc`
+**valid models**: land
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+- If the associated data is generated, link it in the task run directory with its original name.
+- Reflect data path in `jsb_sse_nml > bc_filename`.
+
+### `jsb_sse_ic`
+**valid models**: land
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+- If the associated data is generated, link it in the task run directory with its original name.
+- Reflect data path in `jsb_sse_nml > ic_filename`.
+
+### `jsb_hydro_bc`
+**valid models**: land
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+- If the associated data is generated, link it in the task run directory with its original name.
+- Reflect data path in `jsb_hydro_nml > bc_filename`.
+
+### `jsb_hydro_bc_sso`
+**valid models**: land
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+- If the associated data is generated, link it in the task run directory with its original name.
+- Reflect data path in `jsb_hydro_nml:bc > sso_filename`.
+
+### `jsb_hydro_ic`
+**valid models**: land
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+- If the associated data is generated, link it in the task run directory with its original name.
+- Reflect data path in `jsb_hydro_nml > ic_filename`.
+
+### `jsb_pheno_bc`
+**valid models**: land
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+- If the associated data is generated, link it in the task run directory with its original name.
+- Reflect data path in `jsb_pheno_nml > bc_filename`.
+
+### `jsb_pheno_ic`
+**valid models**: land
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+- If the associated data is generated, link it in the task run directory with its original name.
+- Reflect data path in `jsb_pheno_nml > ic_filename`.
+
+### `jsb_disturb_bc`
+**valid models**: land
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+- If the associated data is generated, link it in the task run directory with its original name.
+- Reflect data path in `jsb_disturb_nml > bc_filename`.
+
+### `jsb_disturb_ic`
+**valid models**: land
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+- If the associated data is generated, link it in the task run directory with its original name.
+- Reflect data path in `jsb_disturb_nml > ic_filename`.
+
+### `jsb_hd_bc`
+**valid models**: land
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+- If the associated data is generated, link it in the task run directory with its original name.
+- Reflect data path in `jsb_hd_nml > bc_filename`.
+
+### `jsb_hd_ic`
+**valid models**: land
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+- If the associated data is generated, link it in the task run directory with its original name.
+- Reflect data path in `jsb_hd_nml > ic_filename`.
+
+### `ocean_inistate`
+**valid models**: ocean
+<br>
+**number of data pieces**: 1
+<br>
+**actions**:
+
+- If the associated data is generated, link it in the task run directory with its original name.
+- Reflect data path in `ocean_initialConditions_nml > InitialState_InputFileName` namelist parameter.
 
 ## ICON task specifications
 
