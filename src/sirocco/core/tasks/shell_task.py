@@ -19,7 +19,6 @@ class ShellTask(models.ConfigShellTaskSpecs, Task):
     def build_from_config(cls: type[Self], config: models.ConfigTask, config_rootdir: Path, **kwargs: Any) -> Self:
         config_kwargs = dict(config)
         del config_kwargs["parameters"]
-        del config_kwargs["src"]
         # The following check is here for type checkers.
         # We don't want to narrow the type in the signature, as that would break liskov substitution.
         # We guarantee elsewhere this is called with the correct type at runtime
@@ -31,9 +30,15 @@ class ShellTask(models.ConfigShellTaskSpecs, Task):
             **kwargs,
             **config_kwargs,
         )
-        if config.src is not None:
-            self.src = self._validate_path(config.src, config_rootdir)
         return self
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        if self.src is not None:
+            self.src = self.config_rootdir / self.src
+            if not self.src.exists():
+                msg = f"{self.label}: src not found at {self.src}, must be a path relative to the config dir."
+                raise FileNotFoundError(msg)
 
     @property
     def inputs(self) -> dict[str, list[Data]]:
@@ -52,14 +57,6 @@ class ShellTask(models.ConfigShellTaskSpecs, Task):
             msg = "Only single component taks can unambiguously define outputs"
             raise ValueError(msg)
         return next(iter(self.components.values())).outputs
-
-    @staticmethod
-    def _validate_path(path: Path, config_rootdir: Path) -> Path:
-        path = config_rootdir / path
-        if not path.exists():
-            msg = f"Script in path {path} does not exist."
-            raise FileNotFoundError(msg)
-        return path
 
     def runscript_lines(self) -> list[str]:
         return [

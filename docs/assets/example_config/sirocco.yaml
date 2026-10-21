@@ -1,0 +1,104 @@
+---
+start_date: &root_start_date '2026-01-01T00:00'
+stop_date: &root_stop_date '2026-08-01T00:00'
+scheduler: slurm
+cycles:
+  - bi-monthly:
+      cycling:
+        start_date: *root_start_date
+        stop_date: *root_stop_date
+        period: "P2M"
+      tasks:
+        - pre proc:
+            inputs:
+              raw_input: [raw input data]
+            outputs:
+              processed: [boundary conditions]
+            wait_on:
+              - model:
+                  when:
+                    after: "2026-03-01T00:00"
+                  target_cycle:
+                    lag: "-P4M"
+        - model:
+            inputs:
+              init:
+                - initial conditions:
+                    when:
+                      at: *root_start_date
+              bc: [boundary conditions]
+              restart_in:
+                - restart:
+                    when:
+                      after: *root_start_date
+                    target_cycle:
+                      lag: "-P2M"
+            outputs:
+              output_streams: [stream 1, stream 2]
+              restart_out: [restart]
+  - 4 monthly:
+      cycling:
+        start_date: *root_start_date
+        stop_date: *root_stop_date
+        period: "P4M"
+      tasks:
+        - post proc:
+            inputs:
+              in:
+                - stream 1:
+                    target_cycle:
+                      lag: ["P0M", "P2M"]
+                - stream 2:
+                    target_cycle:
+                      lag: ["P0M", "P2M"]
+            outputs:
+              out: [processed]
+        - clean up:
+            inputs:
+              tbc:
+                - boundary conditions:
+                    target_cycle:
+                      lag: ["P0M", "P2M"]
+                - stream 1:
+                    target_cycle:
+                      lag: ["P0M", "P2M"]
+                - stream 2:
+                    target_cycle:
+                      lag: ["P0M", "P2M"]
+            wait_on: [post proc]
+tasks:
+  - ROOT:
+      computer: "machine"
+  - pre proc:
+      plugin: shell
+      path: scripts/preproc.sh
+      command: "./preproc.sh --in  {PORT::raw_input} --out {PORT::processed}"
+  - model:
+      plugin: shell
+      path: scripts/icon.py
+      command: "python icon.py [--restart {PORT::restart_in}] [--init {PORT::init}]"
+  - post proc:
+      plugin: shell
+      path: scripts/postproc.sh
+      command: "./postproc.sh --in {PORT::in} --out {PORT::out}"
+  - clean up:
+      plugin: shell
+      path: scripts/cleanup.py
+      command: "python cleanup.py --in {PORT::tbc}"
+data:
+  available:
+     - raw input data:
+         path: "/path/to/raw input data"
+     - initial conditions:
+         path: "/path/to/initial conditions"
+  generated:
+     - boundary conditions:
+         path: processed_data
+     - stream 1:
+         path: stream_1
+     - stream 2:
+         path: stream_2
+     - restart:
+         path: restart
+     - processed:
+         path: processed_output
