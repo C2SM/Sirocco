@@ -21,6 +21,7 @@ from sirocco.core.tasks.icon_task.task_distribution import (
     distribute_procs_load_balanced,
 )
 from sirocco.parsing import yaml_data_models
+from sirocco.parsing._utils import convert_to_date
 from sirocco.parsing.cycling import DateCyclePoint
 
 if TYPE_CHECKING:
@@ -259,8 +260,6 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
             {
                 "master_time_control_nml": {
                     # Use Z instead of +00:00 for UTC (ISO 8601 compact form)
-                    # The experiment start stays fixed across restarts, ICON components rely on it
-                    "experimentStartDate": self.cycle_point.start_date.isoformat().replace("+00:00", "Z"),
                     "experimentStopDate": self.cycle_point.chunk_stop_date.isoformat().replace("+00:00", "Z"),
                     "restartTimeIntval": str(self.cycle_point.period),
                     "checkpointTimeIntval": str(self.cycle_point.period),
@@ -276,6 +275,23 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
 
         for jsb_control_nml in self.master_namelist.iter_nml("jsb_control_nml"):
             jsb_control_nml["restart_jsbach"] = self.is_restart
+
+        self.check_experiment_start_date()
+
+    def check_experiment_start_date(self) -> None:
+        """Check that a cold start begins at the chunk start date.
+
+        experimentStartDate is left to the user, as it may precede the cycle start (e.g. when continuing a run).
+        """
+        if self.is_restart:
+            return
+        start_date = self.master_namelist.get("master_time_control_nml", {}).get("experimentStartDate")
+        if start_date is None or convert_to_date(start_date) != self.cycle_point.chunk_start_date:
+            msg = (
+                f"{self.label}: experimentStartDate ({start_date}) in {self.master_namelist.name!r} must match"
+                f" the chunk start date ({self.cycle_point.chunk_start_date.isoformat()}) when not starting from restart"
+            )
+            raise ValueError(msg)
 
     @property
     def is_restart(self) -> bool:
