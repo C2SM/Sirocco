@@ -26,6 +26,7 @@ from sirocco.parsing.cycling import DateCyclePoint
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from datetime import datetime
 
     import f90nml
 
@@ -276,9 +277,9 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         for jsb_control_nml in self.master_namelist.iter_nml("jsb_control_nml"):
             jsb_control_nml["restart_jsbach"] = self.is_restart
 
-        self.check_experiment_start_date()
+        self.check_experiment_start_date(self.cycle_point.chunk_start_date)
 
-    def check_experiment_start_date(self) -> None:
+    def check_experiment_start_date(self, chunk_start_date: datetime) -> None:
         """Check that a cold start begins at the chunk start date.
 
         experimentStartDate is left to the user, as it may precede the cycle start (e.g. when continuing a run).
@@ -286,10 +287,10 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         if self.is_restart:
             return
         start_date = self.master_namelist.get("master_time_control_nml", {}).get("experimentStartDate")
-        if start_date is None or convert_to_date(start_date) != self.cycle_point.chunk_start_date:
+        if start_date is None or convert_to_date(start_date) != chunk_start_date:
             msg = (
                 f"{self.label}: experimentStartDate ({start_date}) in {self.master_namelist.name!r} must match"
-                f" the chunk start date ({self.cycle_point.chunk_start_date.isoformat()}) when not starting from restart"
+                f" the chunk start date ({chunk_start_date.isoformat()}) when not starting from restart"
             )
             raise ValueError(msg)
 
