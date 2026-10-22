@@ -1,6 +1,8 @@
 name: test-integration
 
-# NOTE: Deactivating until we need to test with aiida-icon again
+# NOTE: Automatic triggers deactivated until we need to test with aiida-icon again.
+#       A workflow without any trigger is invalid and reported as failed on every push.
+on: workflow_dispatch
 # on:
 #   push:
 #     # only pushes to main trigger
