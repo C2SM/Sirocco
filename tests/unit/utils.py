@@ -211,6 +211,9 @@ def create_icon_task_from_workflow(
         &master_nml
          lrestart = .false.
         /
+        &master_time_control_nml
+         experimentStartDate = '2026-01-01T00:00:00Z'
+        /
         &master_model_nml
          model_name="atm"
          model_namelist_filename="model.namelist"
@@ -306,7 +309,7 @@ def create_icon_task_with_model_namelists(
     icon_dir.mkdir(exist_ok=True)
 
     # Create master namelist referencing model namelists
-    master_content = "&master_nml\n lrestart = .false.\n/\n"
+    master_content = "&master_nml\n lrestart = .false.\n/\n&master_time_control_nml\n experimentStartDate = '2026-01-01T00:00:00Z'\n/\n"
     for model in models:
         master_content += textwrap.dedent(f"""
             &master_model_nml
