@@ -545,22 +545,24 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
             msg = "icon tasks must have a DateCyclePoint"
             raise TypeError(msg)
 
-        # Intercept special namelist parameters
+        # Intercept special namelist parameter overwrites
         for config_namelist in config_kwargs["namelists"]:
-            for section, params in config_namelist.specs.items():
-                for pname, pvalue in params.items():
-                    match (section, pname):
-                        case ("nwp_tuning_nml", "allow_overcast"):
-                            if isinstance(pvalue, list):
-                                if len(pvalue) != 12:  # noqa PLR2004: we know there are 12 nonths in a year ...
-                                    msg = "overwrite for nwp_tuning_nml > allow_overcast must either be a single value or a list of 12 monthly values"
-                                    raise ValueError(msg)
-                                start = cycle_point.chunk_start_date
-                                last = cycle_point.chunk_stop_date - timedelta(microseconds=1)
-                                if (start.year, start.month) != (last.year, last.month):
-                                    msg = f"nwp_tuning_nml > allow_overcast overwrites requires chunks within one calendar month, got {cycle_point}"
-                                    raise ValueError(msg)
-                                params[pname] = pvalue[start.month - 1]
+            if (
+                (section := config_namelist.specs.get("nwp_tuning_nml")) is not None
+                and (pvalue := section.get("allow_overcast")) is not None
+                and isinstance(pvalue, list)
+            ):
+                if len(pvalue) != 12:  # noqa PLR2004: we know there are 12 nonths in a year ...
+                    msg = "overwrite for nwp_tuning_nml > allow_overcast must either be a single value or a list of 12 monthly values"
+                    raise ValueError(msg)
+                start = cycle_point.chunk_start_date
+                last = cycle_point.chunk_stop_date - timedelta(microseconds=1)
+                if (start.year, start.month) != (last.year, last.month):
+                    msg = f"nwp_tuning_nml > allow_overcast overwrites requires chunks within one calendar month, got {cycle_point}"
+                    raise ValueError(msg)
+                section["allow_overcast"] = pvalue[start.month - 1]
+
+        # Build NamelistFile objects
         config_kwargs["namelists"] = [
             NamelistFile.from_config(config=config_namelist, config_rootdir=config_rootdir)
             for config_namelist in config_kwargs["namelists"]
