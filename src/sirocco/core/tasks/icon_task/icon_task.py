@@ -4,10 +4,10 @@ import logging
 import shlex
 import shutil
 from dataclasses import dataclass, field
+from datetime import timedelta
 from itertools import chain
 from math import ceil
 from pathlib import Path
-from datetime import timedelta
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 
 from sirocco.core.graph_items import Task
@@ -26,9 +26,10 @@ from sirocco.parsing.cycling import DateCyclePoint
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
-    from sirocco.parsing.cycling import CyclePoint
 
     import f90nml
+
+    from sirocco.parsing.cycling import CyclePoint
 
 LOGGER = logging.getLogger(__name__)
 
@@ -527,7 +528,11 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
 
     @classmethod
     def build_from_config(
-        cls: type[Self], config: yaml_data_models.ConfigTask, config_rootdir: Path, cycle_point:CyclePoint, **kwargs: Any
+        cls: type[Self],
+        config: yaml_data_models.ConfigTask,
+        config_rootdir: Path,
+        cycle_point: CyclePoint,
+        **kwargs: Any,
     ) -> Self:
         config_kwargs = dict(config)
         del config_kwargs["parameters"]
@@ -537,7 +542,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         if not isinstance(config, yaml_data_models.ConfigIconTask):
             raise TypeError
         if not isinstance(cycle_point, DateCyclePoint):
-            msg = f"icon tasks must have a DateCyclePoint"
+            msg = "icon tasks must have a DateCyclePoint"
             raise TypeError(msg)
 
         # Intercept special namelist parameters
@@ -547,7 +552,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                     match (section, pname):
                         case ("nwp_tuning_nml", "allow_overcast"):
                             if isinstance(pvalue, list):
-                                if len(pvalue) != 12:
+                                if len(pvalue) != 12:  # noqa PLR2004: we know there are 12 nonths in a year ...
                                     msg = "overwrite for for nwp_tuning_nml > allow_overcast must either be a single value or a list of 12 monthly values"
                                     raise ValueError(msg)
                                 start = cycle_point.chunk_start_date
