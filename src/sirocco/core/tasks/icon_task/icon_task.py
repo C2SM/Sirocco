@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from itertools import chain
 from math import ceil
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, cast
 
 from sirocco.core.graph_items import Task
 from sirocco.core.namelistfile import NamelistFile
@@ -26,7 +26,6 @@ from sirocco.parsing.cycling import DateCyclePoint
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
-    from datetime import datetime
 
     import f90nml
 
@@ -256,6 +255,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         if not isinstance(self.cycle_point, DateCyclePoint):
             msg = f"{self.label}: icon tasks must have a DateCyclePoint"
             raise TypeError(msg)
+        self.check_experiment_start_date()
 
         self.master_namelist.update_from_specs(
             {
@@ -277,20 +277,21 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         for jsb_control_nml in self.master_namelist.iter_nml("jsb_control_nml"):
             jsb_control_nml["restart_jsbach"] = self.is_restart
 
-        self.check_experiment_start_date(self.cycle_point.chunk_start_date)
-
-    def check_experiment_start_date(self, chunk_start_date: datetime) -> None:
-        """Check that a cold start begins at the chunk start date.
+    def check_experiment_start_date(self) -> None:
+        """Check that a cold start begins at the cycle start date.
 
         experimentStartDate is left to the user, as it may precede the cycle start (e.g. when continuing a run).
         """
         if self.is_restart:
             return
         start_date = self.master_namelist.get("master_time_control_nml", {}).get("experimentStartDate")
-        if start_date is None or convert_to_date(start_date) != chunk_start_date:
+        # cycle_point type is checked in update_icon_namelists_from_workflow
+        cycle_start_date = cast("DateCyclePoint", self.cycle_point).start_date
+        if start_date is None or convert_to_date(start_date) != cycle_start_date:
             msg = (
-                f"{self.label}: experimentStartDate ({start_date}) in {self.master_namelist.name!r} must match"
-                f" the chunk start date ({chunk_start_date.isoformat()}) when not starting from restart"
+                f"{self.label}: for cold starts (not restarting from a checkpoint state), experimentStartDate"
+                f" ({start_date}) in {self.master_namelist.name!r} must match the cycle start date"
+                f" ({cycle_start_date.isoformat()})"
             )
             raise ValueError(msg)
 
