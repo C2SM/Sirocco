@@ -1,0 +1,37 @@
+&master_nml
+    lrestart = .false.
+    read_restart_namelists = .false.
+/
+
+&master_time_control_nml
+    calendar = 'proleptic gregorian'
+    experimentstartdate = '2020-01-01T00:00:00Z'
+    experimentstopdate = '2020-02-01T00:00:00Z'
+    restarttimeintval = 'P1M'
+    checkpointtimeintval = 'P1M'
+/
+
+&master_model_nml
+    model_name = 'atmo'
+    model_namelist_filename = 'atm.nml'
+    model_type = 1
+    model_min_rank = 0
+    model_max_rank = 1
+/
+
+&master_model_nml
+    model_name = 'ocean'
+    model_namelist_filename = 'oce.nml'
+    model_type = 2
+    model_min_rank = 0
+    model_max_rank = 1
+/
+
+&jsb_control_nml
+    restart_jsbach = .false.
+/
+
+&jsb_model_nml
+    model_name = 'JSBACH'
+    model_namelist_filename = 'lnd.nml'
+/

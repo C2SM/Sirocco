@@ -1,0 +1,3 @@
+&jsb_hd_nml
+ read_initial_reservoirs = .true.
+/
