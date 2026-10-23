@@ -10,7 +10,7 @@ from sirocco.core.tasks.icon_task import IconTask
 @pytest.mark.usefixtures("config_case")
 @pytest.mark.parametrize(
     "config_case",
-    ["large"],
+    ["large", "coupled"],
 )
 def test_nml_mod(config_paths, tmp_path):
     """Test ICON namelist generation from IconTask."""

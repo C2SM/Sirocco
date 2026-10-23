@@ -276,6 +276,12 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         for jsb_control_nml in self.master_namelist.iter_nml("jsb_control_nml"):
             jsb_control_nml["restart_jsbach"] = self.is_restart
 
+        # HD reservoirs are part of the restart state and must not be re-read from the initial file
+        if self.is_restart:
+            for model in self.models.values():
+                if model.model_type is ModelType.LAND and "jsb_hd_nml" in model.namelist:
+                    model.namelist["jsb_hd_nml"]["read_initial_reservoirs"] = False
+
     @property
     def is_restart(self) -> bool:
         """Check if the icon task starts from restart file(s)."""
