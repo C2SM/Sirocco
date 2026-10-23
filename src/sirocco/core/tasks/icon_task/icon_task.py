@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from itertools import chain
 from math import ceil
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 
 from sirocco.core.graph_items import Task
 from sirocco.core.namelistfile import NamelistFile
@@ -252,18 +252,15 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         return max_rank + 1
 
     def update_icon_namelists_from_workflow(self) -> None:
-        if not isinstance(self.cycle_point, DateCyclePoint):
-            msg = f"{self.label}: icon tasks must have a DateCyclePoint"
-            raise TypeError(msg)
-        self.check_experiment_start_date()
+        cycle_point = self.check_dates()
 
         self.master_namelist.update_from_specs(
             {
                 "master_time_control_nml": {
                     # Use Z instead of +00:00 for UTC (ISO 8601 compact form)
-                    "experimentStopDate": self.cycle_point.chunk_stop_date.isoformat().replace("+00:00", "Z"),
-                    "restartTimeIntval": str(self.cycle_point.period),
-                    "checkpointTimeIntval": str(self.cycle_point.period),
+                    "experimentStopDate": cycle_point.chunk_stop_date.isoformat().replace("+00:00", "Z"),
+                    "restartTimeIntval": str(cycle_point.period),
+                    "checkpointTimeIntval": str(cycle_point.period),
                 },
                 "master_nml": {
                     "lrestart": self.is_restart,
@@ -277,16 +274,19 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         for jsb_control_nml in self.master_namelist.iter_nml("jsb_control_nml"):
             jsb_control_nml["restart_jsbach"] = self.is_restart
 
-    def check_experiment_start_date(self) -> None:
-        """Check that a cold start begins at the cycle start date.
+    def check_dates(self) -> DateCyclePoint:
+        """Check that the task has a date cycle point and that a cold start begins at the cycle start date.
 
         experimentStartDate is left to the user, as it may precede the cycle start (e.g. when continuing a run).
+        Returns the cycle point narrowed to DateCyclePoint.
         """
+        if not isinstance(self.cycle_point, DateCyclePoint):
+            msg = f"{self.label}: icon tasks must have a DateCyclePoint"
+            raise TypeError(msg)
         if self.is_restart:
-            return
+            return self.cycle_point
         start_date = self.master_namelist.get("master_time_control_nml", {}).get("experimentStartDate")
-        # cycle_point type is checked in update_icon_namelists_from_workflow
-        cycle_start_date = cast("DateCyclePoint", self.cycle_point).start_date
+        cycle_start_date = self.cycle_point.start_date
         if start_date is None or convert_to_date(start_date) != cycle_start_date:
             msg = (
                 f"{self.label}: for cold starts (not restarting from a checkpoint state), experimentStartDate"
@@ -294,6 +294,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                 f" ({cycle_start_date.isoformat()})"
             )
             raise ValueError(msg)
+        return self.cycle_point
 
     @property
     def is_restart(self) -> bool:
