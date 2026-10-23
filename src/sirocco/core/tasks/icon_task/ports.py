@@ -77,6 +77,13 @@ ifs2icon_handler = PortHandler(
     section="initicon_nml",
     parameter="ifs2icon_filename",
 )
+latbc_handler = PortHandler(
+    port_name="latbc",
+    valid_model_types=[ModelType.ATMOSPHERE],
+    section="limarea_nml",
+    parameter="latbc_path",
+    target_link_name="latbc",
+)
 ecrad_data_handler = PortHandler(
     port_name="ecrad_data",
     valid_model_types=[ModelType.ATMOSPHERE],
