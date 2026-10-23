@@ -547,6 +547,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
 
         # Intercept special namelist parameter overwrites
         for config_namelist in config_kwargs["namelists"]:
+            # potential monthly value for nwp_tuning_nml > allow_overcast
             if (
                 (section := config_namelist.specs.get("nwp_tuning_nml")) is not None
                 and (pvalue := section.get("allow_overcast")) is not None
