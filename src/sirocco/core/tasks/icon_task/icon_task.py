@@ -546,22 +546,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
             raise TypeError(msg)
 
         # Intercept special namelist parameter overwrites
-        for config_namelist in config_kwargs["namelists"]:
-            # potential monthly value for nwp_tuning_nml > allow_overcast
-            if (
-                (section := config_namelist.specs.get("nwp_tuning_nml")) is not None
-                and (pvalue := section.get("allow_overcast")) is not None
-                and isinstance(pvalue, list)
-            ):
-                if len(pvalue) != 12:  # noqa PLR2004: we know there are 12 nonths in a year ...
-                    msg = "overwrite for nwp_tuning_nml > allow_overcast must either be a single value or a list of 12 monthly values"
-                    raise ValueError(msg)
-                start = cycle_point.chunk_start_date
-                last = cycle_point.chunk_stop_date - timedelta(microseconds=1)
-                if (start.year, start.month) != (last.year, last.month):
-                    msg = f"nwp_tuning_nml > allow_overcast overwrites requires chunks within one calendar month, got {cycle_point}"
-                    raise ValueError(msg)
-                section["allow_overcast"] = pvalue[start.month - 1]
+        cls.intercept_special_namelist_overwrites(config_namelists=config_kwargs["namelists"], cycle_point=cycle_point)
 
         # Build NamelistFile objects
         config_kwargs["namelists"] = [
@@ -577,3 +562,24 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         )
         self.update_icon_namelists_from_workflow()
         return self
+
+    @staticmethod
+    def intercept_special_namelist_overwrites(
+        config_namelists: list[yaml_data_models.ConfigNamelistFile], cycle_point: DateCyclePoint
+    ):
+        for config_namelist in config_namelists:
+            # potential monthly value for nwp_tuning_nml > allow_overcast
+            if (
+                (section := config_namelist.specs.get("nwp_tuning_nml")) is not None
+                and (pvalue := section.get("allow_overcast")) is not None
+                and isinstance(pvalue, list)
+            ):
+                if len(pvalue) != 12:  # noqa PLR2004: we know there are 12 nonths in a year ...
+                    msg = "overwrite for nwp_tuning_nml > allow_overcast must either be a single value or a list of 12 monthly values"
+                    raise ValueError(msg)
+                start = cycle_point.chunk_start_date
+                last = cycle_point.chunk_stop_date - timedelta(microseconds=1)
+                if (start.year, start.month) != (last.year, last.month):
+                    msg = f"nwp_tuning_nml > allow_overcast overwrites requires chunks within one calendar month, got {cycle_point}"
+                    raise ValueError(msg)
+                section["allow_overcast"] = pvalue[start.month - 1]
