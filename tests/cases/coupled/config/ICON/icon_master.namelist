@@ -1,0 +1,25 @@
+&master_nml
+ lrestart = .false.
+/
+&master_time_control_nml
+ calendar = 'proleptic gregorian'
+ experimentStartDate = '2000-01-01T00:00:00Z'
+ experimentStopDate = '2000-02-01T00:00:00Z'
+/
+&master_model_nml
+ model_name = "atmo"
+ model_namelist_filename = "atm.nml"
+ model_type = 1
+/
+&master_model_nml
+ model_name = "ocean"
+ model_namelist_filename = "oce.nml"
+ model_type = 2
+/
+&jsb_control_nml
+ restart_jsbach = .false.
+/
+&jsb_model_nml
+ model_name = "JSBACH"
+ model_namelist_filename = "lnd.nml"
+/
