@@ -1,7 +1,7 @@
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import ClassVar, Literal
+from typing import ClassVar
 
 from sirocco.core.graph_items import Task
 from sirocco.parsing import yaml_data_models as models
@@ -13,7 +13,7 @@ from sirocco.parsing import yaml_data_models as models
 class SiroccoContinueTask(models.ConfigSiroccoTaskSpecs, Task):
     """Special Sirocco Task for continuing the workflow"""
 
-    plugin: ClassVar[Literal["_sirocco", "sirocco_continue"]] = "sirocco_continue"
+    plugin: ClassVar[str] = "sirocco_continue"
     SUBMIT_FILENAME: ClassVar[str] = field(default=".sirocco_continue.sh", repr=False)
     CMD_FILENAME: ClassVar[str] = field(default=".sirocco_cmd", repr=False)
     STDOUTERR_FILENAME: ClassVar[str] = field(default="sirocco.log", repr=False)
