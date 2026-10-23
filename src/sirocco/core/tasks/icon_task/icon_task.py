@@ -545,6 +545,9 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
             msg = "icon tasks must have a DateCyclePoint"
             raise TypeError(msg)
 
+        # Deep copy pydantic model to be able to modify namelists
+        config_kwargs["namelists"] = [nml.model_copy(deep=True) for nml in config_kwargs["namelists"]]
+
         # Intercept special namelist parameter overwrites
         cls.intercept_special_namelist_overwrites(config_namelists=config_kwargs["namelists"], cycle_point=cycle_point)
 
