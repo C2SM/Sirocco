@@ -256,7 +256,9 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
         return new
 
     @classmethod
-    def build_from_config(cls: type[Self], config: ConfigTask, config_rootdir: Path, cycle_point: CyclePoint, **kwargs: Any) -> Self:
+    def build_from_config(
+        cls: type[Self], config: ConfigTask, config_rootdir: Path, cycle_point: CyclePoint, **kwargs: Any
+    ) -> Self:
         config_kwargs = dict(config)
         del config_kwargs["parameters"]
         return cls(config_rootdir=config_rootdir, cycle_point=cycle_point, **kwargs, **config_kwargs)
