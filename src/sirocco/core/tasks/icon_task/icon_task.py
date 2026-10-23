@@ -553,7 +553,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                         case ("nwp_tuning_nml", "allow_overcast"):
                             if isinstance(pvalue, list):
                                 if len(pvalue) != 12:  # noqa PLR2004: we know there are 12 nonths in a year ...
-                                    msg = "overwrite for for nwp_tuning_nml > allow_overcast must either be a single value or a list of 12 monthly values"
+                                    msg = "overwrite for nwp_tuning_nml > allow_overcast must either be a single value or a list of 12 monthly values"
                                     raise ValueError(msg)
                                 start = cycle_point.chunk_start_date
                                 last = cycle_point.chunk_stop_date - timedelta(microseconds=1)

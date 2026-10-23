@@ -1,7 +1,7 @@
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import ClassVar, Literal
+from typing import ClassVar
 
 from sirocco.core.graph_items import Task
 from sirocco.parsing import yaml_data_models as models
