@@ -17,7 +17,9 @@ if TYPE_CHECKING:
 @dataclass(kw_only=True)
 class ShellTask(models.ConfigShellTaskSpecs, Task):
     @classmethod
-    def build_from_config(cls: type[Self], config: models.ConfigTask, config_rootdir: Path, cycle_point: CyclePoint, **kwargs: Any) -> Self:
+    def build_from_config(
+        cls: type[Self], config: models.ConfigTask, config_rootdir: Path, cycle_point: CyclePoint, **kwargs: Any
+    ) -> Self:
         config_kwargs = dict(config)
         del config_kwargs["parameters"]
         del config_kwargs["src"]
