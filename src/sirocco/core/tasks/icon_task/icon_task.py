@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from itertools import chain
 from math import ceil
 from pathlib import Path
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 
 from sirocco.core.graph_items import Task
@@ -25,6 +26,7 @@ from sirocco.parsing.cycling import DateCyclePoint
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from sirocco.parsing.cycling import CyclePoint
 
     import f90nml
 
@@ -525,7 +527,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
 
     @classmethod
     def build_from_config(
-        cls: type[Self], config: yaml_data_models.ConfigTask, config_rootdir: Path, **kwargs: Any
+        cls: type[Self], config: yaml_data_models.ConfigTask, config_rootdir: Path, cycle_point:CyclePoint, **kwargs: Any
     ) -> Self:
         config_kwargs = dict(config)
         del config_kwargs["parameters"]
@@ -534,7 +536,26 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         # We guarantee elsewhere this is called with the correct type at runtime
         if not isinstance(config, yaml_data_models.ConfigIconTask):
             raise TypeError
+        if not isinstance(cycle_point, DateCyclePoint):
+            msg = f"icon tasks must have a DateCyclePoint"
+            raise TypeError(msg)
 
+        # Intercept special namelist parameters
+        for config_namelist in config_kwargs["namelists"]:
+            for section, params in config_namelist.specs.items():
+                for pname, pvalue in params.items():
+                    match (section, pname):
+                        case ("nwp_tuning_nml", "allow_overcast"):
+                            if isinstance(pvalue, list):
+                                if len(pvalue) != 12:
+                                    msg = "overwrite for for nwp_tuning_nml > allow_overcast must either be a single value or a list of 12 monthly values"
+                                    raise ValueError(msg)
+                                start = cycle_point.chunk_start_date
+                                last = cycle_point.chunk_stop_date - timedelta(microseconds=1)
+                                if (start.year, start.month) != (last.year, last.month):
+                                    msg = f"nwp_tuning_nml > allow_overcast overwrites requires chunks within one calendar month, got {cycle_point}"
+                                    raise ValueError(msg)
+                                params[pname] = pvalue[start.month - 1]
         config_kwargs["namelists"] = [
             NamelistFile.from_config(config=config_namelist, config_rootdir=config_rootdir)
             for config_namelist in config_kwargs["namelists"]
@@ -542,6 +563,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
 
         self = cls(
             config_rootdir=config_rootdir,
+            cycle_point=cycle_point,
             **kwargs,
             **config_kwargs,
         )
