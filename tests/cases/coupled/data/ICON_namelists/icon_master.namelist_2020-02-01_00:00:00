@@ -23,8 +23,8 @@
     model_name = 'ocean'
     model_namelist_filename = 'oce.nml'
     model_type = 2
-    model_min_rank = 0
-    model_max_rank = 1
+    model_min_rank = 2
+    model_max_rank = 3
 /
 
 &jsb_control_nml
