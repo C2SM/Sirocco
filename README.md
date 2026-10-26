@@ -1,5 +1,5 @@
 ![Project Logo](./docs/assets/Sirocco_Logo2026_BrunRVB.svg#gh-light-mode-only)
-![Project Logo](./docs/assets/Sirocco_Logo2026_BrunRVB.svg#gh-dark-mode-only)
+![Project Logo](./docs/assets/Sirocco_Logo2026_BeigeRVB.svg#gh-dark-mode-only)
 
 
 
