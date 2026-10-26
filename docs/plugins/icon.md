@@ -35,9 +35,27 @@ Listed below are the currently supported ports for icon tasks. What they typical
 
 This list regularly gets extended as use cases start to cover more ICON features. Should a port be missing, the [basic input linking](../../configuration/cycles/#special-input-linking-ports) might first help circumventing this lack. Then please open a pull request on the [Sirocco repository :lucide-external-link:](https://github.com/C2SM/Sirocco/pulls).
 
+### `squash`
+
+**components**: master
+<br>
+**number of data pieces**: any
+<br>
+**actions**:
+
+- Each data instance of that port are [squashfs :lucide-external-link:](https://en.wikipedia.org/wiki/SquashFS) images that will be mounted at runtime at the mount points given in the [`squash_mount`](#squash_mount) task specification.
+
+### `finish_status`
+
+**components**: atmosphere, ocean
+<br>
+**number of data pieces**: 1
+<br>
+**actions**: None
+
 ### `restart_in`
 
-**valid models**: atmosphere, ocean
+**components**: atmosphere, ocean
 <br>
 **number of data pieces**: 1
 <br>
@@ -48,7 +66,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 ### `restart_out`
 
-**valid models**: atmosphere, ocean
+**components**: atmosphere, ocean
 <br>
 **number of data pieces**: 1
 <br>
@@ -58,28 +76,19 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 ### `output_streams`
 
-**valid models**: atmosphere, ocean
+**components**: atmosphere, ocean
 <br>
 **number of data pieces**: any
 <br>
 **actions**:
 
 - Check that the number of output streams declared as `output_nml` sections matches the number of associated data pieces.
-- Check that all output streams specify an output sub-directory using the combinaiton of `filename_format` and `output_filename` parameters (see in [ICON namelist overiew :lucide-external-link:](https://docs.icon-model.org/2026.04/documentation/buildrun/buildrun_namelist_overview.html#output-nml) ). For instance `filename_format = 'atm_mon/atm_mon_<datetime2>'` is a valid entry while `filename_format = 'atm_mon_<datetime2>'` isn't.
+- Ensure that all `output_nml` streams specify an output sub-directory using the combinaiton of `filename_format` and `output_filename` parameters (see in [ICON namelist overiew :lucide-external-link:](https://docs.icon-model.org/2026.04/documentation/buildrun/buildrun_namelist_overview.html#output-nml) ). For instance `filename_format = 'atm_mon/atm_mon_<datetime2>'` is a valid entry while `filename_format = 'atm_mon_<datetime2>'` isn't.
 - Create these sub-directories in the task run directory.
-
-### `finish_status`
-
-**valid models**: atmosphere, ocean
-<br>
-**number of data pieces**: 1
-<br>
-**actions**: None
-
 
 ### `dynamics_grid_file`
 
-**valid models**: atmosphere, ocean
+**components**: atmosphere, ocean
 <br>
 **number of data pieces**: 1
 <br>
@@ -90,7 +99,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 ### `ifs2icon`
 
-**valid models**: atmosphere
+**components**: atmosphere
 <br>
 **number of data pieces**: 1
 <br>
@@ -101,7 +110,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 ### `extpar_file`
 
-**valid models**: atmosphere
+**components**: atmosphere
 <br>
 **number of data pieces**: 1
 <br>
@@ -112,7 +121,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 ### `ecrad_data`
 
-**valid models**: atmosphere
+**components**: atmosphere
 <br>
 **number of data pieces**: 1
 <br>
@@ -124,7 +133,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 ### `ghg_file`
 
-**valid models**: atmosphere
+**components**: atmosphere
 <br>
 **number of data pieces**: 1
 <br>
@@ -135,7 +144,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 ### `rrtmg_lw`
 
-**valid models**: atmosphere
+**components**: atmosphere
 <br>
 **number of data pieces**: 1
 <br>
@@ -146,7 +155,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 ### `rrtmg_sw`
 
-**valid models**: atmosphere
+**components**: atmosphere
 <br>
 **number of data pieces**: 1
 <br>
@@ -156,7 +165,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 ### `bc_solar_sw`
 
-**valid models**: atmosphere
+**components**: atmosphere
 <br>
 **number of data pieces**: 1
 <br>
@@ -166,7 +175,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 ### `atm_plumes`
 
-**valid models**: atmosphere
+**components**: atmosphere
 <br>
 **number of data pieces**: 1
 <br>
@@ -176,7 +185,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 ### `cloud_opt_props`
 
-**valid models**: atmosphere
+**components**: atmosphere
 <br>
 **number of data pieces**: 1
 <br>
@@ -187,7 +196,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 ### `jsb_ifs`
 
-**valid models**: land
+**components**: land
 <br>
 **number of data pieces**: 1
 <br>
@@ -197,7 +206,8 @@ This list regularly gets extended as use cases start to cover more ICON features
  - Reflect data path in the `jsb_model_nml > ifs_filename`.
 
 ### `jsb_fract`
-**valid models**: land
+
+**components**: land
 <br>
 **number of data pieces**: 1
 <br>
@@ -207,7 +217,8 @@ This list regularly gets extended as use cases start to cover more ICON features
 - Reflect data path in `jsb_model_nml > fract_filename`.
 
 ### `jsb_seb_bc`
-**valid models**: land
+
+**components**: land
 <br>
 **number of data pieces**: 1
 <br>
@@ -217,7 +228,8 @@ This list regularly gets extended as use cases start to cover more ICON features
 - Reflect data path in `jsb_seb_nml > bc_filename`.
 
 ### `jsb_seb_ic`
-**valid models**: land
+
+**components**: land
 <br>
 **number of data pieces**: 1
 <br>
@@ -227,7 +239,8 @@ This list regularly gets extended as use cases start to cover more ICON features
 - Reflect data path in `jsb_seb_nml > ic_filename`.
 
 ### `jsb_rad_bc`
-**valid models**: land
+
+**components**: land
 <br>
 **number of data pieces**: 1
 <br>
@@ -237,7 +250,8 @@ This list regularly gets extended as use cases start to cover more ICON features
 - Reflect data path in `jsb_rad_nml > bc_filename`.
 
 ### `jsb_rad_ic`
-**valid models**: land
+
+**components**: land
 <br>
 **number of data pieces**: 1
 <br>
@@ -247,7 +261,8 @@ This list regularly gets extended as use cases start to cover more ICON features
 - Reflect data path in `jsb_rad_nml > ic_filename`.
 
 ### `jsb_turb_bc`
-**valid models**: land
+
+**components**: land
 <br>
 **number of data pieces**: 1
 <br>
@@ -257,7 +272,8 @@ This list regularly gets extended as use cases start to cover more ICON features
 - Reflect data path in `jsb_turb_nml > bc_filename`.
 
 ### `jsb_turb_ic`
-**valid models**: land
+
+**components**: land
 <br>
 **number of data pieces**: 1
 <br>
@@ -267,7 +283,8 @@ This list regularly gets extended as use cases start to cover more ICON features
 - Reflect data path in `jsb_turb_nml > ic_filename`.
 
 ### `jsb_sse_bc`
-**valid models**: land
+
+**components**: land
 <br>
 **number of data pieces**: 1
 <br>
@@ -277,7 +294,8 @@ This list regularly gets extended as use cases start to cover more ICON features
 - Reflect data path in `jsb_sse_nml > bc_filename`.
 
 ### `jsb_sse_ic`
-**valid models**: land
+
+**components**: land
 <br>
 **number of data pieces**: 1
 <br>
@@ -287,7 +305,8 @@ This list regularly gets extended as use cases start to cover more ICON features
 - Reflect data path in `jsb_sse_nml > ic_filename`.
 
 ### `jsb_hydro_bc`
-**valid models**: land
+
+**components**: land
 <br>
 **number of data pieces**: 1
 <br>
@@ -297,7 +316,8 @@ This list regularly gets extended as use cases start to cover more ICON features
 - Reflect data path in `jsb_hydro_nml > bc_filename`.
 
 ### `jsb_hydro_bc_sso`
-**valid models**: land
+
+**components**: land
 <br>
 **number of data pieces**: 1
 <br>
@@ -307,7 +327,8 @@ This list regularly gets extended as use cases start to cover more ICON features
 - Reflect data path in `jsb_hydro_nml:bc > sso_filename`.
 
 ### `jsb_hydro_ic`
-**valid models**: land
+
+**components**: land
 <br>
 **number of data pieces**: 1
 <br>
@@ -317,7 +338,8 @@ This list regularly gets extended as use cases start to cover more ICON features
 - Reflect data path in `jsb_hydro_nml > ic_filename`.
 
 ### `jsb_pheno_bc`
-**valid models**: land
+
+**components**: land
 <br>
 **number of data pieces**: 1
 <br>
@@ -327,7 +349,8 @@ This list regularly gets extended as use cases start to cover more ICON features
 - Reflect data path in `jsb_pheno_nml > bc_filename`.
 
 ### `jsb_pheno_ic`
-**valid models**: land
+
+**components**: land
 <br>
 **number of data pieces**: 1
 <br>
@@ -337,7 +360,8 @@ This list regularly gets extended as use cases start to cover more ICON features
 - Reflect data path in `jsb_pheno_nml > ic_filename`.
 
 ### `jsb_disturb_bc`
-**valid models**: land
+
+**components**: land
 <br>
 **number of data pieces**: 1
 <br>
@@ -347,7 +371,8 @@ This list regularly gets extended as use cases start to cover more ICON features
 - Reflect data path in `jsb_disturb_nml > bc_filename`.
 
 ### `jsb_disturb_ic`
-**valid models**: land
+
+**components**: land
 <br>
 **number of data pieces**: 1
 <br>
@@ -357,7 +382,8 @@ This list regularly gets extended as use cases start to cover more ICON features
 - Reflect data path in `jsb_disturb_nml > ic_filename`.
 
 ### `jsb_hd_bc`
-**valid models**: land
+
+**components**: land
 <br>
 **number of data pieces**: 1
 <br>
@@ -367,7 +393,8 @@ This list regularly gets extended as use cases start to cover more ICON features
 - Reflect data path in `jsb_hd_nml > bc_filename`.
 
 ### `jsb_hd_ic`
-**valid models**: land
+
+**components**: land
 <br>
 **number of data pieces**: 1
 <br>
@@ -377,7 +404,8 @@ This list regularly gets extended as use cases start to cover more ICON features
 - Reflect data path in `jsb_hd_nml > ic_filename`.
 
 ### `ocean_inistate`
-**valid models**: ocean
+
+**components**: ocean
 <br>
 **number of data pieces**: 1
 <br>
@@ -388,6 +416,8 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 ## ICON task specifications
 
+The following ICON task specifications come on top of [the ones used for any task](../../configuration/tasks#all-tasks).
+
 ### `plugin`
 
 **type**: string
@@ -395,3 +425,63 @@ This list regularly gets extended as use cases start to cover more ICON features
 **choices**: "icon"
 <br>
 **description**: plugin name
+
+### `namelists`
+
+**type**: sequence
+<br>
+**required**
+<br>
+**description**: Sequence of namelist specifications. This list must contain the master `icon_master.namelist` and each of the component namelists found in it. In a simple case, a namelist specification can simply be the path to the namelist file relative to the configuration root directory like this
+```sirocco-yaml
+tasks:
+  - icon_task:
+      plugin: icon
+      namelists:
+        - "path/to/icon_master.namelist"
+        - "path/to/atmo_namelist.nml"
+        - "path/to/ocean_namelist.nml"
+```
+Namelist parameters can also be overwritten or created by turning the simple namelist path above into a mapping of that path to the modified parameters like in the following
+```sirocco-yaml
+tasks:
+  - icon_task:
+      plugin: icon
+      namelists:
+        - "path/to/icon_master.namelist"
+        - "path/to/atmo_namelist.nml":
+            parallel_nml:
+              nblocks_e: 1
+              nproma_sub: 10469
+              io_proc_chunk_size: 12
+            run_nml:
+              modelTimeStep: "PT20S"
+              num_lev: 120
+              msg_level: 10
+        - "path/to/ocean_namelist.nml"
+            parallel_nml:
+              nproma: 16
+            run_nml:
+              modelTimeStep: "PT2M"
+```
+
+
+### `yac_copupling`
+
+**type**: str
+<br>
+**optional**
+<br>
+**description**: Relative path to the configuration root directory pointing to the YAC coupling file `coupling.yaml`.
+
+### `exe`
+
+### `runtime`
+
+### `squash_mount`
+
+**type**: sequence of str
+<br>
+**optional**
+<br>
+**description**: run time mount points of the data instances specified in the [squash port](#squash) in that same order. Relative paths are interpreted as relative to the task run directory and corresponding directories will be created.

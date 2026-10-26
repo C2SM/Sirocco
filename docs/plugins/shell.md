@@ -19,6 +19,8 @@ tasks:
 
 ## Specifications
 
+The following shell task specifications come on top of [the ones used for any task](../../configuration/tasks#all-tasks).
+
 ### `plugin`
 
 **type**: string
