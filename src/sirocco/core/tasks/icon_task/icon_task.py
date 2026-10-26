@@ -279,6 +279,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
             for model in self.models.values():
                 if model.model_type is ModelType.LAND and "jsb_hd_nml" in model.namelist:
                     model.namelist["jsb_hd_nml"]["read_initial_reservoirs"] = False
+
     def check_dates(self) -> DateCyclePoint:
         """Check that the task has a date cycle point and that a cold start begins at the cycle start date.
 
