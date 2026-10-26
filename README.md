@@ -1,9 +1,5 @@
-![Project Logo](./docs/assets/Sirocco_Logo2026_BrunRVB.svg#gh-light-mode-only)
-![Project Logo](./docs/assets/Sirocco_Logo2026_BeigeRVB.svg#gh-dark-mode-only)
-
-
-
-# Sirocco
+![Project Logo](./docs/assets/Sirocco_Logo2026_BrunRVB_crop.svg#gh-light-mode-only)
+![Project Logo](./docs/assets/Sirocco_Logo2026_BeigeRVB_crop.svg#gh-dark-mode-only)
 
 Sirocco is a library for creating weather and climate workflows from a `yaml`
 format inspired by [cylc](https://cylc.github.io/) and
