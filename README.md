@@ -1,8 +1,6 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/Sirocco_Logo2026_BeigeRVB.svg">
-  <source media="(prefers-color-scheme: light)" srcset="./docs/assets/Sirocco_Logo2026_BrunRVB.svg">
-  <img alt="Project Logo" src="./docs/assets/Sirocco_Logo2026_BrunRVB.svg">
-</picture>
+![Project Logo](./docs/assets/Sirocco_Logo2026_BrunRVB.svg#gh-light-mode-only)
+![Project Logo](./docs/assets/Sirocco_Logo2026_BrunRVB.svg#gh-dark-mode-only)
+
 
 
 # Sirocco
