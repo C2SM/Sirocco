@@ -31,8 +31,8 @@ nav = [
   { "Usage" = ["usage/standalone.md", "usage/aiida.md"] },
   { "Glossary" = "glossary.md"},
   { "Dummy tests" = [
-    "get_started/get_started.md",
-    "get_started/markdown.md",
+    "dummy_tests/get_started.md",
+    "dummy_tests/markdown.md",
   ] },
 ]
 
