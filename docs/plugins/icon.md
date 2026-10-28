@@ -3,12 +3,21 @@ icon: custom_icons/icosahedron
 title: ICON task
 ---
 
+<!-- Cap headersize to 0.8rem for this page. Otherwise specifications like `target_cycle` don't read well -->
+<style>
+h4, h5, h6 {
+  font-size: 0.8rem !important;
+  text-transform: none !important;
+  text-width: bold;
+}
+</style>
+
 # ICON task
 
 The ICON plugin is designed as an interface between the Sirocco workflow and the [ICON model :lucide-external-link:](icon-model.org). It will generate the final run scripts executed on the system based on specifications like namelists, MPI ranks distribution, hardware properties, etc ...
 
 ## Components
-As mentioned in the [cycles](../../configuration/cycles#tasks) section, we need to introduce the `components` level between tasks and there inputs/outputs in the `cycles` root section where the workflow graph topology is defined. In order to avoid conflicts between identical ports of models listed in `icon_master.namelist` (and bring clarity), each of them is mapped to a component with its own inouts and outouts. Restart state or output streams would be typical conflicting inputs without the component level. The `cycles` section hence reads like the following
+As mentioned in the [cycles](../../configuration/cycles#tasks) section, we need to introduce the `components` level between tasks and there inputs/outputs in the `cycles` root section where the workflow graph topology is defined. In order to avoid conflicts between identical ports of models listed in `icon_master.namelist` (and bring clarity), each of them is mapped to a component with its own inputs and outputs. Restart state or output streams would be typical conflicting inputs without the component level. The `cycles` section hence reads like the following
 
 ```sirocco-yaml
 cycles:
@@ -27,11 +36,11 @@ cycles:
               land:
                 inputs: [...]
 ```
-Each of the models listed in `icon_master.namelist` must have a correponding component specified. So `atmo`, `ocean` and `land` in this example. On top of these, a special and optional `master` component is avaialble to host ports that are not specifically linked to a compomnent, like [basic input linking](../../configuration/cycles/#special-input-linking-ports).
+Each of the models listed in `icon_master.namelist` must have a corresponding component specified. So `atmo`, `ocean` and `land` in this example. On top of these, a special and optional `master` component is available to host ports that are not specifically linked to a component, like [basic input linking](../../configuration/cycles/#special-input-linking-ports).
 
 ## Ports
 
-Listed below are the currently supported ports for icon tasks. What they typically do is adapting namelists to refelct an input data path or link input data in the task run directory.
+Listed below are the currently supported ports for icon tasks. What they typically do is adapting namelists to reflect an input data path or link input data in the task run directory.
 
 This list regularly gets extended as use cases start to cover more ICON features. Should a port be missing, the [basic input linking](../../configuration/cycles/#special-input-linking-ports) might first help circumventing this lack. Then please open a pull request on the [Sirocco repository :lucide-external-link:](https://github.com/C2SM/Sirocco/pulls).
 
@@ -39,17 +48,17 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: master
 <br>
-**number of data pieces**: any
+**data instances**: any
 <br>
 **actions**:
 
-- Each data instance of that port are [squashfs :lucide-external-link:](https://en.wikipedia.org/wiki/SquashFS) images that will be mounted at runtime at the mount points given in the [`squash_mount`](#squash_mount) task specification.
+- Each data instance of that port are [squashfs :lucide-external-link:](https://en.wikipedia.org/wiki/SquashFS) images that will be mounted at runtime at the mount points given in the [`squash_mount`](#squash_mount) task specification. So far, this feature is only supported on  machines using the [uenv technology :lucide-external-link:](link to CSCS docs).
 
 ### `finish_status`
 
 **components**: atmosphere, ocean
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**: None
 
@@ -57,7 +66,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: atmosphere, ocean
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -68,7 +77,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: atmosphere, ocean
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -78,19 +87,19 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: atmosphere, ocean
 <br>
-**number of data pieces**: any
+**data instances**: any
 <br>
 **actions**:
 
 - Check that the number of output streams declared as `output_nml` sections matches the number of associated data pieces.
-- Ensure that all `output_nml` streams specify an output sub-directory using the combinaiton of `filename_format` and `output_filename` parameters (see in [ICON namelist overiew :lucide-external-link:](https://docs.icon-model.org/2026.04/documentation/buildrun/buildrun_namelist_overview.html#output-nml) ). For instance `filename_format = 'atm_mon/atm_mon_<datetime2>'` is a valid entry while `filename_format = 'atm_mon_<datetime2>'` isn't.
+- Ensure that all `output_nml` streams specify an output sub-directory using the combination of `filename_format` and `output_filename` parameters (see in [ICON namelist overiew :lucide-external-link:](https://docs.icon-model.org/2026.04/documentation/buildrun/buildrun_namelist_overview.html#output-nml) ). For instance `filename_format = 'atm_mon/atm_mon_<datetime2>'` is a valid entry while `filename_format = 'atm_mon_<datetime2>'` isn't.
 - Create these sub-directories in the task run directory.
 
 ### `dynamics_grid_file`
 
 **components**: atmosphere, ocean
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -101,7 +110,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: atmosphere
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -112,7 +121,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: atmosphere
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -123,7 +132,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: atmosphere
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 
 **actions**:
@@ -135,7 +144,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: atmosphere
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -146,7 +155,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: atmosphere
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -157,7 +166,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: atmosphere
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -167,7 +176,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: atmosphere
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -177,7 +186,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: atmosphere
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -187,7 +196,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: atmosphere
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -198,7 +207,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: land
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -209,7 +218,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: land
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -220,7 +229,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: land
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -231,7 +240,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: land
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -242,7 +251,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: land
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -253,7 +262,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: land
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -264,7 +273,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: land
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -275,7 +284,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: land
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -286,7 +295,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: land
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -297,7 +306,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: land
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -308,7 +317,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: land
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -319,7 +328,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: land
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -330,7 +339,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: land
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -341,7 +350,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: land
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -352,7 +361,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: land
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -363,7 +372,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: land
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -374,7 +383,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: land
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -385,7 +394,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: land
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -396,7 +405,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: land
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -407,7 +416,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 **components**: ocean
 <br>
-**number of data pieces**: 1
+**data instances**: 1
 <br>
 **actions**:
 
@@ -417,14 +426,6 @@ This list regularly gets extended as use cases start to cover more ICON features
 ## ICON task specifications
 
 The following ICON task specifications come on top of [the ones used for any task](../../configuration/tasks#all-tasks).
-
-### `plugin`
-
-**type**: string
-<br>
-**choices**: "icon"
-<br>
-**description**: plugin name
 
 ### `namelists`
 
@@ -436,7 +437,7 @@ The following ICON task specifications come on top of [the ones used for any tas
 ```sirocco-yaml
 tasks:
   - icon_task:
-      plugin: icon
+      [...]
       namelists:
         - "path/to/icon_master.namelist"
         - "path/to/atmo_namelist.nml"
@@ -446,7 +447,7 @@ Namelist parameters can also be overwritten or created by turning the simple nam
 ```sirocco-yaml
 tasks:
   - icon_task:
-      plugin: icon
+      [...]
       namelists:
         - "path/to/icon_master.namelist"
         - "path/to/atmo_namelist.nml":
@@ -476,7 +477,79 @@ tasks:
 
 ### `exe`
 
+**type**: mapping
+<br>
+**required**
+<br>
+**description**: This section groups executables specification and MPI ranks allocation and mapping. The example below shows all the sub-specifications which are detailed thereafter.
+
+``` sirocco-yaml
+tasks:
+  - icon_task:
+      [...]
+      exe:
+        separate_io: true
+        procs_per_io_node: 4
+        cpu:
+          path: "path/to/icon_cpu"
+          procs:
+            ocean:
+              compute_weight: 3
+              streams: 3
+              prefetch: 1
+              restart: 0
+            land:
+              compute_weight: 1
+              streams: 2
+        gpu:
+          path: "path/to/icon_gpu"
+          compute_procs_per_node: 4
+          icon4py_venv: "path/to/icon4py/venv"
+          gt4py_build_cache_dir: "../.."
+          procs:
+            atmo:
+              compute_weight: 1
+              streams: 2
+```
+
+??? example "Hiopy"
+
+    A `hiopy` "executable" at the same level as `cpu` and `gpu` exists as a placeholder for now and will be fully implemented in `v0.2.0`.
+
+#### `cpu` and `gpu`
+
+**type**: mapping
+<br>
+**required**: at least one of them
+<br>
+**description**:  At least one of the `cpu` or `gpu` executable must be set. Hybrid runs with both are also supported. For each of them, the following can or must be set.
+
+##### `path`
+
+**type**: str
+<br>
+**required**
+<br>
+**description**: Path to the ICON executable. It can be a relative path only in the case where the icon executable is located in a [squashfs image](#squash) and the corresponding [mount point](#squash_mount) is relative. Other relative paths will not be resolved.
+
+##### `procs`
+
+##### `compute_procs_per_node`
+
+##### `icon4py_venv`
+
+##### `gt4py_build_cache_dir`
+
 ### `runtime`
+
+**type**: str
+<br>
+**optional**
+<br>
+**description**: Path to a directory relative to the configuration root directory containing the set of scripts used at runtime to replace the default ones. The only requirement is that this directory contains a `main.sh` that will be sourced by the submitted job script. For supported machines, the default `runtime` directories are hosted in the Sirocco repository under `src/sirocco/core/tasks/icon_task/runtime`.
+
+Each machine having its own characteristics (chips, network, MPI library, scheduler, compilers, ...), it would be impossible to maintain a composable runtime environment where each piece can be customized independently. The adopted strategy is thus to bundle
+all these characteristics in the `runtime` directory and customizing it is done by replacing the whole directory. The most expected usage is to copy the default machine specific `runtime` and modify where required.
 
 ### `squash_mount`
 
@@ -484,4 +557,4 @@ tasks:
 <br>
 **optional**
 <br>
-**description**: run time mount points of the data instances specified in the [squash port](#squash) in that same order. Relative paths are interpreted as relative to the task run directory and corresponding directories will be created.
+**description**: runtime mount points of the squashfs images specified in the [squash port](#squash) given in the same order. Relative paths are interpreted as relative to the task run directory and corresponding directories will be created. So far, this feature is only supported on  machines using the [uenv technology :lucide-external-link:](link to CSCS docs).
