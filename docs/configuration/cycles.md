@@ -311,7 +311,7 @@ As explained in the [definition above](#ports), ports are required to define inp
 <br>
 **optional**
 <br>
-**description**: link any referenced piece of data in the task run directory. Since data might not exist yet at submission time, linking happens at run time through injected commands in the submitted task run script.
+**description**: link any referenced data instance in the task run directory. Since data might not exist yet at submission time, linking happens at run time through injected commands in the submitted task run script.
 
 #### `link_content`
 
@@ -319,7 +319,7 @@ As explained in the [definition above](#ports), ports are required to define inp
 <br>
 **optional**
 <br>
-**description**: assume each referenced piece of data is a directory and link all elements under it in the task run directory. Since data might not exist yet at submission time, linking happens at run time through injected commands in the submitted task run script.
+**description**: assume each referenced data instance is a directory and link all elements under it in the task run directory. Since data might not exist yet at submission time, linking happens at run time through injected commands in the submitted task run script.
 
 
 <!-- Local Variables: -->

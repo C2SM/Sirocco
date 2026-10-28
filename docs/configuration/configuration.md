@@ -49,11 +49,11 @@ parameters:
 
 **type**: integer
 <br>
-**choices**: $\geq 1$
+**choices**: $n \geq 1$
 <br>
 **default**: `2`
 <br>
-**description**: depth of the submitted [task front](../glossary#task-front). Tasks with rank $r < n$ are submitted. A depth of `1` thus corresponds to only the currently active tasks, a depth of `2` corresponds to one generation of tasks submitted ahead of time, etc ...
+**description**: depth of the submitted [task front](../glossary#task-front). Tasks with rank $r < n$ are submitted. A depth of `1` thus corresponds to only currently active tasks, a depth of `2` corresponds to one generation of tasks submitted ahead of time, etc ...
 
 ### `cycles: [...]`
 
