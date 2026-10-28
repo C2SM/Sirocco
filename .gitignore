@@ -3,6 +3,9 @@ tests/cases/*/data/*.new.txt
 tests/cases/*/svg/*
 !tests/cases/*/svg/.gitkeep
 
+# Docs
+docs/assets/.comments/*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -168,6 +171,7 @@ cython_debug/
 
 html/
 **/*.svg
+!docs/assets/*.svg
 **/*.resolved.yml
 **/*.resolved.yaml
 pyrightconfig.json
