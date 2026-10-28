@@ -21,14 +21,6 @@ tasks:
 
 The following shell task specifications come on top of [the ones used for any task](../../configuration/tasks#all-tasks).
 
-### `plugin`
-
-**type**: string
-<br>
-**choices**: "shell"
-<br>
-**description**: plugin name
-
 ### `src`
 
 **type**: string
@@ -59,7 +51,6 @@ If the port links several data instances, their path will by default be separate
 ```sirocco-yaml
 tasks:
   - task name 1:
-      plugin: shell
       [...]
       command: my_command {PORT::port_name}
 ```
@@ -76,7 +67,6 @@ Still, the separator can be specified in the placeholder with the syntax `{PORT[
 ```sirocco-yaml
 tasks:
   - task name 1:
-      plugin: shell
       [...]
       command: my_command --opt-arg={PORT[sep=,]::port_name}
 ```
@@ -90,9 +80,8 @@ my_command --opt_arg=data_path_1,data_path_2,...
 ```sirocco-yaml
 tasks:
   - task name 1:
-      plugin: shell
       [...]
-      command: my_coammnd --repeat-arg={PORT[sep= --repeat-arg=]::port_name}  # (1)!
+      command: my_command --repeat-arg={PORT[sep= --repeat-arg=]::port_name}  # (1)!
 ```
 
 1. Note the sapce at the beginning of the separator. Otherwise arguments will not be separated.
@@ -100,7 +89,7 @@ tasks:
 will resolve the command as
 
 ``` shell
-my_coammnd --repeat-arg=data_path_1 --repeat-arg=data_path_2 ...
+my_command --repeat-arg=data_path_1 --repeat-arg=data_path_2 ...
 ```
 
 
@@ -110,7 +99,6 @@ For some instances of a task, typically the first or last one of a cycle, it can
 ```sirocco-yaml
 tasks:
   - task name 1:
-      plugin: shell
       [...]
       command: my_command {PORT::port_name_1} [--opt-arg {PORT::port_name_2}]
 ```

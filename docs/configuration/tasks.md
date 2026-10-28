@@ -49,7 +49,7 @@ When using the standalone orchestrator, the task named `SIROCCO` hosts specifica
 <br>
 **required** except for `ROOT` and `SIROCCO` tasks which are identified by their special names.
 <br>
-**values** `"shell"` or `"icon"`
+**choices** `"shell"` or `"icon"`
 <br>
 **description**: designates the type of task. The 2 supported [plugins](../../plugins) for now are [shell](../../plugins/shell) and [icon](../../plugins/icon)
 
