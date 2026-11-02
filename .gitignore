@@ -169,4 +169,5 @@ cython_debug/
 html/
 **/*.svg
 **/*.resolved.yml
+**/*.resolved.yaml
 pyrightconfig.json

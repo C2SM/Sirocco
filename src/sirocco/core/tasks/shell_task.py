@@ -11,12 +11,15 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from sirocco.core.graph_items import Data
+    from sirocco.parsing.cycling import CyclePoint
 
 
 @dataclass(kw_only=True)
 class ShellTask(models.ConfigShellTaskSpecs, Task):
     @classmethod
-    def build_from_config(cls: type[Self], config: models.ConfigTask, config_rootdir: Path, **kwargs: Any) -> Self:
+    def build_from_config(
+        cls: type[Self], config: models.ConfigTask, config_rootdir: Path, cycle_point: CyclePoint, **kwargs: Any
+    ) -> Self:
         config_kwargs = dict(config)
         del config_kwargs["parameters"]
         del config_kwargs["src"]
@@ -28,6 +31,7 @@ class ShellTask(models.ConfigShellTaskSpecs, Task):
 
         self = cls(
             config_rootdir=config_rootdir,
+            cycle_point=cycle_point,
             **kwargs,
             **config_kwargs,
         )

@@ -4,6 +4,7 @@ import logging
 import shlex
 import shutil
 from dataclasses import dataclass, field
+from datetime import timedelta
 from itertools import chain
 from math import ceil
 from pathlib import Path
@@ -21,12 +22,15 @@ from sirocco.core.tasks.icon_task.task_distribution import (
     distribute_procs_load_balanced,
 )
 from sirocco.parsing import yaml_data_models
+from sirocco.parsing._utils import convert_to_date
 from sirocco.parsing.cycling import DateCyclePoint
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
     import f90nml
+
+    from sirocco.parsing.cycling import CyclePoint
 
 LOGGER = logging.getLogger(__name__)
 
@@ -251,18 +255,15 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         return max_rank + 1
 
     def update_icon_namelists_from_workflow(self) -> None:
-        if not isinstance(self.cycle_point, DateCyclePoint):
-            msg = f"{self.label}: icon tasks must have a DateCyclePoint"
-            raise TypeError(msg)
+        cycle_point = self.check_dates()
 
         self.master_namelist.update_from_specs(
             {
                 "master_time_control_nml": {
                     # Use Z instead of +00:00 for UTC (ISO 8601 compact form)
-                    "experimentStartDate": self.cycle_point.chunk_start_date.isoformat().replace("+00:00", "Z"),
-                    "experimentStopDate": self.cycle_point.chunk_stop_date.isoformat().replace("+00:00", "Z"),
-                    "restartTimeIntval": str(self.cycle_point.period),
-                    "checkpointTimeIntval": str(self.cycle_point.period),
+                    "experimentStopDate": cycle_point.chunk_stop_date.isoformat().replace("+00:00", "Z"),
+                    "restartTimeIntval": str(cycle_point.period),
+                    "checkpointTimeIntval": str(cycle_point.period),
                 },
                 "master_nml": {
                     "lrestart": self.is_restart,
@@ -275,6 +276,28 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
 
         for jsb_control_nml in self.master_namelist.iter_nml("jsb_control_nml"):
             jsb_control_nml["restart_jsbach"] = self.is_restart
+
+    def check_dates(self) -> DateCyclePoint:
+        """Check that the task has a date cycle point and that a cold start begins at the cycle start date.
+
+        experimentStartDate is left to the user, as it may precede the cycle start (e.g. when continuing a run).
+        Returns the cycle point narrowed to DateCyclePoint.
+        """
+        if not isinstance(self.cycle_point, DateCyclePoint):
+            msg = f"{self.label}: icon tasks must have a DateCyclePoint"
+            raise TypeError(msg)
+        if self.is_restart:
+            return self.cycle_point
+        start_date = self.master_namelist.get("master_time_control_nml", {}).get("experimentStartDate")
+        cycle_start_date = self.cycle_point.start_date
+        if start_date is None or convert_to_date(start_date) != cycle_start_date:
+            msg = (
+                f"{self.label}: for cold starts (not restarting from a checkpoint state), experimentStartDate"
+                f" ({start_date}) in {self.master_namelist.name!r} must match the cycle start date"
+                f" ({cycle_start_date.isoformat()})"
+            )
+            raise ValueError(msg)
+        return self.cycle_point
 
     @property
     def is_restart(self) -> bool:
@@ -525,7 +548,11 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
 
     @classmethod
     def build_from_config(
-        cls: type[Self], config: yaml_data_models.ConfigTask, config_rootdir: Path, **kwargs: Any
+        cls: type[Self],
+        config: yaml_data_models.ConfigTask,
+        config_rootdir: Path,
+        cycle_point: CyclePoint,
+        **kwargs: Any,
     ) -> Self:
         config_kwargs = dict(config)
         del config_kwargs["parameters"]
@@ -534,7 +561,17 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         # We guarantee elsewhere this is called with the correct type at runtime
         if not isinstance(config, yaml_data_models.ConfigIconTask):
             raise TypeError
+        if not isinstance(cycle_point, DateCyclePoint):
+            msg = "icon tasks must have a DateCyclePoint"
+            raise TypeError(msg)
 
+        # Deep copy pydantic model to be able to modify namelists
+        config_kwargs["namelists"] = [nml.model_copy(deep=True) for nml in config_kwargs["namelists"]]
+
+        # Intercept special namelist parameter overwrites
+        cls.intercept_special_namelist_overwrites(config_namelists=config_kwargs["namelists"], cycle_point=cycle_point)
+
+        # Build NamelistFile objects
         config_kwargs["namelists"] = [
             NamelistFile.from_config(config=config_namelist, config_rootdir=config_rootdir)
             for config_namelist in config_kwargs["namelists"]
@@ -542,8 +579,30 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
 
         self = cls(
             config_rootdir=config_rootdir,
+            cycle_point=cycle_point,
             **kwargs,
             **config_kwargs,
         )
         self.update_icon_namelists_from_workflow()
         return self
+
+    @staticmethod
+    def intercept_special_namelist_overwrites(
+        config_namelists: list[yaml_data_models.ConfigNamelistFile], cycle_point: DateCyclePoint
+    ):
+        for config_namelist in config_namelists:
+            # potential monthly value for nwp_tuning_nml > allow_overcast
+            if (
+                (section := config_namelist.specs.get("nwp_tuning_nml")) is not None
+                and (pvalue := section.get("allow_overcast")) is not None
+                and isinstance(pvalue, list)
+            ):
+                if len(pvalue) != 12:  # noqa PLR2004: we know there are 12 months in a year ...
+                    msg = "overwrite for nwp_tuning_nml > allow_overcast must either be a single value or a list of 12 monthly values"
+                    raise ValueError(msg)
+                start = cycle_point.chunk_start_date
+                last = cycle_point.chunk_stop_date - timedelta(microseconds=1)
+                if (start.year, start.month) != (last.year, last.month):
+                    msg = f"nwp_tuning_nml > allow_overcast overwrites requires chunks within one calendar month, got {cycle_point}"
+                    raise ValueError(msg)
+                section["allow_overcast"] = pvalue[start.month - 1]
