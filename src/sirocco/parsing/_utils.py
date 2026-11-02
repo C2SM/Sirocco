@@ -1,6 +1,7 @@
 import re
 import time
 from collections.abc import Iterator
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
@@ -48,18 +49,36 @@ class TimeUtils:
             raise ValueError(msg) from e
 
 
-def convert_target_dates(values: Any) -> list[datetime | str]:
-    """Parse absolute dates and allow relative dates for later processing"""
-    dates: list[datetime | str] = []
+@dataclass(kw_only=True)
+class PartialDatetime:
+    """A date format resolved against each cycle's reference date."""
+
+    value: str
+
+    def __post_init__(self) -> None:
+        pattern = (
+            r"(?:%Y|[0-9]{4})-(?:%m|[0-9]{2})-(?:%d|[0-9]{2})"
+            r"T(?:%H|[0-9]{2}):(?:%M|[0-9]{2})(?::(?:%S|[0-9]{2}))?"
+        )
+        if re.fullmatch(pattern, self.value) is None:
+            msg = f"Partial date formats support only %Y, %m, %d, %H, %M, and %S. Got '{self.value}'"
+            raise ValueError(msg)
+
+    def resolve(self, ref_date: datetime | None) -> datetime:
+        if ref_date is None:
+            msg = "Partial date formats require a current cycle date"
+            raise ValueError(msg)
+        # Convert partial dates using the current cycle's date as reference
+        return convert_to_date(ref_date.strftime(self.value))
+
+
+def convert_target_dates(values: Any) -> list[datetime | PartialDatetime]:
+    """Parse absolute dates and allow partial dates for later processing"""
+    dates: list[datetime | PartialDatetime] = []
     for value in iter_yaml_item(values):
         if isinstance(value, str) and "%" in value:
-            pattern = (
-                r"(?:%Y|[0-9]{4})-(?:%m|[0-9]{2})-(?:%d|[0-9]{2})"
-                r"T(?:%H|[0-9]{2}):(?:%M|[0-9]{2})(?::(?:%S|[0-9]{2}))?"
-            )
-            if re.fullmatch(pattern, value) is None:
-                msg = f"Target date formats support only %Y, %m, %d, %H, %M, and %S. Got '{value}'"
-                raise ValueError(msg)
+            dates.append(PartialDatetime(value=value))
+        elif isinstance(value, PartialDatetime):
             dates.append(value)
         else:
             dates.append(convert_to_date(value))

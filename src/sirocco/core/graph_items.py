@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, TypeVar, cast
 
 from sirocco.parsing import cycling
-from sirocco.parsing._utils import convert_to_date
+from sirocco.parsing._utils import PartialDatetime
 from sirocco.parsing.target_cycle import DateList, LagList, NoTargetCycle
 from sirocco.parsing.yaml_data_models import (
     ConfigAvailableData,
@@ -401,13 +401,8 @@ class Array[GRAPH_ITEM_T: GraphItem]:
                     yield ref_coordinates["date"]
                 case DateList():
                     for date in spec.target_cycle.dates:
-                        if isinstance(date, str):
-                            reference_date = ref_coordinates.get("date")
-                            if reference_date is None:
-                                msg = "Target date formats require a current cycle date"
-                                raise ValueError(msg)
-                            # Convert relative dates using the curent cycle's date as reference
-                            yield convert_to_date(reference_date.strftime(date))
+                        if isinstance(date, PartialDatetime):
+                            yield date.resolve(ref_coordinates.get("date"))
                         else:
                             yield date
                 case LagList():
