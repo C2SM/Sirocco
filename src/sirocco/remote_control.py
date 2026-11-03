@@ -165,10 +165,15 @@ def push_config_dir(config_rootdir: Path, machine: str, remote_config_rootdir: s
     client.rm(machine, remote_archive_path)
 
 
-def submit_sirocco_task(action: Literal["start", "stop", "restart"], config_path: str):
+def submit_sirocco_task(action: Literal["start", "stop", "restart"], config_path: Path, config_from: Path | None = None):
     pass
-    # 1. Retrieve config
-    # 2. Build Sirocco task
+    # 1. if action is "start" and config_from is not None:
+    #        push config
+    #        config_file_path = /path/to/sirocco.yaml
+    #    else:
+    #        pull sirocco.yaml (no need to pull the whole config)
+    #        config_file_path = /path/to/sirocco.yaml
+    # 2. Build Sirocco action task from sirocco.yaml (minimal info lookup, do not build an actual workflow object)
     # 3. Generate job file to submit
     # 4. Copy job file to HPC
     # 5. Submit

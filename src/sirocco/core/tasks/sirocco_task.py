@@ -14,8 +14,6 @@ if TYPE_CHECKING:
 
 # NOTE: SiroccoTask is a subclass of `GraphItem` for implementation simplicity
 # reasons (submission) even though it's not allowed to be part of the graph
-
-
 @dataclass(kw_only=True)
 class SiroccoTask(models.ConfigSiroccoTaskSpecs, Task):
     plugin: ClassVar[str] = "sirocco_undefined"
