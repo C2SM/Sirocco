@@ -1,4 +1,5 @@
 from __future__ import annotations
+from hatch.cli.config import config
 
 import enum
 import logging
@@ -16,7 +17,7 @@ from termcolor import colored
 
 from sirocco.core.graph_items import Cycle, Data, Store, Task, TaskStatus
 from sirocco.core.scheduler import Scheduler
-from sirocco.core.tasks.sirocco_task import SiroccoContinueTask
+from sirocco.core.tasks.sirocco_task import SiroccoTask
 from sirocco.parsing.cycling import DateCyclePoint, OneOffPoint
 from sirocco.parsing.yaml_data_models import (
     ConfigBaseData,
@@ -177,16 +178,10 @@ class Workflow:
             task.link_parents_children()
 
         # 6 - Create Sirocco continuation task
-        config_kwargs = dict(config_sirocco_task) if config_sirocco_task else {}
-        if config_kwargs:
-            del config_kwargs["parameters"]
-        self.sirocco_continue_task = SiroccoContinueTask(
-            coordinates={},
-            cycle_point=OneOffPoint(),
+        self.sirocco_continue_task = SiroccoTask.from_config_sirocco_task(
+            config_sirocco_task=config_sirocco_task,
             config_rootdir=self.config_rootdir,
-            parents=[],
-            base_env=self.base_env,
-            **config_kwargs,
+            action="continue",
         )
 
     @property
@@ -203,7 +198,7 @@ class Workflow:
 
     @property
     def lock_file(self) -> Path:
-        return self.rundir / SiroccoContinueTask.LOCK_FILE_NAME
+        return self.rundir / SiroccoTask.LOCK_FILE_NAME
 
     @property
     def locked(self) -> bool:
@@ -294,7 +289,7 @@ class Workflow:
         logger.addHandler(console_handler)
 
         if log_type == "tee":
-            file_handler = logging.FileHandler(self.config_rootdir / SiroccoContinueTask.STDOUTERR_FILENAME)
+            file_handler = logging.FileHandler(self.config_rootdir / SiroccoTask.STDOUTERR_FILENAME)
             file_handler.setFormatter(log_formatter)
             logger.addHandler(file_handler)
 

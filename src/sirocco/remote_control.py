@@ -18,17 +18,18 @@ from ruamel.yaml import YAML
 
 from sirocco.core import SiroccoContinueTask, Task
 from sirocco.parsing import ConfigWorkflow
+from sirocco.core.tasks.sirocco_task import SiroccoTask, SiroccoStartTask
 
 LOGGER = logging.getLogger(__name__)
 
 
-def split_config_dir(config_dir: Path | str) -> tuple[str | None, str]:
+def split_config_dir(config_dir: str) -> tuple[str | None, str]:
     """Extract potential pattern "machine:" from config_dir"""
 
     split_pattern = re.compile(r"((?P<machine>\w+):)?(?P<path>.*)")
     # NOTE: mostly for type checking, should never happen
     msg = "incorrect config dir specification"
-    if (m := split_pattern.match(str(config_dir))) is None:
+    if (m := split_pattern.match(config_dir)) is None:
         raise ValueError(msg)
     if m.group("path") is None:
         raise ValueError(msg)
@@ -163,3 +164,12 @@ def push_config_dir(config_rootdir: Path, machine: str, remote_config_rootdir: s
     remote_archive_path = str(PurePosixPath(remote_config_rootdir) / PUSH_ARCHIVE_NAME)
     client.extract(machine, remote_archive_path, remote_config_rootdir, compression="gzip")
     client.rm(machine, remote_archive_path)
+
+
+def submit_sirocco_task(action: Literal["start", "stop", "restart"], config_path: str):
+    pass
+    # 1. Retrieve config
+    # 2. Build Sirocco task
+    # 3. Generate job file to submit
+    # 4. Copy job file to HPC
+    # 5. Submit
