@@ -1,5 +1,4 @@
 from __future__ import annotations
-from hatch.cli.config import config
 
 import enum
 import logging

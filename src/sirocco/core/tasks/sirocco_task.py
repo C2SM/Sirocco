@@ -2,15 +2,14 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import ClassVar, Literal, Self, TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar, Literal, Self
 
 from sirocco.core.graph_items import Task
 from sirocco.parsing import yaml_data_models as models
 from sirocco.parsing.cycling import OneOffPoint
 
 if TYPE_CHECKING:
-    from sirocco.parsing import yaml_data_models as models
+    from pathlib import Path
 
 
 # NOTE: SiroccoTask is a subclass of `GraphItem` for implementation simplicity
@@ -29,7 +28,6 @@ class SiroccoTask(models.ConfigSiroccoTaskSpecs, Task):
     computer: str = "dummy"
     rank: int = 0
     config_rootdir: Path
-    action: Literal["start", "contimnue", "restart", "stop"]
 
     def __post_init__(self) -> None:
         self.run_dir = self.config_rootdir
@@ -42,15 +40,14 @@ class SiroccoTask(models.ConfigSiroccoTaskSpecs, Task):
 
     @classmethod
     def from_config_sirocco_task(
-            cls: type[Self],
-            config_sirocco_task: models.ConfigSiroccoTask | None,
-            config_rootdir: Path,
-            action: Literal["start", "continue", "stop", "restart"],
+        cls: type[Self],
+        config_sirocco_task: models.ConfigSiroccoTask | None,
+        config_rootdir: Path,
+        action: Literal["start", "continue", "stop", "restart"],
     ) -> SiroccoTask:
         config_kwargs = dict(config_sirocco_task) if config_sirocco_task else {}
         if config_kwargs:
             del config_kwargs["parameters"]
-        del config_kwargs["parameters"]
         match action:
             case "start":
                 return SiroccoStartTask(

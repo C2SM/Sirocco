@@ -18,7 +18,6 @@ from ruamel.yaml import YAML
 
 from sirocco.core import SiroccoContinueTask, Task
 from sirocco.parsing import ConfigWorkflow
-from sirocco.core.tasks.sirocco_task import SiroccoTask, SiroccoStartTask
 
 LOGGER = logging.getLogger(__name__)
 
