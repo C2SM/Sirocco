@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import stat
 from pathlib import Path
 from typing import Literal, Self
@@ -12,6 +13,19 @@ from pydantic import BaseModel, ConfigDict, SecretStr
 from ruamel.yaml import YAML
 
 LOGGER = logging.getLogger(__name__)
+
+
+def split_config_dir(config_dir: Path | str) -> tuple[str | None, str]:
+    """Extract potential pattern "machine:" from config_dir"""
+
+    split_pattern = re.compile(r"((?P<machine>\w+):)?(?P<path>.*)")
+    # NOTE: mostly for type checking, should never happen
+    msg = "incorrect config dir specification"
+    if (m := split_pattern.match(str(config_dir))) is None:
+        raise ValueError(msg)
+    if m.group("path") is None:
+        raise ValueError(msg)
+    return m.group("machine"), m.group("path")
 
 
 class ConfigFirecrestRemote(BaseModel):

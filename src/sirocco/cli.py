@@ -1,7 +1,6 @@
 import io
 import logging
 import os
-import re
 import shutil
 import sys
 from datetime import datetime
@@ -100,22 +99,6 @@ class CmdStatus:
     PLAY: str = rich_colored("⮞", (255, 159, 64))
     SUCCESS: str = rich_colored("✔", core.workflow.StatusPoint.COLOR_COMPLETED)
     FAIL: str = rich_colored("✖", core.workflow.StatusPoint.COLOR_FAILED)
-
-
-# --- Helper functions for remote control of the standalone orchestrator ---
-
-
-def split_config_dir(config_dir: Path | str) -> tuple[str | None, str]:
-    """Extract potenttial pattern "machine:" from config_dir"""
-
-    split_pattern = re.compile(r"((?P<machine>\w+):)?(?P<path>.*)")
-    # NOTE: mostly for type checking, should never happen
-    msg = "incorrect config dir specification"
-    if (m := split_pattern.match(str(config_dir))) is None:
-        raise ValueError(msg)
-    if m.group("path") is None:
-        raise ValueError(msg)
-    return m.group("machine"), m.group("path")
 
 
 # --- CLI main Commands ---
