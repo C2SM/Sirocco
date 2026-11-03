@@ -44,5 +44,5 @@ def test_warn_permissions(local_config_path, caplog):
 
 @pytest.mark.usefixtures("local_config_path")
 def test_unknown_machine():
-    with pytest.raises(ValueError, match=r"machine balfrin not found .*\['santis'\]"):
-        LocalConfig.from_file().remote("balfrin")
+    with pytest.raises(ValueError, match=r"machine non_existent not found .*\['santis'\]"):
+        LocalConfig.from_file().remote("non_existent")

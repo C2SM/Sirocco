@@ -83,11 +83,8 @@ class LocalConfig(BaseModel):
             msg = f"local config file {config_file_path} not found"
             raise FileNotFoundError(msg)
         if config_file_path.stat().st_mode & (stat.S_IRWXG | stat.S_IRWXO):
-            LOGGER.warning(
-                "local config file %s contains secrets but is accessible by other users, consider `chmod 600 %s`",
-                config_file_path,
-                config_file_path,
-            )
+            msg = f"local config file {config_file_path} contains secrets but is accessible by other users, consider `chmod 600 {config_file_path}`"
+            LOGGER.warning(msg)
         return cls.model_validate(YAML(typ="safe", pure=True).load(config_file_path) or {})
 
     def remote(self, machine: str) -> ConfigFirecrestRemote:
