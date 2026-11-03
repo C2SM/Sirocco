@@ -6,11 +6,18 @@ import logging
 import os
 import re
 import stat
-from pathlib import Path
+import tarfile
+import tempfile
+from pathlib import Path, PurePosixPath
 from typing import Literal, Self
 
+from firecrest import ClientCredentialsAuth
+from firecrest.v2 import Firecrest
 from pydantic import BaseModel, ConfigDict, SecretStr
 from ruamel.yaml import YAML
+
+from sirocco.core import SiroccoContinueTask, Task
+from sirocco.parsing import ConfigWorkflow
 
 LOGGER = logging.getLogger(__name__)
 
@@ -106,3 +113,40 @@ class LocalConfig(BaseModel):
             msg = f"machine {machine} not found in local config, available machines: {list(self.remote_control)}"
             raise ValueError(msg)
         return self.remote_control[machine]
+
+
+# NOTE: generated items are not pushed so that the state of a remote workflow cannot be overwritten
+GENERATED_CONFIG_DIR_ITEMS = (
+    Task.RUN_ROOT,
+    ConfigWorkflow._CONFIG_RESOLVED_FILENAME,
+    SiroccoContinueTask.STDOUTERR_FILENAME,
+    SiroccoContinueTask.SUBMIT_FILENAME,
+    SiroccoContinueTask.LOCK_FILE_NAME,
+)
+PUSH_ARCHIVE_NAME = ".sirocco_push.tar.gz"
+
+
+def firecrest_client(machine: str) -> Firecrest:
+    """Create a Firecrest client from the local config entry of the given machine"""
+    remote = LocalConfig.from_file().remote(machine)
+    auth = ClientCredentialsAuth(remote.consumer_key, remote.consumer_secret.get_secret_value(), remote.token_uri)
+    return Firecrest(firecrest_url=remote.firecrest_url, authorization=auth)
+
+
+def push_config_dir(config_rootdir: Path, machine: str, remote_config_rootdir: str) -> None:
+    """Push a local config dir to a remote machine as a single archive, excluding generated items"""
+    if not PurePosixPath(remote_config_rootdir).is_absolute():
+        msg = f"remote config dir {remote_config_rootdir} must be an absolute path"
+        raise ValueError(msg)
+    client = firecrest_client(machine)
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        archive_path = Path(tmp_dir) / PUSH_ARCHIVE_NAME
+        with tarfile.open(archive_path, "w:gz") as archive:
+            for item in config_rootdir.iterdir():
+                if item.name not in GENERATED_CONFIG_DIR_ITEMS:
+                    archive.add(item, arcname=item.name)
+        client.mkdir(machine, remote_config_rootdir, create_parents=True)
+        client.upload(machine, archive_path, directory=remote_config_rootdir, filename=PUSH_ARCHIVE_NAME)
+    remote_archive_path = str(PurePosixPath(remote_config_rootdir) / PUSH_ARCHIVE_NAME)
+    client.extract(machine, remote_archive_path, remote_config_rootdir)
+    client.rm(machine, remote_archive_path)
