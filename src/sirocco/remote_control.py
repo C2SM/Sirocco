@@ -46,7 +46,7 @@ class ConfigFirecrestRemote(BaseModel):
         ...     ConfigFirecrestRemote,
         ...     textwrap.dedent('''
         ...       protocol: firecrest
-        ...       firecrest_url: https://api.cscs.ch/hpc/firecrest/v2
+        ...       firecrest_url: https://api.cscs.ch/cw/firecrest/v2
         ...       token_uri: https://auth.cscs.ch/auth/realms/firecrest-clients/protocol/openid-connect/token
         ...       consumer_key: XXX
         ...       consumer_secret: YYY
@@ -78,7 +78,7 @@ class LocalConfig(BaseModel):
         ...     remote_control:
         ...       santis:
         ...         protocol: firecrest
-        ...         firecrest_url: https://api.cscs.ch/hpc/firecrest/v2
+        ...         firecrest_url: https://api.cscs.ch/cw/firecrest/v2
         ...         token_uri: https://auth.cscs.ch/auth/realms/firecrest-clients/protocol/openid-connect/token
         ...         consumer_key: XXX
         ...         consumer_secret: YYY
