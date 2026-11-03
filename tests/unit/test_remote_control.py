@@ -3,7 +3,7 @@ import textwrap
 
 import pytest
 
-from sirocco.parsing.local_config import LocalConfig
+from sirocco.remote_control import LocalConfig
 
 SANTIS_CONFIG = textwrap.dedent("""
     remote_control:

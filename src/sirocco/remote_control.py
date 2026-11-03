@@ -1,4 +1,4 @@
-"""Local user configuration, e.g. connection information for remote control of workflows"""
+"""Remote control of workflows on remote machines, configured by a local user config"""
 
 from __future__ import annotations
 
