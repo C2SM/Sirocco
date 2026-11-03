@@ -133,6 +133,14 @@ def firecrest_client(machine: str) -> Firecrest:
     return Firecrest(firecrest_url=remote.firecrest_url, authorization=auth)
 
 
+def pack_config_dir(config_rootdir: Path, archive_path: Path) -> None:
+    """Pack a local config dir into a gzip compressed tar archive, excluding generated items"""
+    with tarfile.open(archive_path, "w:gz") as archive:
+        for item in config_rootdir.iterdir():
+            if item.name not in GENERATED_CONFIG_DIR_ITEMS:
+                archive.add(item, arcname=item.name)
+
+
 def push_config_dir(config_rootdir: Path, machine: str, remote_config_rootdir: str) -> None:
     """Push a local config dir to a remote machine as a single archive, excluding generated items"""
     if not PurePosixPath(remote_config_rootdir).is_absolute():
@@ -141,12 +149,9 @@ def push_config_dir(config_rootdir: Path, machine: str, remote_config_rootdir: s
     client = firecrest_client(machine)
     with tempfile.TemporaryDirectory() as tmp_dir:
         archive_path = Path(tmp_dir) / PUSH_ARCHIVE_NAME
-        with tarfile.open(archive_path, "w:gz") as archive:
-            for item in config_rootdir.iterdir():
-                if item.name not in GENERATED_CONFIG_DIR_ITEMS:
-                    archive.add(item, arcname=item.name)
+        pack_config_dir(config_rootdir, archive_path)
         client.mkdir(machine, remote_config_rootdir, create_parents=True)
         client.upload(machine, archive_path, directory=remote_config_rootdir, filename=PUSH_ARCHIVE_NAME)
     remote_archive_path = str(PurePosixPath(remote_config_rootdir) / PUSH_ARCHIVE_NAME)
-    client.extract(machine, remote_archive_path, remote_config_rootdir)
+    client.extract(machine, remote_archive_path, remote_config_rootdir, compression="gzip")
     client.rm(machine, remote_archive_path)

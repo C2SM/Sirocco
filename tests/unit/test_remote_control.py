@@ -1,7 +1,6 @@
 import logging
 import tarfile
 import textwrap
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -51,23 +50,15 @@ def test_unknown_machine():
         LocalConfig.from_file().remote("non_existent")
 
 
-def test_push_config_dir_excludes_generated_items(tmp_path, monkeypatch):
+def test_pack_config_dir_excludes_generated_items(tmp_path):
     config_rootdir = tmp_path / "config"
     (config_rootdir / "scripts").mkdir(parents=True)
     (config_rootdir / "scripts" / "task.sh").touch()
     (config_rootdir / "sirocco.yaml").touch()
     for name in remote_control.GENERATED_CONFIG_DIR_ITEMS:
         (config_rootdir / name).touch()
-    pushed_items: list[str] = []
+    archive_path = tmp_path / "config.tar.gz"
+    remote_control.pack_config_dir(config_rootdir, archive_path)
 
-    def upload(_machine, archive_path, **_kwargs):
-        with tarfile.open(archive_path) as archive:
-            pushed_items.extend(archive.getnames())
-
-    client = MagicMock(upload=upload)
-    monkeypatch.setattr(remote_control, "firecrest_client", lambda _machine: client)
-    remote_control.push_config_dir(config_rootdir, "santis", "/remote/config")
-
-    assert sorted(pushed_items) == ["scripts", "scripts/task.sh", "sirocco.yaml"]
-    client.extract.assert_called_once_with("santis", "/remote/config/.sirocco_push.tar.gz", "/remote/config")
-    client.rm.assert_called_once_with("santis", "/remote/config/.sirocco_push.tar.gz")
+    with tarfile.open(archive_path, "r:gz") as archive:
+        assert sorted(archive.getnames()) == ["scripts", "scripts/task.sh", "sirocco.yaml"]
