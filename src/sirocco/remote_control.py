@@ -165,7 +165,9 @@ def push_config_dir(config_rootdir: Path, machine: str, remote_config_rootdir: s
     client.rm(machine, remote_archive_path)
 
 
-def submit_sirocco_task(action: Literal["start", "stop", "restart"], config_path: Path, config_from: Path | None = None):
+def submit_sirocco_task(
+    action: Literal["start", "stop", "restart"], config_path: Path, config_from: Path | None = None
+):
     pass
     # 1. if action is "start" and config_from is not None:
     #        push config
