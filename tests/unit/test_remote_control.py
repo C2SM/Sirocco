@@ -1,5 +1,4 @@
 import logging
-import tarfile
 import textwrap
 
 import pytest
@@ -50,7 +49,7 @@ def test_unknown_machine():
         LocalConfig.from_file().remote("non_existent")
 
 
-def test_pack_config_dir_excludes_generated_items(tmp_path):
+def test_pack_unpack_config_dir_excludes_generated_items(tmp_path):
     config_rootdir = tmp_path / "config"
     (config_rootdir / "scripts").mkdir(parents=True)
     (config_rootdir / "scripts" / "task.sh").touch()
@@ -60,5 +59,8 @@ def test_pack_config_dir_excludes_generated_items(tmp_path):
     archive_path = tmp_path / "config.tar.gz"
     remote_control.pack_config_dir(config_rootdir, archive_path)
 
-    with tarfile.open(archive_path, "r:gz") as archive:
-        assert sorted(archive.getnames()) == ["scripts", "scripts/task.sh", "sirocco.yaml"]
+    unpacked_rootdir = tmp_path / "unpacked"
+    remote_control.unpack_config_dir(archive_path, unpacked_rootdir)
+
+    unpacked_items = sorted(path.relative_to(unpacked_rootdir).as_posix() for path in unpacked_rootdir.rglob("*"))
+    assert unpacked_items == ["scripts", "scripts/task.sh", "sirocco.yaml"]

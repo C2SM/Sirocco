@@ -141,6 +141,14 @@ def pack_config_dir(config_rootdir: Path, archive_path: Path) -> None:
                 archive.add(item, arcname=item.name)
 
 
+def unpack_config_dir(archive_path: Path, config_rootdir: Path) -> None:
+    """Unpack a gzip compressed tar archive of a config dir into config_rootdir"""
+    with tarfile.open(archive_path, "r:gz") as archive:
+        # NOTE: the "tar" filter refuses members outside config_rootdir but keeps symlinks to absolute paths,
+        #       which config dirs may contain
+        archive.extractall(config_rootdir, filter="tar")
+
+
 def push_config_dir(config_rootdir: Path, machine: str, remote_config_rootdir: str) -> None:
     """Push a local config dir to a remote machine as a single archive, excluding generated items"""
     if not PurePosixPath(remote_config_rootdir).is_absolute():
