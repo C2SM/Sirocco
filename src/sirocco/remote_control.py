@@ -9,7 +9,7 @@ import stat
 import tarfile
 import tempfile
 from pathlib import Path, PurePosixPath
-from typing import Literal, Self
+from typing import Literal, Self, TYPE_CHECKING
 
 from firecrest import ClientCredentialsAuth
 from firecrest.v2 import Firecrest
@@ -18,6 +18,9 @@ from ruamel.yaml import YAML
 
 from sirocco.core import SiroccoContinueTask, Task
 from sirocco.parsing import ConfigWorkflow
+
+if TYPE_CHECKING:
+    from sirocco.core import SiroccoTask
 
 LOGGER = logging.getLogger(__name__)
 
@@ -165,6 +168,13 @@ def push_config_dir(config_rootdir: Path, machine: str, remote_config_rootdir: s
     client.rm(machine, remote_archive_path)
 
 
+
+def sirocco_task_from_file(action: Literal["start", "stop", "restart"], config_file_path: Path) -> SiroccoTask:
+    pass
+    # 1. Parse sirocco.yaml to dict
+    # 2. Build SiroccoConfigTask from SIROCCO & ROOT entries
+    # 3. Build Sirocco action task
+
 def submit_sirocco_task(
     action: Literal["start", "stop", "restart"], config_path: Path, config_from: Path | None = None
 ):
@@ -175,7 +185,7 @@ def submit_sirocco_task(
     #    else:
     #        pull sirocco.yaml (no need to pull the whole config)
     #        config_file_path = /path/to/sirocco.yaml
-    # 2. Build Sirocco action task from sirocco.yaml (minimal info lookup, do not build an actual workflow object)
+    # 2. sirocco_task_from_file(action=action, config_file_path=config_file_path)
     # 3. Generate job file to submit
     # 4. Copy job file to HPC
     # 5. Submit
