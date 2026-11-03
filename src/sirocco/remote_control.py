@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+import shutil
 import stat
 import tarfile
 import tempfile
@@ -124,6 +125,12 @@ GENERATED_CONFIG_DIR_ITEMS = (
     SiroccoContinueTask.LOCK_FILE_NAME,
 )
 PUSH_ARCHIVE_NAME = ".sirocco_push.tar.gz"
+RETRIEVE_ARCHIVE_NAME = ".sirocco_retrieve.tar.gz"
+# NOTE: Firecrest inserts the match pattern of compress into a shell command without escaping,
+#       and its working dir (the parent of the config dir) even without quotes
+SHELL_UNSAFE_NAME_CHARS = re.compile(r"['\"$`\\]")
+SHELL_UNSAFE_PATH_CHARS = re.compile(r"['\"$`\\\s]")
+FIND_REGEX_SPECIAL_CHARS = re.compile(r"([.*+?\[\]^$\\])")
 
 
 def firecrest_client(machine: str) -> Firecrest:
@@ -163,3 +170,61 @@ def push_config_dir(config_rootdir: Path, machine: str, remote_config_rootdir: s
     remote_archive_path = str(PurePosixPath(remote_config_rootdir) / PUSH_ARCHIVE_NAME)
     client.extract(machine, remote_archive_path, remote_config_rootdir, compression="gzip")
     client.rm(machine, remote_archive_path)
+
+
+def list_remote_config_dir(client: Firecrest, machine: str, remote_config_rootdir: PurePosixPath) -> list[dict]:
+    """List a remote config dir recursively, excluding generated items without traversing them"""
+    entries = []
+    for entry in client.list_files(machine, str(remote_config_rootdir), show_hidden=True):
+        if entry["name"] in GENERATED_CONFIG_DIR_ITEMS:
+            continue
+        entries.append(entry)
+        if entry["type"] == "d":
+            sub_entries = client.list_files(
+                machine, str(remote_config_rootdir / entry["name"]), show_hidden=True, recursive=True
+            )
+            entries.extend({**sub_entry, "name": f"{entry['name']}/{sub_entry['name']}"} for sub_entry in sub_entries)
+    return entries
+
+
+def find_whitelist_pattern(config_name: str, file_names: list[str]) -> str:
+    """Emacs regex for find selecting exactly the given files of a config dir, as seen from its parent dir"""
+    for name in [config_name, *file_names]:
+        if SHELL_UNSAFE_NAME_CHARS.search(name):
+            msg = f"cannot retrieve {name}: quotes, backslashes, backquotes and dollar signs are not supported"
+            raise ValueError(msg)
+    paths = (FIND_REGEX_SPECIAL_CHARS.sub(r"\\\1", f"{config_name}/{name}") for name in file_names)
+    return r"\./\(" + r"\|".join(paths) + r"\)"
+
+
+def retrieve_config_dir(machine: str, remote_config_rootdir: str, config_rootdir: Path) -> None:
+    """Retrieve a remote config dir as a single archive, excluding generated items"""
+    remote_rootdir = PurePosixPath(remote_config_rootdir)
+    if not remote_rootdir.is_absolute():
+        msg = f"remote config dir {remote_config_rootdir} must be an absolute path"
+        raise ValueError(msg)
+    if SHELL_UNSAFE_PATH_CHARS.search(remote_config_rootdir):
+        msg = f"remote config dir {remote_config_rootdir} must not contain whitespaces, quotes or special characters"
+        raise ValueError(msg)
+    client = firecrest_client(machine)
+    entries = list_remote_config_dir(client, machine, remote_rootdir)
+    pattern = find_whitelist_pattern(remote_rootdir.name, [entry["name"] for entry in entries if entry["type"] == "-"])
+    remote_archive_path = str(remote_rootdir / RETRIEVE_ARCHIVE_NAME)
+    client.compress(machine, str(remote_rootdir), remote_archive_path, match_pattern=pattern, compression="gzip")
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        archive_path = Path(tmp_dir) / RETRIEVE_ARCHIVE_NAME
+        client.download(machine, remote_archive_path, archive_path)
+        client.rm(machine, remote_archive_path)
+        # NOTE: archive members are prefixed by the config dir name as find runs in its parent dir
+        unpack_config_dir(archive_path, Path(tmp_dir) / "unpacked")
+        shutil.copytree(Path(tmp_dir) / "unpacked" / remote_rootdir.name, config_rootdir, dirs_exist_ok=True)
+    # NOTE: the archive only contains regular files, links and empty dirs are recreated from the listing
+    for entry in entries:
+        local_path = config_rootdir / entry["name"]
+        match entry["type"]:
+            case "d":
+                local_path.mkdir(parents=True, exist_ok=True)
+            case "l":
+                local_path.parent.mkdir(parents=True, exist_ok=True)
+                local_path.unlink(missing_ok=True)
+                local_path.symlink_to(entry["linkTarget"])

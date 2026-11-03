@@ -1,4 +1,5 @@
 import logging
+import subprocess
 import textwrap
 
 import pytest
@@ -64,3 +65,26 @@ def test_pack_unpack_config_dir_excludes_generated_items(tmp_path):
 
     unpacked_items = sorted(path.relative_to(unpacked_rootdir).as_posix() for path in unpacked_rootdir.rglob("*"))
     assert unpacked_items == ["scripts", "scripts/task.sh", "sirocco.yaml"]
+
+
+@pytest.mark.skipif(
+    subprocess.run(["find", "--version"], capture_output=True, check=False).returncode != 0,
+    reason="requires GNU find, as used by Firecrest",
+)
+def test_find_whitelist_pattern_selects_exactly_given_files(tmp_path):
+    file_names = ["sirocco.yaml", "scripts/task+1.sh", "data/x[1].nml", "data/a.b"]
+    for name in [*file_names, "sirocco_yaml", "scripts/task1.sh", "data/x1.nml", "data/aXb", "run/out.nc"]:
+        (tmp_path / "config" / name).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / "config" / name).touch()
+    pattern = remote_control.find_whitelist_pattern("config", file_names)
+
+    # NOTE: same find call as Firecrest compress with a match pattern
+    found = subprocess.run(
+        ["find", ".", "-type", "f", "-regex", pattern], cwd=tmp_path, capture_output=True, text=True, check=True
+    ).stdout.split()
+    assert sorted(found) == sorted(f"./config/{name}" for name in file_names)
+
+
+def test_find_whitelist_pattern_refuses_shell_unsafe_names():
+    with pytest.raises(ValueError, match=r"cannot retrieve it's\.sh"):
+        remote_control.find_whitelist_pattern("config", ["it's.sh"])
