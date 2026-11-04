@@ -80,8 +80,10 @@ class TargetDate:
             msg = "Partial date formats require a current cycle date"
             raise ValueError(msg)
 
+        if not isinstance(self.value, str):
+            msg = "Unresolved TargetDate value must be a string"
+            raise TypeError(msg)
         # Convert partial dates using the current cycle's date as reference
-        assert isinstance(self.value, str)
         return convert_to_date(ref_date.strftime(self.value))
 
 
