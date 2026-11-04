@@ -50,39 +50,46 @@ class TimeUtils:
 
 
 @dataclass(kw_only=True)
-class PartialDatetime:
-    """A date format resolved against each cycle's reference date."""
+class TargetDate:
+    """An absolute date or a format resolved against a cycle date."""
 
-    value: str
+    value: str | datetime
+    _datetime: datetime | None = None
 
     def __post_init__(self) -> None:
+        if isinstance(self.value, datetime) or "%" not in self.value:
+            self._datetime = convert_to_date(self.value)
+            return
+
         pattern = (
             r"(?:%Y|[0-9]{4})-(?:%m|[0-9]{2})-(?:%d|[0-9]{2})"
             r"T(?:%H|[0-9]{2}):(?:%M|[0-9]{2})(?::(?:%S|[0-9]{2}))?"
         )
         if re.fullmatch(pattern, self.value) is None:
-            msg = f"Partial date formats support only %Y, %m, %d, %H, %M, and %S. Got '{self.value}'"
+            msg = (
+                "Target date should be given in isoformat, potentially with some of the "
+                f"supported placeholders: %Y, %m, %d, %H, %M, and %S. Got '{self.value}'"
+            )
             raise ValueError(msg)
 
     def resolve(self, ref_date: datetime | None) -> datetime:
+        if self._datetime is not None:
+            return self._datetime
+
         if ref_date is None:
             msg = "Partial date formats require a current cycle date"
             raise ValueError(msg)
+
         # Convert partial dates using the current cycle's date as reference
         return convert_to_date(ref_date.strftime(self.value))
 
 
-def convert_target_dates(values: Any) -> list[datetime | PartialDatetime]:
-    """Parse absolute dates and allow partial dates for later processing"""
-    dates: list[datetime | PartialDatetime] = []
-    for value in iter_yaml_item(values):
-        if isinstance(value, str) and "%" in value:
-            dates.append(PartialDatetime(value=value))
-        elif isinstance(value, PartialDatetime):
-            dates.append(value)
-        else:
-            dates.append(convert_to_date(value))
-    return dates
+def convert_to_target_date_list(values: Any) -> list[TargetDate]:
+    """Convert values into a list of TargetDate objects."""
+    return [
+        value if isinstance(value, TargetDate) else TargetDate(value=value)
+        for value in iter_yaml_item(values)
+    ]
 
 
 def convert_to_date(value: Any) -> datetime:

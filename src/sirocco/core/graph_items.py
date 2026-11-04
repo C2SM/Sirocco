@@ -8,8 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, TypeVar, cast
 
 from sirocco.parsing import cycling
-from sirocco.parsing._utils import PartialDatetime
-from sirocco.parsing.target_cycle import DateList, LagList, NoTargetCycle
+from sirocco.parsing.target_cycle import TargetDateList, LagList, NoTargetCycle
 from sirocco.parsing.yaml_data_models import (
     ConfigAvailableData,
     ConfigAvailableDataSpecs,
@@ -386,10 +385,10 @@ class Array[GRAPH_ITEM_T: GraphItem]:
 
     def iter_from_cycle_spec(self, spec: TargetNodesBaseModel, ref_coordinates: dict) -> Iterator[GRAPH_ITEM_T]:
         # Check date references
-        if "date" not in self._dims and isinstance(spec.target_cycle, DateList | LagList):
+        if "date" not in self._dims and isinstance(spec.target_cycle, TargetDateList | LagList):
             msg = f"Array {self._name} has no date dimension, cannot be referenced by dates"
             raise ValueError(msg)
-        if "date" in self._dims and ref_coordinates.get("date") is None and not isinstance(spec.target_cycle, DateList):
+        if "date" in self._dims and ref_coordinates.get("date") is None and not isinstance(spec.target_cycle, TargetDateList):
             msg = f"Array {self._name} has a date dimension, must be referenced by dates"
             raise ValueError(msg)
 
@@ -401,12 +400,9 @@ class Array[GRAPH_ITEM_T: GraphItem]:
             match spec.target_cycle:
                 case NoTargetCycle():
                     yield ref_coordinates["date"]
-                case DateList():
+                case TargetDateList():
                     for date in spec.target_cycle.dates:
-                        if isinstance(date, PartialDatetime):
-                            yield date.resolve(ref_coordinates.get("date"))
-                        else:
-                            yield date
+                        yield date.resolve(ref_coordinates.get("date"))
                 case LagList():
                     for lag in spec.target_cycle.lags:
                         yield ref_coordinates["date"] + lag

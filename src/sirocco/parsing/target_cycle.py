@@ -1,10 +1,9 @@
-from datetime import datetime
 from typing import Annotated
 
 from isoduration.types import Duration
 from pydantic import BaseModel, BeforeValidator, ConfigDict
 
-from sirocco.parsing._utils import PartialDatetime, convert_target_dates, convert_to_duration_list
+from sirocco.parsing._utils import TargetDate, convert_to_target_date_list, convert_to_duration_list
 
 
 class TargetCycle:
@@ -15,8 +14,8 @@ class NoTargetCycle(TargetCycle):
     pass
 
 
-class DateList(BaseModel, TargetCycle):
-    dates: Annotated[list[datetime | PartialDatetime], BeforeValidator(convert_target_dates)]
+class TargetDateList(BaseModel, TargetCycle):
+    dates: Annotated[list[TargetDate], BeforeValidator(convert_to_target_date_list)]
 
 
 class LagList(BaseModel, TargetCycle):
