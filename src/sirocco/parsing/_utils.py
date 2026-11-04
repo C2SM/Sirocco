@@ -86,10 +86,7 @@ class TargetDate:
 
 def convert_to_target_date_list(values: Any) -> list[TargetDate]:
     """Convert values into a list of TargetDate objects."""
-    return [
-        value if isinstance(value, TargetDate) else TargetDate(value=value)
-        for value in iter_yaml_item(values)
-    ]
+    return [value if isinstance(value, TargetDate) else TargetDate(value=value) for value in iter_yaml_item(values)]
 
 
 def convert_to_date(value: Any) -> datetime:

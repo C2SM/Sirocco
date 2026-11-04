@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, TypeVar, cast
 
 from sirocco.parsing import cycling
-from sirocco.parsing.target_cycle import TargetDateList, LagList, NoTargetCycle
+from sirocco.parsing.target_cycle import LagList, NoTargetCycle, TargetDateList
 from sirocco.parsing.yaml_data_models import (
     ConfigAvailableData,
     ConfigAvailableDataSpecs,
@@ -388,7 +388,11 @@ class Array[GRAPH_ITEM_T: GraphItem]:
         if "date" not in self._dims and isinstance(spec.target_cycle, TargetDateList | LagList):
             msg = f"Array {self._name} has no date dimension, cannot be referenced by dates"
             raise ValueError(msg)
-        if "date" in self._dims and ref_coordinates.get("date") is None and not isinstance(spec.target_cycle, TargetDateList):
+        if (
+            "date" in self._dims
+            and ref_coordinates.get("date") is None
+            and not isinstance(spec.target_cycle, TargetDateList)
+        ):
             msg = f"Array {self._name} has a date dimension, must be referenced by dates"
             raise ValueError(msg)
 
