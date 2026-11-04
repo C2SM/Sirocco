@@ -16,7 +16,7 @@ from firecrest.v2 import Firecrest
 from pydantic import BaseModel, ConfigDict, SecretStr
 from ruamel.yaml import YAML
 
-from sirocco.core import SiroccoContinueTask, SiroccoTask, Task
+from sirocco.core import Scheduler, SiroccoContinueTask, SiroccoTask, Task
 from sirocco.parsing import ConfigWorkflow
 
 LOGGER = logging.getLogger(__name__)
@@ -165,17 +165,9 @@ def push_config_dir(config_rootdir: Path, machine: str, remote_config_rootdir: s
     client.rm(machine, remote_archive_path)
 
 
-def submit_sirocco_task(
-    action: Literal["start", "stop", "restart"], config_path: Path, config_from: Path | None = None
-):
-    pass
-    # 1. if action is "start" and config_from is not None:
-    #        push config
-    #        config_file_path = /path/to/sirocco.yaml
-    #    else:
-    #        pull sirocco.yaml (no need to pull the whole config)
-    #        config_file_path = /path/to/sirocco.yaml
-    # 2. sirocco_task_from_file(action=action, config_file_path=config_file_path)
-    # 3. Generate job file to submit
-    # 4. Copy job file to HPC
-    # 5. Submit
+def submit_sirocco_task(sirocco_task: SiroccoTask, scheduler: Scheduler, machine: str, remote_config_rootdir: Path):
+    client = firecrest_client(machine)
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        local_runscript_path = Path(tmp_dir) / sirocco_task.SUBMIT_FILENAME
+        scheduler.generate_run_script(task=sirocco_task, stdouterr_mode="append", script_path=local_runscript_path)
+        client.submit(machine, working_directory=str(remote_config_rootdir), script_local_path=str(local_runscript_path))

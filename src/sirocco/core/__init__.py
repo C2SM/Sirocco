@@ -9,6 +9,7 @@ from .graph_items import (
     TaskComponent,
 )
 from .namelistfile import NamelistFile
+from .scheduler import Scheduler
 from .tasks import IconTask, ShellTask, SiroccoContinueTask
 from .tasks.icon_task.models import IconModel
 from .workflow import Workflow
@@ -23,6 +24,7 @@ __all__ = [
     "IconTask",
     "MpiCmdPlaceholder",
     "NamelistFile",
+    "Scheduler",
     "ShellTask",
     "SiroccoContinueTask",
     "Task",

@@ -15,7 +15,7 @@ from ruamel.yaml import YAML
 from termcolor import colored
 
 from sirocco.core.graph_items import Cycle, Data, Store, Task, TaskStatus
-from sirocco.core.scheduler import Scheduler
+from sirocco.core import Scheduler
 from sirocco.core.tasks.sirocco_task import SiroccoTask
 from sirocco.parsing.cycling import DateCyclePoint, OneOffPoint
 from sirocco.parsing.yaml_data_models import (
@@ -444,7 +444,7 @@ class Workflow:
             self.sirocco_continue_task.jobid = "_NO_ID_"
         elif self.front[0]:
             self.sirocco_continue_task.parents = self.front[0]
-            self.scheduler.submit(self.sirocco_continue_task, output_mode="append", dependency_type="ANY")
+            self.scheduler.submit(self.sirocco_continue_task, stdouterr_mode="append", dependency_type="ANY")
             self.status = WorkflowStatus.CONTINUE
         else:
             self.sirocco_continue_task.jobid = "_NO_ID_"
