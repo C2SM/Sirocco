@@ -98,7 +98,6 @@ class SiroccoTask(models.ConfigSiroccoTaskSpecs, Task):
 
 @dataclass(kw_only=True)
 class SiroccoContinueTask(SiroccoTask):
-
     plugin: ClassVar[str] = "sirocco_continue"
     SUBMIT_FILENAME: ClassVar[str] = field(default=".sirocco_continue.sh", repr=False)
 
@@ -120,7 +119,6 @@ class SiroccoContinueTask(SiroccoTask):
 
 @dataclass(kw_only=True)
 class SiroccoStartTask(SiroccoTask):
-
     plugin: ClassVar[str] = "sirocco_start"
     SUBMIT_FILENAME: ClassVar[str] = field(default=".sirocco_start.sh", repr=False)
 
