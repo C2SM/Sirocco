@@ -81,6 +81,7 @@ class TargetDate:
             raise ValueError(msg)
 
         # Convert partial dates using the current cycle's date as reference
+        assert isinstance(self.value, str)
         return convert_to_date(ref_date.strftime(self.value))
 
 
