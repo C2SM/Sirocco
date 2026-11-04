@@ -52,7 +52,6 @@ def upload_config_to_remote(machine: str, local_config_dir: Path | str, remote_t
 
     client = create_firecrest_client(machine)
 
-    # TODO: should remote_target_path be created or should we only check that it is a dir?
     try:
         if not (client.file_type(machine, remote_target_path) == "directory"):
             raise NotADirectoryError(f"Target path for upload is not a directory: {remote_target_path}.")
@@ -76,9 +75,8 @@ def upload_config_to_remote(machine: str, local_config_dir: Path | str, remote_t
 
 
 def download_config_from_remote(machine: str, remote_config_dir: str, local_target_path: Path | str) -> None:
-    """Download Sirocco config (and run state) from remote machine"""
+    """Download a remote config directory (and run state) to the local machine"""
 
-    # TODO: should local_target_path be created in this function if it doesn't exist?
     if not Path(local_target_path).is_dir():
         raise NotADirectoryError(f"Target path for download is not a directory: {str(local_target_path)}.")
 
@@ -92,7 +90,6 @@ def download_config_from_remote(machine: str, remote_config_dir: str, local_targ
     if SiroccoContinueTask.LOCK_FILE_NAME in remote_run_dir_content_names:
         raise RuntimeError(f"A process is still running the Sirocco workflow! Cannot download config directory: {remote_config_dir}.")
 
-    # TODO: is _CONFIG_FILENAME meant to be private?
     sirocco_config_str = client.view(machine, str(PurePosixPath(remote_config_dir, ConfigWorkflow._CONFIG_FILENAME)))
     sirocco_config = YAML(typ="safe", pure=True).load(sirocco_config_str)
 
