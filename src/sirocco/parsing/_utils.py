@@ -1,9 +1,9 @@
 import re
 import time
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, ClassVar
 
 from isoduration import parse_duration
 from isoduration.types import Duration
@@ -53,6 +53,15 @@ class TimeUtils:
 class TargetDate:
     """An absolute date or a format resolved against a cycle date."""
 
+
+    partial_date_pattern: ClassVar[re.Pattern] = field(
+        default=re.compile(
+            r"(?:%Y|[0-9]{4})-(?:%m|[0-9]{2})-(?:%d|[0-9]{2})"
+            r"T(?:%H|[0-9]{2}):(?:%M|[0-9]{2})(?::(?:%S|[0-9]{2}))?"
+        ),
+        repr=False,
+    )
+
     value: str | datetime
     _datetime: datetime | None = None
 
@@ -61,11 +70,7 @@ class TargetDate:
             self._datetime = convert_to_date(self.value)
             return
 
-        pattern = (
-            r"(?:%Y|[0-9]{4})-(?:%m|[0-9]{2})-(?:%d|[0-9]{2})"
-            r"T(?:%H|[0-9]{2}):(?:%M|[0-9]{2})(?::(?:%S|[0-9]{2}))?"
-        )
-        if re.fullmatch(pattern, self.value) is None:
+        if self.partial_date_pattern.fullmatch(self.value) is None:
             msg = (
                 "Target date should be given in isoformat, potentially with some of the "
                 f"supported placeholders: %Y, %m, %d, %H, %M, and %S. Got '{self.value}'"
