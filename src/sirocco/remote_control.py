@@ -54,9 +54,9 @@ def upload_config_to_remote(machine: str, local_config_dir: Path | str, remote_t
 
     try:
         if not (client.file_type(machine, remote_target_path) == "directory"):
-            raise NotADirectoryError(f"Target path for upload is not a directory: {remote_target_path}.")
+            raise NotADirectoryError(f"target path for upload is not a directory: {remote_target_path}.")
     except UnexpectedStatusException as error:
-        raise FileNotFoundError(f"Target path for upload not found on remote machine ({machine}): {remote_target_path}.") from error
+        raise FileNotFoundError(f"target path for upload not found on remote machine ({machine}): {remote_target_path}.") from error
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         archive_name = Path(local_config_dir).name + ".tar.gz"
@@ -78,7 +78,7 @@ def download_config_from_remote(machine: str, remote_config_dir: str, local_targ
     """Download a remote config directory (and run state) to the local machine"""
 
     if not Path(local_target_path).is_dir():
-        raise NotADirectoryError(f"Target path for download is not a directory: {str(local_target_path)}.")
+        raise NotADirectoryError(f"target path for download is not a directory: {str(local_target_path)}.")
 
     client = create_firecrest_client(machine)
 
@@ -88,7 +88,7 @@ def download_config_from_remote(machine: str, remote_config_dir: str, local_targ
 
     # Stop if the lock file exists in the run directory on the remote machine
     if SiroccoContinueTask.LOCK_FILE_NAME in remote_run_dir_content_names:
-        raise RuntimeError(f"A process is still running the Sirocco workflow! Cannot download config directory: {remote_config_dir}.")
+        raise RuntimeError(f"a process is still running the Sirocco workflow! Cannot download config directory: {remote_config_dir}.")
 
     sirocco_config_str = client.view(machine, str(PurePosixPath(remote_config_dir, ConfigWorkflow._CONFIG_FILENAME)))
     sirocco_config = YAML(typ="safe", pure=True).load(sirocco_config_str)
@@ -130,7 +130,7 @@ def download_config_from_remote(machine: str, remote_config_dir: str, local_targ
 
         client.download(machine, remote_state_file, local_state_file, account)
     else:
-        LOGGER.warning(f"State file not found on remote machine ({machine}): {remote_state_file}.")
+        LOGGER.warning(f"state file not found on remote machine ({machine}): {remote_state_file}.")
 
 
 def create_firecrest_client(machine: str) -> Firecrest:
