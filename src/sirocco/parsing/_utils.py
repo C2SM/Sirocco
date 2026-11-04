@@ -53,7 +53,6 @@ class TimeUtils:
 class TargetDate:
     """An absolute date or a format resolved against a cycle date."""
 
-
     partial_date_pattern: ClassVar[re.Pattern] = field(
         default=re.compile(
             r"(?:%Y|[0-9]{4})-(?:%m|[0-9]{2})-(?:%d|[0-9]{2})"
