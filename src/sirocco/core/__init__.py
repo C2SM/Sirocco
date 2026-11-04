@@ -10,7 +10,7 @@ from .graph_items import (
 )
 from .namelistfile import NamelistFile
 from .scheduler import Scheduler
-from .tasks import IconTask, ShellTask, SiroccoContinueTask
+from .tasks import IconTask, ShellTask, SiroccoContinueTask, SiroccoTask
 from .tasks.icon_task.models import IconModel
 from .workflow import Workflow
 
@@ -27,6 +27,7 @@ __all__ = [
     "Scheduler",
     "ShellTask",
     "SiroccoContinueTask",
+    "SiroccoTask",
     "Task",
     "TaskComponent",
     "Workflow",

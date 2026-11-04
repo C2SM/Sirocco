@@ -14,8 +14,8 @@ from typing import TYPE_CHECKING, Any, Literal, Self, assert_never
 from ruamel.yaml import YAML
 from termcolor import colored
 
-from sirocco.core.graph_items import Cycle, Data, Store, Task, TaskStatus
 from sirocco.core import Scheduler
+from sirocco.core.graph_items import Cycle, Data, Store, Task, TaskStatus
 from sirocco.core.tasks.sirocco_task import SiroccoTask
 from sirocco.parsing.cycling import DateCyclePoint, OneOffPoint
 from sirocco.parsing.yaml_data_models import (
