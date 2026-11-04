@@ -40,11 +40,13 @@ Each of the models listed in `icon_master.namelist` must have a corresponding co
 
 ## Ports
 
-Listed below are the currently supported ports for icon tasks. What they typically do is adapting namelists to reflect an input data path or link input data in the task run directory.
+Contrary to Shell tasks, ICON task ports are pre-defined. Listed below are the currently supported ones. The typical associated action is adapting namelists to reflect an input data path or linking input data in the task run directory.
 
 This list regularly gets extended as use cases start to cover more ICON features. Should a port be missing, the [basic input linking](../../configuration/cycles/#special-input-linking-ports) might first help circumventing this lack. Then please open a pull request on the [Sirocco repository :lucide-external-link:](https://github.com/C2SM/Sirocco/pulls).
 
-### `squash`
+### Input ports
+
+#### `squash`
 
 **components**: master
 <br>
@@ -54,7 +56,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 - Each data instance of that port are [squashfs :lucide-external-link:](https://en.wikipedia.org/wiki/SquashFS) images that will be mounted at runtime at the mount points given in the [`squash_mount`](#squash_mount) task specification. So far, this feature is only supported on  machines using the [uenv technology :lucide-external-link:](link to CSCS docs).
 
-### `finish_status`
+#### `finish_status`
 
 **components**: atmosphere, ocean
 <br>
@@ -62,7 +64,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 <br>
 **actions**: None
 
-### `restart_in`
+#### `restart_in`
 
 **components**: atmosphere, ocean
 <br>
@@ -73,29 +75,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 - Check `io_nml:restart_write_mode` for supported options, so far only `"joint procs multifile"`.
 - Link the associated data as `multifile_restart_{model.name}.mfr` in the task run directory.
 
-### `restart_out`
-
-**components**: atmosphere, ocean
-<br>
-**data instances**: 1
-<br>
-**actions**:
-
-- Check `io_nml:restart_write_mode` for supported options, so far only `"joint procs multifile"`.
-
-### `output_streams`
-
-**components**: atmosphere, ocean
-<br>
-**data instances**: any
-<br>
-**actions**:
-
-- Check that the number of output streams declared as `output_nml` sections matches the number of associated data pieces.
-- Ensure that all `output_nml` streams specify an output sub-directory using the combination of `filename_format` and `output_filename` parameters (see in [ICON namelist overiew :lucide-external-link:](https://docs.icon-model.org/2026.04/documentation/buildrun/buildrun_namelist_overview.html#output-nml) ). For instance `filename_format = 'atm_mon/atm_mon_<datetime2>'` is a valid entry while `filename_format = 'atm_mon_<datetime2>'` isn't.
-- Create these sub-directories in the task run directory.
-
-### `dynamics_grid_file`
+#### `dynamics_grid_file`
 
 **components**: atmosphere, ocean
 <br>
@@ -106,7 +86,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 - If the associated data is generated, link it in the task run directory with its original name.
 - Reflect data path in `grid_nml > dynamics_grid_filename`.
 
-### `ifs2icon`
+#### `ifs2icon`
 
 **components**: atmosphere
 <br>
@@ -117,7 +97,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 - If the associated data is generated, link it in the task run directory with its original name.
 - Reflect data path in `initicon_nml > ifs2icon_filename`.
 
-### `extpar_file`
+#### `extpar_file`
 
 **components**: atmosphere
 <br>
@@ -128,7 +108,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 - If the associated data is generated, link it in the task run directory with its original name.
 - Reflect data path in `extpar_nml > extpar_filename`.
 
-### `ecrad_data`
+#### `ecrad_data`
 
 **components**: atmosphere
 <br>
@@ -140,7 +120,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 - If the associated data is generated, link it as `ecrad_data` in the task run directory.
 - Reflect data path in `radiation_nml > ecrad_data_path`.
 
-### `ghg_file`
+#### `ghg_file`
 
 **components**: atmosphere
 <br>
@@ -151,7 +131,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 - If the associated data is generated, link it in the task run directory with its original name.
 - Reflect data path in `radiation_nml > ghg_filename` namelist parameter.
 
-### `rrtmg_lw`
+#### `rrtmg_lw`
 
 **components**: atmosphere
 <br>
@@ -162,7 +142,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 - If the associated data is generated, link it in the task run directory with its original name.
 - Reflect the data path in `nwp_phy_nml > lrtm_filename` namelist parameter.
 
-### `rrtmg_sw`
+#### `rrtmg_sw`
 
 **components**: atmosphere
 <br>
@@ -172,7 +152,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 - Link associated data in the task run directory as `rrtmg_sw.nc`.
 
-### `bc_solar_sw`
+#### `bc_solar_sw`
 
 **components**: atmosphere
 <br>
@@ -182,7 +162,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 - Link associated data in the task run directory as `bc_solar_irradiance_sw_b14.nc`.
 
-### `atm_plumes`
+#### `atm_plumes`
 
 **components**: atmosphere
 <br>
@@ -192,7 +172,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 - Link associated data in the task run directory as `MACv2.0-SP_v1.nc`.
 
-### `cloud_opt_props`
+#### `cloud_opt_props`
 
 **components**: atmosphere
 <br>
@@ -203,7 +183,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 - If the associated data is generated, link it as `CldOptProps.nc` in the task run directory.
 -  Reflect data path in `nwp_phy_nml > cldopt_filename`.
 
-### `jsb_ifs`
+#### `jsb_ifs`
 
 **components**: land
 <br>
@@ -214,7 +194,7 @@ This list regularly gets extended as use cases start to cover more ICON features
  - If the associated data is generated, link it in the task run directory with its original name.
  - Reflect data path in the `jsb_model_nml > ifs_filename`.
 
-### `jsb_fract`
+#### `jsb_fract`
 
 **components**: land
 <br>
@@ -225,7 +205,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 - If the associated data is generated, link it in the task run directory with its original name.
 - Reflect data path in `jsb_model_nml > fract_filename`.
 
-### `jsb_seb_bc`
+#### `jsb_seb_bc`
 
 **components**: land
 <br>
@@ -236,7 +216,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 - If the associated data is generated, link it in the task run directory with its original name.
 - Reflect data path in `jsb_seb_nml > bc_filename`.
 
-### `jsb_seb_ic`
+#### `jsb_seb_ic`
 
 **components**: land
 <br>
@@ -247,7 +227,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 - If the associated data is generated, link it in the task run directory with its original name.
 - Reflect data path in `jsb_seb_nml > ic_filename`.
 
-### `jsb_rad_bc`
+#### `jsb_rad_bc`
 
 **components**: land
 <br>
@@ -258,7 +238,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 - If the associated data is generated, link it in the task run directory with its original name.
 - Reflect data path in `jsb_rad_nml > bc_filename`.
 
-### `jsb_rad_ic`
+#### `jsb_rad_ic`
 
 **components**: land
 <br>
@@ -269,7 +249,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 - If the associated data is generated, link it in the task run directory with its original name.
 - Reflect data path in `jsb_rad_nml > ic_filename`.
 
-### `jsb_turb_bc`
+#### `jsb_turb_bc`
 
 **components**: land
 <br>
@@ -280,7 +260,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 - If the associated data is generated, link it in the task run directory with its original name.
 - Reflect data path in `jsb_turb_nml > bc_filename`.
 
-### `jsb_turb_ic`
+#### `jsb_turb_ic`
 
 **components**: land
 <br>
@@ -291,7 +271,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 - If the associated data is generated, link it in the task run directory with its original name.
 - Reflect data path in `jsb_turb_nml > ic_filename`.
 
-### `jsb_sse_bc`
+#### `jsb_sse_bc`
 
 **components**: land
 <br>
@@ -302,7 +282,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 - If the associated data is generated, link it in the task run directory with its original name.
 - Reflect data path in `jsb_sse_nml > bc_filename`.
 
-### `jsb_sse_ic`
+#### `jsb_sse_ic`
 
 **components**: land
 <br>
@@ -313,7 +293,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 - If the associated data is generated, link it in the task run directory with its original name.
 - Reflect data path in `jsb_sse_nml > ic_filename`.
 
-### `jsb_hydro_bc`
+#### `jsb_hydro_bc`
 
 **components**: land
 <br>
@@ -324,7 +304,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 - If the associated data is generated, link it in the task run directory with its original name.
 - Reflect data path in `jsb_hydro_nml > bc_filename`.
 
-### `jsb_hydro_bc_sso`
+#### `jsb_hydro_bc_sso`
 
 **components**: land
 <br>
@@ -335,7 +315,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 - If the associated data is generated, link it in the task run directory with its original name.
 - Reflect data path in `jsb_hydro_nml:bc > sso_filename`.
 
-### `jsb_hydro_ic`
+#### `jsb_hydro_ic`
 
 **components**: land
 <br>
@@ -346,7 +326,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 - If the associated data is generated, link it in the task run directory with its original name.
 - Reflect data path in `jsb_hydro_nml > ic_filename`.
 
-### `jsb_pheno_bc`
+#### `jsb_pheno_bc`
 
 **components**: land
 <br>
@@ -357,7 +337,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 - If the associated data is generated, link it in the task run directory with its original name.
 - Reflect data path in `jsb_pheno_nml > bc_filename`.
 
-### `jsb_pheno_ic`
+#### `jsb_pheno_ic`
 
 **components**: land
 <br>
@@ -368,7 +348,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 - If the associated data is generated, link it in the task run directory with its original name.
 - Reflect data path in `jsb_pheno_nml > ic_filename`.
 
-### `jsb_disturb_bc`
+#### `jsb_disturb_bc`
 
 **components**: land
 <br>
@@ -379,7 +359,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 - If the associated data is generated, link it in the task run directory with its original name.
 - Reflect data path in `jsb_disturb_nml > bc_filename`.
 
-### `jsb_disturb_ic`
+#### `jsb_disturb_ic`
 
 **components**: land
 <br>
@@ -390,7 +370,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 - If the associated data is generated, link it in the task run directory with its original name.
 - Reflect data path in `jsb_disturb_nml > ic_filename`.
 
-### `jsb_hd_bc`
+#### `jsb_hd_bc`
 
 **components**: land
 <br>
@@ -401,7 +381,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 - If the associated data is generated, link it in the task run directory with its original name.
 - Reflect data path in `jsb_hd_nml > bc_filename`.
 
-### `jsb_hd_ic`
+#### `jsb_hd_ic`
 
 **components**: land
 <br>
@@ -412,7 +392,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 - If the associated data is generated, link it in the task run directory with its original name.
 - Reflect data path in `jsb_hd_nml > ic_filename`.
 
-### `ocean_inistate`
+#### `ocean_inistate`
 
 **components**: ocean
 <br>
@@ -423,7 +403,31 @@ This list regularly gets extended as use cases start to cover more ICON features
 - If the associated data is generated, link it in the task run directory with its original name.
 - Reflect data path in `ocean_initialConditions_nml > InitialState_InputFileName` namelist parameter.
 
-## ICON task specifications
+### Output ports
+
+#### `restart_out`
+
+**components**: atmosphere, ocean
+<br>
+**data instances**: 1
+<br>
+**actions**:
+
+- Check `io_nml:restart_write_mode` for supported options, so far only `"joint procs multifile"`.
+
+#### `output_streams`
+
+**components**: atmosphere, ocean
+<br>
+**data instances**: any
+<br>
+**actions**:
+
+- Check that the number of output streams declared as `output_nml` sections matches the number of associated data pieces.
+- Ensure that all `output_nml` streams specify an output sub-directory using the combination of `filename_format` and `output_filename` parameters (see in [ICON namelist overiew :lucide-external-link:](https://docs.icon-model.org/2026.04/documentation/buildrun/buildrun_namelist_overview.html#output-nml) ). For instance `filename_format = 'atm_mon/atm_mon_<datetime2>'` is a valid entry while `filename_format = 'atm_mon_<datetime2>'` isn't.
+- Create these sub-directories in the task run directory.
+
+## Task specifications
 
 The following ICON task specifications come on top of [the ones used for any task](../../configuration/tasks#all-tasks).
 
@@ -514,7 +518,7 @@ tasks:
 
 ??? example "Hiopy"
 
-    A `hiopy` "executable" at the same level as `cpu` and `gpu` exists as a placeholder for now and will be fully implemented in `v0.2.0`.
+    A `hiopy` section at the same level as `cpu` and `gpu` exists as a placeholder for now and will be fully implemented in `v0.2.0`.
 
 #### `cpu` and `gpu`
 
@@ -522,7 +526,7 @@ tasks:
 <br>
 **required**: at least one of them
 <br>
-**description**:  At least one of the `cpu` or `gpu` executable must be set. Hybrid runs with both are also supported. For each of them, the following can or must be set.
+**description**: Description of the ICON executable and assocaited MPI processes. At least one of the `cpu` or `gpu` executable must be set but hybrid runs with both are also supported. For each of them, the following can or must be set.
 
 ##### `path`
 
@@ -546,7 +550,7 @@ tasks:
 <br>
 **optional**
 <br>
-**description**: Path to a directory relative to the configuration root directory containing the set of scripts used at runtime to replace the default ones. The only requirement is that this directory contains a `main.sh` that will be sourced by the submitted job script. For supported machines, the default `runtime` directories are hosted in the Sirocco repository under `src/sirocco/core/tasks/icon_task/runtime`.
+**description**: Path to a directory relative to the configuration root directory containing the set of scripts used at runtime to replace the default ones. The only requirement is that this directory contains a `main.sh` that will be sourced by the submitted job script. For supported machines, the default `runtime` directories are hosted in the Sirocco repository under [`src/sirocco/core/tasks/icon_task/runtime` :lucide-external-link:](https://github.com/C2SM/Sirocco/tree/main/src/sirocco/core/tasks/icon_task/runtime).
 
 Each machine having its own characteristics (chips, network, MPI library, scheduler, compilers, ...), it would be impossible to maintain a composable runtime environment where each piece can be customized independently. The adopted strategy is thus to bundle
 all these characteristics in the `runtime` directory and customizing it is done by replacing the whole directory. The most expected usage is to copy the default machine specific `runtime` and modify where required.

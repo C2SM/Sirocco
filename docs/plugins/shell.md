@@ -17,7 +17,11 @@ tasks:
       command: ./task_1_src/myscript.sh {PORT::port_name_1} --kw_arg1={PORT::port_name_2}
 ```
 
-## Specifications
+## Ports
+
+For _shell_ tasks, the choice of port names is entirely free. The concrete link when building the actual task happens through the [port resolution](#port-resolution) of the task `command`.
+
+## Task specifications
 
 The following shell task specifications come on top of [the ones used for any task](../../configuration/tasks#all-tasks).
 
@@ -36,7 +40,7 @@ The following shell task specifications come on top of [the ones used for any ta
 <br>
 **required**
 <br>
-**description**: Main entry point of the task. It will typically execute one of the files provided in the `src` path but can also point to executables installed on the system. `command` is also the place where a _shell_ task integrates with the rest of the workflow through port placeholders. See below.
+**description**: Main entry point of the task. It will typically execute one of the files provided in the `src` path but can also point to executables installed on the system. `command` is also the place where a _shell_ task integrates with the rest of the workflow through port placeholders: the resolved command (see below) will be included in the submitted run script.
 
 #### Port resolution
 
@@ -95,7 +99,7 @@ my_command --repeat-arg=data_path_1 --repeat-arg=data_path_2 ...
 
 ##### Vanishing placeholders
 
-For some instances of a task, typically the first or last one of a cycle, it can also be necessary that port placeholders vanish. In a Sirocco workflow, this happens when using the [`when` keyword](../../configuration/cycles#when). In such a case the port placeholder can be made vanishing by using extra brackets surrounding the entire part of the command that needs to be ignored if the port does not link any data. For isntance
+For some instances of a task, typically the first or last one of a cycle, it can also be necessary that port placeholders vanish. In a Sirocco workflow, this happens when using the [`when` keyword](../../configuration/cycles#when). In such a case the port placeholder can be made vanishing by using extra brackets surrounding the entire part of the command that needs to be ignored if the port does not link any data. For instance
 ```sirocco-yaml
 tasks:
   - task name 1:
@@ -112,3 +116,12 @@ or
 ```my_command data_path_1```
 
 depending if `port_name_2` links data or not.
+
+## Exported variables
+
+Before invoking the task `command` in the submitted run script, some environment variables are exported to provide context information or propagate information provided in the configuration file.
+
+- `SIROCCO_START_DATE` and `SIROCCO_STOP_DATE`: start and stop date of the [current cycle occurrence](../../configuration/cycles/#cycling)
+- `N_NODES`: if provided, [number of requested nodes](../../configuration/tasks/#nodes)
+- `PROCS_PER_NODE`: if provided, [number of requested MPI processes per node](../../configuration/tasks/#procs_per_node)
+- `CORES_PER_PROC`: if provided, [number of requested cores per MPI process](../../configuration/tasks/#cores_per_proc)
