@@ -5,7 +5,7 @@ icon: lucide/list-todo
 
 # Tasks
 
-The root level `tasks` section is where tasks are declared and their concrete content specified. Even though most of it depends on the task plugin and is described in the [corresponding section](../../plugins), some specifications are common to all plugins and described here. This section is a list mapping task names to their content specification and typically looks like this:
+The root level `tasks` section is where tasks are declared and their concrete content specified. Even though most of it depends on the task plugin and is described in the [corresponding section](../../plugins), some specifications are common to all plugins and described here. This section is a sequence of mappings from task names to their content and typically looks like this:
 ```sirocco-yaml
 tasks:
   - ROOT:
@@ -27,9 +27,7 @@ If a task named `ROOT` is declared, it's attributes are propagated as default fo
 
 ## The special `SIROCCO` task
 
-When using the standalone orchestrator, the task named `SIROCCO` hosts specifications for the special Sirocco task who's role is to check the current state of the workflow and submit new task jobs as needed.
-
-### Specifications
+When using the standalone orchestrator, the task named `SIROCCO` hosts specifications for the special Sirocco task who's role is to check the current state of the workflow, submit new task jobs as needed and dump the new state to file. Sirocco requires the activation of a virtual environemnt where it is installed. It can either be provided implicitely via the uenv [`view`](#view) specification or explicitely via `venv`.
 
 #### `venv`
 
@@ -106,7 +104,7 @@ When using the standalone orchestrator, the task named `SIROCCO` hosts specifica
 <br>
 **default**: 1
 <br>
-**description**: Number of physical coherent sub-units per node. On the Säntis machine, it maps to `--gpus-per-node`. The ICON plugin uses it to dispatch MPI processes on different [NUMA :lucide-external-link:](https://en.wikipedia.org/wiki/Non-uniform_memory_access) nodes.
+**description**: Number of physical coherent sub-units per node. On the Säntis machine, it maps to `--gpus-per-node`. The [ICON plugin](../../plugins/icon) uses it to dispatch MPI processes on different [NUMA :lucide-external-link:](https://en.wikipedia.org/wiki/Non-uniform_memory_access) nodes.
 
 #### `gpus-per-node`
 
