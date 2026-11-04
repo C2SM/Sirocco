@@ -278,11 +278,15 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         for jsb_control_nml in self.master_namelist.iter_nml("jsb_control_nml"):
             jsb_control_nml["restart_jsbach"] = self.is_restart
 
-        # HD reservoirs are part of the restart state and must not be re-read from the initial file
+        # HD reservoirs and carbon pools are part of the restart state and must not be re-read from the initial file
         if self.is_restart:
             for model in self.models.values():
-                if model.model_type is ModelType.LAND and "jsb_hd_nml" in model.namelist:
+                if model.model_type is not ModelType.LAND:
+                    continue
+                if "jsb_hd_nml" in model.namelist:
                     model.namelist["jsb_hd_nml"]["read_initial_reservoirs"] = False
+                if "jsb_carbon_nml" in model.namelist:
+                    model.namelist["jsb_carbon_nml"]["read_cpools"] = False
 
     def check_dates(self) -> DateCyclePoint:
         """Check that the task has a date cycle point and that a cold start begins at the cycle start date.

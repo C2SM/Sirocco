@@ -1,3 +1,7 @@
 &jsb_hd_nml
     read_initial_reservoirs = .false.
 /
+
+&jsb_carbon_nml
+    read_cpools = .false.
+/
