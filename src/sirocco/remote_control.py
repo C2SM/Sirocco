@@ -9,7 +9,7 @@ import stat
 import tarfile
 import tempfile
 from pathlib import Path, PurePosixPath
-from typing import Literal, Self, TYPE_CHECKING
+from typing import Literal, Self
 
 from firecrest import ClientCredentialsAuth
 from firecrest.v2 import Firecrest
@@ -18,9 +18,6 @@ from ruamel.yaml import YAML
 
 from sirocco.core import SiroccoContinueTask, Task
 from sirocco.parsing import ConfigWorkflow
-
-if TYPE_CHECKING:
-    from sirocco.core import SiroccoTask
 
 LOGGER = logging.getLogger(__name__)
 
@@ -167,13 +164,6 @@ def push_config_dir(config_rootdir: Path, machine: str, remote_config_rootdir: s
     client.extract(machine, remote_archive_path, remote_config_rootdir, compression="gzip")
     client.rm(machine, remote_archive_path)
 
-
-
-def sirocco_task_from_file(action: Literal["start", "stop", "restart"], config_file_path: Path) -> SiroccoTask:
-    pass
-    # 1. Parse sirocco.yaml to dict
-    # 2. Build SiroccoConfigTask from SIROCCO & ROOT entries
-    # 3. Build Sirocco action task
 
 def submit_sirocco_task(
     action: Literal["start", "stop", "restart"], config_path: Path, config_from: Path | None = None

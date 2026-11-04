@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, ClassVar, Literal, Self
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
+
+from pydantic import TypeAdapter
+from ruamel.yaml import YAML
 
 from sirocco.core.graph_items import Task
 from sirocco.parsing import yaml_data_models as models
@@ -10,6 +13,8 @@ from sirocco.parsing.cycling import OneOffPoint
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+type ACTION_T = Literal["start", "continue", "stop", "restart"]
 
 
 # NOTE: SiroccoTask is a subclass of `GraphItem` for implementation simplicity
@@ -41,7 +46,7 @@ class SiroccoTask(models.ConfigSiroccoTaskSpecs, Task):
         cls: type[Self],
         config_sirocco_task: models.ConfigSiroccoTask | None,
         config_rootdir: Path,
-        action: Literal["start", "continue", "stop", "restart"],
+        action: ACTION_T,
     ) -> SiroccoTask:
         config_kwargs = dict(config_sirocco_task) if config_sirocco_task else {}
         if config_kwargs:
@@ -66,6 +71,29 @@ class SiroccoTask(models.ConfigSiroccoTaskSpecs, Task):
             case _:
                 msg = f"unsupported action {action}"
                 raise ValueError(msg)
+
+    @classmethod
+    def from_config_file(cls, action: ACTION_T, config_file_path: Path, config_rootdir: Path) -> SiroccoTask:
+        # Extract relevant config parts and build config sirocco task specs
+        config_dict: dict[str, Any] = YAML(typ="safe", pure=True).load(config_file_path)
+        config_tasks_list: list[dict[str, Any]] = config_dict["tasks"]
+        config_root_task_dict: dict[str, Any] = {}
+        config_sirocco_task_dict: dict[str, Any] = {}
+
+        for config_task in config_tasks_list:
+            match next(iter(config_task)):
+                case "ROOT":
+                    config_root_task_dict = config_task
+                case "SIROCCO":
+                    config_sirocco_task_dict = config_task
+                    config_sirocco_task_dict.update(config_root_task_dict)
+
+        # Build sirocco task
+        return cls.from_config_sirocco_task(
+            config_sirocco_task=TypeAdapter(models.ConfigSiroccoTask).validate_python(config_sirocco_task_dict),
+            config_rootdir=config_rootdir,
+            action=action,
+        )
 
 
 @dataclass(kw_only=True)
