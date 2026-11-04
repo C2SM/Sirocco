@@ -274,6 +274,7 @@ restart_in_handler = PortHandler(
     custom_callable=restart_in_handler_callable,
 )
 
+
 def restart_out_handler_callable(port_name: str, model: IconModel) -> None:
     if restart_write_mode := model.namelist["io_nml"].get("restart_write_mode") != "joint procs multifile":
         msg = f"Only supported restart_write_mode is 'joint procs multifile', got {restart_write_mode}"
