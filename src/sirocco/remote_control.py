@@ -172,6 +172,6 @@ def submit_sirocco_task(sirocco_task: SiroccoTask, scheduler: Scheduler, machine
         scheduler.generate_run_script(task=sirocco_task, stdouterr_mode="append", script_path=local_runscript_path)
         client.submit(
             system_name=machine,
-            working_directory=str(remote_config_rootdir),
+            working_dir=str(remote_config_rootdir),
             script_local_path=str(local_runscript_path),
         )
