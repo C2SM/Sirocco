@@ -1,0 +1,112 @@
+cycles:
+  - chunks [date: 2020-01-01 00:00:00+00:00]:
+      tasks:
+        - icon [date: 2020-01-01 00:00:00+00:00]:
+            plugin: 'icon'
+            computer: 'remote'
+            nodes: 1
+            procs_per_node: 4
+            sockets_per_node: 1
+            cycle_point: [2020-01-01 00:00:00+00:00 -- 2020-02-01 00:00:00+00:00]
+            components:
+              atmo:
+                inputs:
+                  aes_ghg_file:
+                    - ghg
+                  restart_in: []
+                outputs:
+                  restart_out:
+                    - atmo_restart [date: 2020-01-01 00:00:00+00:00]
+              JSBACH:
+                inputs:
+                  jsb_lctlib:
+                    - lctlib
+                outputs: {}
+              ocean:
+                inputs:
+                  hamocc_dust:
+                    - dust
+                  ocean_restart_init:
+                    - spinup_restart
+                  restart_in: []
+                outputs:
+                  restart_out:
+                    - ocean_restart [date: 2020-01-01 00:00:00+00:00]
+            exe:
+              cpu:
+                path: /TESTS_ROOTDIR/tests/cases/coupled/config/ICON/bin/icon
+                procs:
+                  atmo:
+                    compute_weight: 1
+                    prefetch: 0
+                    restart: 0
+                    streams: 0
+                  ocean:
+                    compute_weight: 1
+                    prefetch: 0
+                    restart: 0
+                    streams: 0
+              procs_per_io_node: 0
+              separate_io: False
+            yac_coupling: ICON/coupling.yaml
+            namelists:
+              - icon_master.namelist
+              - atm.nml
+              - oce.nml
+              - lnd.nml
+  - chunks [date: 2020-02-01 00:00:00+00:00]:
+      tasks:
+        - icon [date: 2020-02-01 00:00:00+00:00]:
+            plugin: 'icon'
+            computer: 'remote'
+            nodes: 1
+            procs_per_node: 4
+            sockets_per_node: 1
+            cycle_point: [2020-02-01 00:00:00+00:00 -- 2020-03-01 00:00:00+00:00]
+            components:
+              atmo:
+                inputs:
+                  aes_ghg_file:
+                    - ghg
+                  restart_in:
+                    - atmo_restart [date: 2020-01-01 00:00:00+00:00]
+                outputs:
+                  restart_out:
+                    - atmo_restart [date: 2020-02-01 00:00:00+00:00]
+              JSBACH:
+                inputs:
+                  jsb_lctlib:
+                    - lctlib
+                outputs: {}
+              ocean:
+                inputs:
+                  hamocc_dust:
+                    - dust
+                  ocean_restart_init: []
+                  restart_in:
+                    - ocean_restart [date: 2020-01-01 00:00:00+00:00]
+                outputs:
+                  restart_out:
+                    - ocean_restart [date: 2020-02-01 00:00:00+00:00]
+            exe:
+              cpu:
+                path: /TESTS_ROOTDIR/tests/cases/coupled/config/ICON/bin/icon
+                procs:
+                  atmo:
+                    compute_weight: 1
+                    prefetch: 0
+                    restart: 0
+                    streams: 0
+                  ocean:
+                    compute_weight: 1
+                    prefetch: 0
+                    restart: 0
+                    streams: 0
+              procs_per_io_node: 0
+              separate_io: False
+            yac_coupling: ICON/coupling.yaml
+            namelists:
+              - icon_master.namelist
+              - atm.nml
+              - oce.nml
+              - lnd.nml

@@ -1,0 +1,77 @@
+---
+# Coupled atmosphere/ocean/land ICON setup exercising fixed-name input ports and ocean initialization from restart
+name: coupled
+scheduler: slurm
+cycles:
+  - chunks:
+      cycling:
+        start_date: '2020-01-01T00:00'
+        stop_date: '2020-03-01T00:00'
+        period: 'P1M'
+      tasks:
+        - icon:
+            components:
+              atmo:
+                inputs:
+                  aes_ghg_file: [ghg]
+                  restart_in:
+                    - atmo_restart:
+                        when:
+                          after: '2020-01-01T00:00'
+                        target_cycle:
+                          lag: '-P1M'
+                outputs:
+                  restart_out: [atmo_restart]
+              JSBACH:
+                inputs:
+                  jsb_lctlib: [lctlib]
+              ocean:
+                inputs:
+                  hamocc_dust: [dust]
+                  ocean_restart_init:
+                    - spinup_restart:
+                        when:
+                          at: '2020-01-01T00:00'
+                  restart_in:
+                    - ocean_restart:
+                        when:
+                          after: '2020-01-01T00:00'
+                        target_cycle:
+                          lag: '-P1M'
+                outputs:
+                  restart_out: [ocean_restart]
+tasks:
+  - icon:
+      plugin: icon
+      computer: "{{ SIROCCO_COMPUTER }}"
+      yac_coupling: ICON/coupling.yaml
+      nodes: 1
+      procs_per_node: 4
+      exe:
+        cpu:
+          path: "{{ TESTS_ROOTDIR }}/tests/cases/coupled/config/ICON/bin/icon"
+          procs:
+            atmo: {}
+            ocean: {}
+      namelists:
+        - ./ICON/icon_master.namelist
+        - ./ICON/atm.nml
+        - ./ICON/oce.nml
+        - ./ICON/lnd.nml
+data:
+  available:
+    - ghg:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ TESTS_ROOTDIR }}/tests/cases/coupled/config/data/ghg"
+    - lctlib:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ TESTS_ROOTDIR }}/tests/cases/coupled/config/data/lctlib"
+    - dust:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ TESTS_ROOTDIR }}/tests/cases/coupled/config/data/dust"
+    - spinup_restart:
+        computer: "{{ SIROCCO_COMPUTER }}"
+        path: "{{ TESTS_ROOTDIR }}/tests/cases/coupled/config/data/spinup_restart"
+  generated:
+    - atmo_restart: {}
+    - ocean_restart: {}
