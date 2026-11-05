@@ -1008,6 +1008,36 @@ class ConfigWorkflow(BaseModel):
         return self
 
     @classmethod
+    def apply_template(cls, content: str, context: dict[str, Any]) -> tuple[bool, str]:
+        # Check for templating
+        env = Environment(
+            undefined=StrictUndefined,
+            trim_blocks=True,
+            lstrip_blocks=True,
+            autoescape=select_autoescape(),
+        )
+        ast = env.parse(content)
+        placeholders = meta.find_undeclared_variables(ast)
+
+        if not placeholders:
+            return False, content
+
+        # Check for undefined placeholders
+        missing_keys = {key for key in placeholders if key not in context}
+        if missing_keys:
+            msg = f"following placeholders are undefined: {missing_keys}.\nContext is {context}. Define placeholder values either in a {cls._CONFIG_VAR_FILENAME} file or in the template_context dict"
+            raise RuntimeError(msg)
+
+        # Apply templating
+        try:
+            content = env.from_string(content).render(**context)
+        except Exception as e:
+            msg = f"Failed to render Jinja2 template: {e}"
+            raise ValueError(msg) from e
+
+        return True, content
+
+    @classmethod
     def from_config_path(
         cls,
         config_path: str | Path,
@@ -1051,40 +1081,16 @@ class ConfigWorkflow(BaseModel):
             msg = f"Workflow config file at {config_file_path} is empty."
             raise ValueError(msg)
 
+        context: dict[str, Any] = {}
         if (config_var_path := config_resolved_path / cls._CONFIG_VAR_FILENAME).is_file():
             context = YAML(typ="safe", pure=True).load(config_var_path.read_text())
-        else:
-            context = {}
-
-        # Provided context overrides file-based ones
-        if template_context is not None:
+        if template_context:
             context.update(template_context)
 
-        # Check for templating
-        env = Environment(
-            undefined=StrictUndefined,
-            trim_blocks=True,
-            lstrip_blocks=True,
-            autoescape=select_autoescape(),
-        )
-        ast = env.parse(content)
-        placeholders = meta.find_undeclared_variables(ast)
+        templated, content = cls.apply_template(content=content, context=context)
 
-        if placeholders:
-            # Check for undefined placeholders
-            missing_keys = {key for key in placeholders if key not in context}
-            if missing_keys:
-                msg = f"following placeholders are undefined: {missing_keys}.\nContext is {context}. Define placeholder values either in a {config_var_path} file or in the template_context dict"
-                raise RuntimeError(msg)
-
-            # Apply templating
-            try:
-                content = env.from_string(content).render(**context)
-            except Exception as e:
-                msg = f"Failed to render Jinja2 template: {e}"
-                raise ValueError(msg) from e
-
-            # Dump resolved config to file
+        # Dump resolved config to file
+        if templated:
             (config_resolved_path / cls._CONFIG_RESOLVED_FILENAME).write_text(content)
 
         # Parse YAML and validate
