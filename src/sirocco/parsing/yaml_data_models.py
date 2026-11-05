@@ -25,7 +25,7 @@ from ruamel.yaml import YAML
 
 from sirocco.parsing._utils import validate_walltime_format
 from sirocco.parsing.cycling import Cycling, DateCycling, OneOff
-from sirocco.parsing.target_cycle import DateList, LagList, NoTargetCycle, TargetCycle
+from sirocco.parsing.target_cycle import LagList, NoTargetCycle, TargetCycle, TargetDateList
 from sirocco.parsing.when import AnyWhen, AtDate, BeforeAfterDate, When
 
 if TYPE_CHECKING:
@@ -165,7 +165,7 @@ def select_target_cycle(spec: Any) -> TargetCycle:
                 msg = "target_cycle key can only be 'lag' or 'date' and not both"
                 raise KeyError(msg)
             if "date" in spec:
-                return DateList(dates=spec["date"])
+                return TargetDateList(dates=spec["date"])
             return LagList(lags=spec["lag"])
         case _:
             raise TypeError
