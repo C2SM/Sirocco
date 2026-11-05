@@ -20,7 +20,6 @@ if TYPE_CHECKING:
 @dataclass(kw_only=True)
 class SiroccoTask(models.ConfigSiroccoTaskSpecs, Task):
     plugin: ClassVar[str] = "sirocco_base"
-    action: ClassVar[str]
     action_classes: ClassVar[dict[str, type[Self]]] = {}
     SUBMIT_FILENAME: ClassVar[str] = field(default=".sirocco_undefined.sh", repr=False)
     STDOUTERR_FILENAME: ClassVar[str] = field(default="sirocco.log", repr=False)
@@ -30,13 +29,6 @@ class SiroccoTask(models.ConfigSiroccoTaskSpecs, Task):
     name: str = "SIROCCO"
     computer: str = "dummy"
     rank: int = 0
-
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        if cls.action in SiroccoTask.action_classes:
-            msg = f"sirocco action task {cls.action} already set"
-            raise ValueError(msg)
-        SiroccoTask.action_classes[cls.action] = cls
 
     def __post_init__(self) -> None:
         self.run_dir = self.config_rootdir
@@ -55,8 +47,11 @@ class SiroccoTask(models.ConfigSiroccoTaskSpecs, Task):
         action: str,
         base_env: dict[str, str],
     ) -> SiroccoTask:
-        if (action_cls := SiroccoTask.action_classes.get(action)) is None:
-            msg = f"Sirocco action {action} not supported."
+        if (action_cls := Task.plugin_classes.get(f"sirocco_{action}")) is None:
+            msg = f"Sirocco action '{action}' not supported."
+            raise ValueError(msg)
+        if not issubclass(action_cls, SiroccoTask):
+            msg = f"factory must return an instance of s SiroccoTask subclass, got {action_cls}"
             raise ValueError(msg)
 
         config_kwargs = dict(config_sirocco_task) if config_sirocco_task else {}
@@ -103,7 +98,6 @@ class SiroccoTask(models.ConfigSiroccoTaskSpecs, Task):
 @dataclass(kw_only=True)
 class SiroccoContinueTask(SiroccoTask):
     plugin: ClassVar[str] = "sirocco_continue"
-    action: ClassVar[str] = "continue"
     SUBMIT_FILENAME: ClassVar[str] = field(default=".sirocco_continue.sh", repr=False)
 
     def __post_init__(self) -> None:
@@ -125,7 +119,6 @@ class SiroccoContinueTask(SiroccoTask):
 @dataclass(kw_only=True)
 class SiroccoStartTask(SiroccoTask):
     plugin: ClassVar[str] = "sirocco_start"
-    action: ClassVar[str] = "start"
     SUBMIT_FILENAME: ClassVar[str] = field(default=".sirocco_start.sh", repr=False)
 
     def __post_init__(self) -> None:
