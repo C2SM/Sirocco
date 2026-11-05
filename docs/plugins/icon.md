@@ -490,7 +490,6 @@ tasks:
 ``` sirocco-yaml
 tasks:
   - icon_task:
-      [...]
       exe:
         separate_io: true
         procs_per_io_node: 4
@@ -520,6 +519,26 @@ tasks:
 
     A `hiopy` section at the same level as `cpu` and `gpu` exists as a placeholder for now and will be fully implemented in `v0.2.0`.
 
+#### Resources allocation and mapping
+
+Based on the `exe` specifications, Sirocco will allocate MPI processes to master models, including potential processes dedicated to I/O. With the SLURM scheduler, MPI ranks are then mapped by blocks over the requested nodes and finally by sub-blocks over NUMA nodes. This design choice keeps close subdomains together as much as possible while also load blancing the memory requirement over the nodes.
+
+##### `separate_io`
+
+**type**: logical
+<br>
+**default**: `True`
+<br>
+**description**: Map I/O ranks to dedicated nodes, separating them from compute ranks. This can be usefull if memeory becomes a limiting factor.
+
+##### `procs_per_io_node`
+
+**type**: integer
+<br>
+**default**: 0
+<br>
+**description**: The number of MPI processes per I/O dedicated node when `sparate_io` is activated. Must be $> 0$ in that case.
+
 #### `cpu` and `gpu`
 
 **type**: mapping
@@ -538,11 +557,62 @@ tasks:
 
 ##### `procs`
 
+**type**: mapping
+<br>
+**required**
+<br>
+**description**: mapping of the master model (component) names associated to this executable to the different types of MPI processes. For single executable cases, all master models must be included while they must be split accross `cpu` and `gpu` for hybrid cases. The 4 type of MPI processes are the following with their default values:
+```sirocco-yaml
+tasks:
+  - icon_task:
+      exe:
+        cpu:
+          procs:
+            atm:
+              compute_weight: 1
+              streams: 0
+              prefetch: 0
+              restart: 0
+```
+All of them are integers. `streams`, `prefetch` and `restart` are absolute nunmers of MPI processes while `compute_weight`, as the name indicates, is a relative number. Components will get a number of compute processes by dispatching the compute resources, so excluding I/O processes, according to the specified weights. For instance, dedicating $50/100$ of the compute resources to the `atm` component, $35/100$ to `ocean` and $15/100$ to `land` would be done with
+```sirocco-yaml
+tasks:
+  - icon_task:
+      exe:
+        cpu:
+          procs:
+            atm:
+              compute_weight: 50
+            ocean:
+              compute_weight: 35
+            land:
+              compute_weight: 15
+```
+Of course the final proportions might not exactly match the specified weights as the numbers of allocated compute processes are rounded to the closest possible integer. This design enables scalable configurations where requesting more (less) nodes overall simply implies increasing (decreasing) [`nodes`](../../configuration/tasks/#nodes) and no other calculation to make the new configuration fit on the requested resources.
+
+
 ##### `compute_procs_per_node`
 
+**type**: integer
+<br>
+**required** (mostly)
+<br>
+**description**: Number of MPI compute processes per node, so excluding I/O processes. It is required for `gpu` executables. For `cpu`, it has to be provided when [`separate_io`](#separate_io) is activated, otherwise it is ignored and [`procs_per_node`](../../configuration/tasks/#procs_per_node) gets required. Make sure, in that case, that `procs_per_node` includes all MPI processes: `gpu` and `cpu`, compute and I/O.
+
 ##### `icon4py_venv`
+**type**: str
+<br>
+**optional**
+<br>
+**description**: Path to the [icon4py :lucide-external-link:](https://github.com/C2SM/icon4py) virtual environment. If provided, it will be exported as `ICON4PY_VENV` in the submitted runscript so that subsequent [`runtime`](#runtime) can make use of it.
 
 ##### `gt4py_build_cache_dir`
+
+**type**: str
+<br>
+**optional**
+<br>
+**description**: Path to the [gt4py :lucide-external-link:](https://github.com/GridTools/gt4py) build cache dir. It is used at runtime by the submitted ICON task so that relative paths are resolved from the task run directory. Given how Sirocco organizes task run directories (TODO: missing link), specifying `..` can be useful as all icon tasks would point to the same path, avoiding cache filling by each of them.
 
 ### `runtime`
 
