@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 # reasons (submission) even though it's not allowed to be part of the graph
 @dataclass(kw_only=True)
 class SiroccoTask(models.ConfigSiroccoTaskSpecs, Task):
-    plugin: ClassVar[str] = "sirocco_undefined"
+    plugin: ClassVar[str] = "sirocco"
     action: ClassVar[str]
     action_classes: ClassVar[dict[str, type[Self]]] = {}
     SUBMIT_FILENAME: ClassVar[str] = field(default=".sirocco_undefined.sh", repr=False)
@@ -89,7 +89,7 @@ class SiroccoTask(models.ConfigSiroccoTaskSpecs, Task):
         config_sirocco_task_dict.update(config_root_task_spec)
         config_sirocco_task_dict.update(config_sirocco_task_spec)
 
-        # TODO: appy templating
+        # TODO: apply templating
 
         # Build sirocco task
         return cls.from_config_sirocco_task(
@@ -102,7 +102,6 @@ class SiroccoTask(models.ConfigSiroccoTaskSpecs, Task):
 
 @dataclass(kw_only=True)
 class SiroccoContinueTask(SiroccoTask):
-    plugin: ClassVar[str] = "sirocco_continue"
     action: ClassVar[str] = "continue"
     SUBMIT_FILENAME: ClassVar[str] = field(default=".sirocco_continue.sh", repr=False)
 
@@ -124,7 +123,6 @@ class SiroccoContinueTask(SiroccoTask):
 
 @dataclass(kw_only=True)
 class SiroccoStartTask(SiroccoTask):
-    plugin: ClassVar[str] = "sirocco_start"
     action: ClassVar[str] = "start"
     SUBMIT_FILENAME: ClassVar[str] = field(default=".sirocco_start.sh", repr=False)
 
