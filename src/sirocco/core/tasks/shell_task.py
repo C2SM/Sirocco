@@ -28,13 +28,12 @@ class ShellTask(models.ConfigShellTaskSpecs, Task):
         if not isinstance(config, models.ConfigShellTask):
             raise TypeError
 
-        self = cls(
+        return cls(
             config_rootdir=config_rootdir,
             cycle_point=cycle_point,
             **kwargs,
             **config_kwargs,
         )
-        return self
 
     def __post_init__(self) -> None:
         super().__post_init__()
