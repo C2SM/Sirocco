@@ -96,7 +96,7 @@ class SiroccoTask(models.ConfigSiroccoTaskSpecs, Task):
             config_sirocco_task=TypeAdapter(models.ConfigSiroccoTask).validate_python(config_sirocco_task_dict),
             config_rootdir=config_rootdir,
             action=action,
-            base_env = {},
+            base_env={},
         )
 
 
