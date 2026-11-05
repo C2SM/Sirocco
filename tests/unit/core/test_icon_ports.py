@@ -6,13 +6,14 @@ from pathlib import Path
 import pytest
 
 from sirocco.core import Workflow
+from sirocco.core.tasks.icon_task import IconTask
 from sirocco.core.tasks.icon_task.ports import PortHandler
 
 
 @pytest.fixture
 def coupled_tasks(config_paths):
     wf = Workflow.from_config_path(config_paths["dir"], template_context=config_paths["variables"])
-    tasks = list(wf.tasks)
+    tasks = [task for task in wf.tasks if isinstance(task, IconTask)]
     for task in tasks:
         task.resolve_output_data_paths()
         task.run_dir.mkdir(parents=True)
