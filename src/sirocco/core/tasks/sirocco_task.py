@@ -56,7 +56,7 @@ class SiroccoTask(models.ConfigSiroccoTaskSpecs, Task):
 
     @classmethod
     def from_config_sirocco_task(
-        cls: type[Self],
+        cls,
         config_sirocco_task: models.ConfigSiroccoTask | None,
         config_rootdir: Path,
         action: str,
