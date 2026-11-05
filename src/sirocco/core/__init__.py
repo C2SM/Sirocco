@@ -27,6 +27,7 @@ __all__ = [
     "Scheduler",
     "ShellTask",
     "SiroccoContinueTask",
+    "SiroccoStartTask",
     "SiroccoTask",
     "Task",
     "TaskComponent",
