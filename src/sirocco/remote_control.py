@@ -88,7 +88,7 @@ def download_config_from_remote(machine: str, remote_config_dir: str, local_targ
 
     # Stop if the lock file exists in the run directory on the remote machine
     if SiroccoContinueTask.LOCK_FILE_NAME in remote_run_dir_content_names:
-        raise RuntimeError(f"a process is still running the Sirocco workflow! Cannot download config directory: {remote_config_dir}.")
+        raise RuntimeError(f"a process is currently handling the Sirocco workflow, cannot download config directory: {remote_config_dir}. Please retry later.")
 
     sirocco_config_str = client.view(machine, str(PurePosixPath(remote_config_dir, ConfigWorkflow._CONFIG_FILENAME)))
     sirocco_config = YAML(typ="safe", pure=True).load(sirocco_config_str)
