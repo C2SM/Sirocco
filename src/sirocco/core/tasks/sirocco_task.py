@@ -89,16 +89,19 @@ class SiroccoTask(models.ConfigSiroccoTaskSpecs, Task):
         action: str,
         config_file_path: Path,
         config_rootdir: Path,
-        template_context: dict[str, Any] | None = None,
+        template_file_path: Path | None = None,
         **kwargs,
     ) -> SiroccoTask:
+        yaml_handler = YAML(typ="safe", pure=True)
+
         # apply templating
         _, content = models.ConfigWorkflow.apply_template(
-            content=config_file_path.read_text(), context=template_context if template_context else {}
+            content=config_file_path.read_text(),
+            context=yaml_handler.load(template_file_path.read_text()) if template_file_path is not None else {},
         )
 
         # Extract relevant config parts and build config sirocco task specs
-        config_dict: dict[str, Any] = YAML(typ="safe", pure=True).load(content)
+        config_dict: dict[str, Any] = yaml_handler.load(content)
         config_tasks_list: list[dict[str, dict[str, Any]]] = config_dict["tasks"]
         config_root_task_spec: dict[str, Any] = {}
         config_sirocco_task_spec: dict[str, Any] = {}
