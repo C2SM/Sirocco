@@ -1083,7 +1083,7 @@ class ConfigWorkflow(BaseModel):
 
         context: dict[str, Any] = {}
         if (config_var_path := config_resolved_path / cls._CONFIG_VAR_FILENAME).is_file():
-            context: dict[str, Any] = YAML(typ="safe", pure=True).load(config_var_path.read_text())
+            context = YAML(typ="safe", pure=True).load(config_var_path.read_text())
         if template_context:
             context.update(template_context)
 
