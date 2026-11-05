@@ -251,8 +251,9 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
             self.master_models[model_name].num_io_procs = exe.procs[model_name].streams
             self.master_models[model_name].num_prefetch_proc = exe.procs[model_name].prefetch
             self.master_models[model_name].num_restart_procs = exe.procs[model_name].restart
+            min_rank = max_rank + 1
 
-        return max_rank + 1
+        return min_rank
 
     def update_icon_namelists_from_workflow(self) -> None:
         cycle_point = self.check_dates()
