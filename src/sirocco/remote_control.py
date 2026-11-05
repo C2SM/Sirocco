@@ -16,7 +16,7 @@ from firecrest.v2 import Firecrest
 from pydantic import BaseModel, ConfigDict, SecretStr
 from ruamel.yaml import YAML
 
-from sirocco.core import Scheduler, SiroccoContinueTask, SiroccoTask, Task
+from sirocco.core import Scheduler, SiroccoContinueTask, SiroccoStartTask, SiroccoTask, Task
 from sirocco.parsing import ConfigWorkflow
 
 LOGGER = logging.getLogger(__name__)
@@ -119,9 +119,10 @@ class LocalConfig(BaseModel):
 GENERATED_CONFIG_DIR_ITEMS = (
     Task.RUN_ROOT,
     ConfigWorkflow._CONFIG_RESOLVED_FILENAME,
-    SiroccoContinueTask.STDOUTERR_FILENAME,
-    SiroccoContinueTask.SUBMIT_FILENAME,
+    SiroccoTask.STDOUTERR_FILENAME,
     SiroccoTask.LOCK_FILE_NAME,
+    SiroccoContinueTask.SUBMIT_FILENAME,
+    SiroccoStartTask.SUBMIT_FILENAME,
 )
 PUSH_ARCHIVE_NAME = ".sirocco_push.tar.gz"
 
