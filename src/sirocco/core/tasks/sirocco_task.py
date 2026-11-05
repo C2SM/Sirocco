@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 # reasons (submission) even though it's not allowed to be part of the graph
 @dataclass(kw_only=True)
 class SiroccoTask(models.ConfigSiroccoTaskSpecs, Task):
-    plugin: ClassVar[str] = "sirocco"
+    plugin: ClassVar[str] = "sirocco_base"
     action: ClassVar[str]
     action_classes: ClassVar[dict[str, type[Self]]] = {}
     SUBMIT_FILENAME: ClassVar[str] = field(default=".sirocco_undefined.sh", repr=False)
@@ -102,6 +102,7 @@ class SiroccoTask(models.ConfigSiroccoTaskSpecs, Task):
 
 @dataclass(kw_only=True)
 class SiroccoContinueTask(SiroccoTask):
+    plugin: ClassVar[str] = "sirocco_continue"
     action: ClassVar[str] = "continue"
     SUBMIT_FILENAME: ClassVar[str] = field(default=".sirocco_continue.sh", repr=False)
 
@@ -123,6 +124,7 @@ class SiroccoContinueTask(SiroccoTask):
 
 @dataclass(kw_only=True)
 class SiroccoStartTask(SiroccoTask):
+    plugin: ClassVar[str] = "sirocco_start"
     action: ClassVar[str] = "start"
     SUBMIT_FILENAME: ClassVar[str] = field(default=".sirocco_start.sh", repr=False)
 

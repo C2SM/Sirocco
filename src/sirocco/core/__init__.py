@@ -10,7 +10,7 @@ from .graph_items import (
 )
 from .namelistfile import NamelistFile
 from .scheduler import Scheduler
-from .tasks import IconTask, ShellTask, SiroccoContinueTask, SiroccoTask
+from .tasks import IconTask, ShellTask, SiroccoContinueTask, SiroccoStartTask, SiroccoTask
 from .tasks.icon_task.models import IconModel
 from .workflow import Workflow
 
