@@ -62,7 +62,7 @@ def upload_config_to_remote(machine: str, local_config_dir: Path | str, remote_t
         archive_name = Path(local_config_dir).name + ".tar.gz"
         local_archive_path = Path(tmp_dir, archive_name)
 
-        pack_local_config_dir(local_config_dir, local_archive_path)
+        pack_local_dir(local_config_dir, local_archive_path, exclude=GENERATED_CONFIG_DIR_ITEMS)
 
         client.upload(machine, local_archive_path, remote_target_path, archive_name)
 
@@ -116,7 +116,7 @@ def download_config_from_remote(machine: str, remote_config_dir: str, local_targ
                 finally:
                     client.rm(machine, remote_archive_path)
 
-                unpack_local_config_dir(local_archive_path, local_target_path)
+                unpack_local_archive(local_archive_path, local_target_path)
             else:
                 local_file = Path(local_target_path, PurePosixPath(element_path).name)
                 client.download(machine, element_path, local_file, account)
@@ -148,16 +148,16 @@ def create_firecrest_client(machine: str) -> Firecrest:
     return Firecrest(firecrest_url=machine_config.firecrest_url, authorization=client_credentials)
 
 
-def pack_local_config_dir(local_config_dir: Path | str, local_archive_path: Path | str) -> None:
+def pack_local_dir(local_config_dir: Path | str, local_archive_path: Path | str, exclude: Container[str] = ()) -> None:
     """Pack a local config directory into a gzip compressed tar archive, excluding generated items"""
 
     with tarfile.open(local_archive_path, "w:gz") as archive:
         for item in Path(local_config_dir).iterdir():
-            if item.name not in GENERATED_CONFIG_DIR_ITEMS:
+            if item.name not in exclude:
                 archive.add(item, arcname=item.name)
 
 
-def unpack_local_config_dir(local_archive_path: Path | str, local_config_dir: Path | str) -> None:
+def unpack_local_archive(local_archive_path: Path | str, local_config_dir: Path | str) -> None:
     """Unpack a gzip compressed tar archive of a local config directory into local_config_dir"""
 
     with tarfile.open(local_archive_path, "r:gz") as archive:
