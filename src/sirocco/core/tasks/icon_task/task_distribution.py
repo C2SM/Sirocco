@@ -87,7 +87,7 @@ def distribute_procs_load_balanced(
             for numa_inc, numa_procs_block_size in iter_procs_by_blocks(
                 n_procs=node_procs_block_size, n_blocks=n_sockets
             ):
-                numa = start_numa[node] + numa_inc % n_sockets
+                numa = (start_numa[node] + numa_inc) % n_sockets
                 for rank in range(min_block_rank, min_block_rank + numa_procs_block_size):
                     ranks_info[rank]["node_id"] = node
                     ranks_info[rank]["numa_node"] = numa
