@@ -74,7 +74,7 @@ class SiroccoTask(models.ConfigSiroccoTaskSpecs, Task):
     @classmethod
     def from_config_file(cls, action: str, config_file_path: Path, config_rootdir: Path) -> SiroccoTask:
         # Extract relevant config parts and build config sirocco task specs
-        config_dict: dict[str, Any] = YAML(typ="safe", pure=True).load(config_file_path)
+        config_dict: dict[str, Any] = YAML(typ="safe", pure=True).load(config_file_path.read_text())
         config_tasks_list: list[dict[str, dict[str, Any]]] = config_dict["tasks"]
         config_root_task_spec: dict[str, Any] = {}
         config_sirocco_task_spec: dict[str, Any] = {}
