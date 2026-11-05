@@ -62,6 +62,8 @@ def log_console(wf: core.Workflow) -> Console:
 
 
 # --- Typer App and Rich Console Setup ---
+
+
 # Print tracebacks with syntax highlighting and rich formatting
 install_rich_traceback(show_locals=False)
 
