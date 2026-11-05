@@ -190,6 +190,7 @@ serve = [
 
 [tool.hatch.envs.types]
 python = "3.12"
+features = ["aiida"]  # install aiida extra dependencies
 extra-dependencies = [
   "mypy>=1.0.0",
   "pytest",
@@ -205,7 +206,7 @@ extra-dependencies = [
 ]
 
 [tool.hatch.envs.types.scripts]
-check = "mypy --exclude 'tests/cases/*' --no-incremental {args:.}"
+check = "mypy --exclude 'tests/cases/*' --exclude 'docs/assets/example_config' --exclude 'docs/tools' --no-incremental {args:.}"
 ty-check = "ty check --exclude 'tests/cases/*' --python-version 3.12"
 
 [tool.mypy]
