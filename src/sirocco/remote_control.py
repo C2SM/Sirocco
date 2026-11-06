@@ -48,6 +48,21 @@ def split_config_dir(config_dir: Path | str) -> tuple[str | None, str]:
     return m.group("machine"), m.group("path")
 
 
+def create_firecrest_client(machine: str) -> Firecrest:
+    """Create a Firecrest client from the local config element of the given machine"""
+
+    local_config = LocalConfig.from_file()
+    machine_config = local_config.remote(machine)
+
+    client_credentials = ClientCredentialsAuth(
+        machine_config.consumer_key,
+        machine_config.consumer_secret.get_secret_value(),
+        machine_config.token_uri
+    )
+
+    return Firecrest(firecrest_url=machine_config.firecrest_url, authorization=client_credentials)
+
+
 def upload_config_to_remote(machine: str, local_config_dir: Path | str, remote_target_path: str) -> None:
     """Upload a local config directory to a remote machine, excluding generated items"""
     # TODO: apply templating.
@@ -57,6 +72,40 @@ def upload_config_to_remote(machine: str, local_config_dir: Path | str, remote_t
     account = _get_project_account(sirocco_config, str(sirocco_config_path))
 
     upload_dir_to_remote(machine, local_config_dir, remote_target_path, exclude=GENERATED_CONFIG_DIR_ITEMS, account=account)
+
+
+def download_config_from_remote(machine: str, remote_config_dir: str, local_target_path: Path | str) -> None:
+    """Download a remote config directory (and run state) to the local machine"""
+
+    client = create_firecrest_client(machine)
+
+    remote_run_dir = str(PurePosixPath(remote_config_dir, Task.RUN_ROOT))
+    remote_run_dir_content = client.list_files(machine, remote_run_dir, show_hidden=True)
+    remote_run_dir_content_names = [element["name"] for element in remote_run_dir_content]
+
+    # Stop if the lock file exists in the run directory on the remote machine
+    if SiroccoContinueTask.LOCK_FILE_NAME in remote_run_dir_content_names:
+        raise RuntimeError(f"a process is currently handling the Sirocco workflow, cannot download config directory: {remote_config_dir}. Please retry later.")
+
+    sirocco_config_path = str(PurePosixPath(remote_config_dir, ConfigWorkflow._CONFIG_FILENAME))
+    sirocco_config_str = client.view(machine, sirocco_config_path)
+    sirocco_config = YAML(typ="safe", pure=True).load(sirocco_config_str)
+
+    account = _get_project_account(sirocco_config, f"{machine}:{sirocco_config_path}")
+
+    download_dir_from_remote(machine, remote_config_dir, local_target_path, exclude=(Task.RUN_ROOT,), account=account, client=client)
+
+    remote_state_file = str(PurePosixPath(remote_run_dir, Workflow.STATE_FILE_NAME))
+    if Workflow.STATE_FILE_NAME in remote_run_dir_content_names:
+        local_run_dir = Path(local_target_path, PurePosixPath(remote_config_dir).name, Task.RUN_ROOT)
+        local_run_dir.mkdir(exist_ok=True)
+
+        local_state_file = Path(local_run_dir, Workflow.STATE_FILE_NAME)
+
+        client.download(machine, remote_state_file, local_state_file, account=account)
+    else:
+        msg = f"state file not found on remote machine ({machine}): {remote_state_file}."
+        LOGGER.warning(msg)
 
 
 def upload_dir_to_remote( 
@@ -94,63 +143,6 @@ def upload_dir_to_remote(
             client.extract(machine, remote_archive_path, remote_target_path, compression="gzip", account=account)
         finally:
             client.rm(machine, remote_archive_path)
-
-
-def pack_local_dir(local_dir: Path | str, local_archive_path: Path | str, exclude: Collection[str] = ()) -> None:
-    """Pack a local config directory into a gzip compressed tar archive"""
-
-    with tarfile.open(local_archive_path, "w:gz") as archive:
-        for item in Path(local_dir).iterdir():
-            if item.name not in exclude:
-                archive.add(item, arcname=str(PurePosixPath(Path(local_dir).name, item.name)))
-
-
-def _get_project_account(sirocco_config: dict, sirocco_config_location: str) -> str:
-    """Get the project account from tasks.SIROCCO, falling back to tasks.ROOT"""
-
-    account = sirocco_config["tasks"]["SIROCCO"].get("account")
-    if account is None:
-        msg = f"project account is not set in {sirocco_config_location} (neither in tasks.SIROCCO nor tasks.ROOT)."
-        if (root_config := sirocco_config["tasks"].get("ROOT")) is None:
-            raise ValueError(msg)
-        if (account := root_config.get("account")) is None:
-            raise ValueError(msg)
-
-    return account
-
-
-def download_config_from_remote(machine: str, remote_config_dir: str, local_target_path: Path | str) -> None:
-    """Download a remote config directory (and run state) to the local machine"""
-
-    client = create_firecrest_client(machine)
-
-    remote_run_dir = str(PurePosixPath(remote_config_dir, Task.RUN_ROOT))
-    remote_run_dir_content = client.list_files(machine, remote_run_dir, show_hidden=True)
-    remote_run_dir_content_names = [element["name"] for element in remote_run_dir_content]
-
-    # Stop if the lock file exists in the run directory on the remote machine
-    if SiroccoContinueTask.LOCK_FILE_NAME in remote_run_dir_content_names:
-        raise RuntimeError(f"a process is currently handling the Sirocco workflow, cannot download config directory: {remote_config_dir}. Please retry later.")
-
-    sirocco_config_path = str(PurePosixPath(remote_config_dir, ConfigWorkflow._CONFIG_FILENAME))
-    sirocco_config_str = client.view(machine, sirocco_config_path)
-    sirocco_config = YAML(typ="safe", pure=True).load(sirocco_config_str)
-
-    account = _get_project_account(sirocco_config, f"{machine}:{sirocco_config_path}")
-
-    download_dir_from_remote(machine, remote_config_dir, local_target_path, exclude=(Task.RUN_ROOT,), account=account, client=client)
-
-    remote_state_file = str(PurePosixPath(remote_run_dir, Workflow.STATE_FILE_NAME))
-    if Workflow.STATE_FILE_NAME in remote_run_dir_content_names:
-        local_run_dir = Path(local_target_path, PurePosixPath(remote_config_dir).name, Task.RUN_ROOT)
-        local_run_dir.mkdir(exist_ok=True)
-
-        local_state_file = Path(local_run_dir, Workflow.STATE_FILE_NAME)
-
-        client.download(machine, remote_state_file, local_state_file, account=account)
-    else:
-        msg = f"state file not found on remote machine ({machine}): {remote_state_file}."
-        LOGGER.warning(msg)
 
 
 def download_dir_from_remote(
@@ -213,6 +205,29 @@ def _download_full_dir_from_remote(
     unpack_local_archive(local_archive_path, local_target_path)
 
 
+def _get_project_account(sirocco_config: dict, sirocco_config_location: str) -> str:
+    """Get the project account from tasks.SIROCCO, falling back to tasks.ROOT"""
+
+    account = sirocco_config["tasks"]["SIROCCO"].get("account")
+    if account is None:
+        msg = f"project account is not set in {sirocco_config_location} (neither in tasks.SIROCCO nor tasks.ROOT)."
+        if (root_config := sirocco_config["tasks"].get("ROOT")) is None:
+            raise ValueError(msg)
+        if (account := root_config.get("account")) is None:
+            raise ValueError(msg)
+
+    return account
+
+
+def pack_local_dir(local_dir: Path | str, local_archive_path: Path | str, exclude: Collection[str] = ()) -> None:
+    """Pack a local config directory into a gzip compressed tar archive"""
+
+    with tarfile.open(local_archive_path, "w:gz") as archive:
+        for item in Path(local_dir).iterdir():
+            if item.name not in exclude:
+                archive.add(item, arcname=str(PurePosixPath(Path(local_dir).name, item.name)))
+
+
 def unpack_local_archive(local_archive_path: Path | str, local_target_path: Path | str) -> None:
     """Unpack a gzip compressed tar archive of a local config directory into local_target_path"""
 
@@ -220,21 +235,6 @@ def unpack_local_archive(local_archive_path: Path | str, local_target_path: Path
         # NOTE: the "tar" filter refuses members outside local_target_path but keeps symlinks to absolute paths,
         #       which config dirs may contain
         archive.extractall(local_target_path, filter="tar") # TODO: check that this actually unpacks in a new local_target_path/config_dir (it depends how Firecrest compress works)
-
-
-def create_firecrest_client(machine: str) -> Firecrest:
-    """Create a Firecrest client from the local config element of the given machine"""
-
-    local_config = LocalConfig.from_file()
-    machine_config = local_config.remote(machine)
-
-    client_credentials = ClientCredentialsAuth(
-        machine_config.consumer_key,
-        machine_config.consumer_secret.get_secret_value(),
-        machine_config.token_uri
-    )
-
-    return Firecrest(firecrest_url=machine_config.firecrest_url, authorization=client_credentials)
 
 
 class ConfigFirecrestRemote(BaseModel):
