@@ -25,7 +25,6 @@ def test_shell_filenames_nodes_arguments(config_paths):
     from sirocco import core
 
     config_workflow = ConfigWorkflow.from_config_path(config_paths["dir"], template_context=config_paths["variables"])
-    print(config_paths["variables"])
 
     # Update the stop_date for both cycles to make the result shorter
     config_workflow.cycles[0].cycling.stop_date = datetime(2027, 1, 1, 0, 0, tzinfo=UTC)

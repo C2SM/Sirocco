@@ -46,7 +46,7 @@ jobs:
         ssh -o StrictHostKeyChecking=no localhost 'echo "SSH connection successful"'
     - name: Install package
       run: |
-        pip install .
+        pip install ".[aiida]"
         verdi presto
     - name: Run test suite
       env:
