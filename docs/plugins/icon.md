@@ -521,15 +521,15 @@ tasks:
 
 #### Resources allocation and mapping
 
-Based on the `exe` specifications, Sirocco will allocate MPI processes to master models, including potential processes dedicated to I/O. With the SLURM scheduler, MPI ranks are then mapped by blocks over the requested nodes and finally by sub-blocks over NUMA nodes. This design choice keeps close subdomains together as much as possible while also load blancing the memory requirement over the nodes.
+Based on the `exe` specifications, Sirocco will allocate MPI processes to master models, including potential processes dedicated to I/O. With the SLURM scheduler, MPI ranks are then mapped by blocks over the requested nodes and finally by sub-blocks over NUMA nodes. This design choice keeps close subdomains together as much as possible while also load balancing the memory requirement over the nodes.
 
 ##### `separate_io`
 
 **type**: logical
 <br>
-**default**: `True`
+**default**: `False`
 <br>
-**description**: Map I/O ranks to dedicated nodes, separating them from compute ranks. This can be usefull if memeory becomes a limiting factor.
+**description**: Map I/O ranks to dedicated nodes, separating them from compute ranks. This can be useful if memory becomes a limiting factor.
 
 ##### `procs_per_io_node`
 
@@ -545,7 +545,7 @@ Based on the `exe` specifications, Sirocco will allocate MPI processes to master
 <br>
 **required**: at least one of them
 <br>
-**description**: Description of the ICON executable and assocaited MPI processes. At least one of the `cpu` or `gpu` executable must be set but hybrid runs with both are also supported. For each of them, the following can or must be set.
+**description**: Description of the ICON executable and associated MPI processes. At least one of the `cpu` or `gpu` executable must be set but hybrid runs with both are also supported. For each of them, the following can or must be set.
 
 ##### `path`
 
@@ -574,7 +574,7 @@ tasks:
               prefetch: 0
               restart: 0
 ```
-All of them are integers. `streams`, `prefetch` and `restart` are absolute nunmers of MPI processes while `compute_weight`, as the name indicates, is a relative number. Components will get a number of compute processes by dispatching the compute resources, so excluding I/O processes, according to the specified weights. For instance, dedicating $50/100$ of the compute resources to the `atm` component, $35/100$ to `ocean` and $15/100$ to `land` would be done with
+All of them are integers. `streams`, `prefetch` and `restart` are absolute nunmbers of MPI processes while `compute_weight`, as the name indicates, is a relative number. Components will get a number of compute processes by dispatching the compute resources, so excluding I/O processes, according to the specified weights. For instance, dedicating $50/100$ of the compute resources to the `atm` component, $35/100$ to `ocean` and $15/100$ to `land` would be done with
 ```sirocco-yaml
 tasks:
   - icon_task:
