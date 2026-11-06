@@ -108,9 +108,11 @@ def _get_project_account(sirocco_config: dict, sirocco_config_location: str) -> 
 
     account = sirocco_config["tasks"]["SIROCCO"].get("account")
     if account is None:
-        account = sirocco_config["tasks"]["ROOT"].get("account")
-        if account is None:
-            raise ValueError(f"project account is not set in {sirocco_config_location} (neither in tasks.SIROCCO nor tasks.ROOT).")
+        msg = f"project account is not set in {sirocco_config_location} (neither in tasks.SIROCCO nor tasks.ROOT)."
+        if (root_config := sirocco_config["tasks"].get("ROOT")) is None:
+            raise ValueError(msg)
+        if (account := root_config.get("account")) is None:
+            raise ValueError(msg)
 
     return account
 
