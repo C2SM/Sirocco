@@ -50,7 +50,7 @@ def split_config_dir(config_dir: Path | str) -> tuple[str | None, str]:
 
 def upload_config_to_remote(machine: str, local_config_dir: Path | str, remote_target_path: str) -> None:
     """Upload a local config directory to a remote machine, excluding generated items"""
-TODO: apply templating.
+    # TODO: apply templating.
     sirocco_config_path = Path(local_config_dir, ConfigWorkflow._CONFIG_FILENAME)
     sirocco_config = YAML(typ="safe", pure=True).load(sirocco_config_path)
 
