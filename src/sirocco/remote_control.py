@@ -74,9 +74,11 @@ def upload_dir_to_remote(
 
     try:
         if not (client.file_type(machine, remote_target_path) == "directory"):
-            raise NotADirectoryError(f"target path for upload is not a directory: {remote_target_path}.")
+            msg = f"target path for upload is not a directory: {remote_target_path}."
+            raise NotADirectoryError(msg)
     except UnexpectedStatusException as error:
-        raise FileNotFoundError(f"target path for upload not found on remote machine ({machine}): {remote_target_path}.") from error
+        msg = f"target path for upload not found on remote machine ({machine}): {remote_target_path}."
+        raise FileNotFoundError(msg) from error
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         archive_name = Path(local_dir).name + ".tar.gz"
@@ -147,7 +149,8 @@ def download_config_from_remote(machine: str, remote_config_dir: str, local_targ
 
         client.download(machine, remote_state_file, local_state_file, account=account)
     else:
-        LOGGER.warning(f"state file not found on remote machine ({machine}): {remote_state_file}.")
+        msg = f"state file not found on remote machine ({machine}): {remote_state_file}."
+        LOGGER.warning(msg)
 
 
 def download_dir_from_remote(
@@ -164,7 +167,8 @@ def download_dir_from_remote(
         client = create_firecrest_client(machine)
 
     if not Path(local_target_path).is_dir():
-        raise NotADirectoryError(f"target path for download is not a directory: {str(local_target_path)}.")
+        msg = f"target path for download is not a directory: {str(local_target_path)}."
+        raise NotADirectoryError(msg)
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         if len(exclude) == 0:
@@ -301,15 +305,18 @@ class LocalConfig(BaseModel):
         config_file_path = cls.default_path()
 
         if not config_file_path.is_file():
-            raise FileNotFoundError(f"local config file {config_file_path} not found")
+            msg = f"local config file {config_file_path} not found"
+            raise FileNotFoundError(msg)
 
         if config_file_path.stat().st_mode & (stat.S_IRWXG | stat.S_IRWXO):
-            LOGGER.warning(f"local config file {config_file_path} contains secrets but is accessible by other users, consider `chmod 600 {config_file_path}`")
+            msg = f"local config file {config_file_path} contains secrets but is accessible by other users, consider `chmod 600 {config_file_path}`"
+            LOGGER.warning(msg)
 
         return cls.model_validate(YAML(typ="safe", pure=True).load(config_file_path) or {})
 
     def remote(self, machine: str) -> ConfigFirecrestRemote:
         if machine not in self.remote_control:
-            raise ValueError(f"machine {machine} not found in local config, available machines: {list(self.remote_control)}")
+            msg = f"machine {machine} not found in local config, available machines: {list(self.remote_control)}"
+            raise ValueError(msg)
 
         return self.remote_control[machine]
