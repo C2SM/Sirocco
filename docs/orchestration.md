@@ -37,7 +37,7 @@ When the Sirocco continuation task kicks in, it
 
 ### Experiment folder hierarchy
 
-The standalone engine executes workflows _inside their [configuration directory](configurations)_ so that "experiment root directory" is also used to designate the root of a running workflow which technically also remains the "configuration root directory". Starting the execution, Sirocco creates a `run` directory at the experiment root directory and each task will run inside its own run directory at `run/task_rundir_name`, where `task_rundir_name` is a unique name looking like this:
+The standalone engine executes workflows _inside their [configuration directory](configurations)_ so that "workflow root directory" is also used to designate the root of a running workflow which technically also remains the "configuration root directory". Starting the execution, Sirocco creates a `run` directory at the experiment root directory and each task will run inside its own run directory at `run/task_rundir_name`, where `task_rundir_name` is a unique name looking like this:
 ```shell
 <task_name>__<coordinate1_name>_<coordinate1_value>__<coordinate2_name>_<coordinate2_value>__[...]
 ```
