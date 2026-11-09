@@ -2,7 +2,7 @@
 # site_url = "https://iacweb.ethz.ch/staff/leclairm/sirocco"
 site_url = "https://sirocco.ethz.ch"
 repo_name = "C2SM/sirocco"
-repo_url = "github.com/C2SM/Sirocco"
+repo_url = "https://github.com/C2SM/Sirocco"
 
 site_name = "Sirocco"
 site_description = "A worflow tool for climate and weather aplications"
