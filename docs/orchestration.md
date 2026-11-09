@@ -4,11 +4,39 @@ Sirocco workflows can be orchestrated by two engines. A **standalone** one runni
 
 ## The deep propagating submitted task front
 
-Both orchestrators implement the concept of deep propagating task front. Taking advantage of the deterministic nature of climate and weather workflows, it enables ahead of time task submission. Using rather grandiose language, one could qualify this front as a **deep**, **propagating** set of **dynamical topological generations**. To further explain what this concept is, we will consider the [directed acyclic graph (DAG) :lucide-external-link:](https://en.wikipedia.org/wiki/Directed_acyclic_graph) constituted by task nodes only, removing data nodes from the [full workflow graph](configuration/cycles/#cycles). 
+Both orchestrators implement the concept of deep propagating task front. Taking advantage of the deterministic nature of climate and weather workflows, it enables ahead of time task submission. Using rather grandiose language, one could qualify this front as a **deep**, **propagating** set of **dynamical topological generations**. To further explain what this concept is, we will consider the [directed acyclic graph (DAG) :lucide-external-link:](https://en.wikipedia.org/wiki/Directed_acyclic_graph) constituted by task nodes only, removing data nodes from the [full workflow graph](configuration/cycles/#cycles). Edges between nodes thus become task dependencies, either derived from input/output relationships are direct [_wait on_](configurations/cycles/#wait_on) dependencies.
 
-- [**topological generations** :lucide-external-link:](https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.dag.topological_generations.html) partition a DAG into sequential levels (the "generations") based on their dependency depth. In this structure, nodes in generation 0 have no incoming dependencies. Nodes in generation 1 depend only on nodes from generation 0, and more generally, any node in generation n only has incoming edges from nodes in generations strictly less than n (0 to n-1).
-- **deep front**. Topological generations partition the whole graph into generations. Our front has a finite depth corresponding to the number of generations of submitted tasks taken into account. A depth of 1 would correspond to solely currently running tasks without ahead of time submission. A depth of 2 implies one generation submitted ahead of time, etc ...
-- **propagating dynamical generations**. A the beginning of the workflow execution, the front will coincide with the first global topological generations. As the workflow progresses, tasks are terminating and new ones are getting submitted. Generations are updated dynamically, so that they do not necessarily coincide anymore with global topological generations. Think about a DAG where a branch advances faster than others. The front will be distorted and dynamical generations will contain tasks that with different global ranks: higher ranks for tasks of the branch, lower for others.
-
+- [**topological generations** :lucide-external-link:](https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.dag.topological_generations.html) partition a DAG into sequential levels, the so-called "generations", based on their dependency depth. In this structure, nodes in generation 0 have no parents. Parents of nodes in generation 1 are only from generation 0, and more generally, parents of a node in generation $R$ are only from generations $<R$. We call $R$ the _global rank_.
+- **deep front**. Topological generations partition the _whole_ graph into generations. Our front has a _finite depth_, $d$, corresponding to the number of generations of submitted tasks taken into account. A depth of 1 would correspond to only tonging tasks without ahead of time submission. A depth of 2 implies 1 generation submitted ahead of time, etc... In order to keep track of the propagating front, tasks are attributed a _local rank_ $r$ ranging from $0$ (ongoing tasks) to $d-1$ (last generation submitted ahead of time) within the front, $r=-1$ for completed tasks and $r=d$ for not yet submitted tasks.
+- **propagating dynamical generations**. At the beginning of the workflow execution, the front will coincide with the first $d$ global topological generations, i.e. all tasks in a front generation share the same global rank $R$. As the workflow progresses, some tasks are terminating, exiting the front and getting a local rank of $r=-1$, tasks within the front are potentially moved to lower generations (getting a lower $r$) and new ones are getting submitted to the last generation with $r=d-1$. Generations are updated dynamically, so that they do not necessarily coincide anymore with global topological generations. Think about a workflow where a branch of the DAG advances faster than others. The front will be distorted and dynamical generations will contain tasks with different global ranks $R$: higher for tasks of the fast branch, lower for others.
 
 ## Standalone engine
+
+The standalone orchestrator enables Sirocco workflows to run autonomously on the HPC cluster, relying on the scheduler as the sole running daemon.
+
+### Front propagation
+
+At the start of a workflow, the Sirocco process
+
+1. submits required jobs, i.e. the $d$ front generations, to the scheduler with adequate dependencies,
+2. submits a workflow continuation job depending on the termination of any rank 0 task, regardless of the exit status
+2. and finally dumps the workflow state to file.
+
+When the Sirocco continuation task kicks in, it
+
+1. loads the state in memory,
+2. updates the front by interrogating the scheduler regarding the status of rank 0 tasks and submitting new ones,
+3. re-submits a continuation task
+4. and finally dumps the workflow state to file.
+
+### Experiment folder hierarchy
+
+The standalone engine executes workflows _inside their [configuration directory](configurations)_ so that "experiment root directory" is also used to designate the root of a running workflow which technically also remains the "configuration root directory". Starting the execution, Sirocco creates a `run` directory at the experiment root directory and each task will run inside its own run directory at `run/task_rundir_name`, where `task_rundir_name` is a unique name looking like this:
+```shell
+TASK_NAME__COORDINATE1_NAME_COORDINATE1_VALUE__COORDINATE2_NAME_COORDINATE2_VALUE
+```
+Coordinates of a task are either its date, in which case `"COORDINATE_NAME"` is `"date"` and `"COORDINATE_VALUE"` is the date formatted as `"YYYY-MM-DDThh-mm-ss"` or a [parameter](configuration/parameters), in which case `"COORDINATE_NAME"` and `"COORDINATE_VALUE"` are the parameter name and value.
+
+### `bash` shebang and base environment
+
+Sirocco tasks are all submitted as _bash tasks_, so they all have the `#!/bin/bash -l` shebang. Their base environment, i.e. before any modification from the task itself, is exactly the same as from a fresh `bash` login (for instance through `ssh`).

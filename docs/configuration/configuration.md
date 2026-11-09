@@ -55,18 +55,18 @@ parameters:
 <br>
 **description**: depth of the submitted [task front](../glossary#task-front). Tasks with rank $r < n$ are submitted. A depth of `1` thus corresponds to only currently active tasks, a depth of `2` corresponds to one generation of tasks submitted ahead of time, etc ...
 
-### `cycles: [...]`
+### `cycles`
 
 [Section](../configuration/cycles) describing the **workflow graph**: the groups of potentially recurring tasks, their [inputs](../glossary#inputs) and [outputs]((../glossary#outputs)) and potential _wait on_ depdencies between tasks.
 
-### `tasks: [...]`
+### `tasks`
 
 [Section](../configuration/tasks) specifying the tasks setings (scheduling info, scripts, config files, etc ...) but no graph related information which is the topic of `cycles` above.
 
-### `data: [...]`
+### `data`
 
 [Section](../configuration/data) describing data settings (essentially paths). Same as the tasks section, it doesn't provide grah related information.
 
-### `parameters: [...]`
+### `parameters`
 
-Optional [section](../configuration/data) descibing parameters used to parametrize tasks and data. Typically for ensemble or sensitivity experiments.
+Optional [section](../configuration/parameters) descibing parameters used to parametrize tasks and data. Typically for ensemble or sensitivity experiments.
