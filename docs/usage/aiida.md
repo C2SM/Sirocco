@@ -5,4 +5,4 @@ icon: custom_icons/aiida
 
 !!! warning
 
-    The AiiDA engine is still in development
+    The AiiDA engine is still under development

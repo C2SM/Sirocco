@@ -27,7 +27,11 @@ If a task named `ROOT` is declared, it's attributes are propagated as default fo
 
 ## The special `SIROCCO` task
 
-When using the standalone orchestrator, the task named `SIROCCO` hosts specifications for the special Sirocco task who's role is to check the current state of the workflow, submit new task jobs as needed and dump the new state to file. Sirocco requires the activation of a virtual environemnt where it is installed. It can either be provided implicitely via the uenv [`view`](#view) specification or explicitely via `venv`.
+When using the standalone orchestrator, the task named `SIROCCO` hosts specifications for the special Sirocco task who's role is to check the current state of the workflow, submit new task jobs as needed and dump the new state to file. This task needs to find the `sirocco` executable in `PATH`, which can be achieved in different ways:
+
+- through the virtual environment where it is installed via the [`venv`](#venv) specification (see below)
+- provided by a [`uenv`](#uenv) in a certain [`view`](#view)
+- readily avialble from a [fresh `bash` login](../../orchestration/#bash-shebang-and-base-environment), for instance installed system-wide or loaded from `.bashrc`
 
 #### `venv`
 
@@ -35,7 +39,7 @@ When using the standalone orchestrator, the task named `SIROCCO` hosts specifica
 <br>
 **optional**
 <br>
-**description**: absolute path to the virtual environment to activate in order to have access to the `sirocco` CLI. For instance, if specifying `venv: /pat/to/.venv`, `source /pat/to/.venv/bin/activate` will be added to the special Sirocco task run script.
+**description**: absolute path to the virtual environment to activate in order to have access to the `sirocco` CLI. For instance, if specifying `venv: /path/to/.venv`, `source /path/to/.venv/bin/activate` will be added to the special Sirocco task run script so that it takes precedence over other methods for providing the `sirocco` executable.
 
 ## All tasks
 
