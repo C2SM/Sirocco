@@ -4,8 +4,6 @@ import enum
 import json
 import logging
 import os
-import re
-import shlex
 import subprocess
 import sys
 from colorsys import hls_to_rgb
@@ -466,9 +464,14 @@ class Workflow:
         home = os.environ.get("HOME", "")
         user = os.environ.get("USER", "")
         cmd = [
-            "env", "-i", f"HOME={home}", f"USER={user}", 
-            "bash", "--login", "-c", 
-            f"'{current_python}' -c 'import os, json; print(json.dumps(dict(os.environ)))'"
+            "env",
+            "-i",
+            f"HOME={home}",
+            f"USER={user}",
+            "bash",
+            "--login",
+            "-c",
+            f"'{current_python}' -c 'import os, json; print(json.dumps(dict(os.environ)))'",
         ]
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
         return json.loads(result.stdout)
