@@ -105,7 +105,7 @@ class Workflow:
         self.data: Store[Data] = Store()
         self.cycles: Store[Cycle] = Store()
         self.status: WorkflowStatus = WorkflowStatus.INIT
-        self.base_env: dict[str, str] = self.set_base_env()
+        self.base_env: dict[str, str] = self.set_bash_base_env()
 
         config_data_dict: dict[str, ConfigBaseData] = {
             data.name: data for data in chain(config_data.available, config_data.generated)
@@ -457,8 +457,8 @@ class Workflow:
             self.status = WorkflowStatus.COMPLETED
 
     @staticmethod
-    def set_base_env() -> dict[str, str]:
-        """Set the base env from which to potentially submit tasks"""
+    def set_bash_base_env() -> dict[str, str]:
+        """Set the base env from which tasks are submitted"""
 
         current_python = sys.executable
         home = os.environ.get("HOME", "")
