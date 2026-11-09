@@ -101,19 +101,21 @@ class CmdStatus:
 
 # --- CLI main Commands ---
 
+CONFIG_DIR_ARG_T = Annotated[
+    Path,
+    typer.Argument(
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+        help="Path to the workflow root directory.",
+    ),
+]
+
 
 @app.command()
 def verify(
-    config_dir: Annotated[
-        Path,
-        typer.Argument(
-            exists=True,
-            file_okay=False,
-            dir_okay=True,
-            readable=True,
-            help="Path to the workflow definition YAML file.",
-        ),
-    ] = Path("."),
+    config_dir: CONFIG_DIR_ARG_T = Path("."),
 ):
     """
     Validate the workflow definition file for syntax and basic consistency.
@@ -131,17 +133,34 @@ def verify(
 
 
 @app.command()
+def represent(
+    config_dir: CONFIG_DIR_ARG_T = Path("."),
+):
+    """
+    Display the text representation of the unrolled workflow graph.
+
+    Note: Uses auto-detected vars.yml/vars.yaml if present.
+    Use 'sirocco resolve' first if you need custom variable substitution.
+    """
+    console.print(f"📄 Representing workflow from: [cyan]{config_dir}[/cyan]")
+    try:
+        config_workflow = parsing.ConfigWorkflow.from_config_path(config_dir)
+        core_workflow = core.Workflow.from_config_workflow(config_workflow)
+
+        printer = pretty_print.PrettyPrinter(colors=False)
+        output_from_printer = printer.format(core_workflow)
+
+        console.print(output_from_printer)
+
+    except Exception as e:
+        console.print("[bold red]❌ Failed to represent workflow:[/bold red]")
+        console.print_exception()
+        raise typer.Exit(code=1) from e
+
+
+@app.command()
 def visualize(
-    config_dir: Annotated[
-        Path,
-        typer.Argument(
-            exists=True,
-            file_okay=False,
-            dir_okay=True,
-            readable=True,
-            help="Path to the workflow definition YAML file.",
-        ),
-    ] = Path("."),
+    config_dir: CONFIG_DIR_ARG_T = Path("."),
     output_file: Annotated[
         Path | None,
         typer.Option(
@@ -188,41 +207,6 @@ def visualize(
         raise typer.Exit(code=1) from e
 
 
-@app.command()
-def represent(
-    config_dir: Annotated[
-        Path,
-        typer.Argument(
-            exists=True,
-            file_okay=False,
-            dir_okay=True,
-            readable=True,
-            help="Path to the workflow definition YAML file.",
-        ),
-    ] = Path("."),
-):
-    """
-    Display the text representation of the unrolled workflow graph.
-
-    Note: Uses auto-detected vars.yml/vars.yaml if present.
-    Use 'sirocco resolve' first if you need custom variable substitution.
-    """
-    console.print(f"📄 Representing workflow from: [cyan]{config_dir}[/cyan]")
-    try:
-        config_workflow = parsing.ConfigWorkflow.from_config_path(config_dir)
-        core_workflow = core.Workflow.from_config_workflow(config_workflow)
-
-        printer = pretty_print.PrettyPrinter(colors=False)
-        output_from_printer = printer.format(core_workflow)
-
-        console.print(output_from_printer)
-
-    except Exception as e:
-        console.print("[bold red]❌ Failed to represent workflow:[/bold red]")
-        console.print_exception()
-        raise typer.Exit(code=1) from e
-
-
 # --- CLI Standalone Commands ---
 
 
@@ -234,18 +218,27 @@ def add_now(width: int = 25) -> str:
     return "\n".join([f"{space}╭{date_rule}╮", f"{rule}┤ {date_str} ├{rule}", f"{space}╰{date_rule}╯"])
 
 
+@app.command(help="\\[Standalone] Visualize workflow status.")
+def stviz(
+    config_dir: CONFIG_DIR_ARG_T = Path("."),
+):
+    console.print(f"{CmdStatus.PLAY} Visualizing workflow status from: [cyan]{config_dir!s}[/cyan]")
+    try:
+        wf = core.Workflow.from_config_path(config_dir)
+        wf.load_state()
+        viz_graph = vizgraph.VizGraph.from_status_workflow(wf)
+        viz_graph.draw(file_path=Path("./status.svg"))
+        console.print(f"{CmdStatus.SUCCESS} Status visualization saved to: [cyan]./status.svg[/cyan]")
+
+    except Exception as e:
+        console.print("{CmdStatus.FAIL} Failed to generate status visualization:")
+        console.print_exception()
+        raise typer.Exit(code=1) from e
+
+
 @app.command(help="\\[Standalone] Start a workflow.")
 def start(
-    config_dir: Annotated[
-        Path,
-        typer.Argument(
-            exists=True,
-            file_okay=False,
-            dir_okay=True,
-            readable=True,
-            help="Path to the workflow definition YAML file.",
-        ),
-    ] = Path("."),
+    config_dir: CONFIG_DIR_ARG_T = Path("."),
     *,
     cleanup: Annotated[
         bool,
@@ -284,16 +277,7 @@ def start(
 
 @app.command(help="\\[Standalone] Restart a stopped workflow.")
 def restart(
-    config_dir: Annotated[
-        Path,
-        typer.Argument(
-            exists=True,
-            file_okay=False,
-            dir_okay=True,
-            readable=True,
-            help="Path to the workflow definition YAML file.",
-        ),
-    ] = Path("."),
+    config_dir: CONFIG_DIR_ARG_T = Path("."),
 ):
     wf = core.Workflow.from_config_path(config_dir)
     tee_console = log_console(wf)
@@ -315,16 +299,7 @@ def restart(
 
 @app.command(help="\\[Standalone] Stop a workflow.")
 def stop(
-    config_dir: Annotated[
-        Path,
-        typer.Argument(
-            exists=True,
-            file_okay=False,
-            dir_okay=True,
-            readable=True,
-            help="Path to the workflow definition YAML file.",
-        ),
-    ] = Path("."),
+    config_dir: CONFIG_DIR_ARG_T = Path("."),
     *,
     cool_down: Annotated[
         bool,
@@ -356,16 +331,7 @@ def stop(
 
 @app.command(name="continue", hidden=True)
 def continue_wf(
-    config_dir: Annotated[
-        Path,
-        typer.Argument(
-            exists=True,
-            file_okay=False,
-            dir_okay=True,
-            readable=True,
-            help="Path to the workflow definition YAML file.",
-        ),
-    ] = Path("."),
+    config_dir: CONFIG_DIR_ARG_T = Path("."),
     *,
     from_wf: Annotated[
         bool,
@@ -393,33 +359,6 @@ def continue_wf(
     except Exception as e:
         std_console.print(f"{CmdStatus.FAIL}  Workflow continuation failed: {e}")
         std_console.print_exception()
-        raise typer.Exit(code=1) from e
-
-
-@app.command(help="\\[Standalone] Visualize workflow status.")
-def stviz(
-    config_dir: Annotated[
-        Path,
-        typer.Argument(
-            exists=True,
-            file_okay=False,
-            dir_okay=True,
-            readable=True,
-            help="Path to the workflow definition YAML file.",
-        ),
-    ] = Path("."),
-):
-    console.print(f"{CmdStatus.PLAY} Visualizing workflow status from: [cyan]{config_dir!s}[/cyan]")
-    try:
-        wf = core.Workflow.from_config_path(config_dir)
-        wf.load_state()
-        viz_graph = vizgraph.VizGraph.from_status_workflow(wf)
-        viz_graph.draw(file_path=Path("./status.svg"))
-        console.print(f"{CmdStatus.SUCCESS} Status visualization saved to: [cyan]./status.svg[/cyan]")
-
-    except Exception as e:
-        console.print("{CmdStatus.FAIL} Failed to generate status visualization:")
-        console.print_exception()
         raise typer.Exit(code=1) from e
 
 
@@ -499,16 +438,7 @@ def create_aiida_workflow(
 
 @app.command(help="\\[AiiDA] Run the workflow in a blocking fashion.")
 def run(
-    config_dir: Annotated[
-        Path,
-        typer.Argument(
-            exists=True,
-            file_okay=False,
-            dir_okay=True,
-            readable=True,
-            help="Path to the workflow definition YAML file.",
-        ),
-    ] = Path("."),
+    config_dir: CONFIG_DIR_ARG_T = Path("."),
 ):
     patch_aiida()
 
@@ -533,16 +463,7 @@ def run(
 
 @app.command(help="\\[AiiDA] Submit the workflow to the AiiDA daemon.")
 def submit(
-    config_dir: Annotated[
-        Path,
-        typer.Argument(
-            exists=True,
-            file_okay=False,
-            dir_okay=True,
-            readable=True,
-            help="Path to the workflow definition YAML file.",
-        ),
-    ] = Path("."),
+    config_dir: CONFIG_DIR_ARG_T = Path("."),
 ):
     """Submit the workflow to the AiiDA daemon."""
 
