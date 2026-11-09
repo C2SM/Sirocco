@@ -185,7 +185,7 @@ extra-dependencies = [
 
 [tool.hatch.envs.types.scripts]
 check = "mypy --exclude 'tests/cases/*' --no-incremental {args:.}"
-ty-check = "ty check --exclude 'tests/cases/*' --python-version 3.12"
+ty-check = "ty check --python-version 3.12"
 
 [tool.mypy]
 disable_error_code = ["import-untyped"]
@@ -212,5 +212,5 @@ exclude = ["tests/cases/**", "tests/integration/engines/**", "tests/unit/engines
 
 [tool.ty.rules]
 # Aligns with mypy's disable_error_code = ["import-untyped"] globally
-unresolved-import = "ignore"
+import-not-found = "ignore"
 unused-ignore-comment = "ignore"
