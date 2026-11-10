@@ -977,7 +977,7 @@ class ConfigWorkflow(BaseModel):
 
     """
 
-    _CONFIG_FILENAME: ClassVar[Literal["sirocco.yaml"]] = "sirocco.yaml"
+    CONFIG_FILENAME: ClassVar[Literal["sirocco.yaml"]] = "sirocco.yaml"
     _CONFIG_RESOLVED_FILENAME: ClassVar[Literal["sirocco.resolved.yaml"]] = "sirocco.resolved.yaml"
     _CONFIG_VAR_FILENAME: ClassVar[Literal["sirocco_vars.yaml"]] = "sirocco_vars.yaml"
 
@@ -1040,8 +1040,8 @@ class ConfigWorkflow(BaseModel):
         if not config_resolved_path.is_dir():
             msg = f"Workflow config at path {config_resolved_path} is not a directory."
             raise FileNotFoundError(msg)
-        if not (config_file_path := config_resolved_path / cls._CONFIG_FILENAME).is_file():
-            msg = f"{cls._CONFIG_FILENAME} not found in {config_resolved_path}"
+        if not (config_file_path := config_resolved_path / cls.CONFIG_FILENAME).is_file():
+            msg = f"{cls.CONFIG_FILENAME} not found in {config_resolved_path}"
             raise FileNotFoundError(msg)
 
         content = config_file_path.read_text()
