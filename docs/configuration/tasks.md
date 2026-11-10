@@ -5,7 +5,9 @@ icon: lucide/list-todo
 
 # Tasks
 
-The root level `tasks` section is where tasks are declared and their concrete content specified. Even though most of it depends on the task plugin and is described in the [corresponding section](../../plugins), some specifications are common to all plugins and described here. This section is a sequence of mappings from task names to their content and typically looks like this:
+The root level `tasks` section is where tasks are declared and their concrete content specified but no graph related information like input/output relationships which is the topic of the [`cycles`](../../configuration/cycles) section. Any task referred to in `cycles` must be declared here in `tasks`.
+
+Even though most of the task content depends on the plugin and is described in the [corresponding section](../../plugins), some specifications are common to all plugins and described here. This section is a sequence of mappings from task names to their content and typically looks like this:
 ```sirocco-yaml
 tasks:
   - ROOT:

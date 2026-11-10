@@ -24,7 +24,7 @@ In order to describe the graph topology, the `cycles` section describes:
 
 ## Example
 
-The example below shows a short but comprehensive graph covering most of the dedicated Sirocco syntax, at the exception of parameters.
+The example below shows a short but comprehensive graph covering most of the dedicated Sirocco syntax.
 
 !!! tip "hover and click"
 
@@ -79,14 +79,14 @@ cycles:
                       at: *root_start_date
               bc: [boundary conditions]
               restart_in:
-                - restart:
+                - restart_file:
                     when:
                       after: *root_start_date
                     target_cycle:
                       lag: "-P2M"
             outputs:
               output_streams: [stream 1, stream 2]
-              restart_out: [restart]
+              restart_out: [restart_file]
   - 4 monthly:
       cycling:
         start_date: *root_start_date
@@ -248,7 +248,7 @@ target_cycle:
 <br>
 **optional**
 <br>
-**description**: The `when` keyword can used to specify wether or not a data instance needs to be taken into account. This is typically used when the behavior of the task differs between the first (last) occurrence and the other ones. In the example above, the `model` task requires `initial conditions` as input at the first occurrence and later expects `restart`. The specification is the following
+**description**: The `when` keyword can used to specify wether or not a data instance needs to be taken into account. This is typically used when the behavior of the task differs between the first (last) occurrence and the other ones. In the example above, the `model` task requires `initial conditions` as input at the first occurrence and later expects `restart_file`. The specification is the following
 ```sirocco-yaml
 when:
   at: at_date

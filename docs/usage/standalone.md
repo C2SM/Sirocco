@@ -68,6 +68,8 @@ Sirocco has the 3 following self-explanatory commands to control the workflow
 
 Start the workflow. Use `--cleanup` to force a fresh start from an existing workflow and wipe the `run` directory.
 
+A `sirocco.log` file will be created in the workflow root directory where information about the workflow execution is reported.
+
 #### `stop`
 
 Stop the workflow, which means cancel all front tasks. Use `--cool-down` to let rank $0$ tasks gracefully terminate and only cancel ahead-of-time submitted ones.

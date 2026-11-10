@@ -28,14 +28,14 @@ cycles:
                       at: *root_start_date
               bc: [boundary conditions]
               restart_in:
-                - restart:
+                - restart_file:
                     when:
                       after: *root_start_date
                     target_cycle:
                       lag: "-P2M"
             outputs:
               output_streams: [stream 1, stream 2]
-              restart_out: [restart]
+              restart_out: [restart_file]
   - 4 monthly:
       cycling:
         start_date: *root_start_date
@@ -98,7 +98,7 @@ data:
          path: stream_1
      - stream 2:
          path: stream_2
-     - restart:
+     - restart_file:
          path: restart
      - processed:
          path: processed_output
