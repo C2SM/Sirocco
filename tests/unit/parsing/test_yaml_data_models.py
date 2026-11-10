@@ -31,5 +31,5 @@ def test_from_config_file_is_empty(tmp_path):
     empty_config = tmp_path / "empty_config"
     empty_config.mkdir(exist_ok=True)
     (empty_config / "sirocco.yaml").touch()
-    with pytest.raises(ValueError, match=rf".*{models.ConfigWorkflow._CONFIG_FILENAME} is empty.*"):
+    with pytest.raises(ValueError, match=rf".*{models.ConfigWorkflow.CONFIG_FILENAME} is empty.*"):
         _ = models.ConfigWorkflow.from_config_path(empty_config)

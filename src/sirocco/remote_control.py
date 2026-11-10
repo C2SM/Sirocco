@@ -66,7 +66,7 @@ def create_firecrest_client(machine: str) -> Firecrest:
 def upload_config_to_remote(machine: str, local_config_dir: Path | str, remote_target_path: str) -> None:
     """Upload a local config directory to a remote machine, excluding generated items"""
     # TODO: apply templating.
-    sirocco_config_path = Path(local_config_dir, ConfigWorkflow._CONFIG_FILENAME)
+    sirocco_config_path = Path(local_config_dir, ConfigWorkflow.CONFIG_FILENAME)
     sirocco_config = YAML(typ="safe", pure=True).load(sirocco_config_path)
 
     account = _get_project_account(sirocco_config, str(sirocco_config_path))
@@ -87,7 +87,7 @@ def download_config_from_remote(machine: str, remote_config_dir: str, local_targ
     if SiroccoContinueTask.LOCK_FILE_NAME in remote_run_dir_content_names:
         raise RuntimeError(f"a process is currently handling the Sirocco workflow, cannot download config directory: {remote_config_dir}. Please retry later.")
 
-    sirocco_config_path = str(PurePosixPath(remote_config_dir, ConfigWorkflow._CONFIG_FILENAME))
+    sirocco_config_path = str(PurePosixPath(remote_config_dir, ConfigWorkflow.CONFIG_FILENAME))
     sirocco_config_str = client.view(machine, sirocco_config_path)
     sirocco_config = YAML(typ="safe", pure=True).load(sirocco_config_str)
 
