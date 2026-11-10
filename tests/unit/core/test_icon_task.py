@@ -4,6 +4,7 @@ import pytest
 
 from sirocco.core import Workflow
 from sirocco.core.tasks.icon_task import IconTask
+from tests.unit import utils as test_utils
 
 
 # configs containing task using icon plugin
@@ -28,3 +29,9 @@ def test_nml_mod(config_paths, tmp_path):
             new_path = nml.with_suffix(".new")
             new_path.write_text(test_nml)
             assert ref_nml == test_nml, f"Namelist {nml.name} differs between ref and test"
+
+
+def test_checkpoint_interval_defaults_to_cycle_period(tmp_path):
+    """Without checkpointTimeIntval in the master namelist, checkpoints follow the cycle period."""
+    task = test_utils.create_icon_task_from_workflow(tmp_path)
+    assert task.master_namelist["master_time_control_nml"]["checkpointTimeIntval"] == "P1D"
