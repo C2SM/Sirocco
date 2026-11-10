@@ -51,7 +51,7 @@ class TestCLICommands:
         """Test commands with empty file."""
         empty_config = tmp_path / "empty_config"
         empty_config.mkdir(exist_ok=True)
-        (empty_config / models.ConfigWorkflow._CONFIG_FILENAME).write_text("")
+        (empty_config / models.ConfigWorkflow.CONFIG_FILENAME).write_text("")
 
         result = runner.invoke(app, [command, empty_config])
         assert result.exit_code == 1

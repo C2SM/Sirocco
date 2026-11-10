@@ -392,7 +392,7 @@ def minimal_config_path(tmp_path):
     )
     minimal: pathlib.Path = tmp_path / "minimal"
     minimal.mkdir(exist_ok=True)
-    (minimal / models.ConfigWorkflow._CONFIG_FILENAME).write_text(minimal_config)
+    (minimal / models.ConfigWorkflow.CONFIG_FILENAME).write_text(minimal_config)
     return minimal
 
 
