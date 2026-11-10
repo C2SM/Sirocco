@@ -11,7 +11,7 @@ The current chapter describes the YAML dialect in which this configuration is ex
 
 ## Templating
 
-Sirocco also supports templating of the `sirocco.yaml` file via `jinja` placeholders, e.g. `{{ MY_DATA_PATH }}`, They must be defined in the following way in a file named `vars.yaml` placed at the root of the configuration directory (_i.e._ alongside `sirocco.yaml`):
+Sirocco also supports templating of the `sirocco.yaml` file via `jinja` placeholders, e.g. `{{ MY_DATA_PATH }}`, They must be defined in the following way in a file named `sirocco_vars.yaml` placed at the root of the configuration directory (_i.e._ alongside `sirocco.yaml`):
 
 ```yaml title="vars.yaml"
 MY_DATA_PATH: "/path/to/somewhere"
