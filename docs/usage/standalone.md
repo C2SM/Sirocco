@@ -34,26 +34,54 @@ sirocco --help
 
 Once the workflow [configuration](../configuration) is created on the HPC, it can be handled by the `sirocco` CLI. `sirocco` sub-commands can be classified in 2 groups: checking and controlling. All of them take the workflow root directory as the only positional argument defaulting to the current directory and have a `--help` option.
 
-## :lucide-check: Checking
+### :lucide-check: Checking
 
 Sirocco provides a few commands to help users check the workflow configuration.
 
-### `verify`
+#### `verify`
+
 Try to load the configuration. This is helpful to catch validation issues.
 
-### `represent`
+#### `represent`
+
 Unroll the workflow graph and print it as a string formatted ala `yaml`. It is mainly used as a serialization method for testing but can also help debugging.
 
-### `stviz`
-bla
+#### `visualize`
 
-## :material-play-pause: Controlling
+Generate a visual representation of the workflow graph. An example is displayed [in the cycles section](../../configuration/cycles/#example). It is pretty useful to confirm that the workflow graph corresponds to the intended nodes relationship.
 
-### `start`
-bla
+!!! warning "long graph representation"
 
-### `stop`
-bla
+    The graph representation is produced via the graphviz package with the `dot` engine. Trying to display the entire graph for long production workflows can lead to very long processing or even non converging algorithm for nodes and edges placement. It is advised to reduce the workflow duration for visualization.
 
-### `restart`
-bla
+#### `stviz`
+
+Generate a graphical representation  similar to `visualize` focusing on the [task front](../../orchestration#the-deep-propagating-submitted-task-front). An example is displayed below.
+
+TODO: Add example `stviz` graph
+
+### :material-play-pause: Controlling
+
+Sirocco has the 3 following self-explanatory commands to control the workflow
+
+#### `start`
+
+Start the workflow. Use `--cleanup` to force a fresh start from an existing workflow and wipe the `run` directory.
+
+#### `stop`
+
+Stop the workflow, which means cancel all front tasks. Use `--cool-down` to let rank $0$ tasks gracefully terminate and only cancel ahead-of-time submitted ones.
+
+!!! warning "Manual task cancellation"
+
+    Do not cancel tasks manually, this would break the workflow state.
+
+#### `restart`
+
+Restart a stopped workflow, even if it was stopped in cool-down mode. Rank $0$ tasks will be picked up if not already completed.
+
+### :material-remote: Remote handling
+
+!!! example "Remote checking and controlling"
+
+    Remote checking and controlling from users machines through either [FirecREST :lucide-external-link:](https://eth-cscs.github.io/firecrest-v2/) or `ssh` will be implemented in a later version.
