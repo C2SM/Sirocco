@@ -48,7 +48,7 @@ Unroll the workflow graph and print it as a string formatted ala `yaml`. It is m
 
 #### `visualize`
 
-Generate a visual representation of the workflow graph. An example is displayed [in the cycles section](../../configuration/cycles/#example). It is pretty useful to confirm that the workflow graph corresponds to the intended nodes relationship.
+Generate a visual representation of the workflow graph as an `svg` file which name defaults to `WORFLOW_DIRNAME.svg`. An example is displayed [in the cycles section](../../configuration/cycles/#example). It is pretty useful to confirm that the workflow graph corresponds to the intended nodes relationship.
 
 !!! warning "long graph representation"
 
@@ -56,13 +56,19 @@ Generate a visual representation of the workflow graph. An example is displayed 
 
 #### `stviz`
 
-Generate a graphical representation  similar to `visualize` focusing on the [task front](../../orchestration#the-deep-propagating-submitted-task-front). An example is displayed below.
+Generate a graphical representation similar to `visualize` focusing on the [task front](../../orchestration#the-deep-propagating-submitted-task-front) and dump it to `status.svg`. Only cycles containing tasks from the front are represented. Ongoing tasks (rank $0$) and involved input /output data are displayed in bold. Other front tasks (here only rank $1$ is left) and involved input /output data are unchanged compared to `visualize`. Other tasks and data nodes are grayed out. Task ranks are also added to the tooltip (hover on the task nodes to see).
 
-TODO: Add example `stviz` graph
+<!-- Use object to keep the embedded javascript runable -->
+<object type="image/svg+xml" data="../../assets/example_config/status.svg" width="100%">
+  Your browser does not support interactive SVGs.
+</object>
+<figcaption markdown="span"  style="text-align: left;  font-style: normal; font-size: smaller;">
+*Example status graph corresponding to the execution of [the configuration example](../../configuration/cycles/#example) with a front depth of 2*.
+</figcaption>
 
 ### :material-play-pause: Controlling
 
-Sirocco has the 3 following self-explanatory commands to control the workflow. Each of them, as well as workflow continuation tasks, are logging informnation to `sirocco.log` located in the workflow root directory. By default Sirocco uses [ANSI escape codes](https://en.wikipedia.org/wiki/ANSI_escape_code) for coloring, which can be disable with `--no-ansi`.
+Sirocco has the 3 following self-explanatory commands to control the workflow. Each of them, as well as workflow continuation tasks, are logging information to `sirocco.log` located in the workflow root directory. By default Sirocco uses [ANSI escape codes](https://en.wikipedia.org/wiki/ANSI_escape_code) for coloring, which can be disable with `--no-ansi`.
 
 #### `start`
 
@@ -84,7 +90,11 @@ Restart a stopped workflow, even if it was stopped in cool-down mode. Rank $0$ t
 
 In the case of a failing job, the controlling Sirocco task will cancel all other tasks and, if needed, the workflow can be later restarted via `sìrocco restart`.
 
-Sirocco is also designed so that any workflow task can be re-submitted interactivelly, so not as part of the workflow, for testing or troubleshooting purposes.
+Sirocco is also designed so that any workflow task can be re-submitted interactively, so not as part of the workflow, for testing or troubleshooting purposes.
+
+!!! example "Recovery"
+
+    A workflow recovery mechanism will be implemented in a later version
 
 ### :material-remote: Remote handling
 
