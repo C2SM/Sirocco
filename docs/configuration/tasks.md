@@ -25,15 +25,15 @@ tasks:
 
 ## The special `ROOT` task
 
-If a task named `ROOT` is declared, it's attributes are propagated as default for all the other tasks. This is typically useful to set scheduling task specifications like accounts, partitions, etc...
+If a task named `ROOT` is declared, its attributes are propagated as default for all the other tasks. This is typically useful to set scheduling task specifications like accounts, partitions, etc...
 
 ## The special `SIROCCO` task
 
-When using the standalone orchestrator, the task named `SIROCCO` hosts specifications for the special Sirocco task who's role is to check the current state of the workflow, submit new task jobs as needed and dump the new state to file. This task needs to find the `sirocco` executable in `PATH`, which can be achieved in different ways:
+When using the standalone orchestrator, the task named `SIROCCO` hosts specifications for the special Sirocco task whose role is to check the current state of the workflow, submit new task jobs as needed and dump the new state to file. This task needs to find the `sirocco` executable in `PATH`, which can be achieved in different ways:
 
 - through the virtual environment where it is installed via the [`venv`](#venv) specification (see below)
 - provided by a [`uenv`](#uenv) in a certain [`view`](#view)
-- readily avialble from a [fresh `bash` login](../../orchestration/#bash-shebang-and-base-environment), for instance installed system-wide or loaded from `.bashrc`
+- readily available from a [fresh `bash` login](../../orchestration/#bash-shebang-and-base-environment), for instance installed system-wide or loaded from `.bashrc`
 
 #### `venv`
 
@@ -53,7 +53,7 @@ When using the standalone orchestrator, the task named `SIROCCO` hosts specifica
 <br>
 **required** except for `ROOT` and `SIROCCO` tasks which are identified by their special names.
 <br>
-**choices** `"shell"` or `"icon"`
+**choices** : `"shell"` or `"icon"`
 <br>
 **description**: designates the type of task. The 2 supported [plugins](../../plugins) for now are [shell](../../plugins/shell) and [icon](../../plugins/icon)
 
@@ -76,7 +76,7 @@ When using the standalone orchestrator, the task named `SIROCCO` hosts specifica
 <br>
 **optional**
 <br>
-**description**: account used on the HPC system. Equivalent of SLURM `--account`. Reflected in the run script header.
+**description**: account used on the HPC system. Equivalent to SLURM `--account`. Reflected in the run script header.
 
 #### `partition`
 
@@ -84,7 +84,7 @@ When using the standalone orchestrator, the task named `SIROCCO` hosts specifica
 <br>
 **optional**
 <br>
-**description**: partition used on the HPC system. Equivalent of SLURM `--partition`. Reflected in the run script header.
+**description**: partition used on the HPC system. Equivalent to SLURM `--partition`. Reflected in the run script header.
 
 #### `walltime`
 
@@ -94,7 +94,7 @@ When using the standalone orchestrator, the task named `SIROCCO` hosts specifica
 <br>
 **optional**
 <br>
-**description**: requested time for the task job. Equivalent of SLURM `--time`. Reflected in the run script header.
+**description**: requested time for the task job. Equivalent to SLURM `--time`. Reflected in the run script header.
 
 #### `nodes`
 
@@ -102,9 +102,9 @@ When using the standalone orchestrator, the task named `SIROCCO` hosts specifica
 <br>
 **default**: 1
 <br>
-**description**: requested number of nodes on the HPC. Equivalent of SLURM `--nodes`. Reflected in the run script header. When set, the corresponding environment variable `N_NODES` is exported in the submitted run script.
+**description**: requested number of nodes on the HPC. Equivalent to SLURM `--nodes`. Reflected in the run script header. When set, the corresponding environment variable `N_NODES` is exported in the submitted run script.
 
-#### `sockets_per_nodes`
+#### `sockets_per_node`
 
 **type**: integer
 <br>
@@ -112,13 +112,13 @@ When using the standalone orchestrator, the task named `SIROCCO` hosts specifica
 <br>
 **description**: Number of physical coherent sub-units per node. On the Säntis machine, it maps to `--gpus-per-node`. The [ICON plugin](../../plugins/icon) uses it to dispatch MPI processes on different [NUMA :lucide-external-link:](https://en.wikipedia.org/wiki/Non-uniform_memory_access) nodes.
 
-#### `gpus-per-node`
+#### `gpus_per_node`
 
 **type**: integer
 <br>
 **optional**
 <br>
-**description**: Number of GPU devices per node. Equivalent of SLURM `--gpus-per-node`. Reflected in the run script header.
+**description**: Number of GPU devices per node. Equivalent to SLURM `--gpus-per-node`. Reflected in the run script header.
 
 #### `gres`
 
@@ -142,7 +142,7 @@ When using the standalone orchestrator, the task named `SIROCCO` hosts specifica
 <br>
 **optional**
 <br>
-**description**: number of MPI processes per node. Equivalent of SLURM `--ntasks-per-node`. When set, the corresponding environment variable `PROCS_PER_NODE` is exported in the submitted run script so that users can specify it as the `srun --ntasks-per-node` option.
+**description**: number of MPI processes per node. Equivalent to SLURM `--ntasks-per-node`. When set, the corresponding environment variable `PROCS_PER_NODE` is exported in the submitted run script so that users can specify it as the `srun --ntasks-per-node` option.
 
 #### `cores_per_proc`
 

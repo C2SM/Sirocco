@@ -5,7 +5,7 @@ title: Shell task
 
 # Shell task
 
-The `shell` plugin allows users to bring their own set of files to specify the task content. These files can be of any nature: shell scripts, python code, a source tree to compile, configuration files, etc ... The only requirement is the ability to interface with the Sirocco workflow, _i.e_. use inputs and outputs as defined in the [`cycles` section](../../configuration/cycles).This is done through the `command` specification (see below).
+The `shell` plugin allows users to bring their own set of files to specify the task content. These files can be of any nature: shell scripts, python code, a source tree to compile, configuration files, etc ... The only requirement is the ability to interface with the Sirocco workflow, _i.e._ use inputs and outputs as defined in the [`cycles` section](../../configuration/cycles). This is done through the `command` specification (see below).
 
 A shell task description would typically look like this
 ```sirocco-yaml
@@ -46,7 +46,7 @@ The following shell task specifications come on top of [the ones used for any ta
 
 ##### Placeholders
 
-In the `cycles` root section of the configuration file, ports have been defined for each task that formally map inputs and outputs to a particular role for that task execution. Still, this piece of information is not yet explicit for the task itself and this is where port _placeholders_ come into play. As shown in the example above, `command` strings can contain placeholders like formatted as `{PORT::port_name}`. They will be resolved by substituting the path of the data instance(s) corresponding to `port_name` in the workflow graph.
+In the `cycles` root section of the configuration file, ports have been defined for each task that formally map inputs and outputs to a particular role for that task execution. Still, this piece of information is not yet explicit for the task itself and this is where port _placeholders_ come into play. As shown in the example above, `command` strings can contain placeholders formatted as `{PORT::port_name}`. They will be resolved by substituting the path of the data instance(s) corresponding to `port_name` in the workflow graph.
 
 ##### Separators
 
@@ -78,7 +78,7 @@ tasks:
 will resolve the command as
 
 ``` shell
-my_command --opt_arg=data_path_1,data_path_2,...
+my_command --opt-arg=data_path_1,data_path_2,...
 ```
 
 ```sirocco-yaml
@@ -88,7 +88,7 @@ tasks:
       command: my_command --repeat-arg={PORT[sep= --repeat-arg=]::port_name}  # (1)!
 ```
 
-1. Note the sapce at the beginning of the separator. Otherwise arguments will not be separated.
+1. Note the space at the beginning of the separator. Otherwise arguments will not be separated.
 
 will resolve the command as
 
@@ -115,7 +115,7 @@ or
 
 ```my_command data_path_1```
 
-depending if `port_name_2` links data or not.
+depending on whether `port_name_2` links data or not.
 
 ## Exported variables
 

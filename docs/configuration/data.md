@@ -27,7 +27,7 @@ data:
          path: processed_output
 ```
 
-#### `avaiable`
+### `avaiable`
 
 **type**: sequence
 <br>
@@ -35,7 +35,7 @@ data:
 <br>
 **description**: Sequence of mappings from data names to their properties. For now the only possible property is `path`, which is required and must be absolute.
 
-#### `generated`
+### `generated`
 
 **type**: sequence
 <br>

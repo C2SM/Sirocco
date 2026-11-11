@@ -71,19 +71,19 @@ tasks:
       computer: "machine"
   - pre proc:
       plugin: shell
-      path: scripts/preproc.sh
+      src: scripts/preproc.sh
       command: "./preproc.sh --in  {PORT::raw_input} --out {PORT::processed}"
   - model:
       plugin: shell
-      path: scripts/icon.py
+      src: scripts/icon.py
       command: "python icon.py [--restart {PORT::restart_in}] [--init {PORT::init}]"
   - post proc:
       plugin: shell
-      path: scripts/postproc.sh
+      src: scripts/postproc.sh
       command: "./postproc.sh --in {PORT::in} --out {PORT::out}"
   - clean up:
       plugin: shell
-      path: scripts/cleanup.py
+      src: scripts/cleanup.py
       command: "python cleanup.py --in {PORT::tbc}"
 data:
   available:
