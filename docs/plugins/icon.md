@@ -17,7 +17,7 @@ h4, h5, h6 {
 The ICON plugin is designed as an interface between the Sirocco workflow and the [ICON model :lucide-external-link:](icon-model.org). It will generate the final run scripts executed on the system based on specifications like namelists, MPI ranks distribution, hardware properties, etc ...
 
 ## Components
-As mentioned in the [cycles](../../configuration/cycles#tasks) section, we need to introduce the `components` level between tasks and there inputs/outputs in the `cycles` root section where the workflow graph topology is defined. In order to avoid conflicts between identical ports of models listed in `icon_master.namelist` (and bring clarity), each of them is mapped to a component with its own inputs and outputs. Restart state or output streams would be typical conflicting inputs without the component level. The `cycles` section hence reads like the following
+As mentioned in the [cycles](../../configuration/cycles#tasks) section, we need to introduce the `components` level between tasks and their inputs/outputs in the `cycles` root section where the workflow graph topology is defined. In order to avoid conflicts between identical ports of models listed in `icon_master.namelist` (and bring clarity), each of them is mapped to a component with its own inputs and outputs. Restart state or output streams would be typical conflicting inputs without the component level. The `cycles` section hence reads like the following
 
 ```sirocco-yaml
 cycles:
@@ -424,7 +424,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 **actions**:
 
 - Check that the number of output streams declared as `output_nml` sections matches the number of associated data pieces.
-- Ensure that all `output_nml` streams specify an output sub-directory using the combination of `filename_format` and `output_filename` parameters (see in [ICON namelist overiew :lucide-external-link:](https://docs.icon-model.org/2026.04/documentation/buildrun/buildrun_namelist_overview.html#output-nml) ). For instance `filename_format = 'atm_mon/atm_mon_<datetime2>'` is a valid entry while `filename_format = 'atm_mon_<datetime2>'` isn't.
+- Ensure that all `output_nml` streams specify an output sub-directory using the combination of `filename_format` and `output_filename` parameters (see in [ICON namelist overview :lucide-external-link:](https://docs.icon-model.org/2026.04/documentation/buildrun/buildrun_namelist_overview.html#output-nml) ). For instance `filename_format = 'atm_mon/atm_mon_<datetime2>'` is a valid entry while `filename_format = 'atm_mon_<datetime2>'` isn't.
 - Create these sub-directories in the task run directory.
 
 ## Task specifications
@@ -463,7 +463,7 @@ tasks:
               modelTimeStep: "PT20S"
               num_lev: 120
               msg_level: 10
-        - "path/to/ocean_namelist.nml"
+        - "path/to/ocean_namelist.nml":
             parallel_nml:
               nproma: 16
             run_nml:
@@ -471,7 +471,7 @@ tasks:
 ```
 
 
-### `yac_copupling`
+### `yac_coupling`
 
 **type**: str
 <br>
@@ -537,7 +537,7 @@ Based on the `exe` specifications, Sirocco will allocate MPI processes to master
 <br>
 **default**: 0
 <br>
-**description**: The number of MPI processes per I/O dedicated node when `sparate_io` is activated. Must be $> 0$ in that case.
+**description**: The number of MPI processes per I/O dedicated node when `separate_io` is activated. Must be $> 0$ in that case.
 
 #### `cpu` and `gpu`
 
@@ -545,7 +545,9 @@ Based on the `exe` specifications, Sirocco will allocate MPI processes to master
 <br>
 **required**: at least one of them
 <br>
-**description**: Description of the ICON executable and associated MPI processes. At least one of the `cpu` or `gpu` executable must be set but hybrid runs with both are also supported. For each of them, the following can or must be set.
+**description**: Description of the ICON executable and associated MPI processes. At least one of the `cpu` or `gpu` executable must be set but hybrid runs with both are also supported. A corresponding `SIROCCO_TARGET` environment variable is exported for further use in [`runtime`](#runtime), possibles values being `"cpu"`, `"gpu"` or `"hybrid"`.
+
+For each of `cpu` and `gpu`, the following can or must be set.
 
 ##### `path`
 
@@ -561,7 +563,7 @@ Based on the `exe` specifications, Sirocco will allocate MPI processes to master
 <br>
 **required**
 <br>
-**description**: mapping of the master model (component) names associated to this executable to the different types of MPI processes. For single executable cases, all master models must be included while they must be split accross `cpu` and `gpu` for hybrid cases. The 4 type of MPI processes are the following with their default values:
+**description**: mapping of the master model (component) names associated to this executable to the different types of MPI processes. For single executable cases, all master models must be included while they must be split accross `cpu` and `gpu` for hybrid cases. The 4 types of MPI processes are the following with their default values:
 ```sirocco-yaml
 tasks:
   - icon_task:
@@ -574,7 +576,7 @@ tasks:
               prefetch: 0
               restart: 0
 ```
-All of them are integers. `streams`, `prefetch` and `restart` are absolute nunmbers of MPI processes while `compute_weight`, as the name indicates, is a relative number. Components will get a number of compute processes by dispatching the compute resources, so excluding I/O processes, according to the specified weights. For instance, dedicating $50/100$ of the compute resources to the `atm` component, $35/100$ to `ocean` and $15/100$ to `land` would be done with
+All of them are integers. `streams`, `prefetch` and `restart` are absolute numbers of MPI processes while `compute_weight`, as the name indicates, is a relative number. Components will get a number of compute processes by dispatching the compute resources, so excluding I/O processes, according to the specified weights. For instance, dedicating $50/100$ of the compute resources to the `atm` component, $35/100$ to `ocean` and $15/100$ to `land` would be done with
 ```sirocco-yaml
 tasks:
   - icon_task:
@@ -612,7 +614,7 @@ Of course the final proportions might not exactly match the specified weights as
 <br>
 **optional**
 <br>
-**description**: Path to the [gt4py :lucide-external-link:](https://github.com/GridTools/gt4py) build cache dir. It is used at runtime by the submitted ICON task so that relative paths are resolved from the task run directory. Given how Sirocco organizes task run directories (TODO: missing link), specifying `..` can be useful as all icon tasks would point to the same path, avoiding cache filling by each of them.
+**description**: Path to the [gt4py :lucide-external-link:](https://github.com/GridTools/gt4py) build cache dir. It is used at runtime by the submitted ICON task so that relative paths are resolved from the task run directory. When using the standalone negine, given how Sirocco organizes [task run directories](../../orchestration/#workflow-folder-hierarch), specifying `..` can be useful as all icon tasks would point to the same path, avoiding cache filling by each of them. If provided, it will be exported as `GT4PY_BUILD_CACHE_DIR` in the submitted runscript so that subsequent [`runtime`](#runtime) can make use of it.
 
 ### `runtime`
 

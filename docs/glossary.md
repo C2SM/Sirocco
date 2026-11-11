@@ -9,7 +9,7 @@ title: Glossary
 }
 </style>
 
-Defintions of different terms and concepts in the Sirocco terminology
+Definitons of different terms and concepts in the Sirocco terminology
 
 ---
 

@@ -4,7 +4,7 @@ Sirocco workflows can be orchestrated by two engines. A **standalone** one runni
 
 ## The deep propagating submitted task front
 
-In order to optimize the resources usage of the HPC cluster, both engines maximize the amount of information given to the scheduler by implementing the new concept of deep propagating task front. Taking advantage of the deterministic nature of climate and weather workflows, it enables ahead-of-time task submission. Using rather grandiose language, one could qualify this front as a **deep**, **propagating** set of **dynamical topological generations**. To explain the concept, we will consider the [directed acyclic graph (DAG) :lucide-external-link:](https://en.wikipedia.org/wiki/Directed_acyclic_graph) constituted by task nodes only, removing data nodes from the [full workflow graph](configuration/cycles/#cycles). Edges between nodes thus become task dependencies, either derived from input/output relationships or direct [_wait on_](configurations/cycles/#wait_on) dependencies.
+In order to optimize the resources usage of the HPC cluster, both engines maximize the amount of information given to the scheduler by implementing the new concept of deep propagating task front. Taking advantage of the deterministic nature of climate and weather workflows, it enables ahead-of-time task submission. Using rather grandiose language, one could qualify this front as a **deep**, **propagating** set of **dynamical topological generations**. To explain the concept, we will consider the [directed acyclic graph (DAG) :lucide-external-link:](https://en.wikipedia.org/wiki/Directed_acyclic_graph) constituted by task nodes only, removing data nodes from the [full workflow graph](configuration/cycles/#cycles). Edges between nodes thus become task dependencies, either derived from input/output relationships or direct [_wait on_](configuration/cycles/#wait_on) dependencies.
 
 - [**topological generations** :lucide-external-link:](https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.dag.topological_generations.html) partition a DAG into sequential levels, the so-called "generations", based on their dependency depth. In this structure, nodes in generation 0 have no parents. Parents of nodes in generation 1 are only from generation 0, and more generally, parents of a node in generation $R$ are only from generations $<R$. We call $R$ the _global rank_.
 - **deep front**. Topological generations partition the _whole_ graph into generations. Our front has a _finite depth_, $d$, corresponding to the number of generations of submitted tasks taken into account. A depth of 1 would correspond to only ongoing tasks without ahead-of-time submission. A depth of 2 implies 1 generation submitted ahead-of-time, etc... In order to keep track of the propagating front, each task is attributed a _local rank_ $r$ indicating the front generation it belongs to or if it is out of the front:
@@ -24,7 +24,7 @@ At the start of a workflow, the Sirocco process
 
 1. submits required jobs, i.e. the $d$ front generations, to the scheduler with adequate dependencies,
 2. submits a workflow continuation job depending on the termination of any rank 0 task, regardless of the exit status
-2. and finally dumps the workflow state to file.
+3. and finally dumps the workflow state to file.
 
 When the Sirocco continuation task kicks in, it
 
@@ -35,7 +35,7 @@ When the Sirocco continuation task kicks in, it
 
 ### Workflow folder hierarchy
 
-The standalone engine executes workflows _inside their [configuration directory](configurations)_ so that "workflow root directory" is also used to designate the root of a running workflow which technically also remains the "configuration root directory". Starting the execution, Sirocco creates a `run` directory at the workflow root directory and each task will run inside its own run directory at `run/task_rundir_name`, where `task_rundir_name` is a unique name looking like this:
+The standalone engine executes workflows _inside their [configuration directory](configuration/configuration)_ so that "workflow root directory" is also used to designate the root of a running workflow which technically also remains the "configuration root directory". Starting the execution, Sirocco creates a `run` directory at the workflow root directory and each task will run inside its own run directory at `run/task_rundir_name`, where `task_rundir_name` is a unique name looking like this:
 ```shell
 <task_name>__<coordinate1_name>_<coordinate1_value>__<coordinate2_name>_<coordinate2_value>__[...]
 ```

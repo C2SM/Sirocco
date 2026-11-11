@@ -8,13 +8,13 @@ icon: lucide/refresh-cw
 h4, h5, h6 {
   font-size: 0.8rem !important;
   text-transform: none !important;
-  text-width: bold;
+  font-weight: bold;
 }
 </style>
 
 # Cycles
 
-Sirocco represents workflows as [directed acyclic graphs :lucide-external-link:](https://en.wikipedia.org/wiki/Directed_acyclic_graph), like the one displayed below, where nodes are instances of a task or a piece of data. Their **content**, _e.g._ task scripts or data path, is declared in the dedicated [`tasks`](tasks) and [`data`](data) sections while the current `cylces` section is only concerned with the **graph topology**, _i.e._ the relationships between the nodes. Yet, each mention of them, as well as potential [parameters](parameters), must refer to a declared counterpart.
+Sirocco represents workflows as [directed acyclic graphs :lucide-external-link:](https://en.wikipedia.org/wiki/Directed_acyclic_graph), like the one displayed below, where nodes are instances of a task or a piece of data. Their **content**, _e.g._ task scripts or data path, is declared in the dedicated [`tasks`](tasks) and [`data`](data) sections while the current `cycles` section is only concerned with the **graph topology**, _i.e._ the relationships between the nodes. Yet, each mention of them, as well as potential [parameters](parameters), must refer to a declared counterpart.
 
 In order to describe the graph topology, the `cycles` section describes:
 
@@ -28,14 +28,14 @@ The example below shows a short but comprehensive graph covering most of the ded
 
 !!! tip "hover and click"
 
-    In case the following image is to small, you can hover on the nodes and cycles to display information with a larger font. Also clicking nodes will highlight direct parents and children relationships.
+    In case the following image is too small, you can hover on the nodes and cycles to display information with a larger font. Also clicking nodes will highlight direct parents and children relationships.
 
 <!-- Use object to keep the embedded javascript runable -->
 <object type="image/svg+xml" data="../../assets/example_config/example.svg" width="100%">
   Your browser does not support interactive SVGs.
 </object>
 <figcaption markdown="span"  style="text-align: left;  font-style: normal; font-size: smaller;">
-*Example workflow graph*. Nodes vertical position indicate their rank, starting with 0 (no parents) at the top. Red rectangles represent **tasks**, green and blue ellipses represent **available data** and  **generated data** and light rectangular areas indicate **cycle** occurrences. Solid lines represent **input/output** relationships while dashed lines indicate a **`wait_on`** dependency.
+*Example workflow graph*. The vertical position of a node indicates its rank, starting with 0 (no parents) at the top. Red rectangles represent **tasks**, green and blue ellipses represent **available data** and  **generated data** and light rectangular areas indicate **cycle** occurrences. Solid lines represent **input/output** relationships while dashed lines indicate a **`wait_on`** dependency.
 </figcaption>
 
 <!-- large image in a fix sized window with sliders: might be useful for a parameterized example-->
@@ -152,7 +152,7 @@ cycles:
 <br>
 **optional**: if omitted, the cycle will be considered a *one-off* cycle, *i.e.* happening only once.
 <br>
-**description**: recurrence of the cycle. `"START_DATE"`, `"STOP_DATE"` and `"PERIOD"` must all be specified in [ISO 8601 format](https://en.wikipedia.org/wiki/ISO_8601). Each occurrence of the cycle gets itself a start and stop date later named "occurrence start date" and "occurrence stop date" to avoid confusion. These are naturally computed by iterating every `"PERIOD"`, starting from `"START_DATE"`, the last occurrence stop date being exactly `"STOP DATE"` even if the duration of that last cycle occurrence is shorter than `"PERIOD"`. Finally, cycle occurrences, tasks ha-penning within it and associated generated pieces of data receive a `date` attribute which, by convention, is the cycle occurrence start date. It will be used later to target different task or data instances in ambiguous cases.
+**description**: recurrence of the cycle. `"START_DATE"`, `"STOP_DATE"` and `"PERIOD"` must all be specified in [ISO 8601 format](https://en.wikipedia.org/wiki/ISO_8601). Each occurrence of the cycle gets itself a start and stop date later named "occurrence start date" and "occurrence stop date" to avoid confusion. These are naturally computed by iterating every `"PERIOD"`, starting from `"START_DATE"`, the last occurrence stop date being exactly `"STOP_DATE"` even if the duration of that last cycle occurrence is shorter than `"PERIOD"`. Finally, cycle occurrences, tasks happenning within it and associated generated pieces of data receive a `date` attribute which, by convention, is the cycle occurrence start date. It will be used later to target different task or data instances in ambiguous cases.
 
 ### `tasks`
 
@@ -169,7 +169,7 @@ cycles:
 
 ```
 
-**type**: sequence of mapping
+**type**: sequence of mappings
 <br>
 **required**
 <br>
@@ -181,7 +181,7 @@ cycles:
 
 !!! info "Tasks components"
 
-    In reality a `components` level is introduced between the task name and `inputs` and `outputs` (`wait_on` stays right bellow the task name). This is hidden to the user for basic ["shell tasks"](/plugins/shell), while it needs to be explicitly provided for ["icon tasks"](/plugins/icon#components). It is omitted here for simplicity.
+    In reality a `components` level is introduced between the task name and `inputs` and `outputs` (`wait_on` stays right below the task name). This is hidden to the user for basic ["shell tasks"](/plugins/shell), while it needs to be explicitly provided for ["icon tasks"](/plugins/icon#components). It is omitted here for simplicity.
 
 #### Ports
 
@@ -193,13 +193,13 @@ In all generality, from a task perspective, linking a piece of data as an input 
 <br>
 **optional**
 <br>
-**description**: The `inputs` section is a mapping between port names and a sequence of associated data instances. Elements of that sequence might be a simple data name or, in ambiguous cases, a mapping of that data name to some more information. Note that some [special port names](#special-input-linking-ports) are reserved for a specific behaviour.
+**description**: The `inputs` section is a mapping between port names and a sequence of associated data instances. Elements of that sequence might be a simple data name or, in ambiguous cases, a mapping of that data name to some more information. Note that some [special port names](#special-input-linking-ports) are reserved for a specific behavior.
 
 !!! warning "Data declaration and references"
 
     Just like tasks, these data names must be references to data declared in the [root level `data`](data) section, which can be confusing at first.
 
-There are two cases where the targeted data instance is unambiguous: if the data instance doesn't have any date or parameters (_e.g._ available data) or when the data was generated in the same cycle. This is for instance the case for the `bc` port of the `model` task. Even though the `boundary condition` data is generated at each occurrence of the `bi-monthly` cycle by the `pre proc` task, the default instance taken into account is the one generated in the same cycle as the current one. The configuration then looks like
+There are two cases where the targeted data instance is unambiguous: if the data instance doesn't have any date or parameters (_e.g._ available data) or when the data was generated in the same cycle. This is for instance the case for the `bc` port of the `model` task. Even though the `boundary conditions` data is generated at each occurrence of the `bi-monthly` cycle by the `pre proc` task, the default instance taken into account is the one generated in the same cycle as the current one. The configuration then looks like
 ```sirocco-yaml
 cycle name:
   [...]
@@ -248,14 +248,14 @@ target_cycle:
 <br>
 **optional**
 <br>
-**description**: The `when` keyword can used to specify wether or not a data instance needs to be taken into account. This is typically used when the behavior of the task differs between the first (last) occurrence and the other ones. In the example above, the `model` task requires `initial conditions` as input at the first occurrence and later expects `restart_file`. The specification is the following
+**description**: The `when` keyword can be used to specify whether or not a data instance needs to be taken into account. This is typically used when the behavior of the task differs between the first (last) occurrence and the other ones. In the example above, the `model` task requires `initial conditions` as input at the first occurrence and later expects `restart_file`. The specification is the following
 ```sirocco-yaml
 when:
   at: at_date
   before: before_date
   after: after_date
 ```
-`before` and `after` correspond to $\leq$ and $\geq$ in the date and time space. They can be simultaneously specified, while `at` is exclusive.
+`before` and `after` correspond to $<$ and $>$, so _strictly_ lower and greater, for dates. They can be simultaneously specified, while `at` is exclusive.
 
 ##### `parameters`
 
@@ -263,7 +263,7 @@ when:
 <br>
 **optional**
 <br>
-**description**: Tasks and pieces of data can be parameterized. Specifying which instances are targeted, is done via
+**description**: Tasks and pieces of data can be parameterized. Specifying which instances are targeted is done via
 ```sirocco-yaml
 parameters:
   parameter name: "mode_name"
@@ -276,7 +276,7 @@ parameters:
 For now, 2 options are supported, namely `"all"` and `"single"`.
 
  - `"all"` means that, regarding that parameter, all instances of the parameterized piece of data are taken into account.
- - `"single"` means that, regarding that parameter, only the data instance with the same parameter value as the task is taken into account. This involves that the task itself is parameterized by the same parameter.
+ - `"single"` means that, regarding that parameter, only the data instance with the same parameter value as the task is taken into account. This requires that the task itself is parameterized by the same parameter.
 
 !!! failure "Parameters not yet fully functional"
 
@@ -288,7 +288,7 @@ For now, 2 options are supported, namely `"all"` and `"single"`.
 <br>
 **optional**
 <br>
-**description**: In the same way as `inputs`, the `outputs` section maps port names to lists of data instances. Since there cannot be any ambiguity on the date and parameters of the later, there are no `target_cycle` and `parameters` specifications. `when` is also not available for now, even though one could imagine cases where a task would or not output some data depending on the cycle occurrence.
+**description**: In the same way as `inputs`, the `outputs` section maps port names to lists of data instances. Since there cannot be any ambiguity on the date and parameters of the latter, there are no `target_cycle` and `parameters` specifications. `when` is also not available for now, even though one could imagine cases where a task would or would not output some data depending on the cycle occurrence.
 
 #### `wait_on`
 
