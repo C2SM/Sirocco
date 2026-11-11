@@ -16,7 +16,7 @@ In order to optimize the resources usage of the HPC cluster, both engines maximi
 
 ## Standalone engine
 
-The standalone orchestrator enables Sirocco workflows to run autonomously on the HPC cluster, relying on the scheduler as the sole running daemon.
+The standalone orchestrating engine enables Sirocco workflows to run autonomously on the HPC cluster, relying on the scheduler as the sole running daemon.
 
 ### Front propagation
 

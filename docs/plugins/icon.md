@@ -14,7 +14,7 @@ h4, h5, h6 {
 
 # ICON task
 
-The ICON plugin is designed as an interface between the Sirocco workflow and the [ICON model :lucide-external-link:](icon-model.org). It will generate the final run scripts executed on the system based on specifications like namelists, MPI ranks distribution, hardware properties, etc ...
+The ICON plugin is designed as an interface between the Sirocco workflow and the [ICON model :lucide-external-link:](https://www.icon-model.org/). It will generate the final run scripts executed on the system based on specifications like namelists, MPI ranks distribution, hardware properties, etc ...
 
 ## Components
 As mentioned in the [cycles](../../configuration/cycles#tasks) section, we need to introduce the `components` level between tasks and their inputs/outputs in the `cycles` root section where the workflow graph topology is defined. In order to avoid conflicts between identical ports of models listed in `icon_master.namelist` (and bring clarity), each of them is mapped to a component with its own inputs and outputs. Restart state or output streams would be typical conflicting inputs without the component level. The `cycles` section hence reads like the following
@@ -27,7 +27,7 @@ cycles:
             components:
               master:
                 inputs: [...]
-              atmo:
+              atm:
                 inputs: [...]
                 outputs: [...]
               ocean:
@@ -36,7 +36,7 @@ cycles:
               land:
                 inputs: [...]
 ```
-Each of the models listed in `icon_master.namelist` must have a corresponding component specified. So `atmo`, `ocean` and `land` in this example. On top of these, a special and optional `master` component is available to host ports that are not specifically linked to a component, like [basic input linking](../../configuration/cycles/#special-input-linking-ports).
+Each of the models listed in `icon_master.namelist` must have a corresponding component specified. So `atm`, `ocean` and `land` in this example. On top of these, a special and optional `master` component is available to host ports that are not specifically linked to a component, like [basic input linking](../../configuration/cycles/#special-input-linking-ports).
 
 ## Ports
 
@@ -48,17 +48,17 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `squash`
 
-**components**: master
+**component types**: master
 <br>
 **data instances**: any
 <br>
 **actions**:
 
-- All data instances of that port are [squashfs :lucide-external-link:](https://en.wikipedia.org/wiki/SquashFS) images that will be mounted at runtime at the mount points given in the [`squash_mount`](#squash_mount) task specification. So far, this feature is only supported on  machines using the [uenv technology :lucide-external-link:](link to CSCS docs).
+- All data instances of that port are [squashfs :lucide-external-link:](https://en.wikipedia.org/wiki/SquashFS) images that will be mounted at runtime at the mount points given in the [`squash_mount`](#squash_mount) task specification. So far, this feature is only supported on  machines using the [uenv technology :lucide-external-link:](https://docs.cscs.ch/software/uenv/).
 
 #### `finish_status`
 
-**components**: atmosphere, ocean
+**component types**: atmosphere, ocean
 <br>
 **data instances**: 1
 <br>
@@ -66,7 +66,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `restart_in`
 
-**components**: atmosphere, ocean
+**component types**: atmosphere, ocean
 <br>
 **data instances**: 1
 <br>
@@ -77,7 +77,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `dynamics_grid_file`
 
-**components**: atmosphere, ocean
+**component types**: atmosphere, ocean
 <br>
 **data instances**: 1
 <br>
@@ -88,7 +88,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `ifs2icon`
 
-**components**: atmosphere
+**component types**: atmosphere
 <br>
 **data instances**: 1
 <br>
@@ -99,7 +99,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `extpar_file`
 
-**components**: atmosphere
+**component types**: atmosphere
 <br>
 **data instances**: 1
 <br>
@@ -110,7 +110,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `ecrad_data`
 
-**components**: atmosphere
+**component types**: atmosphere
 <br>
 **data instances**: 1
 <br>
@@ -122,7 +122,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `ghg_file`
 
-**components**: atmosphere
+**component types**: atmosphere
 <br>
 **data instances**: 1
 <br>
@@ -133,7 +133,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `rrtmg_lw`
 
-**components**: atmosphere
+**component types**: atmosphere
 <br>
 **data instances**: 1
 <br>
@@ -144,7 +144,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `rrtmg_sw`
 
-**components**: atmosphere
+**component types**: atmosphere
 <br>
 **data instances**: 1
 <br>
@@ -154,7 +154,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `bc_solar_sw`
 
-**components**: atmosphere
+**component types**: atmosphere
 <br>
 **data instances**: 1
 <br>
@@ -164,7 +164,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `atm_plumes`
 
-**components**: atmosphere
+**component types**: atmosphere
 <br>
 **data instances**: 1
 <br>
@@ -174,7 +174,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `cloud_opt_props`
 
-**components**: atmosphere
+**component types**: atmosphere
 <br>
 **data instances**: 1
 <br>
@@ -185,7 +185,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `jsb_ifs`
 
-**components**: land
+**component types**: land
 <br>
 **data instances**: 1
 <br>
@@ -196,7 +196,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `jsb_fract`
 
-**components**: land
+**component types**: land
 <br>
 **data instances**: 1
 <br>
@@ -207,7 +207,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `jsb_seb_bc`
 
-**components**: land
+**component types**: land
 <br>
 **data instances**: 1
 <br>
@@ -218,7 +218,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `jsb_seb_ic`
 
-**components**: land
+**component types**: land
 <br>
 **data instances**: 1
 <br>
@@ -229,7 +229,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `jsb_rad_bc`
 
-**components**: land
+**component types**: land
 <br>
 **data instances**: 1
 <br>
@@ -240,7 +240,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `jsb_rad_ic`
 
-**components**: land
+**component types**: land
 <br>
 **data instances**: 1
 <br>
@@ -251,7 +251,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `jsb_turb_bc`
 
-**components**: land
+**component types**: land
 <br>
 **data instances**: 1
 <br>
@@ -262,7 +262,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `jsb_turb_ic`
 
-**components**: land
+**component types**: land
 <br>
 **data instances**: 1
 <br>
@@ -273,7 +273,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `jsb_sse_bc`
 
-**components**: land
+**component types**: land
 <br>
 **data instances**: 1
 <br>
@@ -284,7 +284,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `jsb_sse_ic`
 
-**components**: land
+**component types**: land
 <br>
 **data instances**: 1
 <br>
@@ -295,7 +295,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `jsb_hydro_bc`
 
-**components**: land
+**component types**: land
 <br>
 **data instances**: 1
 <br>
@@ -306,7 +306,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `jsb_hydro_bc_sso`
 
-**components**: land
+**component types**: land
 <br>
 **data instances**: 1
 <br>
@@ -317,7 +317,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `jsb_hydro_ic`
 
-**components**: land
+**component types**: land
 <br>
 **data instances**: 1
 <br>
@@ -328,7 +328,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `jsb_pheno_bc`
 
-**components**: land
+**component types**: land
 <br>
 **data instances**: 1
 <br>
@@ -339,7 +339,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `jsb_pheno_ic`
 
-**components**: land
+**component types**: land
 <br>
 **data instances**: 1
 <br>
@@ -350,7 +350,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `jsb_disturb_bc`
 
-**components**: land
+**component types**: land
 <br>
 **data instances**: 1
 <br>
@@ -361,7 +361,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `jsb_disturb_ic`
 
-**components**: land
+**component types**: land
 <br>
 **data instances**: 1
 <br>
@@ -372,7 +372,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `jsb_hd_bc`
 
-**components**: land
+**component types**: land
 <br>
 **data instances**: 1
 <br>
@@ -383,7 +383,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `jsb_hd_ic`
 
-**components**: land
+**component types**: land
 <br>
 **data instances**: 1
 <br>
@@ -394,7 +394,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `ocean_inistate`
 
-**components**: ocean
+**component types**: ocean
 <br>
 **data instances**: 1
 <br>
@@ -407,7 +407,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `restart_out`
 
-**components**: atmosphere, ocean
+**component types**: atmosphere, ocean
 <br>
 **data instances**: 1
 <br>
@@ -417,7 +417,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 #### `output_streams`
 
-**components**: atmosphere, ocean
+**component types**: atmosphere, ocean
 <br>
 **data instances**: any
 <br>
@@ -510,7 +510,7 @@ tasks:
           icon4py_venv: "path/to/icon4py/venv"
           gt4py_build_cache_dir: "../.."
           procs:
-            atmo:
+            atm:
               compute_weight: 1
               streams: 2
 ```

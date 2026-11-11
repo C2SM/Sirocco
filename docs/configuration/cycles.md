@@ -181,7 +181,7 @@ cycles:
 
 !!! info "Tasks components"
 
-    In reality a `components` level is introduced between the task name and `inputs` and `outputs` (`wait_on` stays right below the task name). This is hidden to the user for basic ["shell tasks"](/plugins/shell), while it needs to be explicitly provided for ["icon tasks"](/plugins/icon#components). It is omitted here for simplicity.
+    In reality a `components` level is introduced between the task name and `inputs` and `outputs` (`wait_on` stays right below the task name). This is hidden to the user for basic ["shell tasks"](../../plugins/shell), while it needs to be explicitly provided for ["icon tasks"](../../plugins/icon#components). It is omitted here for simplicity.
 
 #### Ports
 
@@ -218,9 +218,9 @@ cycle name:
         inputs:
           port name:
             - data name:
-              target_cycle: [...]
-              parameters: [...]
-              when: [...]
+                target_cycle: [...]
+                parameters: [...]
+                when: [...]
 ```
 
 ##### `target_cycle`
@@ -234,7 +234,7 @@ cycle name:
 target_cycle:
   lag: relative_lag
 ```
-where `lag` is a duration specified in [ISO 8601 format](https://en.wikipedia.org/wiki/ISO_8601) or a sequence of them (_e.g._ the `stream` port in [the example](#example)) when targeting several occurrences, e.g. for the `post proc` task of the `4 monthly` cycle. The targeted data instance is the one whose `date` attribute is obtained by adding `relative_lag`, which can be negative, to the current cycle occurrence `date` (the one to which the task belongs).
+where `lag` is a duration specified in [ISO 8601 format](https://en.wikipedia.org/wiki/ISO_8601) or a sequence of them when targeting several occurrences, _e.g._ for the `post proc` task of the `4 monthly` cycle. The targeted data instance is the one whose `date` attribute is obtained by adding `relative_lag`, which can be negative, to the current cycle occurrence `date` (the one to which the task belongs).
 
 Instead of specifying a relative lag, an absolute date (or, again, a sequence of them) can be given with
 ```sirocco-yaml
@@ -292,12 +292,11 @@ For now, 2 options are supported, namely `"all"` and `"single"`.
 
 #### `wait_on`
 
-**type**: mapping
+**type**: sequence
 <br>
 **optional**
 <br>
-**description**:  On top of dependencies between tasks derived from the `inputs`/`outputs` relationships, `wait_on` enables the addition of explicit dependencies between tasks. Forcing a task to explicitly wait for the completion of some others can be very useful to prevent too early execution. In our case, such a dependency is introduced for the `pre proc` task on the occurrence of `model` 2 cycles before. This prevents the execution of all `pre proc` instances at the beginning of the workflow which could fill up the HPC with unnecessary data and jobs. Also the
-`clean up` task has an explicit dependency on `post proc` to avoid deleting data the later still needs.
+**description**:  On top of dependencies between tasks derived from the `inputs`/`outputs` relationships, `wait_on` enables the addition of explicit dependencies between tasks. Forcing a task to explicitly wait for the completion of some others can be very useful to prevent too early execution. In our case, such a dependency is introduced for the `pre proc` task on the occurrence of `model` 2 cycles before. This prevents the execution of all `pre proc` occurrences at the beginning of the workflow which could fill up the HPC with unnecessary data and jobs. Also the `clean up` task has an explicit dependency on `post proc` to avoid deleting data the latter still needs.
 
 Concretely `wait_on` is a list of task instances. Exactly as input data instances, they can be further specified using the [`target_cycle`](#target_cycle), [`parameters`](#parameters) (both applied to tasks instead of data) and [`when`](#when) keywords.
 
