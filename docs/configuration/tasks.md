@@ -13,7 +13,7 @@ tasks:
   - ROOT:
       account: "my_cluster_account"
   - SIROCCO:
-      walltime: 00:05:00
+      walltime: "00:05:00"
       uenv: "sirocco/v0.1.0"
   - task name 1:
       plugin: "shell"

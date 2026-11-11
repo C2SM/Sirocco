@@ -18,7 +18,7 @@ uv pip install Sirocco
 ```
 or
 ```shell
-git clone ...
+git clone url/of/remote/sirocco/repo
 cd Sirocco
 uv sync
 ```
