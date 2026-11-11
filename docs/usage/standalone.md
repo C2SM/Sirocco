@@ -52,7 +52,7 @@ Generate a visual representation of the workflow graph. An example is displayed 
 
 !!! warning "long graph representation"
 
-    The graph representation is produced via the graphviz package with the `dot` engine. Trying to display the entire graph for long production workflows can lead to very long processing or even non converging algorithm for nodes and edges placement. It is advised to reduce the workflow duration for visualization.
+    The graph representation is produced via the [graphviz](https://graphviz.org/) library with the [dot layout engine](https://graphviz.org/docs/layouts/dot/). Trying to display the entire graph for long production workflows can lead to very long processing or even non converging algorithm for nodes and edges placement. It is advised to reduce the workflow duration for visualization.
 
 #### `stviz`
 
@@ -62,13 +62,11 @@ TODO: Add example `stviz` graph
 
 ### :material-play-pause: Controlling
 
-Sirocco has the 3 following self-explanatory commands to control the workflow
+Sirocco has the 3 following self-explanatory commands to control the workflow. Each of them, as well as workflow continuation tasks, are logging informnation to `sirocco.log` located in the workflow root directory. By default Sirocco uses [ANSI escape codes](https://en.wikipedia.org/wiki/ANSI_escape_code) for coloring, which can be disable with `--no-ansi`.
 
 #### `start`
 
 Start the workflow. Use `--cleanup` to force a fresh start from an existing workflow and wipe the `run` directory.
-
-A `sirocco.log` file will be created in the workflow root directory where information about the workflow execution is reported.
 
 #### `stop`
 
@@ -81,6 +79,12 @@ Stop the workflow, which means cancel all front tasks. Use `--cool-down` to let 
 #### `restart`
 
 Restart a stopped workflow, even if it was stopped in cool-down mode. Rank $0$ tasks will be picked up if not already completed.
+
+#### Troubleshooting
+
+In the case of a failing job, the controlling Sirocco task will cancel all other tasks and, if needed, the workflow can be later restarted via `sìrocco restart`.
+
+Sirocco is also designed so that any workflow task can be re-submitted interactivelly, so not as part of the workflow, for testing or troubleshooting purposes.
 
 ### :material-remote: Remote handling
 
