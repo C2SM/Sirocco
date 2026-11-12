@@ -33,7 +33,23 @@ data:
 <br>
 **optional**
 <br>
-**description**: Sequence of mappings from data names to their properties. For now the only possible property is `path`, which is required and must be absolute.
+**description**: Sequence of mappings from data names to their properties.
+
+#### path
+
+**type**: string
+<br>
+**required**
+<br>
+**description**: Absolute path to the piece of data.
+
+#### `parameters`
+
+**type**: sequence of strings
+<br>
+**optional**
+<br>
+**description**: Sequence of parameter names which must be declared in [the corresponding root level section](../../configuration/parameters.md).
 
 ### `generated`
 
@@ -41,4 +57,20 @@ data:
 <br>
 **optional**
 <br>
-**description**: Sequence of mappings from data names to their properties. For now the only possible property is `path`, which is optional. Relative path will resolved with respect to run directory of the task of which it is an output. In some cases, like specific plugin output ports, `path` can be ignored and the data path is inferred from the task behavior.
+**description**: Sequence of mappings from data names to their properties.
+
+#### path
+
+**type**: string
+<br>
+**optional**
+<br>
+**description**: Path to the piece of data. Relative path will be resolved with respect to the run directory of the task of which it is an output. In some cases, like specific plugin output ports, `path` can be ignored and the data path is inferred from the task behavior.
+
+#### `parameters`
+
+**type**: sequence of strings
+<br>
+**optional**
+<br>
+**description**: Sequence of parameter names which must be declared in [the corresponding root level section](../../configuration/parameters.md).

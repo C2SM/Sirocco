@@ -57,7 +57,6 @@ When using the standalone orchestrator, the task named `SIROCCO` hosts specifica
 <br>
 **description**: designates the type of task. The 2 supported [plugins](../../plugins) for now are [shell](../../plugins/shell) and [icon](../../plugins/icon)
 
-
 #### `computer`
 
 **type**: string
@@ -69,6 +68,14 @@ When using the standalone orchestrator, the task named `SIROCCO` hosts specifica
 !!! warning "soon changing"
 
     `computer` should be specified at the root workflow level and not per task as all tasks are expected to run on the same HPC system.
+
+#### `parameters`
+
+**type**: sequence of strings
+<br>
+**optional**
+<br>
+**description**: Sequence of parameter names which must be declared in [the corresponding root level section](../../configuration/parameters.md).
 
 #### `account`
 
