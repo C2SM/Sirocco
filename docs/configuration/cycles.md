@@ -286,6 +286,42 @@ target_cycle:
   date: absolute_date
 ```
 
+###### Partial dates
+
+Dates given with `date` can also be _partially fixed_: some of their fields are replaced by placeholders which are filled in with the corresponding fields of the current task `date`. The supported placeholders are `%Y` (year), `%m` (month), `%d` (day), `%H` (hour), `%M` (minute) and `%S` (second). Apart from these placeholders, the date must follow the ISO 8601 format `YYYY-MM-DDThh:mm[:ss]`. For instance, `'%Y-01-01T00:00'` targets the instance dated January 1st of the current task year.
+
+This is typically useful when cycles of different periods interact and the targeted occurrence cannot be expressed as a constant lag. In the example below, the half-yearly `biannual_postprocessing` task processes the output of the yearly `icon` task of the same year: both of its occurrences in a given year target the `icon` occurrence starting on January 1st of that year, which would require a lag of `P0M` for the first one and `-P6M` for the second one.
+```sirocco-yaml
+cycles:
+  - yearly:
+      cycling:
+        start_date: "2026-01-01T00:00"
+        stop_date: "2028-01-01T00:00"
+        period: "P1Y"
+      tasks:
+        - icon:
+            outputs:
+              output: [annual_icon]
+  - half_yearly:
+      cycling:
+        start_date: "2026-01-01T00:00"
+        stop_date: "2028-01-01T00:00"
+        period: "P6M"
+      tasks:
+        - biannual_postprocessing:
+            inputs:
+              input:
+                - annual_icon:
+                    target_cycle:
+                      date: "%Y-01-01T00:00"
+```
+
+!!! warning "Partial dates restrictions"
+
+    - Partial dates require the current task to have a `date`, _i.e._ to belong to a recurring cycle.
+    - Once resolved, the date must correspond to an existing instance of the targeted node, exactly as for absolute dates.
+    - Partial dates are only supported by `target_cycle`, not by [`when`](#when).
+
 ##### `when`
 
 **type**: mapping
