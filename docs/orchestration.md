@@ -35,7 +35,7 @@ When the Sirocco continuation task kicks in, it
 
 ### Workflow folder hierarchy
 
-The standalone engine executes workflows _inside their [configuration directory](configuration/configuration)_ so that "workflow root directory" is also used to designate the root of a running workflow which technically also remains the "configuration root directory". Starting the execution, Sirocco creates a `run` directory at the workflow root directory and each task will run inside its own run directory at `run/task_rundir_name`, where `task_rundir_name` is a unique name looking like this:
+The standalone engine executes workflows in place, _inside their [configuration directory](glossary.md#configuration-directory)_. Starting the execution, Sirocco creates a `run` directory in the configuration directory and each task will run inside its own run directory at `run/task_rundir_name`, where `task_rundir_name` is a unique name looking like this:
 ```shell
 <task_name>__<coordinate1_name>_<coordinate1_value>__<coordinate2_name>_<coordinate2_value>__[...]
 ```
