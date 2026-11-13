@@ -75,7 +75,7 @@ When using the standalone orchestrator, the task named `SIROCCO` hosts specifica
 <br>
 **optional**
 <br>
-**description**: Sequence of parameter names which must be declared in [the corresponding root level section](../../configuration/parameters.md).
+**description**: Sequence of parameter names which must be declared in [the corresponding root level section](parameters.md#specifications). One instance is created for each combination of their values. See [Parameters](parameters.md) for how parameters are declared, attached and targeted across sections.
 
 #### `account`
 
