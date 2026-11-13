@@ -14,7 +14,7 @@ h4, h5, h6 {
 
 # Cycles
 
-Sirocco represents workflows as [directed acyclic graphs :lucide-external-link:](https://en.wikipedia.org/wiki/Directed_acyclic_graph), like the one displayed below, where nodes are instances of a task or a piece of data. Their **content**, _e.g._ task scripts or data path, is declared in the dedicated [`tasks`](tasks) and [`data`](data) sections while the current `cycles` section is only concerned with the **graph topology**, _i.e._ the relationships between the nodes. Yet, each mention of them, as well as potential [parameters](parameters), must refer to a declared counterpart.
+Sirocco represents workflows as [directed acyclic graphs :lucide-external-link:](https://en.wikipedia.org/wiki/Directed_acyclic_graph), like the one displayed below, where nodes are instances of a task or a piece of data. Their **content**, _e.g._ task scripts or data path, is declared in the dedicated [`tasks`](tasks.md) and [`data`](data.md) sections while the current `cycles` section is only concerned with the **graph topology**, _i.e._ the relationships between the nodes. Yet, each mention of them, as well as potential [parameters](parameters.md), must refer to a declared counterpart.
 
 In order to describe the graph topology, the `cycles` section describes:
 
@@ -30,7 +30,7 @@ The example below shows a short but comprehensive graph covering most of the ded
 
     In case the following image is too small, you can hover on the nodes and cycles to display information with a larger font. Also clicking nodes will highlight direct parents and children relationships.
 
-<!-- Use object to keep the embedded javascript runable -->
+<!-- Use object to keep the embedded javascript runnable -->
 <object type="image/svg+xml" data="../../assets/example_config/example.svg" width="100%">
   Your browser does not support interactive SVGs.
 </object>
@@ -168,11 +168,11 @@ cycles:
 
 !!! warning "Tasks declaration and references"
 
-    These task names must be references to tasks declared in the [root level `tasks`](tasks) section, which can be confusing at first.
+    These task names must be references to tasks declared in the [root level `tasks`](tasks.md) section, which can be confusing at first.
 
 !!! info "Tasks components"
 
-    In reality a `components` level is introduced between the task name and `inputs` and `outputs` (`wait_on` stays right below the task name). This is hidden to the user for basic ["shell tasks"](../../plugins/shell), while it needs to be explicitly provided for ["icon tasks"](../../plugins/icon#components). It is omitted here for simplicity.
+    In reality a `components` level is introduced between the task name and `inputs` and `outputs` (`wait_on` stays right below the task name). This is hidden to the user for basic ["shell tasks"](../plugins/shell.md), while it needs to be explicitly provided for ["icon tasks"](../plugins/icon.md#components). It is omitted here for simplicity.
 
 #### Ports
 
@@ -188,7 +188,7 @@ In all generality, from a task perspective, linking a piece of data as an input 
 
 !!! warning "Data declaration and references"
 
-    Just like tasks, these data names must be references to data declared in the [root level `data`](data) section, which can be confusing at first.
+    Just like tasks, these data names must be references to data declared in the [root level `data`](data.md) section, which can be confusing at first.
 
 There are two cases where the targeted data instance is unambiguous: if the data instance doesn't have any date or parameters (_e.g._ available data) or when the data was generated in the same cycle. This is for instance the case for the `bc` port of the `model` task. Even though the `boundary conditions` data is generated at each occurrence of the `bi-monthly` cycle by the `pre proc` task, the default instance taken into account is the one generated in the same cycle as the current one. The configuration then looks like
 ```sirocco-yaml
@@ -351,7 +351,7 @@ parameters:
 
 !!! warning "Parameters declaration and references"
 
-    Just like tasks and data, these parameter names must be references to parameters declared in the [root level `parameters`](parameters) section, which can be confusing at first.
+    Just like tasks and data, these parameter names must be references to parameters declared in the [root level `parameters`](parameters.md) section, which can be confusing at first.
 
 2 targeting modes are supported: `"all"` and `"single"`.
 

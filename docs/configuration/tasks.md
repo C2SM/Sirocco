@@ -5,9 +5,9 @@ icon: lucide/list-todo
 
 # Tasks
 
-The root level `tasks` section is where tasks are declared and their concrete content specified but no graph related information like input/output relationships which is the topic of the [`cycles`](../../configuration/cycles) section. Any task referred to in `cycles` must be declared here in `tasks`.
+The root level `tasks` section is where tasks are declared and their concrete content specified but no graph related information like input/output relationships which is the topic of the [`cycles`](cycles.md) section. Any task referred to in `cycles` must be declared here in `tasks`.
 
-Even though most of the task content depends on the plugin and is described in the [corresponding section](../../plugins), some specifications are common to all plugins and described here. This section is a sequence of mappings from task names to their content and typically looks like this:
+Even though most of the task content depends on the plugin and is described in the [corresponding section](../plugins/plugins.md), some specifications are common to all plugins and described here. This section is a sequence of mappings from task names to their content and typically looks like this:
 ```sirocco-yaml
 tasks:
   - ROOT:
@@ -29,11 +29,11 @@ If a task named `ROOT` is declared, its attributes are propagated as default for
 
 ## The special `SIROCCO` task
 
-When using the standalone orchestrator, the task named `SIROCCO` hosts specifications for the special Sirocco task whose role is to check the current state of the workflow, submit new task jobs as needed and dump the new state to file. This task needs to find the `sirocco` executable in `PATH`, which can be achieved in different ways:
+When using the standalone engine, the task named `SIROCCO` hosts the specifications of the [Sirocco continuation task](../orchestration.md#standalone-engine), the job propagating the task front: it checks the current state of the workflow, submits new tasks as needed and dumps the new state to file. This task needs to find the `sirocco` executable in `PATH`, which can be achieved in different ways:
 
 - through the virtual environment where it is installed via the [`venv`](#venv) specification (see below)
 - provided by a [`uenv`](#uenv) in a certain [`view`](#view)
-- readily available from a [fresh `bash` login](../../orchestration/#bash-shebang-and-base-environment), for instance installed system-wide or loaded from `.bashrc`
+- readily available from a [fresh `bash` login](../orchestration.md#bash-shebang-and-base-environment), for instance installed system-wide or loaded from `.bashrc`
 
 #### `venv`
 
@@ -41,11 +41,13 @@ When using the standalone orchestrator, the task named `SIROCCO` hosts specifica
 <br>
 **optional**
 <br>
-**description**: absolute path to the virtual environment to activate in order to have access to the `sirocco` CLI. For instance, if specifying `venv: /path/to/.venv`, `source /path/to/.venv/bin/activate` will be added to the special Sirocco task run script so that it takes precedence over other methods for providing the `sirocco` executable.
+**description**: absolute path to the virtual environment to activate in order to have access to the `sirocco` CLI. For instance, if specifying `venv: /path/to/.venv`, `source /path/to/.venv/bin/activate` will be added to the continuation task run script so that it takes precedence over other methods for providing the `sirocco` executable.
 
 ## All tasks
 
 ### Specifications
+
+Specifications describing requested resources are translated into options of the scheduler [selected for the workflow](configuration.md#scheduler). The correspondence is listed in [scheduler options](configuration.md#scheduler-options).
 
 #### `plugin`
 
@@ -55,7 +57,7 @@ When using the standalone orchestrator, the task named `SIROCCO` hosts specifica
 <br>
 **choices** : `"shell"` or `"icon"`
 <br>
-**description**: designates the type of task. The 2 supported [plugins](../../plugins) for now are [shell](../../plugins/shell) and [icon](../../plugins/icon)
+**description**: designates the type of task. The 2 supported [plugins](../plugins/plugins.md) for now are [shell](../plugins/shell.md) and [icon](../plugins/icon.md)
 
 #### `computer`
 
@@ -83,7 +85,7 @@ When using the standalone orchestrator, the task named `SIROCCO` hosts specifica
 <br>
 **optional**
 <br>
-**description**: account used on the HPC system. Equivalent to SLURM `--account`. Reflected in the run script header.
+**description**: account charged for the resources used by the task. Set in the job header (see [scheduler options](configuration.md#scheduler-options)).
 
 #### `partition`
 
@@ -91,7 +93,7 @@ When using the standalone orchestrator, the task named `SIROCCO` hosts specifica
 <br>
 **optional**
 <br>
-**description**: partition used on the HPC system. Equivalent to SLURM `--partition`. Reflected in the run script header.
+**description**: partition (or queue) of the HPC system the task is submitted to. Set in the job header (see [scheduler options](configuration.md#scheduler-options)).
 
 #### `walltime`
 
@@ -101,7 +103,7 @@ When using the standalone orchestrator, the task named `SIROCCO` hosts specifica
 <br>
 **optional**
 <br>
-**description**: requested time for the task job. Equivalent to SLURM `--time`. Reflected in the run script header.
+**description**: maximum run time requested for the task. Set in the job header (see [scheduler options](configuration.md#scheduler-options)).
 
 #### `nodes`
 
@@ -109,7 +111,7 @@ When using the standalone orchestrator, the task named `SIROCCO` hosts specifica
 <br>
 **default**: 1
 <br>
-**description**: requested number of nodes on the HPC. Equivalent to SLURM `--nodes`. Reflected in the run script header. When set, the corresponding environment variable `N_NODES` is exported in the submitted run script.
+**description**: number of requested nodes. Set in the job header (see [scheduler options](configuration.md#scheduler-options)). When set, the corresponding environment variable `N_NODES` is exported in the submitted run script.
 
 #### `sockets_per_node`
 
@@ -117,7 +119,7 @@ When using the standalone orchestrator, the task named `SIROCCO` hosts specifica
 <br>
 **default**: 1
 <br>
-**description**: Number of physical coherent sub-units per node. On the Säntis machine, it maps to `--gpus-per-node`. The [ICON plugin](../../plugins/icon) uses it to dispatch MPI processes on different [NUMA :lucide-external-link:](https://en.wikipedia.org/wiki/Non-uniform_memory_access) nodes.
+**description**: Number of physical coherent sub-units per node. On the Säntis machine, it maps to `--gpus-per-node`. The [ICON plugin](../plugins/icon.md) uses it to dispatch MPI processes on different [NUMA :lucide-external-link:](https://en.wikipedia.org/wiki/Non-uniform_memory_access) nodes.
 
 #### `gpus_per_node`
 
@@ -125,7 +127,7 @@ When using the standalone orchestrator, the task named `SIROCCO` hosts specifica
 <br>
 **optional**
 <br>
-**description**: Number of GPU devices per node. Equivalent to SLURM `--gpus-per-node`. Reflected in the run script header.
+**description**: number of requested GPU devices per node. Set in the job header (see [scheduler options](configuration.md#scheduler-options)).
 
 #### `gres`
 
@@ -133,7 +135,9 @@ When using the standalone orchestrator, the task named `SIROCCO` hosts specifica
 <br>
 **optional**
 <br>
-**description**: SLURM `--gres` option. Reflected in the run script header.
+**schedulers**: SLURM only
+<br>
+**description**: generic resources requested for the task. Set in the job header (see [scheduler options](configuration.md#scheduler-options)).
 
 #### `gres_flags`
 
@@ -141,7 +145,9 @@ When using the standalone orchestrator, the task named `SIROCCO` hosts specifica
 <br>
 **optional**
 <br>
-**description**: SLURM `--gres-flags` option. Reflected in the run script header.
+**schedulers**: SLURM only
+<br>
+**description**: flags controlling how generic resources are allocated. Set in the job header (see [scheduler options](configuration.md#scheduler-options)).
 
 #### `procs_per_node`
 
@@ -149,7 +155,7 @@ When using the standalone orchestrator, the task named `SIROCCO` hosts specifica
 <br>
 **optional**
 <br>
-**description**: number of MPI processes per node. Equivalent to SLURM `--ntasks-per-node`. When set, the corresponding environment variable `PROCS_PER_NODE` is exported in the submitted run script so that users can specify it as the `srun --ntasks-per-node` option.
+**description**: number of MPI processes per node. It is not set in the job header: when set, the corresponding environment variable `PROCS_PER_NODE` is exported in the submitted run script so that users can pass it to their MPI launcher (see [scheduler options](configuration.md#scheduler-options)).
 
 #### `cores_per_proc`
 
@@ -157,7 +163,7 @@ When using the standalone orchestrator, the task named `SIROCCO` hosts specifica
 <br>
 **optional**
 <br>
-**description**: number of cores per MPI process. When set, the corresponding environment variable `CORES_PER_PROC` is exported in the submitted run script so that users can specify it as the `srun --cpus-per-task` option.
+**description**: number of cores per MPI process. It is not set in the job header: when set, the corresponding environment variable `CORES_PER_PROC` is exported in the submitted run script so that users can pass it to their MPI launcher (see [scheduler options](configuration.md#scheduler-options)).
 
 #### `uenv`
 
@@ -167,7 +173,7 @@ When using the standalone orchestrator, the task named `SIROCCO` hosts specifica
 <br>
 **optional**
 <br>
-**description**: CSCS [user environment :lucide-external-link:](https://docs.cscs.ch/software/uenv).
+**description**: CSCS [user environment :lucide-external-link:](https://docs.cscs.ch/software/uenv). Set in the job header on machines supporting uenvs (see [scheduler options](configuration.md#scheduler-options)).
 
 #### `view`
 
@@ -175,4 +181,4 @@ When using the standalone orchestrator, the task named `SIROCCO` hosts specifica
 <br>
 **optional**
 <br>
-**description**: CSCS user environment [view :lucide-external-link:](https://docs.cscs.ch/software/uenv/using/#views)
+**description**: CSCS user environment [view :lucide-external-link:](https://docs.cscs.ch/software/uenv/using/#views). Set in the job header on machines supporting uenvs (see [scheduler options](configuration.md#scheduler-options)).

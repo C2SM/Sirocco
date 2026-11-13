@@ -5,7 +5,7 @@ title: Shell task
 
 # Shell task
 
-The `shell` plugin allows users to bring their own set of files to specify the task content. These files can be of any nature: shell scripts, python code, a source tree to compile, configuration files, etc ... The only requirement is the ability to interface with the Sirocco workflow, _i.e._ use inputs and outputs as defined in the [`cycles` section](../../configuration/cycles). This is done through the `command` specification (see below).
+The `shell` plugin allows users to bring their own set of files to specify the task content. These files can be of any nature: shell scripts, python code, a source tree to compile, configuration files, etc ... The only requirement is the ability to interface with the Sirocco workflow, _i.e._ use inputs and outputs as defined in the [`cycles` section](../configuration/cycles.md). This is done through the `command` specification (see below).
 
 A shell task description would typically look like this
 ```sirocco-yaml
@@ -23,7 +23,7 @@ For _shell_ tasks, the choice of port names is entirely free. The concrete link 
 
 ## Task specifications
 
-The following shell task specifications come on top of [the ones used for any task](../../configuration/tasks#all-tasks).
+The following shell task specifications come on top of [the ones used for any task](../configuration/tasks.md#all-tasks).
 
 ### `src`
 
@@ -99,7 +99,7 @@ my_command --repeat-arg=data_path_1 --repeat-arg=data_path_2 ...
 
 ##### Vanishing placeholders
 
-For some instances of a task, typically the first or last one of a cycle, it can also be necessary that port placeholders vanish. In a Sirocco workflow, this happens when using the [`when` keyword](../../configuration/cycles#when). In such a case the port placeholder can be made vanishing by using extra brackets surrounding the entire part of the command that needs to be ignored if the port does not link any data. For instance
+For some instances of a task, typically the first or last one of a cycle, it can also be necessary that port placeholders vanish. In a Sirocco workflow, this happens when using the [`when` keyword](../configuration/cycles.md#when). In such a case the port placeholder can be made vanishing by using extra brackets surrounding the entire part of the command that needs to be ignored if the port does not link any data. For instance
 ```sirocco-yaml
 tasks:
   - task name 1:
@@ -121,7 +121,11 @@ depending on whether `port_name_2` links data or not.
 
 Before invoking the task `command` in the submitted run script, some environment variables are exported to provide context information or propagate information provided in the configuration file.
 
-- `SIROCCO_START_DATE` and `SIROCCO_STOP_DATE`: start and stop date of the [current cycle occurrence](../../configuration/cycles/#cycling)
-- `N_NODES`: if provided, [number of requested nodes](../../configuration/tasks/#nodes)
-- `PROCS_PER_NODE`: if provided, [number of requested MPI processes per node](../../configuration/tasks/#procs_per_node)
-- `CORES_PER_PROC`: if provided, [number of requested cores per MPI process](../../configuration/tasks/#cores_per_proc)
+- `SIROCCO_START_DATE` and `SIROCCO_STOP_DATE`: start and stop date of the [current cycle occurrence](../configuration/cycles.md#cycling)
+- `N_NODES`: if provided, [number of requested nodes](../configuration/tasks.md#nodes)
+- `PROCS_PER_NODE`: if provided, [number of requested MPI processes per node](../configuration/tasks.md#procs_per_node)
+- `CORES_PER_PROC`: if provided, [number of requested cores per MPI process](../configuration/tasks.md#cores_per_proc)
+
+!!! failure "Parameter values not exported yet"
+
+    The values of the [parameters](../configuration/parameters.md) of a task instance are not exported yet, so that tasks cannot adapt their behavior to them for now.

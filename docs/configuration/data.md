@@ -5,11 +5,11 @@ icon: lucide/database
 
 # Data
 
-In the Sirocco context, what is considered as a piece of data, or data node in the graph perspective, is a piece of information stored on a file system at a certain location and produced by a piece of software. This definition distinguishes it, especially in the input case, from human produced files dedicated to task configuration. A FORTRAN namelist, for instance is not an input data node to a task but part of its configuration. As such, it belongs to the [workflow configuration](../../configuration/configuration).
+In the Sirocco context, what is considered as a piece of data, or data node in the graph perspective, is a piece of information stored on a file system at a certain location and produced by a piece of software. This definition distinguishes it, especially in the input case, from human produced files dedicated to task configuration. A FORTRAN namelist, for instance is not an input data node to a task but part of its configuration. As such, it belongs to the [workflow configuration](configuration.md).
 
-In the same way as [`tasks`](../../configuration/tasks), the root level `data` section hosts data properties but no graph related information like input/output relationships which is the topic of the [`cycles`](../../configuration/cycles) section. Any data referred to in `cycles` must be declared here in `data`.
+In the same way as [`tasks`](tasks.md), the root level `data` section hosts data properties but no graph related information like input/output relationships which is the topic of the [`cycles`](cycles.md) section. Any data referred to in `cycles` must be declared here in `data`.
 
-Sirocco has 2 types of data: already available or generated as output by a task. The root level `data` section of the [example graph shown in Cycles](../../configuration/cycles/#example) looks like the following:
+Sirocco has 2 types of data: already available or generated as output by a task. The root level `data` section of the [example graph shown in Cycles](cycles.md#example) looks like the following:
 ```sirocco-yaml
 data:
   available:
