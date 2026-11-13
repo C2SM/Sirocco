@@ -32,7 +32,7 @@ sirocco --help
 
 ## :lucide-terminal: CLI
 
-Once the workflow [configuration](../configuration) is created on the HPC, it can be handled by the `sirocco` CLI. `sirocco` sub-commands can be classified in 2 groups: checking and controlling. All of them take the workflow root directory as the only positional argument defaulting to the current directory and have a `--help` option.
+Once the workflow [configuration](../configuration) is created on the HPC, it can be handled by the `sirocco` CLI. `sirocco` sub-commands can be classified in 2 groups: checking and controlling. All of them take the [configuration directory](../glossary.md#configuration-directory) as the only positional argument defaulting to the current directory and have a `--help` option.
 
 ### :lucide-check: Checking
 
@@ -68,7 +68,7 @@ Generate a graphical representation similar to `visualize` focusing on the [task
 
 ### :material-play-pause: Controlling
 
-Sirocco has the 3 following self-explanatory commands to control the workflow. Each of them, as well as workflow continuation tasks, are logging information to `sirocco.log` located in the workflow root directory. By default Sirocco uses [ANSI escape codes](https://en.wikipedia.org/wiki/ANSI_escape_code) for coloring, which can be disable with `--no-ansi`.
+Sirocco has the 3 following self-explanatory commands to control the workflow. Each of them, as well as workflow continuation tasks, are logging information to `sirocco.log` located in the configuration directory. By default Sirocco uses [ANSI escape codes](https://en.wikipedia.org/wiki/ANSI_escape_code) for coloring, which can be disable with `--no-ansi`.
 
 #### `start`
 

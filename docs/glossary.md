@@ -13,6 +13,9 @@ Definitions of different terms and concepts in the Sirocco terminology
 
 ---
 
+### configuration directory
+Directory containing the `sirocco.yaml` file and all files needed to configure the tasks (software configuration files, scripts, source code, ...). Relative paths in the [configuration](configuration/configuration.md) are resolved from it and it is the positional argument of the `sirocco` CLI. The standalone [engine](#engine) runs the workflow in place: it creates the `run` directory, hosting the task [run directories](#run-directory), and the `sirocco.log` file inside it.
+
 ### coordinates
 Set of values identifying a specific instance of a [task](#task) or [data](#data) among all instances sharing the same name in the unrolled graph. Coordinates are the instance [date](#date), if it belongs to a recurring [cycle](#cycle), and the values of the [parameters](#parameter) attached to it. They are reflected as well in the task [run directory](#run-directory).
 
@@ -50,7 +53,7 @@ Named role that one or several pieces of data play for a given task. [Inputs](#i
 Position of a task in the dependency structure of the workflow. The _global rank_ $R$ is the index of the [topological generation](orchestration.md#the-deep-propagating-submitted-task-front) the task belongs to. The _local rank_ $r$ locates the task with respect to the [task front](#task-front): $-1$ for completed tasks, $0$ to $d-1$ for tasks within the front, $d$ for not yet submitted tasks.
 
 ### run directory
-Directory in which a task instance runs. With the standalone engine, it is located at `run/<task_rundir_name>` under the workflow root directory, where `<task_rundir_name>` is built from the task name and its [coordinates](#coordinates).
+Directory in which a task instance runs. With the standalone engine, it is located at `run/<task_rundir_name>` under the [configuration directory](#configuration-directory), where `<task_rundir_name>` is built from the task name and its [coordinates](#coordinates).
 
 ### task
 Unit of work submitted as a job to the HPC scheduler and represented as a node in the workflow graph. Its content (scheduling information, scripts, configuration files, ...) is declared in the root level [`tasks`](configuration/tasks.md) section and its behavior is implemented by a [plugin](#plugin). Its place in the graph is described in the [`cycles`](configuration/cycles.md) section. The special `ROOT` and `SIROCCO` tasks respectively provide default settings for all tasks and settings for the Sirocco continuation task of the standalone engine.
@@ -62,4 +65,4 @@ Set of tasks currently running or submitted ahead-of-time to the scheduler, orga
 Explicit dependency between tasks, added on top of the ones derived from [inputs](#inputs) and [outputs](#outputs) relationships. Typically used to prevent tasks from running too early. See [`wait_on`](configuration/cycles.md#wait_on).
 
 ### workflow
-Directed acyclic graph of [task](#task) and [data](#data) instances obtained by unrolling the [cycles](#cycle) and [parameters](#parameter) described in a Sirocco configuration, _i.e._ a directory containing the `sirocco.yaml` file and all files needed to configure the tasks. With the standalone engine, the configuration directory is also the workflow root directory where it runs.
+Directed acyclic graph of [task](#task) and [data](#data) instances obtained by unrolling the [cycles](#cycle) and [parameters](#parameter) described in the `sirocco.yaml` file of a [configuration directory](#configuration-directory).

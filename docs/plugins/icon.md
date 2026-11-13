@@ -437,7 +437,7 @@ The following ICON task specifications come on top of [the ones used for any tas
 <br>
 **required**
 <br>
-**description**: Sequence of namelist specifications. This list must contain the master `icon_master.namelist` and each of the component namelists found in it. In a simple case, a namelist specification can simply be the path to the namelist file relative to the configuration root directory like this
+**description**: Sequence of namelist specifications. This list must contain the master `icon_master.namelist` and each of the component namelists found in it. In a simple case, a namelist specification can simply be the path to the namelist file relative to the configuration directory like this
 ```sirocco-yaml
 tasks:
   - icon_task:
@@ -477,7 +477,7 @@ tasks:
 <br>
 **optional**
 <br>
-**description**: Relative path to the configuration root directory pointing to the YAC coupling file `coupling.yaml`.
+**description**: Relative path to the configuration directory pointing to the YAC coupling file `coupling.yaml`.
 
 ### `exe`
 
@@ -614,7 +614,7 @@ Of course the final proportions might not exactly match the specified weights as
 <br>
 **optional**
 <br>
-**description**: Path to the [gt4py :lucide-external-link:](https://github.com/GridTools/gt4py) build cache dir. It is used at runtime by the submitted ICON task so that relative paths are resolved from the task run directory. When using the standalone negine, given how Sirocco organizes [task run directories](../../orchestration/#workflow-folder-hierarch), specifying `..` can be useful as all icon tasks would point to the same path, avoiding cache filling by each of them. If provided, it will be exported as `GT4PY_BUILD_CACHE_DIR` in the submitted runscript so that subsequent [`runtime`](#runtime) can make use of it.
+**description**: Path to the [gt4py :lucide-external-link:](https://github.com/GridTools/gt4py) build cache dir. It is used at runtime by the submitted ICON task so that relative paths are resolved from the task run directory. When using the standalone engine, given how Sirocco organizes [task run directories](../../orchestration/#workflow-folder-hierarchy), specifying `..` can be useful as all icon tasks would point to the same path, avoiding cache filling by each of them. If provided, it will be exported as `GT4PY_BUILD_CACHE_DIR` in the submitted runscript so that subsequent [`runtime`](#runtime) can make use of it.
 
 ### `runtime`
 
@@ -622,7 +622,7 @@ Of course the final proportions might not exactly match the specified weights as
 <br>
 **optional**
 <br>
-**description**: Path to a directory relative to the configuration root directory containing the set of scripts used at runtime to replace the default ones. The only requirement is that this directory contains a `main.sh` that will be sourced by the submitted job script. For supported machines, the default `runtime` directories are hosted in the Sirocco repository under [`src/sirocco/core/tasks/icon_task/runtime` :lucide-external-link:](https://github.com/C2SM/Sirocco/tree/main/src/sirocco/core/tasks/icon_task/runtime).
+**description**: Path to a directory relative to the configuration directory containing the set of scripts used at runtime to replace the default ones. The only requirement is that this directory contains a `main.sh` that will be sourced by the submitted job script. For supported machines, the default `runtime` directories are hosted in the Sirocco repository under [`src/sirocco/core/tasks/icon_task/runtime` :lucide-external-link:](https://github.com/C2SM/Sirocco/tree/main/src/sirocco/core/tasks/icon_task/runtime).
 
 Each machine having its own characteristics (chips, network, MPI library, scheduler, compilers, ...), it would be impossible to maintain a composable runtime environment where each piece can be customized independently. The adopted strategy is thus to bundle
 all these characteristics in the `runtime` directory and customizing it is done by replacing the whole directory. The most expected usage is to copy the default machine specific `runtime` and modify where required.
