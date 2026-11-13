@@ -20,65 +20,73 @@
 
 ## Example
 
-A model running month by month, restarting from its previous state, with each monthly output post-processed:
+An ICON atmosphere simulation running month by month, restarting from its previous state, with its output streams post-processed by a user script:
 
 ```yaml
 scheduler: slurm
 cycles:
   - monthly:
       cycling:
-        start_date: "2026-01-01T00:00"
-        stop_date: "2026-07-01T00:00"
+        start_date: "2000-01-01T00:00"
+        stop_date: "2000-07-01T00:00"
         period: "P1M"
       tasks:
-        - model:
+        - icon:
+            components:
+              atm:
+                inputs:
+                  dynamics_grid_file: [icon grid]
+                  restart_in:
+                    - restart:
+                        when:
+                          after: "2000-01-01T00:00"
+                        target_cycle:
+                          lag: "-P1M"
+                outputs:
+                  restart_out: [restart]
+                  output_streams: [atm 2d, atm 3d]
+        - post proc:
             inputs:
-              init:
-                - initial state:
-                    when:
-                      at: "2026-01-01T00:00"
-              restart_in:
-                - restart:
-                    when:
-                      after: "2026-01-01T00:00"
-                    target_cycle:
-                      lag: "-P1M"
+              streams: [atm 2d, atm 3d]
             outputs:
-              restart_out: [restart]
-              output: [model output]
-        - plot:
-            inputs:
-              data: [model output]
-            outputs:
-              figures: [figures]
+              diagnostics: [diagnostics]
 tasks:
   - ROOT:
       computer: santis
       account: my_account
       walltime: "01:00:00"
-  - model:
-      plugin: shell
-      src: scripts/run_model.sh
-      command: ./run_model.sh [--init {PORT::init}] [--restart {PORT::restart_in}]
+  - icon:
+      plugin: icon
+      uenv: icon/25.2:v3
       nodes: 4
-  - plot:
+      procs_per_node: 128
+      exe:
+        cpu:
+          path: /path/to/icon
+          procs:
+            atm:
+              compute_weight: 1
+              streams: 2
+      namelists:
+        - ICON/icon_master.namelist
+        - ICON/NAMELIST_exclaim_ape_R02B04
+  - post proc:
       plugin: shell
-      src: scripts/plot.py
-      command: python plot.py {PORT::data}
+      src: scripts/post_proc.sh
+      command: ./post_proc.sh {PORT::streams}
 data:
   available:
-    - initial state:
-        path: /path/to/initial_state.nc
+    - icon grid:
+        path: /path/to/icon_grid_0013_R02B04_R.nc
   generated:
-    - restart:
-        path: restart.nc
-    - model output:
-        path: output
-    - figures:
-        path: figures
+    - restart: {}
+    - atm 2d: {}
+    - atm 3d: {}
+    - diagnostics:
+        path: diagnostics
 ```
 
-See the [configuration documentation](https://sirocco.ethz.ch/configuration/configuration/) for the complete syntax.
+The namelists are files of the configuration directory, next to `sirocco.yaml`. See the [configuration](https://sirocco.ethz.ch/configuration/configuration/) and [ICON plugin](https://sirocco.ethz.ch/plugins/icon/) documentation for the complete syntax.
 
 ## Getting started
 
