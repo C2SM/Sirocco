@@ -40,6 +40,8 @@ flowchart LR
 *Propagation of a task front of depth $d = 2$.* Dark blue: rank 0 tasks (running or queued). Light blue: rank 1 tasks (submitted ahead of time). Dashed: tasks beyond the front ($r = d$, not submitted). Grey: completed tasks ($r = -1$). Once branch `a` has progressed, generation 0 of the front contains `a3` ($R = 2$) and `b1` ($R = 0$).
 </figcaption>
 
+To see what the front looks like on a real workflow, see the [status graph](usage/standalone.md#stviz) produced by `sirocco stviz` for the [Cycles example](configuration/cycles.md#example), here also with a front depth of 2.
+
 ## Standalone engine
 
 The standalone engine enables Sirocco workflows to run autonomously on the HPC cluster, relying on the scheduler as the sole running daemon. The [task front](#the-deep-propagating-task-front) described above is thus not propagated by a permanently running process but by a dedicated job, the **Sirocco continuation task**. It is submitted with a scheduler dependency on the termination of _any_ rank 0 task, so that the scheduler starts it as soon as one of them terminates, successfully or not. Between two continuation tasks, the workflow state, _i.e._ the front generations and the completed tasks, is stored in the `run/state.yaml` file. The continuation task is configured via the [special `SIROCCO` task](configuration/tasks.md#the-special-sirocco-task) and, as other Sirocco [controling processes](../usage/standalone/#controlling), logs its activity to `sirocco.log` in the configuration directory.

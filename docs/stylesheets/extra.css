@@ -108,3 +108,12 @@
 .md-typeset details > summary::after {
     background-color: var(--adm-color) !important;
 }
+
+/* Mermaid diagrams */
+/* ================ */
+/* Center diagrams horizontally (works whether the rendered svg is inline or block) */
+.md-typeset .mermaid {
+    display: flex;
+    justify-content: center;
+    text-align: center;
+}
