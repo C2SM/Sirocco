@@ -8,7 +8,7 @@ title: ICON task
 h4, h5, h6 {
   font-size: 0.8rem !important;
   text-transform: none !important;
-  text-width: bold;
+  font-weight: bold;
 }
 </style>
 
@@ -17,7 +17,7 @@ h4, h5, h6 {
 The ICON plugin is designed as an interface between the Sirocco workflow and the [ICON model :lucide-external-link:](https://www.icon-model.org/). It will generate the final run scripts executed on the system based on specifications like namelists, MPI ranks distribution, hardware properties, etc ...
 
 ## Components
-As mentioned in the [cycles](../../configuration/cycles#tasks) section, we need to introduce the `components` level between tasks and their inputs/outputs in the `cycles` root section where the workflow graph topology is defined. In order to avoid conflicts between identical ports of models listed in `icon_master.namelist` (and bring clarity), each of them is mapped to a component with its own inputs and outputs. Restart state or output streams would be typical conflicting inputs without the component level. The `cycles` section hence reads like the following
+As mentioned in the [cycles](../configuration/cycles.md#tasks) section, we need to introduce the `components` level between tasks and their inputs/outputs in the `cycles` root section where the workflow graph topology is defined. In order to avoid conflicts between identical ports of models listed in `icon_master.namelist` (and bring clarity), each of them is mapped to a component with its own inputs and outputs. Restart state or output streams would be typical conflicting inputs without the component level. The `cycles` section hence reads like the following
 
 ```sirocco-yaml
 cycles:
@@ -36,13 +36,13 @@ cycles:
               land:
                 inputs: [...]
 ```
-Each of the models listed in `icon_master.namelist` must have a corresponding component specified. So `atm`, `ocean` and `land` in this example. On top of these, a special and optional `master` component is available to host ports that are not specifically linked to a component, like [basic input linking](../../configuration/cycles/#special-input-linking-ports).
+Each of the models listed in `icon_master.namelist` must have a corresponding component specified. So `atm`, `ocean` and `land` in this example. On top of these, a special and optional `master` component is available to host ports that are not specifically linked to a component, like [basic input linking](../configuration/cycles.md#special-input-linking-ports).
 
 ## Ports
 
 Contrary to Shell tasks, ICON task ports are pre-defined. Listed below are the currently supported ones. The typical associated action is adapting namelists to reflect an input data path or linking input data in the task run directory.
 
-This list regularly gets extended as use cases start to cover more ICON features. Should a port be missing, the [basic input linking](../../configuration/cycles/#special-input-linking-ports) might first help circumventing this lack. Then please open a pull request on the [Sirocco repository :lucide-external-link:](https://github.com/C2SM/Sirocco/pulls).
+This list regularly gets extended as use cases start to cover more ICON features. Should a port be missing, the [basic input linking](../configuration/cycles.md#special-input-linking-ports) might first help circumventing this lack. Then please open a pull request on the [Sirocco repository :lucide-external-link:](https://github.com/C2SM/Sirocco/pulls).
 
 ### Input ports
 
@@ -429,7 +429,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 ## Task specifications
 
-The following ICON task specifications come on top of [the ones used for any task](../../configuration/tasks#all-tasks).
+The following ICON task specifications come on top of [the ones used for any task](../configuration/tasks.md#all-tasks).
 
 ### `namelists`
 
@@ -473,11 +473,11 @@ tasks:
 
 ### `yac_coupling`
 
-**type**: str
+**type**: string
 <br>
 **optional**
 <br>
-**description**: Relative path to the configuration directory pointing to the YAC coupling file `coupling.yaml`.
+**description**: Path, relative to the configuration directory, to the YAC coupling file `coupling.yaml`.
 
 ### `exe`
 
@@ -521,11 +521,13 @@ tasks:
 
 #### Resources allocation and mapping
 
-Based on the `exe` specifications, Sirocco will allocate MPI processes to master models, including potential processes dedicated to I/O. With the SLURM scheduler, MPI ranks are then mapped by blocks over the requested nodes and finally by sub-blocks over NUMA nodes. This design choice keeps close subdomains together as much as possible while also load balancing the memory requirement over the nodes.
+Based on the `exe` specifications, Sirocco allocates MPI processes to the models, including potential processes dedicated to I/O. Ranks are mapped by blocks over the requested nodes and then by sub-blocks over NUMA nodes. This design choice keeps close subdomains together as much as possible while also load balancing the memory requirement over the nodes.
+
+The resulting mapping is written to the `hostfile-sirocco` file in the task run directory, one line per MPI rank giving its node, NUMA node, process type, target and model. This file is scheduler independent: applying it is the job of the [`runtime`](#runtime) scripts. The default runtime for Säntis, for instance, does so with SLURM's arbitrary distribution (`srun --distribution=arbitrary`).
 
 ##### `separate_io`
 
-**type**: logical
+**type**: boolean
 <br>
 **default**: `False`
 <br>
@@ -545,13 +547,13 @@ Based on the `exe` specifications, Sirocco will allocate MPI processes to master
 <br>
 **required**: at least one of them
 <br>
-**description**: Description of the ICON executable and associated MPI processes. At least one of the `cpu` or `gpu` executable must be set but hybrid runs with both are also supported. A corresponding `SIROCCO_TARGET` environment variable is exported for further use in [`runtime`](#runtime), possibles values being `"cpu"`, `"gpu"` or `"hybrid"`.
+**description**: Description of the ICON executable and associated MPI processes. At least one of the `cpu` or `gpu` executable must be set but hybrid runs with both are also supported. A corresponding `SIROCCO_TARGET` environment variable is exported for further use in [`runtime`](#runtime), possible values being `"cpu"`, `"gpu"` or `"hybrid"`.
 
 For each of `cpu` and `gpu`, the following can or must be set.
 
 ##### `path`
 
-**type**: str
+**type**: string
 <br>
 **required**
 <br>
@@ -563,7 +565,7 @@ For each of `cpu` and `gpu`, the following can or must be set.
 <br>
 **required**
 <br>
-**description**: mapping of the master model (component) names associated to this executable to the different types of MPI processes. For single executable cases, all master models must be included while they must be split accross `cpu` and `gpu` for hybrid cases. The 4 types of MPI processes are the following with their default values:
+**description**: mapping of the master model (component) names associated to this executable to the different types of MPI processes. For single executable cases, all master models must be included while they must be split across `cpu` and `gpu` for hybrid cases. The 4 types of MPI processes are the following with their default values:
 ```sirocco-yaml
 tasks:
   - icon_task:
@@ -590,7 +592,7 @@ tasks:
             land:
               compute_weight: 15
 ```
-Of course the final proportions might not exactly match the specified weights as the numbers of allocated compute processes are rounded to the closest possible integer. This design enables scalable configurations where requesting more (less) nodes overall simply implies increasing (decreasing) [`nodes`](../../configuration/tasks/#nodes) and no other calculation to make the new configuration fit on the requested resources.
+Of course the final proportions might not exactly match the specified weights as the numbers of allocated compute processes are rounded to the closest possible integer. This design enables scalable configurations where requesting more (less) nodes overall simply implies increasing (decreasing) [`nodes`](../configuration/tasks.md#nodes) and no other calculation to make the new configuration fit on the requested resources.
 
 
 ##### `compute_procs_per_node`
@@ -599,10 +601,10 @@ Of course the final proportions might not exactly match the specified weights as
 <br>
 **required** (mostly)
 <br>
-**description**: Number of MPI compute processes per node, so excluding I/O processes. It is required for `gpu` executables. For `cpu`, it has to be provided when [`separate_io`](#separate_io) is activated, otherwise it is ignored and [`procs_per_node`](../../configuration/tasks/#procs_per_node) gets required. Make sure, in that case, that `procs_per_node` includes all MPI processes: `gpu` and `cpu`, compute and I/O.
+**description**: Number of MPI compute processes per node, so excluding I/O processes. It is required for `gpu` executables. For `cpu`, it has to be provided when [`separate_io`](#separate_io) is activated, otherwise it is ignored and [`procs_per_node`](../configuration/tasks.md#procs_per_node) gets required. Make sure, in that case, that `procs_per_node` includes all MPI processes: `gpu` and `cpu`, compute and I/O.
 
 ##### `icon4py_venv`
-**type**: str
+**type**: string
 <br>
 **optional**
 <br>
@@ -610,15 +612,15 @@ Of course the final proportions might not exactly match the specified weights as
 
 ##### `gt4py_build_cache_dir`
 
-**type**: str
+**type**: string
 <br>
 **optional**
 <br>
-**description**: Path to the [gt4py :lucide-external-link:](https://github.com/GridTools/gt4py) build cache dir. It is used at runtime by the submitted ICON task so that relative paths are resolved from the task run directory. When using the standalone engine, given how Sirocco organizes [task run directories](../../orchestration/#workflow-folder-hierarchy), specifying `..` can be useful as all icon tasks would point to the same path, avoiding cache filling by each of them. If provided, it will be exported as `GT4PY_BUILD_CACHE_DIR` in the submitted runscript so that subsequent [`runtime`](#runtime) can make use of it.
+**description**: Path to the [gt4py :lucide-external-link:](https://github.com/GridTools/gt4py) build cache dir. It is used at runtime by the submitted ICON task so that relative paths are resolved from the task run directory. When using the standalone engine, given how Sirocco organizes [task run directories](../orchestration.md#workflow-folder-hierarchy), specifying `..` can be useful as all icon tasks would point to the same path, avoiding cache filling by each of them. If provided, it will be exported as `GT4PY_BUILD_CACHE_DIR` in the submitted runscript so that subsequent [`runtime`](#runtime) can make use of it.
 
 ### `runtime`
 
-**type**: str
+**type**: string
 <br>
 **optional**
 <br>
@@ -629,8 +631,8 @@ all these characteristics in the `runtime` directory and customizing it is done 
 
 ### `squash_mount`
 
-**type**: sequence of str
+**type**: sequence of strings
 <br>
 **optional**
 <br>
-**description**: runtime mount points of the squashfs images specified in the [squash port](#squash) given in the same order. Relative paths are interpreted as relative to the task run directory and corresponding directories will be created. So far, this feature is only supported on  machines using the [uenv technology :lucide-external-link:](link to CSCS docs).
+**description**: runtime mount points of the squashfs images specified in the [squash port](#squash) given in the same order. Relative paths are interpreted as relative to the task run directory and corresponding directories will be created. So far, this feature is only supported on  machines using the [uenv technology :lucide-external-link:](https://docs.cscs.ch/software/uenv/).

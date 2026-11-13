@@ -18,21 +18,21 @@ uv pip install Sirocco
 ```
 or
 ```shell
-git clone url/of/remote/sirocco/repo
+git clone https://github.com/C2SM/Sirocco.git
 cd Sirocco
 uv sync
 ```
 
-The virtual environment in which sirocco is installed can later be specified [in the workflow configuration](../configuration/tasks/#venv).
+The virtual environment in which sirocco is installed can later be specified [in the workflow configuration](../configuration/tasks.md#venv).
 
-Sirocco is ran through a command line interface. Check your installation with
+Sirocco is run through a command line interface. Check your installation with
 ```shell
 sirocco --help
 ```
 
 ## :lucide-terminal: CLI
 
-Once the workflow [configuration](../configuration) is created on the HPC, it can be handled by the `sirocco` CLI. `sirocco` sub-commands can be classified in 2 groups: checking and controlling. All of them take the [configuration directory](../glossary.md#configuration-directory) as the only positional argument defaulting to the current directory and have a `--help` option.
+Once the workflow [configuration](../configuration/configuration.md) is created on the HPC, it can be handled by the `sirocco` CLI. `sirocco` sub-commands can be classified in 2 groups: checking and controlling. All of them take the [configuration directory](../glossary.md#configuration-directory) as the only positional argument defaulting to the current directory and have a `--help` option.
 
 ### :lucide-check: Checking
 
@@ -44,11 +44,11 @@ Try to load the configuration. This is helpful to catch validation issues.
 
 #### `represent`
 
-Unroll the workflow graph and print it as a string formatted ala `yaml`. It is mainly used as a serialization method for testing but can also help debugging.
+Unroll the workflow graph and print it as a string formatted à la `yaml`. It is mainly used as a serialization method for testing but can also help debugging.
 
 #### `visualize`
 
-Generate a visual representation of the workflow graph as an `svg` file which name defaults to `WORFLOW_DIRNAME.svg`. An example is displayed [in the cycles section](../../configuration/cycles/#example). It is pretty useful to confirm that the workflow graph corresponds to the intended nodes relationship.
+Generate a visual representation of the workflow graph as an `svg` file. By default, it is written next to the configuration directory, _i.e._ in its parent directory, and named after it: `<configuration directory name>.svg`. Use `--output` (`-o`) to choose another path. An example is displayed [in the cycles section](../configuration/cycles.md#example). It is pretty useful to confirm that the workflow graph corresponds to the intended nodes relationship.
 
 !!! warning "long graph representation"
 
@@ -56,19 +56,19 @@ Generate a visual representation of the workflow graph as an `svg` file which na
 
 #### `stviz`
 
-Generate a graphical representation similar to `visualize` focusing on the [task front](../orchestration.md#the-deep-propagating-task-front) and dump it to `status.svg`. Only cycles containing tasks from the front are represented. Rank $0$ tasks (running or queued) and involved input/output data are displayed in bold. Other front tasks ($r \geq 1$) and involved input/output data are unchanged compared to `visualize`. Other tasks and data nodes are grayed out. Task ranks are also added to the tooltip (hover on the task nodes to see).
+Generate a graphical representation similar to `visualize` focusing on the [task front](../orchestration.md#the-deep-propagating-task-front) and dump it to `status.svg` in the current working directory. Only cycles containing tasks from the front are represented. Rank $0$ tasks (running or queued) and involved input/output data are displayed in bold. Other front tasks ($r \geq 1$) and involved input/output data are unchanged compared to `visualize`. Other tasks and data nodes are grayed out. Task ranks are also added to the tooltip (hover on the task nodes to see).
 
-<!-- Use object to keep the embedded javascript runable -->
+<!-- Use object to keep the embedded javascript runnable -->
 <object type="image/svg+xml" data="../../assets/example_config/status.svg" width="100%">
   Your browser does not support interactive SVGs.
 </object>
 <figcaption markdown="span"  style="text-align: left;  font-style: normal; font-size: smaller;">
-*Example status graph corresponding to the execution of [the configuration example](../../configuration/cycles/#example) with a front depth of 2*.
+*Example status graph corresponding to the execution of [the configuration example](../configuration/cycles.md#example) with a front depth of 2*.
 </figcaption>
 
 ### :material-play-pause: Controlling
 
-Sirocco has the 3 following self-explanatory commands to control the workflow. Each of them, as well as workflow continuation tasks, are logging information to `sirocco.log` located in the configuration directory. By default Sirocco uses [ANSI escape codes](https://en.wikipedia.org/wiki/ANSI_escape_code) for coloring, which can be disable with `--no-ansi`.
+Sirocco has the 3 following self-explanatory commands to control the workflow. Each of them, as well as the [continuation tasks](../orchestration.md#standalone-engine), logs information to `sirocco.log` located in the configuration directory. By default Sirocco uses [ANSI escape codes](https://en.wikipedia.org/wiki/ANSI_escape_code) for coloring, which can be disabled with `--no-ansi`.
 
 #### `start`
 
@@ -88,7 +88,7 @@ Restart a stopped workflow, even if it was stopped in cool-down mode. Rank $0$ t
 
 #### Troubleshooting
 
-In the case of a failing job, the controlling Sirocco task will cancel all other tasks and, if needed, the workflow can be later restarted via `sìrocco restart`.
+In the case of a failing task, the [continuation task](../orchestration.md#front-propagation) cancels all other tasks of the front and marks the workflow as failed. If needed, the workflow can later be restarted via `sirocco restart`.
 
 Sirocco is also designed so that any workflow task can be re-submitted interactively, so not as part of the workflow, for testing or troubleshooting purposes.
 

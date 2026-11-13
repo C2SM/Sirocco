@@ -16,6 +16,9 @@ Definitions of different terms and concepts in the Sirocco terminology
 ### configuration directory
 Directory containing the `sirocco.yaml` file and all files needed to configure the tasks (software configuration files, scripts, source code, ...). Relative paths in the [configuration](configuration/configuration.md) are resolved from it and it is the positional argument of the `sirocco` CLI. The standalone [engine](#engine) runs the workflow in place: it creates the `run` directory, hosting the task [run directories](#run-directory), and the `sirocco.log` file inside it.
 
+### continuation task
+Job propagating the [task front](#task-front) with the standalone [engine](#engine). The scheduler starts it as soon as any rank 0 task terminates. It then updates the front, submits new tasks and the next continuation task, and stores the workflow state to file. It is configured via the special [`SIROCCO` task](configuration/tasks.md#the-special-sirocco-task). See [Standalone engine](orchestration.md#standalone-engine).
+
 ### coordinates
 Set of values identifying a specific instance of a [task](#task) or [data](#data) among all instances sharing the same name in the unrolled graph. Coordinates are the instance [date](#date), if it belongs to a recurring [cycle](#cycle), and the values of the [parameters](#parameter) attached to it. They are reflected as well in the task [run directory](#run-directory).
 
@@ -42,6 +45,9 @@ Component orchestrating the execution of a workflow. The **standalone engine** r
 
 ### parameter
 Named sequence of values declared in the root level [`parameters`](configuration/parameters.md) section and attached to tasks and data. One instance of a parameterized task or piece of data is created for each combination of the values of its parameters (full matrix). When targeting a parameterized node in the [`cycles`](configuration/cycles.md#parameters) section, each parameter is resolved with a _targeting mode_: `single` (same value as the current task) or `all` (all values, the default). Typically used for ensemble or sensitivity experiments. See [Parameters](configuration/parameters.md).
+
+### partial date
+Date given in [`target_cycle`](configuration/cycles.md#target_cycle) with placeholders such as `%Y` or `%m`, filled in with the corresponding fields of the current task [date](#date), _e.g._ `'%Y-01-01T00:00'` for January 1st of the current year. See [Partial dates](configuration/cycles.md#partial-dates).
 
 ### plugin
 Implementation of the actual behavior of a [task](#task), selected with the `plugin` task specification. Sirocco currently provides the general purpose [`shell`](plugins/shell.md) plugin and the [`icon`](plugins/icon.md) plugin, dedicated to the ICON model.
