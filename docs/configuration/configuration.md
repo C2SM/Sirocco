@@ -53,7 +53,7 @@ parameters:
 <br>
 **default**: `2`
 <br>
-**description**: depth of the submitted [task front](../../orchestration/#the-deep-propagating-submitted-task-front). Tasks with rank $r < d$ are submitted. A depth of `1` thus corresponds to only currently active tasks, a depth of `2` corresponds to one generation of tasks submitted ahead-of-time, etc ...
+**description**: depth of the submitted [task front](../orchestration.md#the-deep-propagating-task-front). Tasks with rank $r < d$ are submitted. A depth of `1` thus corresponds to only submitting tasks whose dependencies are satisfied, a depth of `2` corresponds to one generation of tasks submitted ahead-of-time, etc ...
 
 ### `cycles`
 

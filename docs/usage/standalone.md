@@ -56,7 +56,7 @@ Generate a visual representation of the workflow graph as an `svg` file which na
 
 #### `stviz`
 
-Generate a graphical representation similar to `visualize` focusing on the [task front](../../orchestration#the-deep-propagating-submitted-task-front) and dump it to `status.svg`. Only cycles containing tasks from the front are represented. Ongoing tasks (rank $0$) and involved input /output data are displayed in bold. Other front tasks (here only rank $1$ is left) and involved input /output data are unchanged compared to `visualize`. Other tasks and data nodes are grayed out. Task ranks are also added to the tooltip (hover on the task nodes to see).
+Generate a graphical representation similar to `visualize` focusing on the [task front](../orchestration.md#the-deep-propagating-task-front) and dump it to `status.svg`. Only cycles containing tasks from the front are represented. Rank $0$ tasks (running or queued) and involved input /output data are displayed in bold. Other front tasks (here only rank $1$ is left) and involved input /output data are unchanged compared to `visualize`. Other tasks and data nodes are grayed out. Task ranks are also added to the tooltip (hover on the task nodes to see).
 
 <!-- Use object to keep the embedded javascript runable -->
 <object type="image/svg+xml" data="../../assets/example_config/status.svg" width="100%">
