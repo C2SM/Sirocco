@@ -178,6 +178,10 @@ cycles:
 
 In all generality, from a task perspective, linking a piece of data as an input or an output is not sufficient to be able to use it unambiguously. In some cases, the data path might contain enough information to do so but it is not guaranteed. The missing piece of information is the role that this piece (potentially these pieces) of data plays for that specific task, which is what the **port** concept introduces. Ports are indeed specified as mappings between a role, the port name,  and a sequence of associated pieces of data. For instance, in [the example](#example), the `inputs` section for the task `model` is composed of 3 ports: `init`, `bc` and `restart_in`. They can also be understood as a formal equivalent of command line arguments.  Together with the inclusion of data as proper graph nodes, ports thus make Sirocco workflows truly composable, in that no task needs to make assumptions on the behavior of others, essentially which piece of data is written where.
 
+!!! warning "Unique port names"
+
+    Port names must be unique within a task, even between inputs and outputs. For instance, a task reading and writing a restart file would use two distinct ports like `restart_in` and `restart_out`.
+
 #### `inputs`
 
 **type**: mapping

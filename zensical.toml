@@ -5,7 +5,7 @@ repo_name = "C2SM/sirocco"
 repo_url = "https://github.com/C2SM/Sirocco"
 
 site_name = "Sirocco"
-site_description = "A worflow tool for climate and weather aplications"
+site_description = "A workflow tool for climate and weather applications"
 site_author = "Matthieu Leclair"
 
 # copyright = "Copyright &copy; 2026 Your name"
