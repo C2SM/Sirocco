@@ -38,15 +38,6 @@ The example below shows a short but comprehensive graph covering most of the ded
 *Example workflow graph*. The vertical position of a node indicates its rank, starting with 0 (no parents) at the top. Red rectangles represent **tasks**, green and blue ellipses represent **available data** and  **generated data** and light rectangular areas indicate **cycle** occurrences. Solid lines represent **input/output** relationships while dashed lines indicate a **`wait_on`** dependency.
 </figcaption>
 
-<!-- large image in a fix sized window with sliders: might be useful for a parameterized example-->
-<!-- <div style="width: 100%; height: 400px; overflow: auto"> -->
-<!-- <div style="transform: scale(4); transform-origin: top left; width: 600px; height: 400px;"> -->
-<!-- <object type="image/svg+xml" data="/assets/large.svg" width="100%"> -->
-<!--   Your browser does not support interactive SVGs. -->
-<!-- </object> -->
-<!-- </div> -->
-<!-- </div> -->
-
 The corresponding `cycles` section reads like the following.
 
 ```sirocco-yaml title="sirocco.yaml"
@@ -273,7 +264,7 @@ parameters:
 
     Just like tasks and data, these parameter names must be references to parameters declared in the [root level `parameters`](parameters) section, which can be confusing at first.
 
-For now, 2 options are supported, namely `"all"` and `"single"`.
+2 options are supported: `"all"` and `"single"`.
 
  - `"all"` means that, regarding that parameter, all instances of the parameterized piece of data are taken into account.
  - `"single"` means that, regarding that parameter, only the data instance with the same parameter value as the task is taken into account. This requires that the task itself is parameterized by the same parameter.
