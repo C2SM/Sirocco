@@ -14,7 +14,7 @@ jobs:
     timeout-minutes: 30
     strategy:
       matrix:
-        python-version: ['3.10', '3.11', '3.12', '3.13']
+        python-version: ['3.12', '3.13', '3.14']
         aiida-version: ['stable']
 
     steps:
@@ -46,13 +46,13 @@ jobs:
         ssh -o StrictHostKeyChecking=no localhost 'echo "SSH connection successful"'
     - name: Install package
       run: |
-        pip install .
+        pip install ".[aiida]"
         verdi presto
     - name: Run test suite
       env:
         PYTEST_ADDOPTS: "--durations=0"
       run: |
-        hatch test --cover --parallel -- -n auto --remote localhost-ssh
+        hatch test --python ${{ matrix.python-version }} --cover --parallel -- -n auto --remote localhost-ssh
 
   docs:
     runs-on: ubuntu-latest

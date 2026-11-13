@@ -1,0 +1,36 @@
+sirocco_jobid: _NO_ID_
+completed_tasks:
+- pre proc:
+    coordinates:
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1234567'
+- model:
+    coordinates:
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1234567'
+- pre proc:
+    coordinates:
+      date: '2026-03-01T00:00:00+00:00'
+    jobid: '1234567'
+cool_down_tasks: []
+front:
+- - model:
+      coordinates:
+        date: '2026-03-01T00:00:00+00:00'
+      jobid: '1234567'
+  - pre proc:
+      coordinates:
+        date: '2026-05-01T00:00:00+00:00'
+      jobid: '1234567'
+- - post proc:
+      coordinates:
+        date: '2026-01-01T00:00:00+00:00'
+      jobid: '1234567'
+  - model:
+      coordinates:
+        date: '2026-05-01T00:00:00+00:00'
+      jobid: '1234567'
+  - pre proc:
+      coordinates:
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1234567'
