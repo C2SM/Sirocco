@@ -184,7 +184,7 @@ In all generality, from a task perspective, linking a piece of data as an input 
 <br>
 **optional**
 <br>
-**description**: The `inputs` section is a mapping between port names and a sequence of associated data instances. Elements of that sequence might be a simple data name or, in ambiguous cases, a mapping of that data name to some more information. Note that some [special port names](#special-input-linking-ports) are reserved for a specific behavior.
+**description**: The `inputs` section is a mapping between port names and a sequence of associated data instances. Elements of that sequence might be a simple data name or, in ambiguous cases, a mapping of that data name to [targeting specifications](#targeting-nodes). Note that some [special port names](#special-input-linking-ports) are reserved for a specific behavior.
 
 !!! warning "Data declaration and references"
 
@@ -200,7 +200,7 @@ cycle name:
           port name: ["data name"]
 ```
 
-In other cases, it is necessary to provide more information about which data instance is targeted, which is enabled by the `target_cycle` and `parameters` specifications. On top of that, `when` can specify when the input data should be considered at all.
+In other cases, it is necessary to provide more information about which data instance is targeted, using the [`target_cycle`](#target_cycle), [`when`](#when) and [`parameters`](#parameters) specifications described in [Targeting nodes](#targeting-nodes).
 ```sirocco-yaml
 cycle name:
   [...]
@@ -210,9 +210,62 @@ cycle name:
           port name:
             - data name:
                 target_cycle: [...]
-                parameters: [...]
                 when: [...]
+                parameters: [...]
 ```
+
+##### Special input linking ports
+
+As explained in the [definition above](#ports), ports are required to define inputs and outputs in all generality but can sometimes be superfluous. In the case where a task expects inputs with a predefined path or name (or has defaults for it), Sirocco provides the two following reserved port names that will simply link the targeted piece(s) of data in the task run directory.
+
+###### `link`
+
+**type**: sequence
+<br>
+**optional**
+<br>
+**description**: link any referenced data instance in the task run directory. Since data might not exist yet at submission time, linking happens at run time through injected commands in the submitted task run script.
+
+###### `link_content`
+
+**type**: sequence
+<br>
+**optional**
+<br>
+**description**: assume each referenced data instance is a directory and link all elements under it in the task run directory. Since data might not exist yet at submission time, linking happens at run time through injected commands in the submitted task run script.
+
+#### `outputs`
+
+**type**: mapping
+<br>
+**optional**
+<br>
+**description**: In the same way as `inputs`, the `outputs` section maps port names to lists of data instances. Since there cannot be any ambiguity on the date and parameters of the latter, the [targeting specifications](#targeting-nodes) are not available. In particular, `when` is not available for now, even though one could imagine cases where a task would or would not output some data depending on the cycle occurrence.
+
+#### `wait_on`
+
+**type**: sequence
+<br>
+**optional**
+<br>
+**description**:  On top of dependencies between tasks derived from the `inputs`/`outputs` relationships, `wait_on` enables the addition of explicit dependencies between tasks. Forcing a task to explicitly wait for the completion of some others can be very useful to prevent too early execution. In our case, such a dependency is introduced for the `pre proc` task on the occurrence of `model` 2 cycles before. This prevents the execution of all `pre proc` occurrences at the beginning of the workflow which could fill up the HPC with unnecessary data and jobs. Also the `clean up` task has an explicit dependency on `post proc` to avoid deleting data the latter still needs.
+
+Concretely `wait_on` is a sequence of task instances. Elements of that sequence might be a simple task name or a mapping of that task name to [targeting specifications](#targeting-nodes), exactly as for `inputs`:
+```sirocco-yaml
+cycle name:
+  [...]
+  tasks:
+    - task name:
+        wait_on:
+          - other task name:
+              target_cycle: [...]
+              when: [...]
+              parameters: [...]
+```
+
+#### Targeting nodes
+
+When a task refers to another node of the graph, either a data instance in [`inputs`](#inputs) or a task instance in [`wait_on`](#wait_on), the following specifications select which instances of that **targeted node** are meant. They are all optional and expressed relative to the **current task**, _i.e._ the task instance being described, with its own `date` and parameter values. Without any of them, the targeted instance is the one belonging to the same cycle occurrence as the current task (and, for parameters, see the default [below](#parameters)).
 
 ##### `target_cycle`
 
@@ -225,7 +278,7 @@ cycle name:
 target_cycle:
   lag: relative_lag
 ```
-where `lag` is a duration specified in [ISO 8601 format](https://en.wikipedia.org/wiki/ISO_8601) or a sequence of them when targeting several occurrences, _e.g._ for the `post proc` task of the `4 monthly` cycle. The targeted data instance is the one whose `date` attribute is obtained by adding `relative_lag`, which can be negative, to the current cycle occurrence `date` (the one to which the task belongs).
+where `lag` is a duration specified in [ISO 8601 format](https://en.wikipedia.org/wiki/ISO_8601) or a sequence of them when targeting several occurrences, _e.g._ for the `post proc` task of the `4 monthly` cycle. The targeted instance is the one whose `date` attribute is obtained by adding `relative_lag`, which can be negative, to the `date` of the current task (the start date of the cycle occurrence it belongs to).
 
 Instead of specifying a relative lag, an absolute date (or, again, a sequence of them) can be given with
 ```sirocco-yaml
@@ -239,7 +292,7 @@ target_cycle:
 <br>
 **optional**
 <br>
-**description**: The `when` keyword can be used to specify whether or not a data instance needs to be taken into account. This is typically used when the behavior of the task differs between the first (last) occurrence and the other ones. In the example above, the `model` task requires `initial conditions` as input at the first occurrence and later expects `restart_file`. The specification is the following
+**description**: The `when` keyword can be used to specify whether or not the targeted node needs to be taken into account at all, depending on the `date` of the current task. This is typically used when the behavior of the task differs between the first (last) occurrence and the other ones. In the example above, the `model` task requires `initial conditions` as input at the first occurrence and later expects `restart_file`. Similarly, `pre proc` only waits on `model` after `2026-03-01T00:00`. The specification is the following
 ```sirocco-yaml
 when:
   at: at_date
@@ -254,63 +307,26 @@ when:
 <br>
 **optional**
 <br>
-**description**: Tasks and pieces of data can be parameterized. Specifying which instances are targeted is done via
+**description**: Tasks and pieces of data can be parameterized. When the targeted node is parameterized, specifying which of its instances are targeted is done, parameter by parameter, via
 ```sirocco-yaml
 parameters:
-  parameter name: "mode_name"
+  parameter name: "targeting_mode"
 ```
 
 !!! warning "Parameters declaration and references"
 
     Just like tasks and data, these parameter names must be references to parameters declared in the [root level `parameters`](parameters) section, which can be confusing at first.
 
-2 options are supported: `"all"` and `"single"`.
+2 targeting modes are supported: `"all"` and `"single"`.
 
- - `"all"` means that, regarding that parameter, all instances of the parameterized piece of data are taken into account.
- - `"single"` means that, regarding that parameter, only the data instance with the same parameter value as the task is taken into account. This requires that the task itself is parameterized by the same parameter.
+ - `"all"` means that, regarding that parameter, all instances of the targeted node are taken into account. **This is the default** for any parameter of the targeted node which is not mentioned.
+ - `"single"` means that, regarding that parameter, only the instance of the targeted node with the same parameter value as the current task is taken into account. This requires that the current task itself is parameterized by the same parameter.
+
+See [Parameters](parameters.md) for the complete set of rules and an [annotated example](parameters.md#example-of-a-parameterized-workflow).
 
 !!! failure "Parameters not yet fully functional"
 
     Even though workflows with parameterized tasks and pieces of data can be generated, the parameter values are not yet exposed to the tasks themselves.
-
-#### `outputs`
-
-**type**: mapping
-<br>
-**optional**
-<br>
-**description**: In the same way as `inputs`, the `outputs` section maps port names to lists of data instances. Since there cannot be any ambiguity on the date and parameters of the latter, there are no `target_cycle` and `parameters` specifications. `when` is also not available for now, even though one could imagine cases where a task would or would not output some data depending on the cycle occurrence.
-
-#### `wait_on`
-
-**type**: sequence
-<br>
-**optional**
-<br>
-**description**:  On top of dependencies between tasks derived from the `inputs`/`outputs` relationships, `wait_on` enables the addition of explicit dependencies between tasks. Forcing a task to explicitly wait for the completion of some others can be very useful to prevent too early execution. In our case, such a dependency is introduced for the `pre proc` task on the occurrence of `model` 2 cycles before. This prevents the execution of all `pre proc` occurrences at the beginning of the workflow which could fill up the HPC with unnecessary data and jobs. Also the `clean up` task has an explicit dependency on `post proc` to avoid deleting data the latter still needs.
-
-Concretely `wait_on` is a list of task instances. Exactly as input data instances, they can be further specified using the [`target_cycle`](#target_cycle), [`parameters`](#parameters) (both applied to tasks instead of data) and [`when`](#when) keywords.
-
-### Special input linking ports
-
-As explained in the [definition above](#ports), ports are required to define inputs and outputs in all generality but can sometimes be superfluous. In the case where a task expects inputs with a predefined path or name (or has defaults for it), Sirocco provides the two following reserved port names that will simply link the targeted piece(s) of data in the task run directory.
-
-#### `link`
-
-**type**: sequence
-<br>
-**optional**
-<br>
-**description**: link any referenced data instance in the task run directory. Since data might not exist yet at submission time, linking happens at run time through injected commands in the submitted task run script.
-
-#### `link_content`
-
-**type**: sequence
-<br>
-**optional**
-<br>
-**description**: assume each referenced data instance is a directory and link all elements under it in the task run directory. Since data might not exist yet at submission time, linking happens at run time through injected commands in the submitted task run script.
-
 
 <!-- Local Variables: -->
 <!-- jinx-local-words: "composable" -->

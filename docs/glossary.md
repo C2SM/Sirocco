@@ -41,7 +41,7 @@ Component orchestrating the execution of a workflow. The **standalone engine** r
 [Data](#data) instances produced by a [task](#task), grouped by [port](#port) in the task `outputs` specification of the [`cycles`](configuration/cycles.md#outputs) section. Only generated data can be outputs.
 
 ### parameter
-Named sequence of values declared in the root level [`parameters`](configuration/parameters.md) section and attached to tasks and data. One instance of a parameterized task or piece of data is created for each combination of the values of its parameters (full matrix). Typically used for ensemble or sensitivity experiments.
+Named sequence of values declared in the root level [`parameters`](configuration/parameters.md) section and attached to tasks and data. One instance of a parameterized task or piece of data is created for each combination of the values of its parameters (full matrix). When targeting a parameterized node in the [`cycles`](configuration/cycles.md#parameters) section, each parameter is resolved with a _targeting mode_: `single` (same value as the current task) or `all` (all values, the default). Typically used for ensemble or sensitivity experiments. See [Parameters](configuration/parameters.md).
 
 ### plugin
 Implementation of the actual behavior of a [task](#task), selected with the `plugin` task specification. Sirocco currently provides the general purpose [`shell`](plugins/shell.md) plugin and the [`icon`](plugins/icon.md) plugin, dedicated to the ICON model.
