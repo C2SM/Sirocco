@@ -8,7 +8,7 @@ icon: lucide/server
 To install and run Sirocco in standalone mode, you will need an HPC system
 
 - using the [SLURM :lucide-external-link:](https://slurm.schedmd.com/) scheduler, for now the only supported one
-- with Python `>=3.10` installed
+- with Python `>=3.12` installed
 
 ## :lucide-arrow-down-to-line: Install
 
