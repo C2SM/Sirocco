@@ -39,7 +39,7 @@ The standalone engine executes workflows _inside their [configuration directory]
 ```shell
 <task_name>__<coordinate1_name>_<coordinate1_value>__<coordinate2_name>_<coordinate2_value>__[...]
 ```
-[Coordinates](glossary/#coordinate) of a task are either its date, in which case `<coordinatex_name>` is `"date"` and `<coordinatex_value>` is the date formatted as `"YYYY-MM-DDThh-mm-ss"` or a [parameter](configuration/parameters), in which case `"<coordinatex_name>"` and `<coordinatex_value>` are the parameters name and value.
+[Coordinates](glossary/#coordinates) of a task are either its date, in which case `<coordinatex_name>` is `"date"` and `<coordinatex_value>` is the date formatted as `"YYYY-MM-DDThh-mm-ss"` or a [parameter](configuration/parameters), in which case `"<coordinatex_name>"` and `<coordinatex_value>` are the parameters name and value.
 
 ### `bash` shebang and base environment
 

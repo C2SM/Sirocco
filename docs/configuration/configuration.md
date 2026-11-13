@@ -22,7 +22,7 @@ A resulting `sirocco.resolved.yaml` will be dumped, reflecting the actual config
 
 The root level of `sirocco.yaml` reads like this:
 
-```sirocco-yaml
+```sirocco-yaml title="sirocco.yaml"
 scheduler: slurm
 front_depth: 2
 cycles:
