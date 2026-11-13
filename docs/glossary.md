@@ -50,7 +50,7 @@ Implementation of the actual behavior of a [task](#task), selected with the `plu
 Named role that one or several pieces of data play for a given task. [Inputs](#inputs) and [outputs](#outputs) are specified as mappings from port names to sequences of data, which can be understood as a formal equivalent of command line arguments. Ports allow tasks to use data unambiguously without making assumptions on the behavior of other tasks. The port names `link` and `link_content` are [reserved](configuration/cycles.md#special-input-linking-ports).
 
 ### rank
-Position of a task in the dependency structure of the workflow. The _global rank_ $R$ is the index of the [topological generation](orchestration.md#the-deep-propagating-submitted-task-front) the task belongs to. The _local rank_ $r$ locates the task with respect to the [task front](#task-front): $-1$ for completed tasks, $0$ to $d-1$ for tasks within the front, $d$ for not yet submitted tasks.
+Position of a task in the dependency structure of the workflow. The _global rank_ $R$ is the index of the [topological generation](orchestration.md#the-deep-propagating-task-front) the task belongs to. The _local rank_ $r$ locates the task with respect to the [task front](#task-front): $-1$ for completed tasks, $0$ to $d-1$ for tasks within the front, $d$ for not yet submitted tasks.
 
 ### run directory
 Directory in which a task instance runs. With the standalone engine, it is located at `run/<task_rundir_name>` under the [configuration directory](#configuration-directory), where `<task_rundir_name>` is built from the task name and its [coordinates](#coordinates).
@@ -59,7 +59,7 @@ Directory in which a task instance runs. With the standalone engine, it is locat
 Unit of work submitted as a job to the HPC scheduler and represented as a node in the workflow graph. Its content (scheduling information, scripts, configuration files, ...) is declared in the root level [`tasks`](configuration/tasks.md) section and its behavior is implemented by a [plugin](#plugin). Its place in the graph is described in the [`cycles`](configuration/cycles.md) section. The special `ROOT` and `SIROCCO` tasks respectively provide default settings for all tasks and settings for the Sirocco continuation task of the standalone engine.
 
 ### task front
-Set of tasks currently running or submitted ahead-of-time to the scheduler, organized in $d$ dynamical generations, where $d$ is the [`front_depth`](configuration/configuration.md#front_depth). As tasks complete, the front propagates through the graph by submitting new tasks with adequate scheduler dependencies. See [the deep propagating submitted task front](orchestration.md#the-deep-propagating-submitted-task-front).
+Set of tasks submitted to the scheduler, either ready to run (running or queued) or submitted ahead-of-time, organized in $d$ dynamical generations, where $d$ is the [`front_depth`](configuration/configuration.md#front_depth). As tasks complete, the front propagates through the graph by submitting new tasks with adequate scheduler dependencies. See [the deep propagating task front](orchestration.md#the-deep-propagating-task-front).
 
 ### wait_on
 Explicit dependency between tasks, added on top of the ones derived from [inputs](#inputs) and [outputs](#outputs) relationships. Typically used to prevent tasks from running too early. See [`wait_on`](configuration/cycles.md#wait_on).
