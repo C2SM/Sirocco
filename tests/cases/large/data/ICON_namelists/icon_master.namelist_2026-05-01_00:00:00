@@ -7,7 +7,7 @@
     calendar = 'proleptic gregorian'
     experimentstartdate = '2025-01-01T00:00:00Z'
     restarttimeintval = 'P2M'
-    checkpointtimeintval = 'P2M'
+    checkpointtimeintval = 'P1M'
     experimentstopdate = '2026-07-01T00:00:00Z'
 /
 

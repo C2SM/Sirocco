@@ -1,0 +1,8 @@
+&parallel_nml
+/
+&io_nml
+ restart_write_mode = 'joint procs multifile'
+/
+&ocean_initialConditions_nml
+ initialize_fromRestart = .false.
+/

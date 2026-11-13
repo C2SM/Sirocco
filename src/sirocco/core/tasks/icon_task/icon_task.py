@@ -257,6 +257,11 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
 
     def update_icon_namelists_from_workflow(self) -> None:
         cycle_point = self.check_dates()
+        # NOTE: checkpointTimeIntval is left to the user (e.g. 5-day checkpoints in monthly cycles)
+        #       and defaults to the cycle period
+        checkpoint_interval = self.master_namelist.get("master_time_control_nml", {}).get(
+            "checkpointTimeIntval", str(cycle_point.period)
+        )
 
         self.master_namelist.update_from_specs(
             {
@@ -264,7 +269,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                     # Use Z instead of +00:00 for UTC (ISO 8601 compact form)
                     "experimentStopDate": cycle_point.chunk_stop_date.isoformat().replace("+00:00", "Z"),
                     "restartTimeIntval": str(cycle_point.period),
-                    "checkpointTimeIntval": str(cycle_point.period),
+                    "checkpointTimeIntval": checkpoint_interval,
                 },
                 "master_nml": {
                     "lrestart": self.is_restart,
@@ -277,6 +282,16 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
 
         for jsb_control_nml in self.master_namelist.iter_nml("jsb_control_nml"):
             jsb_control_nml["restart_jsbach"] = self.is_restart
+
+        # HD reservoirs and carbon pools are part of the restart state and must not be re-read from the initial file
+        if self.is_restart:
+            for model in self.models.values():
+                if model.model_type is not ModelType.LAND:
+                    continue
+                if "jsb_hd_nml" in model.namelist:
+                    model.namelist["jsb_hd_nml"]["read_initial_reservoirs"] = False
+                if "jsb_carbon_nml" in model.namelist:
+                    model.namelist["jsb_carbon_nml"]["read_cpools"] = False
 
     def check_dates(self) -> DateCyclePoint:
         """Check that the task has a date cycle point and that a cold start begins at the cycle start date.
