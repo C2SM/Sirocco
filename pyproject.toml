@@ -155,7 +155,7 @@ python = ["3.12", "3.13", "3.14"]
 
 [tool.hatch.envs.docs]
 installer = "uv"
-skip-instal = true  # Don't install sirocco itself for docs
+skip-install = true  # Don't install sirocco itself for docs
 description = "Build the documentation"
 dependencies = [
   "zensical",
@@ -170,10 +170,6 @@ build = [
 serve = [
   "zensical serve",
 ]
-
-# deploy = [
-#   "mkdocs gh-deploy --no-history -f docs/mkdocs.yml"
-# ]
 
 [tool.hatch.envs.types]
 python = "3.12"
