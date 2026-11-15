@@ -47,7 +47,16 @@ class PathResolver:
         return path
 
     def set_path(self, data: Data, path: Path) -> None:
+        """Set the resolved path of a data node
+
+        Setting it again is allowed, e.g. ICON output ports are applied both when resolving
+        output paths and when preparing the task, but only to the same path: a conflicting
+        resolution would otherwise silently override the path already used elsewhere.
+        """
         if not path.is_absolute():
             msg = "resolved path must be absolute"
+            raise ValueError(msg)
+        if (current := self._data_paths.get(data.label)) is not None and current != path:
+            msg = f"data {data.label}: resolved to {path} but already resolved to {current}"
             raise ValueError(msg)
         self._data_paths[data.label] = path
