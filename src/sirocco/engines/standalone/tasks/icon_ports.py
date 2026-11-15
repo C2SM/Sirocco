@@ -3,6 +3,10 @@
 What a port means for ICON (valid model types, namelist parameter, link name) is
 declared in core by `IconPort`. Applying it is engine specific: link the data in the
 run directory, point the namelist to it, and resolve the paths of output data.
+
+Regular ports are applied generically from their declaration. Special ports (see
+`IconPort.is_special`) are implemented below by functions registered with
+`@special_port(<core port>)`.
 """
 
 from __future__ import annotations
@@ -11,6 +15,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from sirocco.core.graph_items import GeneratedData
+from sirocco.core.tasks.icon_task import ports as core_icon_ports
 from sirocco.core.tasks.icon_task.ports import IconPort
 
 if TYPE_CHECKING:
@@ -20,10 +25,35 @@ if TYPE_CHECKING:
     from sirocco.engines.standalone.path_resolver import PathResolver
 
 
+type SpecialPortFunction = Callable[[IconPort, IconModel, Path, PathResolver], None]
+
+# Implementations of the special ports, by port name
+special_ports: dict[str, SpecialPortFunction] = {}
+
+
+def special_port(port: IconPort) -> Callable[[SpecialPortFunction], SpecialPortFunction]:
+    """Register the decorated function as the implementation of the special `port`"""
+
+    def register(function: SpecialPortFunction) -> SpecialPortFunction:
+        if not port.is_special:
+            msg = f"port {port.port_name} is not special, it is applied from its declaration"
+            raise ValueError(msg)
+        if port.port_name in special_ports:
+            msg = f"special port {port.port_name} already implemented"
+            raise ValueError(msg)
+        special_ports[port.port_name] = function
+        return function
+
+    return register
+
+
 def apply_port(port_name: str, model: IconModel, run_dir: Path, path_resolver: PathResolver) -> None:
     port = IconPort.get(port_name, model)
-    if (apply_special_port := SPECIAL_PORTS.get(port_name)) is not None:
-        apply_special_port(port_name, model, run_dir, path_resolver)
+    if port.is_special:
+        if (apply_special_port := special_ports.get(port_name)) is None:
+            msg = f"special port {port_name} not implemented in the standalone engine"
+            raise NotImplementedError(msg)
+        apply_special_port(port, model, run_dir, path_resolver)
     else:
         apply_link_and_namelist(port, model, run_dir, path_resolver)
 
@@ -55,38 +85,41 @@ def apply_link_and_namelist(port: IconPort, model: IconModel, run_dir: Path, pat
 # =========== Special ports ===========
 
 
-def apply_restart_in_port(port_name: str, model: IconModel, run_dir: Path, path_resolver: PathResolver) -> None:
+@special_port(core_icon_ports.restart_in_port)
+def apply_restart_in_port(port: IconPort, model: IconModel, run_dir: Path, path_resolver: PathResolver) -> None:
     if restart_write_mode := model.namelist["io_nml"].get("restart_write_mode") != "joint procs multifile":
         msg = f"Only supported restart_write_mode is 'joint procs multifile', got {restart_write_mode}"
         raise ValueError(msg)
     # Ignore empty restart port or possible when conditions
-    if not (data_list := model.inputs[port_name]):
+    if not (data_list := model.inputs[port.port_name]):
         return
     if len(data_list) > 1:
-        msg = f"port '{port_name}' only accepts a single data object"
+        msg = f"port '{port.port_name}' only accepts a single data object"
         raise ValueError(msg)
     (run_dir / f"multifile_restart_{model.name}.mfr").symlink_to(path_resolver.path(data_list[0]))
 
 
-def apply_restart_out_port(port_name: str, model: IconModel, run_dir: Path, path_resolver: PathResolver) -> None:
+@special_port(core_icon_ports.restart_out_port)
+def apply_restart_out_port(port: IconPort, model: IconModel, run_dir: Path, path_resolver: PathResolver) -> None:
     if restart_write_mode := model.namelist["io_nml"].get("restart_write_mode") != "joint procs multifile":
         msg = f"Only supported restart_write_mode is 'joint procs multifile', got {restart_write_mode}"
         raise ValueError(msg)
     # Ignore empty restart port or possible when conditions
-    if not (data_list := model.outputs[port_name]):
+    if not (data_list := model.outputs[port.port_name]):
         return
     if len(data_list) > 1:
-        msg = f"port '{port_name}' only accepts a single data object"
+        msg = f"port '{port.port_name}' only accepts a single data object"
         raise ValueError(msg)
     path_resolver.set_path(data_list[0], run_dir / f"multifile_restart_{model.name}.mfr")
 
 
-def apply_output_streams_port(port_name: str, model: IconModel, run_dir: Path, path_resolver: PathResolver) -> None:
+@special_port(core_icon_ports.output_streams_port)
+def apply_output_streams_port(port: IconPort, model: IconModel, run_dir: Path, path_resolver: PathResolver) -> None:
     nml_streams = [*model.namelist.iter_nml("output_nml")]
-    if (n_nml := len(nml_streams)) != (n_yaml := len(model.outputs[port_name])):
+    if (n_nml := len(nml_streams)) != (n_yaml := len(model.outputs[port.port_name])):
         msg = f"task {model.task_label}, model {model.name}: number of output streams speficied in namelist ({n_nml}) differs from number of streams specified in the workflow config ({n_yaml})"
         raise ValueError(msg)
-    for k, (nml_stream, output_data) in enumerate(zip(nml_streams, model.outputs[port_name], strict=False)):
+    for k, (nml_stream, output_data) in enumerate(zip(nml_streams, model.outputs[port.port_name], strict=False)):
         filename_format = nml_stream.get("filename_format", "<output_filename>_XXX_YYY")
         output_filename = nml_stream.get("output_filename", "")
         # for type checkers
@@ -101,35 +134,23 @@ def apply_output_streams_port(port_name: str, model: IconModel, run_dir: Path, p
         path_resolver.path(output_data).mkdir(parents=True, exist_ok=True)
 
 
-def apply_finish_status_port(
-    port_name: str,  # noqa: ARG001
-    model: IconModel,
-    run_dir: Path,
-    path_resolver: PathResolver,
-) -> None:
-    if len(model.outputs["finish_status"]) != 1:
-        msg = "port finish_status accepts one and only one data object"
+@special_port(core_icon_ports.finish_status_port)
+def apply_finish_status_port(port: IconPort, model: IconModel, run_dir: Path, path_resolver: PathResolver) -> None:
+    if len(model.outputs[port.port_name]) != 1:
+        msg = f"port {port.port_name} accepts one and only one data object"
         raise ValueError(msg)
-    path_resolver.set_path(model.outputs["finish_status"][0], run_dir / f"finish_{model.name}.status")
+    path_resolver.set_path(model.outputs[port.port_name][0], run_dir / f"finish_{model.name}.status")
 
 
-def apply_ocean_restart_init_port(port_name: str, model: IconModel, run_dir: Path, path_resolver: PathResolver) -> None:
+@special_port(core_icon_ports.ocean_restart_init_port)
+def apply_ocean_restart_init_port(port: IconPort, model: IconModel, run_dir: Path, path_resolver: PathResolver) -> None:
     """Initialize the ocean state from a restart file without making the whole task a restart run"""
-    if not (data_list := model.inputs[port_name]):
+    if not (data_list := model.inputs[port.port_name]):
         return
     if len(data_list) > 1:
-        msg = f"port '{port_name}' only accepts a single data object"
+        msg = f"port '{port.port_name}' only accepts a single data object"
         raise ValueError(msg)
     if not model.namelist.get("ocean_initialConditions_nml", {}).get("initialize_fromRestart", False):
-        msg = f"task {model.task_label}, model {model.name}: port '{port_name}' requires 'initialize_fromRestart = .true.' in 'ocean_initialConditions_nml'"
+        msg = f"task {model.task_label}, model {model.name}: port '{port.port_name}' requires 'initialize_fromRestart = .true.' in 'ocean_initialConditions_nml'"
         raise ValueError(msg)
     (run_dir / f"multifile_restart_{model.name}.mfr").symlink_to(path_resolver.path(data_list[0]))
-
-
-SPECIAL_PORTS: dict[str, Callable[[str, IconModel, Path, PathResolver], None]] = {
-    "restart_in": apply_restart_in_port,
-    "restart_out": apply_restart_out_port,
-    "output_streams": apply_output_streams_port,
-    "finish_status": apply_finish_status_port,
-    "ocean_restart_init": apply_ocean_restart_init_port,
-}
