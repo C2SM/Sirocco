@@ -988,7 +988,8 @@ class ConfigWorkflow(BaseModel):
         default="standalone",
         description="Workflow execution engine to use.",
     )
-    scheduler: Literal["slurm"] = "slurm"
+    # No default: only used by the standalone engine, which requires it
+    scheduler: Literal["slurm"] | None = None
     name: str
     cycles: Annotated[list[ConfigCycle], BeforeValidator(list_not_empty)]
     tasks: Annotated[list[ConfigTask], BeforeValidator(propagate_root_task_specs)]

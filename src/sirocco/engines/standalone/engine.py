@@ -125,6 +125,9 @@ class StandaloneEngine:
                 " workflow config. It configures the job that resubmits sirocco (computer, account, walltime, venv, ...)."
             )
             raise ValueError(msg)
+        if config_workflow.scheduler is None:
+            msg = "The standalone engine requires the scheduler to be specified in the workflow config, e.g. `scheduler: slurm`."
+            raise ValueError(msg)
         if (scheduler_cls := Scheduler.scheduler_classes.get(config_workflow.scheduler)) is None:
             msg = f"Scheduler {config_workflow.scheduler!r} is not supported by the standalone engine."
             raise ValueError(msg)
