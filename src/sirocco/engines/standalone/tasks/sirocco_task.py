@@ -11,7 +11,12 @@ from pathlib import Path
 from typing import ClassVar
 
 from sirocco.core.graph_items import Task
-from sirocco.engines.standalone.handlers import prepare_for_submission, runscript_lines
+from sirocco.engines.standalone.handlers import (
+    SubmissionSettings,
+    prepare_for_submission,
+    runscript_lines,
+    submission_settings,
+)
 from sirocco.parsing import yaml_data_models as models
 
 
@@ -24,7 +29,6 @@ class SiroccoContinueTask(models.ConfigSiroccoTaskSpecs, Task):
     plugin: ClassVar[str] = "sirocco_continue"
     SUBMIT_FILENAME: ClassVar[str] = field(default=".sirocco_continue.sh", repr=False)
     STDOUTERR_FILENAME: ClassVar[str] = field(default="sirocco.log", repr=False)
-    CLEAN_UP_BEFORE_SUBMIT: ClassVar[bool] = field(default=False, repr=False)  # Clean up directory when submitting
     LOCK_FILE_NAME: ClassVar[str] = field(default=".sirocco.lock", repr=False)
 
     name: str = "SIROCCO"
@@ -37,6 +41,16 @@ class SiroccoContinueTask(models.ConfigSiroccoTaskSpecs, Task):
 
     def resolve_output_data_paths(self) -> None:
         pass
+
+
+@submission_settings.register(SiroccoContinueTask)
+def submission_settings_sirocco_continue(task: SiroccoContinueTask) -> SubmissionSettings:
+    # The run directory is the config directory, never wipe it
+    return SubmissionSettings(
+        submit_filename=task.SUBMIT_FILENAME,
+        stdouterr_filename=task.STDOUTERR_FILENAME,
+        clean_up_run_dir=False,
+    )
 
 
 @prepare_for_submission.register(SiroccoContinueTask)

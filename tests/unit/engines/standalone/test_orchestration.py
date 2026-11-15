@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, ClassVar, Literal
 
 import pytest
 
-from sirocco.engines.standalone import StandaloneEngine
+from sirocco.engines.standalone import StandaloneEngine, handlers
 from sirocco.engines.standalone.scheduler import DEPENDENCY_TYPE_T, STDOUTERR_MODE_T, Scheduler
 from sirocco.engines.standalone.state import TaskStatus
 
@@ -59,7 +59,8 @@ class FakeScheduler(Scheduler):
     cluster: ClassVar[FakeCluster]
 
     def header_lines(self, task: Task, stdouterr_mode: STDOUTERR_MODE_T = "overwrite") -> list[str]:
-        return [f"#FAKE --job-name={task.label} --output={task.STDOUTERR_FILENAME} --mode={stdouterr_mode}"]
+        stdouterr_filename = handlers.submission_settings(task).stdouterr_filename
+        return [f"#FAKE --job-name={task.label} --output={stdouterr_filename} --mode={stdouterr_mode}"]
 
     def submit_to_scheduler(
         self,
@@ -72,7 +73,7 @@ class FakeScheduler(Scheduler):
         self.cluster.next_jobid += 1
         self.cluster.status[jobid] = TaskStatus.WAITING
         self.cluster.record(f"submit {task.label} ({jobid}) after {parent_ids} [{dependency_type}]")
-        script = (task.run_dir / task.SUBMIT_FILENAME).read_text()
+        script = (task.run_dir / handlers.submission_settings(task).submit_filename).read_text()
         if self.cluster.scripts.get(task.label) != script:
             self.cluster.scripts[task.label] = script
             self.cluster.record(f"--- run script {task.label}\n{script}\n---")

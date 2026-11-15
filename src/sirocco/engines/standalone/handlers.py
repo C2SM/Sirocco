@@ -34,6 +34,7 @@ engine at all guarantees every built-in plugin is registered.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from functools import singledispatch
 from typing import TYPE_CHECKING
 
@@ -41,6 +42,20 @@ from sirocco.parsing import cycling
 
 if TYPE_CHECKING:
     from sirocco.core.graph_items import Task
+
+
+@dataclass(frozen=True)
+class SubmissionSettings:
+    """How a task is submitted: run script file names and run directory handling"""
+
+    submit_filename: str = "run_script.sh"
+    stdouterr_filename: str = "run_script.%j.o"
+    clean_up_run_dir: bool = True  # Wipe the run directory before submitting
+
+
+@singledispatch
+def submission_settings(task: Task) -> SubmissionSettings:  # noqa: ARG001  # default for all tasks
+    return SubmissionSettings()
 
 
 @singledispatch
