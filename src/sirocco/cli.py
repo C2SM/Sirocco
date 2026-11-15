@@ -18,6 +18,7 @@ from rich.traceback import install as install_rich_traceback
 from sirocco import core, parsing, pretty_print, vizgraph
 from sirocco.engines.standalone import SiroccoContinueTask, StandaloneEngine, WorkflowStatus
 from sirocco.engines.standalone.engine import StatusPoint
+from sirocco.engines.standalone.status_viz import status_vizgraph
 
 
 class TeeStream(io.TextIOBase):
@@ -236,7 +237,7 @@ def stviz(
     try:
         eng = StandaloneEngine.from_config_path(config_dir)
         eng.load_state()
-        viz_graph = vizgraph.VizGraph.from_status_workflow(eng)
+        viz_graph = status_vizgraph(eng)
         output_path = Path("./state.svg") if output_file is None else output_file
         viz_graph.draw(file_path=output_path)
         console.print(f"{CmdStatus.SUCCESS} Status visualization saved to: [cyan]{output_path.resolve()}[/cyan]")

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import enum
 from colorsys import hsv_to_rgb
-from itertools import chain
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 
@@ -14,8 +13,6 @@ from sirocco import core
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from sirocco.core.graph_items import GRAPH_ITEM_T
-    from sirocco.engines.standalone import StandaloneEngine
 
 type VIZ_STATUS_T = Literal["undefined", "active", "waiting", "inactive"]
 
@@ -277,60 +274,3 @@ class VizGraph:
             VizGraph instance
         """
         return cls.from_core_workflow(core.Workflow.from_config_path(config_path, template_context=template_context))
-
-    @staticmethod
-    def add_to_unique_list(
-        item: GRAPH_ITEM_T,
-        item_list: list[GRAPH_ITEM_T],
-        labels: list[str],
-        statuses: dict[str, VIZ_STATUS_T],
-    ) -> None:
-        if item.label not in labels:
-            labels.append(item.label)
-            item_list.append(item)
-            # default to inactive status
-            if isinstance(item, core.Data | core.Task):
-                statuses[item.label] = "inactive"
-
-    @classmethod
-    def from_status_workflow(cls, engine: StandaloneEngine) -> Self:
-        cycles: list[core.Cycle] = []
-        tasks: list[core.Task] = []
-        data: list[core.Data] = []
-        cycle_labels: list[str] = []
-        task_labels: list[str] = []
-        data_labels: list[str] = []
-        statuses: dict[str, VIZ_STATUS_T] = {}
-
-        # Identify cycles
-        for task in chain(*(engine.front[:])):
-            cls.add_to_unique_list(task.cycle, cycles, cycle_labels, statuses)
-
-        # Identify tasks and data nodes
-        for task in chain(*(cycle.tasks for cycle in cycles)):
-            cls.add_to_unique_list(task, tasks, task_labels, statuses)
-            for data_node in chain(task.input_data_nodes(), task.output_data_nodes()):
-                cls.add_to_unique_list(data_node, data, data_labels, statuses)
-            for wait_task in task.wait_on:
-                cls.add_to_unique_list(wait_task, tasks, task_labels, statuses)
-
-        # Set status for front tasks and data
-        for task in engine.front[0]:
-            statuses[task.label] = "active"
-            for data_node in chain(task.output_data_nodes(), task.input_data_nodes()):
-                statuses[data_node.label] = "active"
-        for task in chain(*(engine.front[1:])):
-            statuses[task.label] = "waiting"
-            for data_node in chain(task.output_data_nodes(), task.input_data_nodes()):
-                if statuses.get(data_node.label) == "inactive":
-                    statuses[data_node.label] = "waiting"
-
-        ranks = {task.label: engine.rank(task) for task in tasks}
-        return cls(
-            name=engine.workflow.name,
-            tasks=tasks,
-            data=data,
-            cycles=cycles,
-            statuses=statuses,
-            ranks=ranks,
-        )
