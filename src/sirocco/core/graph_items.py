@@ -36,9 +36,6 @@ class MpiCmdPlaceholder(enum.Enum):
     MPI_TOTAL_PROCS = "MPI_TOTAL_PROCS"
 
 
-type VIZ_STATUS_T = Literal["undefined", "active", "waiting", "inactive"]
-
-
 @dataclass(kw_only=True)
 class GraphItem:
     """base class for Data Tasks and Cycles"""
@@ -48,7 +45,6 @@ class GraphItem:
     name: str
     coordinates: dict
     label: str = field(init=False, repr=False)
-    viz_status: VIZ_STATUS_T = field(default="undefined", repr=False)
 
     def __post_init__(self) -> None:
         self.label = self.name
