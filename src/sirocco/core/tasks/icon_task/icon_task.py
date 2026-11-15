@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 from sirocco.core.graph_items import Task
 from sirocco.core.namelistfile import NamelistFile
 from sirocco.core.tasks.icon_task.models import IconModel, ModelType
-from sirocco.core.tasks.icon_task.ports import restart_in_handler
+from sirocco.core.tasks.icon_task.ports import restart_in_port
 from sirocco.core.tasks.icon_task.task_distribution import (
     RankInfo,
     allocate_tasks_from_weights,
@@ -300,10 +300,10 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
     def is_restart(self) -> bool:
         """Check if the icon task starts from restart file(s)."""
         # Get restart status of first master model
-        restart_ref = bool(next(iter(self.master_models.values())).inputs.get(restart_in_handler.port_name, False))
+        restart_ref = bool(next(iter(self.master_models.values())).inputs.get(restart_in_port.port_name, False))
         # Check if all master models have the same restart status
         for model in self.master_models.values():
-            if bool(model.inputs.get(restart_in_handler.port_name, False)) != restart_ref:
+            if bool(model.inputs.get(restart_in_port.port_name, False)) != restart_ref:
                 msg = f"{self.label}: All CON models must have the same restart status"
                 raise ValueError(msg)
         return restart_ref
