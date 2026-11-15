@@ -1,0 +1,80 @@
+---
+# ICON preparation by the standalone engine. Covers ICON ports of every kind:
+# available and generated inputs, link only inputs, squashed images, restarts,
+# output streams and finish status.
+start_date: &root_start_date '2025-01-01T00:00'
+stop_date: &root_stop_date '2025-05-01T00:00'
+scheduler: slurm
+
+cycles:
+  - bimonthly:
+      cycling:
+        start_date: *root_start_date
+        stop_date: *root_stop_date
+        period: 'P2M'
+      tasks:
+        - preproc:
+            outputs:
+              lbc: [icon_lbc]
+        - icon:
+            components:
+              master:
+                inputs:
+                  squash: [squash_image]
+              atm:
+                inputs:
+                  dynamics_grid_file: [grid_file]
+                  latbc: [icon_lbc]
+                  rrtmg_sw: [rrtmg_sw_data]
+                  restart_in:
+                    - icon_restart:
+                        when:
+                          after: *root_start_date
+                        target_cycle:
+                          lag: '-P2M'
+                outputs:
+                  output_streams: [stream_1, stream_2]
+                  restart_out: [icon_restart]
+                  finish_status: [icon_finish]
+
+tasks:
+  - ROOT:
+      computer: santis
+  - SIROCCO:
+      walltime: 00:05:00
+  - preproc:
+      plugin: shell
+      command: 'true'
+  - icon:
+      plugin: icon
+      exe:
+        cpu:
+          path: "{{ TESTS_ROOTDIR }}/tests/cases/icon-standalone/config/ICON/bin/icon"
+          procs:
+            atm: {}
+      namelists:
+        - ./ICON/icon_master.namelist
+        - ./ICON/NAMELIST_exclaim_ape_R02B04
+      squash_mount: [./squash_mnt]
+      nodes: 1
+      procs_per_node: 4
+      cores_per_proc: 72
+      walltime: 01:00:00
+      uenv: icon/25.2:v3
+      view: default
+
+data:
+  available:
+    - grid_file:
+        path: /TESTS_DATA/grid.nc
+    - rrtmg_sw_data:
+        path: /TESTS_DATA/rrtmg_sw.nc
+    - squash_image:
+        path: /TESTS_DATA/icon_data.squashfs
+  generated:
+    - icon_lbc:
+        path: lbc
+    - icon_restart: {}
+    - stream_1: {}
+    - stream_2: {}
+    - icon_finish: {}
