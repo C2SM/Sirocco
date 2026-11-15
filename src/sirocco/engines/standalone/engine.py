@@ -117,9 +117,12 @@ class StandaloneEngine:
             (task for task in config_workflow.tasks if isinstance(task, ConfigSiroccoTask)),
             None,
         )
+        if (scheduler_cls := Scheduler.scheduler_classes.get(config_workflow.scheduler)) is None:
+            msg = f"Scheduler {config_workflow.scheduler!r} is not supported by the standalone engine."
+            raise ValueError(msg)
         return cls(
             workflow=Workflow.from_config_workflow(config_workflow),
-            scheduler=Scheduler.create(config_workflow.scheduler),
+            scheduler=scheduler_cls(),
             config_sirocco_task=config_sirocco_task,
         )
 

@@ -1,8 +1,8 @@
 """Job scheduler interface of the standalone engine.
 
 The scheduler is stateless with respect to tasks: it receives job ids from the
-engine (parents, task to cancel or query) and returns the new job id on
-submission. Only the engine reads and writes the state table.
+engine for parents, task to cancel or query and returns the new job id for
+submitted tasks. Only the engine reads and writes the state table.
 """
 
 import logging
@@ -11,7 +11,7 @@ import subprocess
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, assert_never
+from typing import ClassVar, Literal, Self, assert_never
 
 from sirocco.core.graph_items import Task, TaskStatus
 from sirocco.engines.standalone import handlers
@@ -28,6 +28,16 @@ class SchedulerCommandError(RuntimeError): ...
 
 @dataclass(kw_only=True)
 class Scheduler(ABC):
+    scheduler_classes: ClassVar[dict[str, type[Self]]] = {}
+    name: ClassVar[str]
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if cls.name in Scheduler.scheduler_classes:
+            msg = f"Scheduler {cls.name} already set"
+            raise ValueError(msg)
+        Scheduler.scheduler_classes[cls.name] = cls
+
     def submit(
         self,
         task: Task,
@@ -114,13 +124,6 @@ class Scheduler(ABC):
     def cancel(self, task: Task, jobid: str) -> None:
         pass
 
-    @classmethod
-    def create(cls, key: str) -> "Scheduler":
-        if key == "slurm":
-            return Slurm()
-        msg = f"Scheduler {key} not implemented"
-        raise NotImplementedError(msg)
-
     @staticmethod
     def run_command(cmd: list[str], **subprocess_kw) -> subprocess.CompletedProcess:
         try:
@@ -132,6 +135,8 @@ class Scheduler(ABC):
 
 @dataclass(kw_only=True)
 class Slurm(Scheduler):
+    name: ClassVar[str] = "slurm"
+
     def header_lines(
         self,
         task: Task,
