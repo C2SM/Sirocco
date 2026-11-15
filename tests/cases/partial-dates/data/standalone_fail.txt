@@ -1,0 +1,301 @@
+=== sirocco start
+submit icon__date_2026-01-01T00-00-00 (1001) after [] [ALL_COMPLETED]
+--- run script icon__date_2026-01-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=icon__date_2026-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2026-01-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2027-01-01T00:00:00+00:00
+
+true
+---
+submit icon__date_2027-01-01T00-00-00 (1002) after [] [ALL_COMPLETED]
+--- run script icon__date_2027-01-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=icon__date_2027-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2027-01-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2028-01-01T00:00:00+00:00
+
+true
+---
+submit waiter__date_2026-01-01T00-00-00 (1003) after ['1001'] [ALL_COMPLETED]
+--- run script waiter__date_2026-01-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=waiter__date_2026-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2026-01-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2026-07-01T00:00:00+00:00
+
+true
+---
+submit waiter__date_2026-07-01T00-00-00 (1004) after ['1001'] [ALL_COMPLETED]
+--- run script waiter__date_2026-07-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=waiter__date_2026-07-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2026-07-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2027-01-01T00:00:00+00:00
+
+true
+---
+submit biannual_postprocessing__date_2026-01-01T00-00-00 (1005) after ['1001'] [ALL_COMPLETED]
+--- run script biannual_postprocessing__date_2026-01-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=biannual_postprocessing__date_2026-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2026-01-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2026-07-01T00:00:00+00:00
+
+true
+---
+submit biannual_postprocessing__date_2026-07-01T00-00-00 (1006) after ['1001'] [ALL_COMPLETED]
+--- run script biannual_postprocessing__date_2026-07-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=biannual_postprocessing__date_2026-07-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2026-07-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2027-01-01T00:00:00+00:00
+
+true
+---
+submit waiter__date_2027-01-01T00-00-00 (1007) after ['1002'] [ALL_COMPLETED]
+--- run script waiter__date_2027-01-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=waiter__date_2027-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2027-01-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2027-07-01T00:00:00+00:00
+
+true
+---
+submit waiter__date_2027-07-01T00-00-00 (1008) after ['1002'] [ALL_COMPLETED]
+--- run script waiter__date_2027-07-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=waiter__date_2027-07-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2027-07-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2028-01-01T00:00:00+00:00
+
+true
+---
+submit biannual_postprocessing__date_2027-01-01T00-00-00 (1009) after ['1002'] [ALL_COMPLETED]
+--- run script biannual_postprocessing__date_2027-01-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=biannual_postprocessing__date_2027-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2027-01-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2027-07-01T00:00:00+00:00
+
+true
+---
+submit biannual_postprocessing__date_2027-07-01T00-00-00 (1010) after ['1002'] [ALL_COMPLETED]
+--- run script biannual_postprocessing__date_2027-07-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=biannual_postprocessing__date_2027-07-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2027-07-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2028-01-01T00:00:00+00:00
+
+true
+---
+submit Sirocco_continue (1011) after ['1001', '1002'] [ANY]
+--- run script Sirocco_continue
+#!/bin/bash -l
+
+#FAKE --job-name=Sirocco_continue --output=sirocco.log --mode=append
+
+export N_NODES=1
+
+
+sirocco continue --from_wf <ROOTDIR> || exit
+---
+status: CONTINUE
+--- state.yaml
+sirocco_jobid: '1011'
+completed_tasks: []
+cool_down_tasks: []
+front:
+- - icon:
+      coordinates:
+        date: '2026-01-01T00:00:00+00:00'
+      jobid: '1001'
+  - icon:
+      coordinates:
+        date: '2027-01-01T00:00:00+00:00'
+      jobid: '1002'
+- - waiter:
+      coordinates:
+        date: '2026-01-01T00:00:00+00:00'
+      jobid: '1003'
+  - waiter:
+      coordinates:
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1004'
+  - biannual_postprocessing:
+      coordinates:
+        date: '2026-01-01T00:00:00+00:00'
+      jobid: '1005'
+  - biannual_postprocessing:
+      coordinates:
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1006'
+  - waiter:
+      coordinates:
+        date: '2027-01-01T00:00:00+00:00'
+      jobid: '1007'
+  - waiter:
+      coordinates:
+        date: '2027-07-01T00:00:00+00:00'
+      jobid: '1008'
+  - biannual_postprocessing:
+      coordinates:
+        date: '2027-01-01T00:00:00+00:00'
+      jobid: '1009'
+  - biannual_postprocessing:
+      coordinates:
+        date: '2027-07-01T00:00:00+00:00'
+      jobid: '1010'
+---
+# icon__date_2026-01-01T00-00-00 -> COMPLETED
+# icon__date_2027-01-01T00-00-00 -> COMPLETED
+
+=== sirocco continue
+submit Sirocco_continue (1012) after ['1003', '1004', '1005', '1006', '1007', '1008', '1009', '1010'] [ANY]
+status: CONTINUE
+--- state.yaml
+sirocco_jobid: '1012'
+completed_tasks:
+- icon:
+    coordinates:
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1001'
+- icon:
+    coordinates:
+      date: '2027-01-01T00:00:00+00:00'
+    jobid: '1002'
+cool_down_tasks: []
+front:
+- - waiter:
+      coordinates:
+        date: '2026-01-01T00:00:00+00:00'
+      jobid: '1003'
+  - waiter:
+      coordinates:
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1004'
+  - biannual_postprocessing:
+      coordinates:
+        date: '2026-01-01T00:00:00+00:00'
+      jobid: '1005'
+  - biannual_postprocessing:
+      coordinates:
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1006'
+  - waiter:
+      coordinates:
+        date: '2027-01-01T00:00:00+00:00'
+      jobid: '1007'
+  - waiter:
+      coordinates:
+        date: '2027-07-01T00:00:00+00:00'
+      jobid: '1008'
+  - biannual_postprocessing:
+      coordinates:
+        date: '2027-01-01T00:00:00+00:00'
+      jobid: '1009'
+  - biannual_postprocessing:
+      coordinates:
+        date: '2027-07-01T00:00:00+00:00'
+      jobid: '1010'
+- []
+---
+# waiter__date_2026-01-01T00-00-00 -> FAILED
+
+=== sirocco continue
+cancel waiter__date_2026-01-01T00-00-00 (1003)
+cancel waiter__date_2026-07-01T00-00-00 (1004)
+cancel biannual_postprocessing__date_2026-01-01T00-00-00 (1005)
+cancel biannual_postprocessing__date_2026-07-01T00-00-00 (1006)
+cancel waiter__date_2027-01-01T00-00-00 (1007)
+cancel waiter__date_2027-07-01T00-00-00 (1008)
+cancel biannual_postprocessing__date_2027-01-01T00-00-00 (1009)
+cancel biannual_postprocessing__date_2027-07-01T00-00-00 (1010)
+status: FAILED
+--- state.yaml
+sirocco_jobid: _NO_ID_
+completed_tasks:
+- icon:
+    coordinates:
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1001'
+- icon:
+    coordinates:
+      date: '2027-01-01T00:00:00+00:00'
+    jobid: '1002'
+cool_down_tasks: []
+front:
+- - waiter:
+      coordinates:
+        date: '2026-01-01T00:00:00+00:00'
+      jobid: '1003'
+  - waiter:
+      coordinates:
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1004'
+  - biannual_postprocessing:
+      coordinates:
+        date: '2026-01-01T00:00:00+00:00'
+      jobid: '1005'
+  - biannual_postprocessing:
+      coordinates:
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1006'
+  - waiter:
+      coordinates:
+        date: '2027-01-01T00:00:00+00:00'
+      jobid: '1007'
+  - waiter:
+      coordinates:
+        date: '2027-07-01T00:00:00+00:00'
+      jobid: '1008'
+  - biannual_postprocessing:
+      coordinates:
+        date: '2027-01-01T00:00:00+00:00'
+      jobid: '1009'
+  - biannual_postprocessing:
+      coordinates:
+        date: '2027-07-01T00:00:00+00:00'
+      jobid: '1010'
+- []
+---

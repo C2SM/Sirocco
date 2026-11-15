@@ -1,0 +1,1085 @@
+=== sirocco start
+submit icon__foo_0__bar_3.0__date_2026-01-01T00-00-00 (1001) after [] [ALL_COMPLETED]
+--- run script icon__foo_0__bar_3.0__date_2026-01-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=icon__foo_0__bar_3.0__date_2026-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2026-01-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2026-07-01T00:00:00+00:00
+
+python icon.py  --init /TESTS_ROOTDIR/tests/cases/parameters/config/data/initial_conditions --forcing /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
+---
+submit icon__foo_1__bar_3.0__date_2026-01-01T00-00-00 (1002) after [] [ALL_COMPLETED]
+--- run script icon__foo_1__bar_3.0__date_2026-01-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=icon__foo_1__bar_3.0__date_2026-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2026-01-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2026-07-01T00:00:00+00:00
+
+python icon.py  --init /TESTS_ROOTDIR/tests/cases/parameters/config/data/initial_conditions --forcing /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
+---
+submit statistics_foo__bar_3.0__date_2026-01-01T00-00-00 (1003) after ['1001', '1002'] [ALL_COMPLETED]
+--- run script statistics_foo__bar_3.0__date_2026-01-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=statistics_foo__bar_3.0__date_2026-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2026-01-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2026-07-01T00:00:00+00:00
+
+python statistics.py <ROOTDIR>/run/icon__foo_0__bar_3.0__date_2026-01-01T00-00-00/icon_output <ROOTDIR>/run/icon__foo_1__bar_3.0__date_2026-01-01T00-00-00/icon_output
+---
+submit icon__foo_0__bar_3.0__date_2026-07-01T00-00-00 (1004) after ['1001'] [ALL_COMPLETED]
+--- run script icon__foo_0__bar_3.0__date_2026-07-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=icon__foo_0__bar_3.0__date_2026-07-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2026-07-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2027-01-01T00:00:00+00:00
+
+python icon.py --restart <ROOTDIR>/run/icon__foo_0__bar_3.0__date_2026-01-01T00-00-00/restart  --forcing /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
+---
+submit icon__foo_1__bar_3.0__date_2026-07-01T00-00-00 (1005) after ['1002'] [ALL_COMPLETED]
+--- run script icon__foo_1__bar_3.0__date_2026-07-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=icon__foo_1__bar_3.0__date_2026-07-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2026-07-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2027-01-01T00:00:00+00:00
+
+python icon.py --restart <ROOTDIR>/run/icon__foo_1__bar_3.0__date_2026-01-01T00-00-00/restart  --forcing /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
+---
+submit Sirocco_continue (1006) after ['1001', '1002'] [ANY]
+--- run script Sirocco_continue
+#!/bin/bash -l
+
+#FAKE --job-name=Sirocco_continue --output=sirocco.log --mode=append
+
+export N_NODES=1
+
+
+sirocco continue --from_wf <ROOTDIR> || exit
+---
+status: CONTINUE
+--- state.yaml
+sirocco_jobid: '1006'
+completed_tasks: []
+cool_down_tasks: []
+front:
+- - icon:
+      coordinates:
+        foo: 0
+        bar: 3.0
+        date: '2026-01-01T00:00:00+00:00'
+      jobid: '1001'
+  - icon:
+      coordinates:
+        foo: 1
+        bar: 3.0
+        date: '2026-01-01T00:00:00+00:00'
+      jobid: '1002'
+- - statistics_foo:
+      coordinates:
+        bar: 3.0
+        date: '2026-01-01T00:00:00+00:00'
+      jobid: '1003'
+  - icon:
+      coordinates:
+        foo: 0
+        bar: 3.0
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1004'
+  - icon:
+      coordinates:
+        foo: 1
+        bar: 3.0
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1005'
+---
+# icon__foo_0__bar_3.0__date_2026-01-01T00-00-00 -> COMPLETED
+# icon__foo_1__bar_3.0__date_2026-01-01T00-00-00 -> COMPLETED
+
+=== sirocco continue
+submit statistics_foo_bar__date_2026-01-01T00-00-00 (1007) after ['1003'] [ALL_COMPLETED]
+--- run script statistics_foo_bar__date_2026-01-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=statistics_foo_bar__date_2026-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2026-01-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2026-07-01T00:00:00+00:00
+
+python statistics.py <ROOTDIR>/run/statistics_foo__bar_3.0__date_2026-01-01T00-00-00/analysis
+---
+submit statistics_foo__bar_3.0__date_2026-07-01T00-00-00 (1008) after ['1004', '1005'] [ALL_COMPLETED]
+--- run script statistics_foo__bar_3.0__date_2026-07-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=statistics_foo__bar_3.0__date_2026-07-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2026-07-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2027-01-01T00:00:00+00:00
+
+python statistics.py <ROOTDIR>/run/icon__foo_0__bar_3.0__date_2026-07-01T00-00-00/icon_output <ROOTDIR>/run/icon__foo_1__bar_3.0__date_2026-07-01T00-00-00/icon_output
+---
+submit icon__foo_0__bar_3.0__date_2027-01-01T00-00-00 (1009) after ['1004'] [ALL_COMPLETED]
+--- run script icon__foo_0__bar_3.0__date_2027-01-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=icon__foo_0__bar_3.0__date_2027-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2027-01-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2027-07-01T00:00:00+00:00
+
+python icon.py --restart <ROOTDIR>/run/icon__foo_0__bar_3.0__date_2026-07-01T00-00-00/restart  --forcing /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
+---
+submit icon__foo_1__bar_3.0__date_2027-01-01T00-00-00 (1010) after ['1005'] [ALL_COMPLETED]
+--- run script icon__foo_1__bar_3.0__date_2027-01-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=icon__foo_1__bar_3.0__date_2027-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2027-01-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2027-07-01T00:00:00+00:00
+
+python icon.py --restart <ROOTDIR>/run/icon__foo_1__bar_3.0__date_2026-07-01T00-00-00/restart  --forcing /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
+---
+submit Sirocco_continue (1011) after ['1003', '1004', '1005'] [ANY]
+status: CONTINUE
+--- state.yaml
+sirocco_jobid: '1011'
+completed_tasks:
+- icon:
+    coordinates:
+      foo: 0
+      bar: 3.0
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1001'
+- icon:
+    coordinates:
+      foo: 1
+      bar: 3.0
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1002'
+cool_down_tasks: []
+front:
+- - statistics_foo:
+      coordinates:
+        bar: 3.0
+        date: '2026-01-01T00:00:00+00:00'
+      jobid: '1003'
+  - icon:
+      coordinates:
+        foo: 0
+        bar: 3.0
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1004'
+  - icon:
+      coordinates:
+        foo: 1
+        bar: 3.0
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1005'
+- - statistics_foo_bar:
+      coordinates:
+        date: '2026-01-01T00:00:00+00:00'
+      jobid: '1007'
+  - statistics_foo:
+      coordinates:
+        bar: 3.0
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1008'
+  - icon:
+      coordinates:
+        foo: 0
+        bar: 3.0
+        date: '2027-01-01T00:00:00+00:00'
+      jobid: '1009'
+  - icon:
+      coordinates:
+        foo: 1
+        bar: 3.0
+        date: '2027-01-01T00:00:00+00:00'
+      jobid: '1010'
+---
+# statistics_foo__bar_3.0__date_2026-01-01T00-00-00 -> RUNNING
+
+=== sirocco stop
+cancel Sirocco_continue (1011)
+cancel icon__foo_0__bar_3.0__date_2026-07-01T00-00-00 (1004)
+cancel icon__foo_1__bar_3.0__date_2026-07-01T00-00-00 (1005)
+cancel statistics_foo_bar__date_2026-01-01T00-00-00 (1007)
+cancel statistics_foo__bar_3.0__date_2026-07-01T00-00-00 (1008)
+cancel icon__foo_0__bar_3.0__date_2027-01-01T00-00-00 (1009)
+cancel icon__foo_1__bar_3.0__date_2027-01-01T00-00-00 (1010)
+status: STOPPED
+--- state.yaml
+sirocco_jobid: _NO_ID_
+completed_tasks:
+- icon:
+    coordinates:
+      foo: 0
+      bar: 3.0
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1001'
+- icon:
+    coordinates:
+      foo: 1
+      bar: 3.0
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1002'
+cool_down_tasks:
+- statistics_foo:
+    coordinates:
+      bar: 3.0
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1003'
+front:
+- - statistics_foo:
+      coordinates:
+        bar: 3.0
+        date: '2026-01-01T00:00:00+00:00'
+      jobid: '1003'
+  - icon:
+      coordinates:
+        foo: 0
+        bar: 3.0
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1004'
+  - icon:
+      coordinates:
+        foo: 1
+        bar: 3.0
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1005'
+- - statistics_foo_bar:
+      coordinates:
+        date: '2026-01-01T00:00:00+00:00'
+      jobid: '1007'
+  - statistics_foo:
+      coordinates:
+        bar: 3.0
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1008'
+  - icon:
+      coordinates:
+        foo: 0
+        bar: 3.0
+        date: '2027-01-01T00:00:00+00:00'
+      jobid: '1009'
+  - icon:
+      coordinates:
+        foo: 1
+        bar: 3.0
+        date: '2027-01-01T00:00:00+00:00'
+      jobid: '1010'
+---
+
+=== sirocco restart
+cancel icon__foo_0__bar_3.0__date_2026-07-01T00-00-00 (1004)
+submit icon__foo_0__bar_3.0__date_2026-07-01T00-00-00 (1012) after [] [ALL_COMPLETED]
+cancel icon__foo_1__bar_3.0__date_2026-07-01T00-00-00 (1005)
+submit icon__foo_1__bar_3.0__date_2026-07-01T00-00-00 (1013) after [] [ALL_COMPLETED]
+cancel statistics_foo_bar__date_2026-01-01T00-00-00 (1007)
+submit statistics_foo_bar__date_2026-01-01T00-00-00 (1014) after ['1003'] [ALL_COMPLETED]
+cancel statistics_foo__bar_3.0__date_2026-07-01T00-00-00 (1008)
+submit statistics_foo__bar_3.0__date_2026-07-01T00-00-00 (1015) after ['1012', '1013'] [ALL_COMPLETED]
+cancel icon__foo_0__bar_3.0__date_2027-01-01T00-00-00 (1009)
+submit icon__foo_0__bar_3.0__date_2027-01-01T00-00-00 (1016) after ['1012'] [ALL_COMPLETED]
+cancel icon__foo_1__bar_3.0__date_2027-01-01T00-00-00 (1010)
+submit icon__foo_1__bar_3.0__date_2027-01-01T00-00-00 (1017) after ['1013'] [ALL_COMPLETED]
+submit Sirocco_continue (1018) after ['1003', '1012', '1013'] [ANY]
+status: CONTINUE
+--- state.yaml
+sirocco_jobid: '1018'
+completed_tasks:
+- icon:
+    coordinates:
+      foo: 0
+      bar: 3.0
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1001'
+- icon:
+    coordinates:
+      foo: 1
+      bar: 3.0
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1002'
+cool_down_tasks: []
+front:
+- - statistics_foo:
+      coordinates:
+        bar: 3.0
+        date: '2026-01-01T00:00:00+00:00'
+      jobid: '1003'
+  - icon:
+      coordinates:
+        foo: 0
+        bar: 3.0
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1012'
+  - icon:
+      coordinates:
+        foo: 1
+        bar: 3.0
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1013'
+- - statistics_foo_bar:
+      coordinates:
+        date: '2026-01-01T00:00:00+00:00'
+      jobid: '1014'
+  - statistics_foo:
+      coordinates:
+        bar: 3.0
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1015'
+  - icon:
+      coordinates:
+        foo: 0
+        bar: 3.0
+        date: '2027-01-01T00:00:00+00:00'
+      jobid: '1016'
+  - icon:
+      coordinates:
+        foo: 1
+        bar: 3.0
+        date: '2027-01-01T00:00:00+00:00'
+      jobid: '1017'
+---
+# statistics_foo__bar_3.0__date_2026-01-01T00-00-00 -> COMPLETED
+# icon__foo_0__bar_3.0__date_2026-07-01T00-00-00 -> COMPLETED
+# icon__foo_1__bar_3.0__date_2026-07-01T00-00-00 -> COMPLETED
+
+=== sirocco continue
+submit statistics_foo_bar__date_2026-07-01T00-00-00 (1019) after ['1015'] [ALL_COMPLETED]
+--- run script statistics_foo_bar__date_2026-07-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=statistics_foo_bar__date_2026-07-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2026-07-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2027-01-01T00:00:00+00:00
+
+python statistics.py <ROOTDIR>/run/statistics_foo__bar_3.0__date_2026-07-01T00-00-00/analysis
+---
+submit statistics_foo__bar_3.0__date_2027-01-01T00-00-00 (1020) after ['1016', '1017'] [ALL_COMPLETED]
+--- run script statistics_foo__bar_3.0__date_2027-01-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=statistics_foo__bar_3.0__date_2027-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2027-01-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2027-07-01T00:00:00+00:00
+
+python statistics.py <ROOTDIR>/run/icon__foo_0__bar_3.0__date_2027-01-01T00-00-00/icon_output <ROOTDIR>/run/icon__foo_1__bar_3.0__date_2027-01-01T00-00-00/icon_output
+---
+submit icon__foo_0__bar_3.0__date_2027-07-01T00-00-00 (1021) after ['1016'] [ALL_COMPLETED]
+--- run script icon__foo_0__bar_3.0__date_2027-07-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=icon__foo_0__bar_3.0__date_2027-07-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2027-07-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2028-01-01T00:00:00+00:00
+
+python icon.py --restart <ROOTDIR>/run/icon__foo_0__bar_3.0__date_2027-01-01T00-00-00/restart  --forcing /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
+---
+submit icon__foo_1__bar_3.0__date_2027-07-01T00-00-00 (1022) after ['1017'] [ALL_COMPLETED]
+--- run script icon__foo_1__bar_3.0__date_2027-07-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=icon__foo_1__bar_3.0__date_2027-07-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2027-07-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2028-01-01T00:00:00+00:00
+
+python icon.py --restart <ROOTDIR>/run/icon__foo_1__bar_3.0__date_2027-01-01T00-00-00/restart  --forcing /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
+---
+submit Sirocco_continue (1023) after ['1014', '1015', '1016', '1017'] [ANY]
+status: CONTINUE
+--- state.yaml
+sirocco_jobid: '1023'
+completed_tasks:
+- icon:
+    coordinates:
+      foo: 0
+      bar: 3.0
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1001'
+- icon:
+    coordinates:
+      foo: 1
+      bar: 3.0
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1002'
+- statistics_foo:
+    coordinates:
+      bar: 3.0
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1003'
+- icon:
+    coordinates:
+      foo: 0
+      bar: 3.0
+      date: '2026-07-01T00:00:00+00:00'
+    jobid: '1012'
+- icon:
+    coordinates:
+      foo: 1
+      bar: 3.0
+      date: '2026-07-01T00:00:00+00:00'
+    jobid: '1013'
+cool_down_tasks: []
+front:
+- - statistics_foo_bar:
+      coordinates:
+        date: '2026-01-01T00:00:00+00:00'
+      jobid: '1014'
+  - statistics_foo:
+      coordinates:
+        bar: 3.0
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1015'
+  - icon:
+      coordinates:
+        foo: 0
+        bar: 3.0
+        date: '2027-01-01T00:00:00+00:00'
+      jobid: '1016'
+  - icon:
+      coordinates:
+        foo: 1
+        bar: 3.0
+        date: '2027-01-01T00:00:00+00:00'
+      jobid: '1017'
+- - statistics_foo_bar:
+      coordinates:
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1019'
+  - statistics_foo:
+      coordinates:
+        bar: 3.0
+        date: '2027-01-01T00:00:00+00:00'
+      jobid: '1020'
+  - icon:
+      coordinates:
+        foo: 0
+        bar: 3.0
+        date: '2027-07-01T00:00:00+00:00'
+      jobid: '1021'
+  - icon:
+      coordinates:
+        foo: 1
+        bar: 3.0
+        date: '2027-07-01T00:00:00+00:00'
+      jobid: '1022'
+---
+# statistics_foo_bar__date_2026-01-01T00-00-00 -> COMPLETED
+# statistics_foo__bar_3.0__date_2026-07-01T00-00-00 -> COMPLETED
+# icon__foo_0__bar_3.0__date_2027-01-01T00-00-00 -> COMPLETED
+# icon__foo_1__bar_3.0__date_2027-01-01T00-00-00 -> COMPLETED
+
+=== sirocco continue
+submit merge__date_2026-01-01T00-00-00 (1024) after ['1019'] [ALL_COMPLETED]
+--- run script merge__date_2026-01-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=merge__date_2026-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2026-01-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2027-01-01T00:00:00+00:00
+
+python merge.py <ROOTDIR>/run/statistics_foo_bar__date_2026-01-01T00-00-00/analysis <ROOTDIR>/run/statistics_foo_bar__date_2026-07-01T00-00-00/analysis
+---
+submit statistics_foo_bar__date_2027-01-01T00-00-00 (1025) after ['1020'] [ALL_COMPLETED]
+--- run script statistics_foo_bar__date_2027-01-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=statistics_foo_bar__date_2027-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2027-01-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2027-07-01T00:00:00+00:00
+
+python statistics.py <ROOTDIR>/run/statistics_foo__bar_3.0__date_2027-01-01T00-00-00/analysis
+---
+submit statistics_foo__bar_3.0__date_2027-07-01T00-00-00 (1026) after ['1021', '1022'] [ALL_COMPLETED]
+--- run script statistics_foo__bar_3.0__date_2027-07-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=statistics_foo__bar_3.0__date_2027-07-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2027-07-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2028-01-01T00:00:00+00:00
+
+python statistics.py <ROOTDIR>/run/icon__foo_0__bar_3.0__date_2027-07-01T00-00-00/icon_output <ROOTDIR>/run/icon__foo_1__bar_3.0__date_2027-07-01T00-00-00/icon_output
+---
+submit Sirocco_continue (1027) after ['1019', '1020', '1021', '1022'] [ANY]
+status: CONTINUE
+--- state.yaml
+sirocco_jobid: '1027'
+completed_tasks:
+- icon:
+    coordinates:
+      foo: 0
+      bar: 3.0
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1001'
+- icon:
+    coordinates:
+      foo: 1
+      bar: 3.0
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1002'
+- statistics_foo:
+    coordinates:
+      bar: 3.0
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1003'
+- icon:
+    coordinates:
+      foo: 0
+      bar: 3.0
+      date: '2026-07-01T00:00:00+00:00'
+    jobid: '1012'
+- icon:
+    coordinates:
+      foo: 1
+      bar: 3.0
+      date: '2026-07-01T00:00:00+00:00'
+    jobid: '1013'
+- statistics_foo_bar:
+    coordinates:
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1014'
+- statistics_foo:
+    coordinates:
+      bar: 3.0
+      date: '2026-07-01T00:00:00+00:00'
+    jobid: '1015'
+- icon:
+    coordinates:
+      foo: 0
+      bar: 3.0
+      date: '2027-01-01T00:00:00+00:00'
+    jobid: '1016'
+- icon:
+    coordinates:
+      foo: 1
+      bar: 3.0
+      date: '2027-01-01T00:00:00+00:00'
+    jobid: '1017'
+cool_down_tasks: []
+front:
+- - statistics_foo_bar:
+      coordinates:
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1019'
+  - statistics_foo:
+      coordinates:
+        bar: 3.0
+        date: '2027-01-01T00:00:00+00:00'
+      jobid: '1020'
+  - icon:
+      coordinates:
+        foo: 0
+        bar: 3.0
+        date: '2027-07-01T00:00:00+00:00'
+      jobid: '1021'
+  - icon:
+      coordinates:
+        foo: 1
+        bar: 3.0
+        date: '2027-07-01T00:00:00+00:00'
+      jobid: '1022'
+- - merge:
+      coordinates:
+        date: '2026-01-01T00:00:00+00:00'
+      jobid: '1024'
+  - statistics_foo_bar:
+      coordinates:
+        date: '2027-01-01T00:00:00+00:00'
+      jobid: '1025'
+  - statistics_foo:
+      coordinates:
+        bar: 3.0
+        date: '2027-07-01T00:00:00+00:00'
+      jobid: '1026'
+---
+# statistics_foo_bar__date_2026-07-01T00-00-00 -> COMPLETED
+# statistics_foo__bar_3.0__date_2027-01-01T00-00-00 -> COMPLETED
+# icon__foo_0__bar_3.0__date_2027-07-01T00-00-00 -> COMPLETED
+# icon__foo_1__bar_3.0__date_2027-07-01T00-00-00 -> COMPLETED
+
+=== sirocco continue
+submit statistics_foo_bar__date_2027-07-01T00-00-00 (1028) after ['1026'] [ALL_COMPLETED]
+--- run script statistics_foo_bar__date_2027-07-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=statistics_foo_bar__date_2027-07-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2027-07-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2028-01-01T00:00:00+00:00
+
+python statistics.py <ROOTDIR>/run/statistics_foo__bar_3.0__date_2027-07-01T00-00-00/analysis
+---
+submit Sirocco_continue (1029) after ['1024', '1025', '1026'] [ANY]
+status: CONTINUE
+--- state.yaml
+sirocco_jobid: '1029'
+completed_tasks:
+- icon:
+    coordinates:
+      foo: 0
+      bar: 3.0
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1001'
+- icon:
+    coordinates:
+      foo: 1
+      bar: 3.0
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1002'
+- statistics_foo:
+    coordinates:
+      bar: 3.0
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1003'
+- icon:
+    coordinates:
+      foo: 0
+      bar: 3.0
+      date: '2026-07-01T00:00:00+00:00'
+    jobid: '1012'
+- icon:
+    coordinates:
+      foo: 1
+      bar: 3.0
+      date: '2026-07-01T00:00:00+00:00'
+    jobid: '1013'
+- statistics_foo_bar:
+    coordinates:
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1014'
+- statistics_foo:
+    coordinates:
+      bar: 3.0
+      date: '2026-07-01T00:00:00+00:00'
+    jobid: '1015'
+- icon:
+    coordinates:
+      foo: 0
+      bar: 3.0
+      date: '2027-01-01T00:00:00+00:00'
+    jobid: '1016'
+- icon:
+    coordinates:
+      foo: 1
+      bar: 3.0
+      date: '2027-01-01T00:00:00+00:00'
+    jobid: '1017'
+- statistics_foo_bar:
+    coordinates:
+      date: '2026-07-01T00:00:00+00:00'
+    jobid: '1019'
+- statistics_foo:
+    coordinates:
+      bar: 3.0
+      date: '2027-01-01T00:00:00+00:00'
+    jobid: '1020'
+- icon:
+    coordinates:
+      foo: 0
+      bar: 3.0
+      date: '2027-07-01T00:00:00+00:00'
+    jobid: '1021'
+- icon:
+    coordinates:
+      foo: 1
+      bar: 3.0
+      date: '2027-07-01T00:00:00+00:00'
+    jobid: '1022'
+cool_down_tasks: []
+front:
+- - merge:
+      coordinates:
+        date: '2026-01-01T00:00:00+00:00'
+      jobid: '1024'
+  - statistics_foo_bar:
+      coordinates:
+        date: '2027-01-01T00:00:00+00:00'
+      jobid: '1025'
+  - statistics_foo:
+      coordinates:
+        bar: 3.0
+        date: '2027-07-01T00:00:00+00:00'
+      jobid: '1026'
+- - statistics_foo_bar:
+      coordinates:
+        date: '2027-07-01T00:00:00+00:00'
+      jobid: '1028'
+---
+# merge__date_2026-01-01T00-00-00 -> COMPLETED
+# statistics_foo_bar__date_2027-01-01T00-00-00 -> COMPLETED
+# statistics_foo__bar_3.0__date_2027-07-01T00-00-00 -> COMPLETED
+
+=== sirocco continue
+submit merge__date_2027-01-01T00-00-00 (1030) after ['1028'] [ALL_COMPLETED]
+--- run script merge__date_2027-01-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=merge__date_2027-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2027-01-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2028-01-01T00:00:00+00:00
+
+python merge.py <ROOTDIR>/run/statistics_foo_bar__date_2027-01-01T00-00-00/analysis <ROOTDIR>/run/statistics_foo_bar__date_2027-07-01T00-00-00/analysis
+---
+submit Sirocco_continue (1031) after ['1028'] [ANY]
+status: CONTINUE
+--- state.yaml
+sirocco_jobid: '1031'
+completed_tasks:
+- icon:
+    coordinates:
+      foo: 0
+      bar: 3.0
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1001'
+- icon:
+    coordinates:
+      foo: 1
+      bar: 3.0
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1002'
+- statistics_foo:
+    coordinates:
+      bar: 3.0
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1003'
+- icon:
+    coordinates:
+      foo: 0
+      bar: 3.0
+      date: '2026-07-01T00:00:00+00:00'
+    jobid: '1012'
+- icon:
+    coordinates:
+      foo: 1
+      bar: 3.0
+      date: '2026-07-01T00:00:00+00:00'
+    jobid: '1013'
+- statistics_foo_bar:
+    coordinates:
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1014'
+- statistics_foo:
+    coordinates:
+      bar: 3.0
+      date: '2026-07-01T00:00:00+00:00'
+    jobid: '1015'
+- icon:
+    coordinates:
+      foo: 0
+      bar: 3.0
+      date: '2027-01-01T00:00:00+00:00'
+    jobid: '1016'
+- icon:
+    coordinates:
+      foo: 1
+      bar: 3.0
+      date: '2027-01-01T00:00:00+00:00'
+    jobid: '1017'
+- statistics_foo_bar:
+    coordinates:
+      date: '2026-07-01T00:00:00+00:00'
+    jobid: '1019'
+- statistics_foo:
+    coordinates:
+      bar: 3.0
+      date: '2027-01-01T00:00:00+00:00'
+    jobid: '1020'
+- icon:
+    coordinates:
+      foo: 0
+      bar: 3.0
+      date: '2027-07-01T00:00:00+00:00'
+    jobid: '1021'
+- icon:
+    coordinates:
+      foo: 1
+      bar: 3.0
+      date: '2027-07-01T00:00:00+00:00'
+    jobid: '1022'
+- merge:
+    coordinates:
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1024'
+- statistics_foo_bar:
+    coordinates:
+      date: '2027-01-01T00:00:00+00:00'
+    jobid: '1025'
+- statistics_foo:
+    coordinates:
+      bar: 3.0
+      date: '2027-07-01T00:00:00+00:00'
+    jobid: '1026'
+cool_down_tasks: []
+front:
+- - statistics_foo_bar:
+      coordinates:
+        date: '2027-07-01T00:00:00+00:00'
+      jobid: '1028'
+- - merge:
+      coordinates:
+        date: '2027-01-01T00:00:00+00:00'
+      jobid: '1030'
+---
+# statistics_foo_bar__date_2027-07-01T00-00-00 -> COMPLETED
+
+=== sirocco continue
+submit Sirocco_continue (1032) after ['1030'] [ANY]
+status: CONTINUE
+--- state.yaml
+sirocco_jobid: '1032'
+completed_tasks:
+- icon:
+    coordinates:
+      foo: 0
+      bar: 3.0
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1001'
+- icon:
+    coordinates:
+      foo: 1
+      bar: 3.0
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1002'
+- statistics_foo:
+    coordinates:
+      bar: 3.0
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1003'
+- icon:
+    coordinates:
+      foo: 0
+      bar: 3.0
+      date: '2026-07-01T00:00:00+00:00'
+    jobid: '1012'
+- icon:
+    coordinates:
+      foo: 1
+      bar: 3.0
+      date: '2026-07-01T00:00:00+00:00'
+    jobid: '1013'
+- statistics_foo_bar:
+    coordinates:
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1014'
+- statistics_foo:
+    coordinates:
+      bar: 3.0
+      date: '2026-07-01T00:00:00+00:00'
+    jobid: '1015'
+- icon:
+    coordinates:
+      foo: 0
+      bar: 3.0
+      date: '2027-01-01T00:00:00+00:00'
+    jobid: '1016'
+- icon:
+    coordinates:
+      foo: 1
+      bar: 3.0
+      date: '2027-01-01T00:00:00+00:00'
+    jobid: '1017'
+- statistics_foo_bar:
+    coordinates:
+      date: '2026-07-01T00:00:00+00:00'
+    jobid: '1019'
+- statistics_foo:
+    coordinates:
+      bar: 3.0
+      date: '2027-01-01T00:00:00+00:00'
+    jobid: '1020'
+- icon:
+    coordinates:
+      foo: 0
+      bar: 3.0
+      date: '2027-07-01T00:00:00+00:00'
+    jobid: '1021'
+- icon:
+    coordinates:
+      foo: 1
+      bar: 3.0
+      date: '2027-07-01T00:00:00+00:00'
+    jobid: '1022'
+- merge:
+    coordinates:
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1024'
+- statistics_foo_bar:
+    coordinates:
+      date: '2027-01-01T00:00:00+00:00'
+    jobid: '1025'
+- statistics_foo:
+    coordinates:
+      bar: 3.0
+      date: '2027-07-01T00:00:00+00:00'
+    jobid: '1026'
+- statistics_foo_bar:
+    coordinates:
+      date: '2027-07-01T00:00:00+00:00'
+    jobid: '1028'
+cool_down_tasks: []
+front:
+- - merge:
+      coordinates:
+        date: '2027-01-01T00:00:00+00:00'
+      jobid: '1030'
+- []
+---
+# merge__date_2027-01-01T00-00-00 -> COMPLETED
+
+=== sirocco continue
+status: COMPLETED
+--- state.yaml
+sirocco_jobid: _NO_ID_
+completed_tasks:
+- icon:
+    coordinates:
+      foo: 0
+      bar: 3.0
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1001'
+- icon:
+    coordinates:
+      foo: 1
+      bar: 3.0
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1002'
+- statistics_foo:
+    coordinates:
+      bar: 3.0
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1003'
+- icon:
+    coordinates:
+      foo: 0
+      bar: 3.0
+      date: '2026-07-01T00:00:00+00:00'
+    jobid: '1012'
+- icon:
+    coordinates:
+      foo: 1
+      bar: 3.0
+      date: '2026-07-01T00:00:00+00:00'
+    jobid: '1013'
+- statistics_foo_bar:
+    coordinates:
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1014'
+- statistics_foo:
+    coordinates:
+      bar: 3.0
+      date: '2026-07-01T00:00:00+00:00'
+    jobid: '1015'
+- icon:
+    coordinates:
+      foo: 0
+      bar: 3.0
+      date: '2027-01-01T00:00:00+00:00'
+    jobid: '1016'
+- icon:
+    coordinates:
+      foo: 1
+      bar: 3.0
+      date: '2027-01-01T00:00:00+00:00'
+    jobid: '1017'
+- statistics_foo_bar:
+    coordinates:
+      date: '2026-07-01T00:00:00+00:00'
+    jobid: '1019'
+- statistics_foo:
+    coordinates:
+      bar: 3.0
+      date: '2027-01-01T00:00:00+00:00'
+    jobid: '1020'
+- icon:
+    coordinates:
+      foo: 0
+      bar: 3.0
+      date: '2027-07-01T00:00:00+00:00'
+    jobid: '1021'
+- icon:
+    coordinates:
+      foo: 1
+      bar: 3.0
+      date: '2027-07-01T00:00:00+00:00'
+    jobid: '1022'
+- merge:
+    coordinates:
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1024'
+- statistics_foo_bar:
+    coordinates:
+      date: '2027-01-01T00:00:00+00:00'
+    jobid: '1025'
+- statistics_foo:
+    coordinates:
+      bar: 3.0
+      date: '2027-07-01T00:00:00+00:00'
+    jobid: '1026'
+- statistics_foo_bar:
+    coordinates:
+      date: '2027-07-01T00:00:00+00:00'
+    jobid: '1028'
+- merge:
+    coordinates:
+      date: '2027-01-01T00:00:00+00:00'
+    jobid: '1030'
+cool_down_tasks: []
+front:
+- []
+- []
+---

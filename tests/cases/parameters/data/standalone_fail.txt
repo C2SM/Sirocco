@@ -1,0 +1,294 @@
+=== sirocco start
+submit icon__foo_0__bar_3.0__date_2026-01-01T00-00-00 (1001) after [] [ALL_COMPLETED]
+--- run script icon__foo_0__bar_3.0__date_2026-01-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=icon__foo_0__bar_3.0__date_2026-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2026-01-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2026-07-01T00:00:00+00:00
+
+python icon.py  --init /TESTS_ROOTDIR/tests/cases/parameters/config/data/initial_conditions --forcing /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
+---
+submit icon__foo_1__bar_3.0__date_2026-01-01T00-00-00 (1002) after [] [ALL_COMPLETED]
+--- run script icon__foo_1__bar_3.0__date_2026-01-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=icon__foo_1__bar_3.0__date_2026-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2026-01-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2026-07-01T00:00:00+00:00
+
+python icon.py  --init /TESTS_ROOTDIR/tests/cases/parameters/config/data/initial_conditions --forcing /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
+---
+submit statistics_foo__bar_3.0__date_2026-01-01T00-00-00 (1003) after ['1001', '1002'] [ALL_COMPLETED]
+--- run script statistics_foo__bar_3.0__date_2026-01-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=statistics_foo__bar_3.0__date_2026-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2026-01-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2026-07-01T00:00:00+00:00
+
+python statistics.py <ROOTDIR>/run/icon__foo_0__bar_3.0__date_2026-01-01T00-00-00/icon_output <ROOTDIR>/run/icon__foo_1__bar_3.0__date_2026-01-01T00-00-00/icon_output
+---
+submit icon__foo_0__bar_3.0__date_2026-07-01T00-00-00 (1004) after ['1001'] [ALL_COMPLETED]
+--- run script icon__foo_0__bar_3.0__date_2026-07-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=icon__foo_0__bar_3.0__date_2026-07-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2026-07-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2027-01-01T00:00:00+00:00
+
+python icon.py --restart <ROOTDIR>/run/icon__foo_0__bar_3.0__date_2026-01-01T00-00-00/restart  --forcing /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
+---
+submit icon__foo_1__bar_3.0__date_2026-07-01T00-00-00 (1005) after ['1002'] [ALL_COMPLETED]
+--- run script icon__foo_1__bar_3.0__date_2026-07-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=icon__foo_1__bar_3.0__date_2026-07-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2026-07-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2027-01-01T00:00:00+00:00
+
+python icon.py --restart <ROOTDIR>/run/icon__foo_1__bar_3.0__date_2026-01-01T00-00-00/restart  --forcing /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
+---
+submit Sirocco_continue (1006) after ['1001', '1002'] [ANY]
+--- run script Sirocco_continue
+#!/bin/bash -l
+
+#FAKE --job-name=Sirocco_continue --output=sirocco.log --mode=append
+
+export N_NODES=1
+
+
+sirocco continue --from_wf <ROOTDIR> || exit
+---
+status: CONTINUE
+--- state.yaml
+sirocco_jobid: '1006'
+completed_tasks: []
+cool_down_tasks: []
+front:
+- - icon:
+      coordinates:
+        foo: 0
+        bar: 3.0
+        date: '2026-01-01T00:00:00+00:00'
+      jobid: '1001'
+  - icon:
+      coordinates:
+        foo: 1
+        bar: 3.0
+        date: '2026-01-01T00:00:00+00:00'
+      jobid: '1002'
+- - statistics_foo:
+      coordinates:
+        bar: 3.0
+        date: '2026-01-01T00:00:00+00:00'
+      jobid: '1003'
+  - icon:
+      coordinates:
+        foo: 0
+        bar: 3.0
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1004'
+  - icon:
+      coordinates:
+        foo: 1
+        bar: 3.0
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1005'
+---
+# icon__foo_0__bar_3.0__date_2026-01-01T00-00-00 -> COMPLETED
+# icon__foo_1__bar_3.0__date_2026-01-01T00-00-00 -> COMPLETED
+
+=== sirocco continue
+submit statistics_foo_bar__date_2026-01-01T00-00-00 (1007) after ['1003'] [ALL_COMPLETED]
+--- run script statistics_foo_bar__date_2026-01-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=statistics_foo_bar__date_2026-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2026-01-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2026-07-01T00:00:00+00:00
+
+python statistics.py <ROOTDIR>/run/statistics_foo__bar_3.0__date_2026-01-01T00-00-00/analysis
+---
+submit statistics_foo__bar_3.0__date_2026-07-01T00-00-00 (1008) after ['1004', '1005'] [ALL_COMPLETED]
+--- run script statistics_foo__bar_3.0__date_2026-07-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=statistics_foo__bar_3.0__date_2026-07-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2026-07-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2027-01-01T00:00:00+00:00
+
+python statistics.py <ROOTDIR>/run/icon__foo_0__bar_3.0__date_2026-07-01T00-00-00/icon_output <ROOTDIR>/run/icon__foo_1__bar_3.0__date_2026-07-01T00-00-00/icon_output
+---
+submit icon__foo_0__bar_3.0__date_2027-01-01T00-00-00 (1009) after ['1004'] [ALL_COMPLETED]
+--- run script icon__foo_0__bar_3.0__date_2027-01-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=icon__foo_0__bar_3.0__date_2027-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2027-01-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2027-07-01T00:00:00+00:00
+
+python icon.py --restart <ROOTDIR>/run/icon__foo_0__bar_3.0__date_2026-07-01T00-00-00/restart  --forcing /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
+---
+submit icon__foo_1__bar_3.0__date_2027-01-01T00-00-00 (1010) after ['1005'] [ALL_COMPLETED]
+--- run script icon__foo_1__bar_3.0__date_2027-01-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=icon__foo_1__bar_3.0__date_2027-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2027-01-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2027-07-01T00:00:00+00:00
+
+python icon.py --restart <ROOTDIR>/run/icon__foo_1__bar_3.0__date_2026-07-01T00-00-00/restart  --forcing /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
+---
+submit Sirocco_continue (1011) after ['1003', '1004', '1005'] [ANY]
+status: CONTINUE
+--- state.yaml
+sirocco_jobid: '1011'
+completed_tasks:
+- icon:
+    coordinates:
+      foo: 0
+      bar: 3.0
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1001'
+- icon:
+    coordinates:
+      foo: 1
+      bar: 3.0
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1002'
+cool_down_tasks: []
+front:
+- - statistics_foo:
+      coordinates:
+        bar: 3.0
+        date: '2026-01-01T00:00:00+00:00'
+      jobid: '1003'
+  - icon:
+      coordinates:
+        foo: 0
+        bar: 3.0
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1004'
+  - icon:
+      coordinates:
+        foo: 1
+        bar: 3.0
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1005'
+- - statistics_foo_bar:
+      coordinates:
+        date: '2026-01-01T00:00:00+00:00'
+      jobid: '1007'
+  - statistics_foo:
+      coordinates:
+        bar: 3.0
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1008'
+  - icon:
+      coordinates:
+        foo: 0
+        bar: 3.0
+        date: '2027-01-01T00:00:00+00:00'
+      jobid: '1009'
+  - icon:
+      coordinates:
+        foo: 1
+        bar: 3.0
+        date: '2027-01-01T00:00:00+00:00'
+      jobid: '1010'
+---
+# statistics_foo__bar_3.0__date_2026-01-01T00-00-00 -> FAILED
+
+=== sirocco continue
+cancel statistics_foo__bar_3.0__date_2026-01-01T00-00-00 (1003)
+cancel icon__foo_0__bar_3.0__date_2026-07-01T00-00-00 (1004)
+cancel icon__foo_1__bar_3.0__date_2026-07-01T00-00-00 (1005)
+cancel statistics_foo_bar__date_2026-01-01T00-00-00 (1007)
+cancel statistics_foo__bar_3.0__date_2026-07-01T00-00-00 (1008)
+cancel icon__foo_0__bar_3.0__date_2027-01-01T00-00-00 (1009)
+cancel icon__foo_1__bar_3.0__date_2027-01-01T00-00-00 (1010)
+status: FAILED
+--- state.yaml
+sirocco_jobid: _NO_ID_
+completed_tasks:
+- icon:
+    coordinates:
+      foo: 0
+      bar: 3.0
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1001'
+- icon:
+    coordinates:
+      foo: 1
+      bar: 3.0
+      date: '2026-01-01T00:00:00+00:00'
+    jobid: '1002'
+cool_down_tasks: []
+front:
+- - statistics_foo:
+      coordinates:
+        bar: 3.0
+        date: '2026-01-01T00:00:00+00:00'
+      jobid: '1003'
+  - icon:
+      coordinates:
+        foo: 0
+        bar: 3.0
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1004'
+  - icon:
+      coordinates:
+        foo: 1
+        bar: 3.0
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1005'
+- - statistics_foo_bar:
+      coordinates:
+        date: '2026-01-01T00:00:00+00:00'
+      jobid: '1007'
+  - statistics_foo:
+      coordinates:
+        bar: 3.0
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1008'
+  - icon:
+      coordinates:
+        foo: 0
+        bar: 3.0
+        date: '2027-01-01T00:00:00+00:00'
+      jobid: '1009'
+  - icon:
+      coordinates:
+        foo: 1
+        bar: 3.0
+        date: '2027-01-01T00:00:00+00:00'
+      jobid: '1010'
+---
