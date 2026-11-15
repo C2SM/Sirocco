@@ -29,10 +29,9 @@ from typing import TYPE_CHECKING, Any, Literal, Self, assert_never
 from ruamel.yaml import YAML
 from termcolor import colored
 
-from sirocco.core.graph_items import TaskStatus
 from sirocco.core.workflow import Workflow
 from sirocco.engines.standalone.scheduler import DEPENDENCY_TYPE_T, STDOUTERR_MODE_T, Scheduler
-from sirocco.engines.standalone.state import NO_ID, StateTable
+from sirocco.engines.standalone.state import NO_ID, StateTable, TaskStatus
 from sirocco.engines.standalone.tasks.sirocco_task import SiroccoContinueTask
 from sirocco.parsing.cycling import OneOffPoint
 from sirocco.parsing.yaml_data_models import ConfigSiroccoTask, ConfigWorkflow

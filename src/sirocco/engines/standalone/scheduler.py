@@ -13,8 +13,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import ClassVar, Literal, Self, assert_never
 
-from sirocco.core.graph_items import Task, TaskStatus
+from sirocco.core.graph_items import Task
 from sirocco.engines.standalone import handlers
+from sirocco.engines.standalone.state import TaskStatus
 
 LOGGER = logging.getLogger(__name__)
 UENV_MACHINES: list[str] = ["santis"]

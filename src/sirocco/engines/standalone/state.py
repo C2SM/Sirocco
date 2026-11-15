@@ -12,6 +12,7 @@ engine-side copy of the graph is ever built.
 
 from __future__ import annotations
 
+import enum
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -19,6 +20,15 @@ if TYPE_CHECKING:
     from sirocco.core.graph_items import Task
 
 NO_ID = "_NO_ID_"
+
+
+class TaskStatus(enum.Enum):
+    """Task status as reported by the scheduler"""
+
+    WAITING = 0
+    RUNNING = 1
+    COMPLETED = 2
+    FAILED = 3
 
 
 @dataclass

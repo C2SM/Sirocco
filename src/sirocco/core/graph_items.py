@@ -36,13 +36,6 @@ class MpiCmdPlaceholder(enum.Enum):
     MPI_TOTAL_PROCS = "MPI_TOTAL_PROCS"
 
 
-class TaskStatus(enum.Enum):
-    WAITING = 0
-    RUNNING = 1
-    COMPLETED = 2
-    FAILED = 3
-
-
 type VIZ_STATUS_T = Literal["undefined", "active", "waiting", "inactive"]
 
 
