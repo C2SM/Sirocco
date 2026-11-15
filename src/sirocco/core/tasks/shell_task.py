@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import shutil
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Self
 
@@ -60,23 +59,6 @@ class ShellTask(models.ConfigShellTaskSpecs, Task):
             msg = "Only single component taks can unambiguously define outputs"
             raise ValueError(msg)
         return next(iter(self.components.values())).outputs
-
-    def runscript_lines(self) -> list[str]:
-        return [
-            self.resolve_ports(
-                {
-                    port: [str(data.resolved_path) for data in input_data]
-                    for port, input_data in (self.outputs | self.inputs).items()
-                }
-            )
-        ]
-
-    def prepare_for_submission(self) -> None:
-        if self.src is not None:
-            if self.src.is_dir():
-                shutil.copytree(self.src, self.run_dir / self.src.name)
-            else:
-                shutil.copy(self.src, self.run_dir / self.src.name)
 
     def resolve_output_data_paths(self) -> None:
         for data in self.output_data_nodes():

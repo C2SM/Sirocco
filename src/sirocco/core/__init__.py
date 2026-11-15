@@ -1,5 +1,3 @@
-from sirocco.engines.standalone.tasks.sirocco_task import SiroccoContinueTask
-
 from .graph_items import (
     AvailableData,
     Cycle,
@@ -26,7 +24,6 @@ __all__ = [
     "MpiCmdPlaceholder",
     "NamelistFile",
     "ShellTask",
-    "SiroccoContinueTask",
     "Task",
     "TaskComponent",
     "Workflow",

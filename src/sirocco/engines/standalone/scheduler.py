@@ -1,3 +1,10 @@
+"""Job scheduler interface of the standalone engine.
+
+The scheduler is stateless with respect to tasks: it receives job ids from the
+engine (parents, task to cancel or query) and returns the new job id on
+submission. Only the engine reads and writes the state table.
+"""
+
 import logging
 import os
 import shutil
@@ -8,9 +15,12 @@ from dataclasses import dataclass
 from typing import Literal, assert_never
 
 from sirocco.core.graph_items import Task, TaskStatus
+from sirocco.engines.standalone import handlers
 
 LOGGER = logging.getLogger(__name__)
 UENV_MACHINES: list[str] = ["santis"]
+
+DependencyType = Literal["ALL_COMPLETED", "ANY", "NONE"]
 
 
 class SchedulerCommandError(RuntimeError): ...
@@ -30,17 +40,19 @@ class Scheduler(ABC):
     def submit(
         self,
         task: Task,
+        parent_ids: list[str],
+        env: dict[str, str],
         output_mode: Literal["overwrite", "append"] = "overwrite",
-        dependency_type: Literal["ALL_COMPLETED", "ANY", "NONE"] = "ALL_COMPLETED",
-    ):
-        """Submit a task"""
+        dependency_type: DependencyType = "ALL_COMPLETED",
+    ) -> str:
+        """Submit a task from environment ``env`` and return its job id"""
 
         # Prepare for submission ( create rundir, wipe rundir, link/copy necessary files/dirs, ...)
         # ======================
-        if task.CLEAN_UP_BEFORE_SUBMIT:
+        if handlers.clean_up_before_submit(task):
             shutil.rmtree(task.run_dir, ignore_errors=True)
         task.run_dir.mkdir(parents=True, exist_ok=True)
-        task.prepare_for_submission()
+        handlers.prepare_for_submission(task)
 
         # Build runscript
         # ===============
@@ -61,20 +73,21 @@ class Scheduler(ABC):
 
         # Sirocco context
         script_lines.append("")
-        script_lines.extend(task.sirocco_environemnt())
+        script_lines.extend(handlers.sirocco_environment_lines(task))
 
         # Linked input
-        script_lines.extend(task.add_links())
+        script_lines.extend(handlers.link_lines(task))
 
         # Task runscript "content"
         script_lines.append("")
-        script_lines.extend(task.runscript_lines())
+        script_lines.extend(handlers.runscript_lines(task))
 
         # Submit runscript
         # ================
-        (task.run_dir / task.SUBMIT_FILENAME).write_text("\n".join(script_lines))
-        (task.run_dir / task.SUBMIT_FILENAME).chmod(0o755)
-        task.jobid = self.submit_to_scheduler(task, dependency_type=dependency_type)
+        submit_file = task.run_dir / handlers.submit_filename(task)
+        submit_file.write_text("\n".join(script_lines))
+        submit_file.chmod(0o755)
+        return self.submit_to_scheduler(task, parent_ids=parent_ids, env=env, dependency_type=dependency_type)
 
     @abstractmethod
     def header_lines(
@@ -88,16 +101,18 @@ class Scheduler(ABC):
     def submit_to_scheduler(
         self,
         task: Task,
-        dependency_type: Literal["ALL_COMPLETED", "ANY", "NONE"] = "ALL_COMPLETED",
+        parent_ids: list[str],
+        env: dict[str, str],
+        dependency_type: DependencyType = "ALL_COMPLETED",
     ) -> str:
         pass
 
     @abstractmethod
-    def get_status(self, task: Task) -> TaskStatus:
+    def get_status(self, task: Task, jobid: str) -> TaskStatus:
         pass
 
     @abstractmethod
-    def cancel(self, task: Task) -> None:
+    def cancel(self, task: Task, jobid: str) -> None:
         pass
 
     @classmethod
@@ -123,9 +138,10 @@ class Slurm(Scheduler):
         task: Task,
         output_mode: Literal["overwrite", "append"] = "overwrite",
     ) -> list[str]:
+        stdouterr = handlers.stdouterr_filename(task)
         header: list[str] = [
-            f"#SBATCH --output={task.STDOUTERR_FILENAME}",
-            f"#SBATCH --error={task.STDOUTERR_FILENAME}",
+            f"#SBATCH --output={stdouterr}",
+            f"#SBATCH --error={stdouterr}",
             f"#SBATCH --job-name={task.label}",
         ]
         if account := task.account:
@@ -154,10 +170,12 @@ class Slurm(Scheduler):
     def submit_to_scheduler(
         self,
         task: Task,
-        dependency_type: Literal["ALL_COMPLETED", "ANY", "NONE"] = "ALL_COMPLETED",
+        parent_ids: list[str],
+        env: dict[str, str],
+        dependency_type: DependencyType = "ALL_COMPLETED",
     ) -> str:
         submit_cmd: list[str] = ["sbatch", "--parsable"]
-        if parent_ids := [parent.jobid for parent in task.parents if parent.rank >= 0]:
+        if parent_ids:
             match dependency_type:
                 case "ALL_COMPLETED":
                     submit_cmd.append("--dependency=afterok:" + ":".join(parent_ids))
@@ -167,27 +185,36 @@ class Slurm(Scheduler):
                     pass
                 case _:
                     assert_never(dependency_type)
-        submit_cmd.append(task.SUBMIT_FILENAME)
+        submit_cmd.append(handlers.submit_filename(task))
 
-        if not task.base_env:
-            msg = f"{task.label}: base_env is empty"
+        if not env:
+            msg = f"{task.label}: submission environment is empty"
             raise ValueError(msg)
-        result = self.run_command(submit_cmd, cwd=task.run_dir, env=task.base_env)
+        result = self.run_command(submit_cmd, cwd=task.run_dir, env=env)
         return result.stdout.strip()
 
-    def cancel(self, task: Task):
+    def cancel(self, task: Task, jobid: str):
         """Cancel a submitted task"""
 
-        if task.jobid == "_NO_ID_":
+        if jobid == "_NO_ID_":
             msg = f"task {task.label} cannot be canceled as it does not have a jobid"
             raise ValueError(msg)
-        self.run_command(["scancel", task.jobid])
+        self.run_command(["scancel", jobid])
 
-    def get_status(self, task: Task) -> TaskStatus:
+    def get_status(self, task: Task, jobid: str) -> TaskStatus:
         """Infer task status using sacct"""
 
         result = self.run_command(
-            ["sacct", "-n", "-X", "--format=state", "--parsable2", "--delimiter=''", "-j", task.jobid]
+            [
+                "sacct",
+                "-n",
+                "-X",
+                "--format=state",
+                "--parsable2",
+                "--delimiter=''",
+                "-j",
+                jobid,
+            ]
         )
         status_str = result.stdout.strip()
         # NOTE: For a complete list of SLURM state codes, see

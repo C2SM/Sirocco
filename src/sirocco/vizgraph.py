@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from sirocco.core.graph_items import GRAPH_ITEM_T, VIZ_STATUS_T
+    from sirocco.engines.standalone import StandaloneEngine
 
 
 def hsv_to_hex(h: float, s: float, v: float) -> str:
@@ -149,8 +150,11 @@ class VizGraph:
         tasks: Iterable[core.Task],
         data: Iterable[core.Data],
         cycles: Iterable[core.Cycle],
+        ranks: dict[str, int] | None = None,
     ) -> None:
         self.name = name
+        # Front rank per task label, only known when visualizing a running standalone workflow
+        self.ranks: dict[str, int] = ranks or {}
         # self.agraph = AGraph(name=name, fontname="Fira Sans", newrank=True)
         self.agraph = AGraph(name=name, fontname="Adwaita Sans", newrank=True, bgcolor="transparent")
         for data_node in data:
@@ -209,12 +213,11 @@ class VizGraph:
             )
             k += 1
 
-    @staticmethod
-    def tooltip(node: core.GraphItem) -> str:
+    def tooltip(self, node: core.GraphItem) -> str:
         tt: list[str] = [node.name]
         tt.extend(f"  {k}: {v}" for k, v in node.coordinates.items())
-        if isinstance(node, core.Task) and node.viz_status != "undefined":
-            tt.append(f"  rank: {node.rank}")
+        if isinstance(node, core.Task) and node.viz_status != "undefined" and node.label in self.ranks:
+            tt.append(f"  rank: {self.ranks[node.label]}")
         return "\n".join(tt)
 
     def draw(self, file_path: Path | None = None, **kwargs):
@@ -278,7 +281,7 @@ class VizGraph:
                 item.viz_status = "inactive"
 
     @classmethod
-    def from_status_workflow(cls, workflow: core.Workflow) -> Self:
+    def from_status_workflow(cls, engine: StandaloneEngine) -> Self:
         cycles: list[core.Cycle] = []
         tasks: list[core.Task] = []
         data: list[core.Data] = []
@@ -287,7 +290,7 @@ class VizGraph:
         data_labels: list[str] = []
 
         # Identify cycles
-        for task in chain(*(workflow.front[:])):
+        for task in chain(*(engine.front[:])):
             cls.add_to_unique_list(task.cycle, cycles, cycle_labels)
 
         # Identify tasks and data nodes
@@ -299,14 +302,21 @@ class VizGraph:
                 cls.add_to_unique_list(wait_task, tasks, task_labels)
 
         # Set status for front tasks and data
-        for task in workflow.front[0]:
+        for task in engine.front[0]:
             task.viz_status = "active"
             for data_node in chain(task.output_data_nodes(), task.input_data_nodes()):
                 data_node.viz_status = "active"
-        for task in chain(*(workflow.front[1:])):
+        for task in chain(*(engine.front[1:])):
             task.viz_status = "waiting"
             for data_node in chain(task.output_data_nodes(), task.input_data_nodes()):
                 if data_node.viz_status == "inactive":
                     data_node.viz_status = "waiting"
 
-        return cls(name=workflow.name, tasks=tasks, data=data, cycles=cycles)
+        ranks = {task.label: engine.rank(task) for task in tasks}
+        return cls(
+            name=engine.workflow.name,
+            tasks=tasks,
+            data=data,
+            cycles=cycles,
+            ranks=ranks,
+        )
