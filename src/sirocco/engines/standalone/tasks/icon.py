@@ -16,7 +16,7 @@ RUNTIME_ROOT = Path(__file__).parents[3] / "core" / "tasks" / "icon_task" / "run
 
 
 @prepare_for_submission.register
-def _(task: IconTask) -> None:
+def prepare_for_submission_icon(task: IconTask) -> None:
     # Check supported machine
     if task.computer not in task.SUPPORTED_MACHINES:
         msg = f"{task.label}: machine {task.computer} not suportted for icon task. Supported machines are {task.SUPPORTED_MACHINES}"
@@ -82,7 +82,7 @@ def _(task: IconTask) -> None:
 
 
 @runscript_lines.register
-def _(task: IconTask) -> list[str]:
+def runscript_lines_icon(task: IconTask) -> list[str]:
     lines: list[str] = []
     if task.icon_uenv is not None:
         lines.append(f"export ICON_UENV={shlex.quote(task.icon_uenv)}")

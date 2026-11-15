@@ -5,10 +5,15 @@ function whose implementation is picked at call time from the *class of its
 first argument*. The base implementation (decorated with `@singledispatch`)
 is the fallback, used when no more specific implementation is registered.
 
-Plugin modules register their own implementation with::
+Plugin modules register their own implementation with:
 
-    @prepare_for_submission.register
-    def _(task: ShellTask) -> None: ...
+```python
+@prepare_for_submission.register
+def prepare_for_submission_shell(task: ShellTask) -> None: ...
+```
+
+Registered implementations are named `<generic function>_<task type>`, as in
+`pretty_print.py`, so that they can be told apart in tracebacks.
 
 `register` reads the type annotation of the first parameter (`ShellTask`)
 and stores the function in a `{class: implementation}` table attached to

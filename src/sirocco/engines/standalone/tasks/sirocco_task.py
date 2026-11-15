@@ -40,12 +40,12 @@ class SiroccoContinueTask(models.ConfigSiroccoTaskSpecs, Task):
 
 
 @prepare_for_submission.register
-def _(task: SiroccoContinueTask) -> None:
+def prepare_for_submission_sirocco_continue(task: SiroccoContinueTask) -> None:
     pass
 
 
 @runscript_lines.register
-def _(task: SiroccoContinueTask) -> list[str]:
+def runscript_lines_sirocco_continue(task: SiroccoContinueTask) -> list[str]:
     lines: list[str] = []
     if task.venv is not None:
         lines.append(f"source {task.venv}/bin/activate")
