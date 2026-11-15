@@ -2,6 +2,8 @@
 start_date: &root_start_date '2026-01-01T00:00'
 stop_date: &root_stop_date '2028-01-01T00:00'
 scheduler: slurm
+# Two levels of pre-submitted tasks, to exercise promotions through intermediate generations of the front
+front_depth: 3
 
 cycles:
   - bimonthly_tasks:
