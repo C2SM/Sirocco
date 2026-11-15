@@ -46,7 +46,7 @@ class Scheduler(ABC):
         stdouterr_mode: STDOUTERR_MODE_T = "overwrite",
         dependency_type: DEPENDENCY_TYPE_T = "ALL_COMPLETED",
     ) -> str:
-        """Submit a task from environment ``env`` and return its job id"""
+        """Submit a task from environment `env` and return its job id"""
 
         # Prepare for submission ( create rundir, wipe rundir, link/copy necessary files/dirs, ...)
         # ======================

@@ -1,6 +1,6 @@
 """Run-time state of the standalone engine, kept outside of the core graph.
 
-The core graph (``core.Workflow`` with its ``core.Task`` nodes) is built once
+The core graph (`core.Workflow` with its `core.Task` nodes) is built once
 from the config and knows nothing about job ids or front ranks. The engine
 keeps that information in a side table keyed by the task label, which is
 unique per task (name + coordinates).
@@ -33,7 +33,7 @@ class StateTable:
         self._states: dict[str, TaskState] = {}
 
     def __getitem__(self, task: Task) -> TaskState:
-        """Return the state of ``task``, creating the default one on first access."""
+        """Return the state of `task`, creating the default one on first access."""
         if (state := self._states.get(task.label)) is None:
             state = self._states[task.label] = TaskState(rank=self.default_rank)
         return state

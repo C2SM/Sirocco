@@ -1,8 +1,8 @@
 """Per-plugin behaviour of the standalone engine.
 
-Each function below is a ``functools.singledispatch`` generic function: a
+Each function below is a `functools.singledispatch` generic function: a
 function whose implementation is picked at call time from the *class of its
-first argument*. The base implementation (decorated with ``@singledispatch``)
+first argument*. The base implementation (decorated with `@singledispatch`)
 is the fallback, used when no more specific implementation is registered.
 
 Plugin modules register their own implementation with::
@@ -10,17 +10,17 @@ Plugin modules register their own implementation with::
     @prepare_for_submission.register
     def _(task: ShellTask) -> None: ...
 
-``register`` reads the type annotation of the first parameter (``ShellTask``)
-and stores the function in a ``{class: implementation}`` table attached to
-``prepare_for_submission``. A call ``prepare_for_submission(task)`` then looks
-up ``type(task)`` in that table, walking up the MRO, so a subclass of
-``ShellTask`` would reuse the ``ShellTask`` implementation unless it registers
+`register` reads the type annotation of the first parameter (`ShellTask`)
+and stores the function in a `{class: implementation}` table attached to
+`prepare_for_submission`. A call `prepare_for_submission(task)` then looks
+up `type(task)` in that table, walking up the MRO, so a subclass of
+`ShellTask` would reuse the `ShellTask` implementation unless it registers
 its own. This is the same lookup as for methods, but the table lives in the
 engine instead of in the core classes.
 
-Registration happens when the module containing the ``register`` call is
-imported. ``sirocco.engines.standalone.tasks`` imports all built-in plugin
-modules, and ``sirocco.engines.standalone`` imports that package, so using the
+Registration happens when the module containing the `register` call is
+imported. `sirocco.engines.standalone.tasks` imports all built-in plugin
+modules, and `sirocco.engines.standalone` imports that package, so using the
 engine at all guarantees every built-in plugin is registered.
 """
 

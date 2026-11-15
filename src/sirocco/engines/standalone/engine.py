@@ -1,15 +1,15 @@
 """Standalone orchestration of a core workflow.
 
-``StandaloneEngine`` wraps a ``core.Workflow`` by composition. The workflow is
+`StandaloneEngine` wraps a `core.Workflow` by composition. The workflow is
 the graph, built once per sirocco command from the config. The engine adds
 what only the standalone orchestration needs:
 
-- the state table (job id and front rank per task, see ``state.py``),
+- the state table (job id and front rank per task, see `state.py`),
 - the propagating front and the completed / cool-down task lists,
 - the scheduler, the lock and the state file,
-- the special ``SiroccoContinueTask``.
+- the special `SiroccoContinueTask`.
 
-The front holds references to the graph's own ``core.Task`` objects, so no
+The front holds references to the graph's own `core.Task` objects, so no
 engine-side copy of the graph exists.
 """
 
