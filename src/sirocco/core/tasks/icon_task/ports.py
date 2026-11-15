@@ -2,8 +2,9 @@
 
 Each `IconPort` declares the model types a port is valid for and, for regular ports,
 which namelist parameter refers to the port data and under which name it is linked.
-Applying a port to an actual run directory is engine specific (see for instance
-`sirocco.engines.standalone.tasks.icon_ports`).
+Special ports declare none of these: their behaviour cannot be described this way, so
+every engine has to implement it. Applying a port to an actual run directory is engine
+specific (see for instance `sirocco.engines.standalone.tasks.icon_ports`).
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ if TYPE_CHECKING:
     from sirocco.core.tasks.icon_task.models import IconModel
 
 
-@dataclass(kw_only=True)
+@dataclass(kw_only=True, frozen=True)
 class IconPort:
     registered_ports: ClassVar[dict[str, Self]] = {}
     port_name: str
@@ -31,6 +32,11 @@ class IconPort:
             msg = f"IconPort {self.port_name} already set"
             raise ValueError(msg)
         IconPort.registered_ports[self.port_name] = self
+
+    @property
+    def is_special(self) -> bool:
+        """Special ports have no declarative handling, each engine implements them"""
+        return self.section is None and self.parameter is None and self.target_link_name is None
 
     @classmethod
     def get(cls: type[Self], port_name: str, model: IconModel) -> Self:
@@ -237,7 +243,7 @@ ocean_inistate_port = IconPort(
     parameter="InitialState_InputFileName",
 )
 
-# Ports with a specific behaviour, handled by the engines
+# Special ports, implemented by each engine
 restart_in_port = IconPort(
     port_name="restart_in",
     valid_model_types=[ModelType.ATMOSPHERE, ModelType.OCEAN],
