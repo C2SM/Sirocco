@@ -9,7 +9,7 @@ from sirocco.engines.standalone.handlers import prepare_for_submission, runscrip
 
 
 @prepare_for_submission.register
-def _(task: ShellTask) -> None:
+def prepare_for_submission_shell(task: ShellTask) -> None:
     if task.src is not None:
         if task.src.is_dir():
             shutil.copytree(task.src, task.run_dir / task.src.name)
@@ -18,7 +18,7 @@ def _(task: ShellTask) -> None:
 
 
 @runscript_lines.register
-def _(task: ShellTask) -> list[str]:
+def runscript_lines_shell(task: ShellTask) -> list[str]:
     return [
         task.resolve_ports(
             {
