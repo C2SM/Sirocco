@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import shutil
+from typing import TYPE_CHECKING
 
-from sirocco.core.tasks.shell_task import ShellTask
 from sirocco.engines.standalone.handlers import prepare_for_submission, runscript_lines
+
+if TYPE_CHECKING:
+    from sirocco.core.tasks.shell_task import ShellTask
 
 
 @prepare_for_submission.register

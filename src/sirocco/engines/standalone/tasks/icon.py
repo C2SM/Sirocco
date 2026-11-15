@@ -6,11 +6,14 @@ import shlex
 import shutil
 from itertools import chain
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from sirocco.core.tasks.icon_task import IconTask
 from sirocco.core.tasks.icon_task.ports import PortHandler
 from sirocco.engines.standalone.handlers import prepare_for_submission, runscript_lines
 from sirocco.engines.standalone.scheduler import UENV_MACHINES
+
+if TYPE_CHECKING:
+    from sirocco.core.tasks.icon_task import IconTask
 
 RUNTIME_ROOT = Path(__file__).parents[3] / "core" / "tasks" / "icon_task" / "runtime"
 

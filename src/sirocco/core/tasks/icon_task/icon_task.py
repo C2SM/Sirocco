@@ -5,7 +5,6 @@ from dataclasses import dataclass, field
 from datetime import timedelta
 from itertools import chain
 from math import ceil
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 
 from sirocco.core.graph_items import Task
@@ -24,6 +23,7 @@ from sirocco.parsing.cycling import DateCyclePoint
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from pathlib import Path
 
     import f90nml
 
