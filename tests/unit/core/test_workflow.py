@@ -31,7 +31,7 @@ def test_parse_config_file(config_paths, pprinter):
 
     if test_str_normalized != reference_str:
         new_path = Path(config_paths["txt"]).with_suffix(".new.txt")
-        new_path.write_text(test_str_normalized)
+        new_path.write_text(test_str_normalized.rstrip("\n") + "\n")
         assert reference_str == test_str_normalized, (
             f"Workflow graph doesn't match serialized data. New graph string dumped to {new_path}."
         )

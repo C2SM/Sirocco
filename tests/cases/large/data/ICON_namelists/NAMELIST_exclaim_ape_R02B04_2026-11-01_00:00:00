@@ -149,7 +149,7 @@
 /
 
 &output_nml
-    output_filename = 'atm_2d'
+    output_filename = './atm_2d/'
     filetype = 5
     filename_format = '<output_filename>exclaim_ape_R02B04_atm_2d_<datetime2>'
     output_start = '2000-01-01T00:00:03Z'

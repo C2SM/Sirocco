@@ -33,8 +33,8 @@ cycles:
             components:
               atm:
                 inputs:
-                  grid: [grid_file]
-                  lbc: [icon_input]
+                  dynamics_grid_file: [grid_file]
+                  latbc: [icon_input]
                   restart_in:
                     - icon_restart:
                         when:
@@ -118,7 +118,7 @@ tasks:
             parallel_nml:
               nproma: 96
             output_nml[1]:
-              output_filename: atm_2d
+              output_filename: ./atm_2d/
       nodes: 40
       procs_per_node: 288
       cores_per_proc: 1
