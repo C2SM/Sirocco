@@ -9,9 +9,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from sirocco.core.tasks.icon_task import IconTask
-from sirocco.core.tasks.icon_task.ports import PortHandler
 from sirocco.engines.standalone.handlers import prepare_for_submission, resolve_output_paths, runscript_lines
 from sirocco.engines.standalone.scheduler import UENV_MACHINES
+from sirocco.engines.standalone.tasks.icon_ports import apply_port
 
 if TYPE_CHECKING:
     from sirocco.engines.standalone.path_resolver import PathResolver
@@ -26,7 +26,7 @@ def resolve_output_paths_icon(task: IconTask, path_resolver: PathResolver) -> No
     run_dir = path_resolver.run_dir(task)
     for model in task.models.values():
         for port in model.outputs:
-            PortHandler.handle(port, model, run_dir, path_resolver)
+            apply_port(port, model, run_dir, path_resolver)
 
 
 @prepare_for_submission.register(IconTask)
@@ -65,7 +65,7 @@ def prepare_for_submission_icon(task: IconTask, path_resolver: PathResolver) -> 
     # - link data
     for model in task.models.values():
         for port in chain(model.inputs, model.outputs):
-            PortHandler.handle(port, model, run_dir, path_resolver)
+            apply_port(port, model, run_dir, path_resolver)
 
     # Dump ICON config files
     task.dump_namelists(directory=run_dir, filename_mode="raw")

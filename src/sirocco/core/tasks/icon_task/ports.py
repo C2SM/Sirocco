@@ -1,72 +1,47 @@
+"""What ICON input and output ports mean for ICON.
+
+Each `IconPort` declares the model types a port is valid for and, for regular ports,
+which namelist parameter refers to the port data and under which name it is linked.
+Applying a port to an actual run directory is engine specific (see for instance
+`sirocco.engines.standalone.tasks.icon_ports`).
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, Self
 
-from sirocco.core.graph_items import GeneratedData
-from sirocco.core.tasks.icon_task.models import IconModel, ModelType
+from sirocco.core.tasks.icon_task.models import ModelType
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
-    # NOTE: Applying port handlers to a run directory is specific to the standalone engine.
-    #       This part moves to the standalone engine in a second stage.
-    from sirocco.engines.standalone.path_resolver import PathResolver
+    from sirocco.core.tasks.icon_task.models import IconModel
 
 
 @dataclass(kw_only=True)
-class PortHandler:
-    registered_handlers: ClassVar[dict[str, Self]] = {}
+class IconPort:
+    registered_ports: ClassVar[dict[str, Self]] = {}
     port_name: str
     valid_model_types: list[ModelType]
     section: str | None = None
     parameter: str | None = None
     target_link_name: str | None = None
-    custom_callable: Callable[[str, IconModel, Path, PathResolver], None] | None = None
 
     def __post_init__(self) -> None:
-        if self.port_name in self.registered_handlers:
-            msg = f"PortHandler for port {self.port_name} already set"
+        if self.port_name in self.registered_ports:
+            msg = f"IconPort {self.port_name} already set"
             raise ValueError(msg)
-        PortHandler.registered_handlers[self.port_name] = self
-
-    def __call__(self, model: IconModel, run_dir: Path, path_resolver: PathResolver) -> None:
-        if model.model_type not in self.valid_model_types:
-            msg = f"port {self.port_name} not valid for model {model.name} of type {model.model_type}"
-            raise ValueError(msg)
-        if self.custom_callable:
-            self.custom_callable(self.port_name, model, run_dir, path_resolver)
-        else:
-            if len(model.inputs[self.port_name]) != 1:
-                msg = f"port {self.port_name} accepts one and only one data object"
-                raise ValueError(msg)
-            data = model.inputs[self.port_name][0]
-            # Adapt namelist and link
-            if self.section is not None and self.parameter is not None:
-                if isinstance(data, GeneratedData):
-                    target_link_name = self.target_link_name if self.target_link_name else path_resolver.path(data).name
-                    if self.section not in model.namelist:
-                        model.namelist[self.section] = {}
-                    model.namelist[self.section][self.parameter] = f"./{target_link_name}"
-                    # NOTE: the piece of data could be linked by different ports, hence the check.
-                    if not (origin := run_dir / target_link_name).is_symlink():
-                        origin.symlink_to(path_resolver.path(data))
-                else:
-                    model.namelist[self.section][self.parameter] = str(path_resolver.path(data))
-            # Only link
-            elif self.target_link_name is not None:
-                (run_dir / self.target_link_name).symlink_to(path_resolver.path(data))
-            else:
-                msg = "wrong combination of section, parameter and target_link_name"
-                raise ValueError(msg)
+        IconPort.registered_ports[self.port_name] = self
 
     @classmethod
-    def handle(cls: type[Self], port_name: str, model: IconModel, run_dir: Path, path_resolver: PathResolver) -> None:
-        if port_name not in cls.registered_handlers:
+    def get(cls: type[Self], port_name: str, model: IconModel) -> Self:
+        """Port `port_name`, checked to be supported and valid for `model`"""
+        if (port := cls.registered_ports.get(port_name)) is None:
             msg = f"IconTask {model.task_label}, model {model.name}: unsopported input port {port_name}"
             raise KeyError(msg)
-        cls.registered_handlers[port_name](model, run_dir, path_resolver)
+        if model.model_type not in port.valid_model_types:
+            msg = f"port {port_name} not valid for model {model.name} of type {model.model_type}"
+            raise ValueError(msg)
+        return port
 
 
 # TODO: Check port names with regards to:
@@ -74,385 +49,300 @@ class PortHandler:
 #       - corresponding namelist parameters
 #       - users/scientists
 
-dynamics_grid_file_handler = PortHandler(
+dynamics_grid_file_port = IconPort(
     port_name="dynamics_grid_file",
     valid_model_types=[ModelType.ATMOSPHERE, ModelType.OCEAN],
     section="grid_nml",
     parameter="dynamics_grid_filename",
 )
-ifs2icon_handler = PortHandler(
+ifs2icon_port = IconPort(
     port_name="ifs2icon",
     valid_model_types=[ModelType.ATMOSPHERE],
     section="initicon_nml",
     parameter="ifs2icon_filename",
 )
-latbc_handler = PortHandler(
+latbc_port = IconPort(
     port_name="latbc",
     valid_model_types=[ModelType.ATMOSPHERE],
     section="limarea_nml",
     parameter="latbc_path",
     target_link_name="latbc",
 )
-ecrad_data_handler = PortHandler(
+ecrad_data_port = IconPort(
     port_name="ecrad_data",
     valid_model_types=[ModelType.ATMOSPHERE],
     section="radiation_nml",
     parameter="ecrad_data_path",
     target_link_name="ecrad_data",
 )
-extpar_file_handler = PortHandler(
+extpar_file_port = IconPort(
     port_name="extpar_file",
     valid_model_types=[ModelType.ATMOSPHERE],
     section="extpar_nml",
     parameter="extpar_filename",
 )
-cloud_opt_props_handler = PortHandler(
+cloud_opt_props_port = IconPort(
     port_name="cloud_opt_props",
     valid_model_types=[ModelType.ATMOSPHERE],
     section="nwp_phy_nml",
     parameter="cldopt_filename",
     target_link_name="CldOptProps.nc",
 )
-rrtmg_lw_handler = PortHandler(
+rrtmg_lw_port = IconPort(
     port_name="rrtmg_lw",
     valid_model_types=[ModelType.ATMOSPHERE],
     section="nwp_phy_nml",
     parameter="lrtm_filename",
     target_link_name="rrtmg_lw.nc",
 )
-rrtmg_sw_handler = PortHandler(
+rrtmg_sw_port = IconPort(
     port_name="rrtmg_sw",
     valid_model_types=[ModelType.ATMOSPHERE],
     target_link_name="rrtmg_sw.nc",
 )
-bc_solar_sw_handler = PortHandler(
+bc_solar_sw_port = IconPort(
     port_name="bc_solar_sw",
     valid_model_types=[ModelType.ATMOSPHERE],
     target_link_name="bc_solar_irradiance_sw_b14.nc",
 )
-atm_plumes_handler = PortHandler(
+atm_plumes_port = IconPort(
     port_name="atm_plumes",
     valid_model_types=[ModelType.ATMOSPHERE],
     target_link_name="MACv2.0-SP_v1.nc",
 )
-ghg_filename_handler = PortHandler(
+ghg_filename_port = IconPort(
     port_name="ghg_file",
     valid_model_types=[ModelType.ATMOSPHERE],
     section="radiation_nml",
     parameter="ghg_filename",
 )
 # AES physics reads the following files under fixed names
-aes_ghg_file_handler = PortHandler(
+aes_ghg_file_port = IconPort(
     port_name="aes_ghg_file",
     valid_model_types=[ModelType.ATMOSPHERE],
     target_link_name="bc_greenhouse_gases.nc",
 )
-aes_land_sso_handler = PortHandler(
+aes_land_sso_port = IconPort(
     port_name="aes_land_sso",
     valid_model_types=[ModelType.ATMOSPHERE],
     target_link_name="bc_land_sso.nc",
 )
-aes_land_frac_handler = PortHandler(
+aes_land_frac_port = IconPort(
     port_name="aes_land_frac",
     valid_model_types=[ModelType.ATMOSPHERE],
     target_link_name="bc_land_frac.nc",
 )
-aes_land_phys_handler = PortHandler(
+aes_land_phys_port = IconPort(
     port_name="aes_land_phys",
     valid_model_types=[ModelType.ATMOSPHERE],
     target_link_name="bc_land_phys.nc",
 )
-aes_bc_sst_handler = PortHandler(
+aes_bc_sst_port = IconPort(
     port_name="aes_bc_sst",
     valid_model_types=[ModelType.ATMOSPHERE],
     target_link_name="bc_sst.nc",
 )
-aes_bc_sic_handler = PortHandler(
+aes_bc_sic_port = IconPort(
     port_name="aes_bc_sic",
     valid_model_types=[ModelType.ATMOSPHERE],
     target_link_name="bc_sic.nc",
 )
-cariolle_coeff_handler = PortHandler(
+cariolle_coeff_port = IconPort(
     port_name="cariolle_coeff",
     valid_model_types=[ModelType.ATMOSPHERE],
     target_link_name="cariolle_coeff.nc",
 )
-rrtmgp_gas_lw_handler = PortHandler(
+rrtmgp_gas_lw_port = IconPort(
     port_name="rrtmgp_gas_lw",
     valid_model_types=[ModelType.ATMOSPHERE],
     target_link_name="coefficients_lw.nc",
 )
-rrtmgp_gas_sw_handler = PortHandler(
+rrtmgp_gas_sw_port = IconPort(
     port_name="rrtmgp_gas_sw",
     valid_model_types=[ModelType.ATMOSPHERE],
     target_link_name="coefficients_sw.nc",
 )
-rrtmgp_cloud_optics_lw_handler = PortHandler(
+rrtmgp_cloud_optics_lw_port = IconPort(
     port_name="rrtmgp_cloud_optics_lw",
     valid_model_types=[ModelType.ATMOSPHERE],
     target_link_name="rrtmgp-cloud-optics-coeffs-lw.nc",
 )
-rrtmgp_cloud_optics_sw_handler = PortHandler(
+rrtmgp_cloud_optics_sw_port = IconPort(
     port_name="rrtmgp_cloud_optics_sw",
     valid_model_types=[ModelType.ATMOSPHERE],
     target_link_name="rrtmgp-cloud-optics-coeffs-sw.nc",
 )
-aeropt_kinne_lw_coa_handler = PortHandler(
+aeropt_kinne_lw_coa_port = IconPort(
     port_name="aeropt_kinne_lw_coa",
     valid_model_types=[ModelType.ATMOSPHERE],
     target_link_name="bc_aeropt_kinne_lw_b16_coa.nc",
 )
-aeropt_kinne_sw_coa_handler = PortHandler(
+aeropt_kinne_sw_coa_port = IconPort(
     port_name="aeropt_kinne_sw_coa",
     valid_model_types=[ModelType.ATMOSPHERE],
     target_link_name="bc_aeropt_kinne_sw_b14_coa.nc",
 )
-aeropt_kinne_sw_fin_handler = PortHandler(
+aeropt_kinne_sw_fin_port = IconPort(
     port_name="aeropt_kinne_sw_fin",
     valid_model_types=[ModelType.ATMOSPHERE],
     target_link_name="bc_aeropt_kinne_sw_b14_fin.nc",
 )
-jsb_ifs_handler = PortHandler(
+jsb_ifs_port = IconPort(
     port_name="jsb_ifs",
     valid_model_types=[ModelType.LAND],
     section="jsb_model_nml",
     parameter="ifs_filename",
 )
-jsb_seb_bc_handler = PortHandler(
+jsb_seb_bc_port = IconPort(
     port_name="jsb_seb_bc",
     valid_model_types=[ModelType.LAND],
     section="jsb_seb_nml",
     parameter="bc_filename",
 )
-jsb_seb_ic_handler = PortHandler(
+jsb_seb_ic_port = IconPort(
     port_name="jsb_seb_ic",
     valid_model_types=[ModelType.LAND],
     section="jsb_seb_nml",
     parameter="ic_filename",
 )
-jsb_rad_bc_handler = PortHandler(
+jsb_rad_bc_port = IconPort(
     port_name="jsb_rad_bc",
     valid_model_types=[ModelType.LAND],
     section="jsb_rad_nml",
     parameter="bc_filename",
 )
-jsb_rad_ic_handler = PortHandler(
+jsb_rad_ic_port = IconPort(
     port_name="jsb_rad_ic",
     valid_model_types=[ModelType.LAND],
     section="jsb_rad_nml",
     parameter="ic_filename",
 )
-jsb_turb_bc_handler = PortHandler(
+jsb_turb_bc_port = IconPort(
     port_name="jsb_turb_bc",
     valid_model_types=[ModelType.LAND],
     section="jsb_turb_nml",
     parameter="bc_filename",
 )
-jsb_turb_ic_handler = PortHandler(
+jsb_turb_ic_port = IconPort(
     port_name="jsb_turb_ic",
     valid_model_types=[ModelType.LAND],
     section="jsb_turb_nml",
     parameter="ic_filename",
 )
-jsb_sse_bc_handler = PortHandler(
+jsb_sse_bc_port = IconPort(
     port_name="jsb_sse_bc",
     valid_model_types=[ModelType.LAND],
     section="jsb_sse_nml",
     parameter="bc_filename",
 )
-jsb_sse_ic_handler = PortHandler(
+jsb_sse_ic_port = IconPort(
     port_name="jsb_sse_ic",
     valid_model_types=[ModelType.LAND],
     section="jsb_sse_nml",
     parameter="ic_filename",
 )
-jsb_hydro_bc_handler = PortHandler(
+jsb_hydro_bc_port = IconPort(
     port_name="jsb_hydro_bc",
     valid_model_types=[ModelType.LAND],
     section="jsb_hydro_nml",
     parameter="bc_filename",
 )
-jsb_hydro_bc_sso_handler = PortHandler(
+jsb_hydro_bc_sso_port = IconPort(
     port_name="jsb_hydro_bc_sso",
     valid_model_types=[ModelType.LAND],
     section="jsb_hydro_nml",
     parameter="bc_sso_filename",
 )
-jsb_hydro_ic_handler = PortHandler(
+jsb_hydro_ic_port = IconPort(
     port_name="jsb_hydro_ic",
     valid_model_types=[ModelType.LAND],
     section="jsb_hydro_nml",
     parameter="ic_filename",
 )
-jsb_pheno_bc_handler = PortHandler(
+jsb_pheno_bc_port = IconPort(
     port_name="jsb_pheno_bc",
     valid_model_types=[ModelType.LAND],
     section="jsb_pheno_nml",
     parameter="bc_filename",
 )
-jsb_pheno_ic_handler = PortHandler(
+jsb_pheno_ic_port = IconPort(
     port_name="jsb_pheno_ic",
     valid_model_types=[ModelType.LAND],
     section="jsb_pheno_nml",
     parameter="ic_filename",
 )
-jsb_disturb_bc_handler = PortHandler(
+jsb_disturb_bc_port = IconPort(
     port_name="jsb_disturb_bc",
     valid_model_types=[ModelType.LAND],
     section="jsb_disturb_nml",
     parameter="bc_filename",
 )
-jsb_disturb_ic_handler = PortHandler(
+jsb_disturb_ic_port = IconPort(
     port_name="jsb_disturb_ic",
     valid_model_types=[ModelType.LAND],
     section="jsb_disturb_nml",
     parameter="ic_filename",
 )
-jsb_hd_bc_handler = PortHandler(
+jsb_hd_bc_port = IconPort(
     port_name="jsb_hd_bc",
     valid_model_types=[ModelType.LAND],
     section="jsb_hd_nml",
     parameter="bc_filename",
 )
-jsb_hd_ic_handler = PortHandler(
+jsb_hd_ic_port = IconPort(
     port_name="jsb_hd_ic",
     valid_model_types=[ModelType.LAND],
     section="jsb_hd_nml",
     parameter="ic_filename",
 )
-jsb_fract_handler = PortHandler(
+jsb_fract_port = IconPort(
     port_name="jsb_fract",
     valid_model_types=[ModelType.LAND],
     section="jsb_model_nml",
     parameter="fract_filename",
 )
-jsb_lctlib_handler = PortHandler(
+jsb_lctlib_port = IconPort(
     port_name="jsb_lctlib",
     valid_model_types=[ModelType.LAND],
     target_link_name="lctlib_nlct21.def",
 )
-ocean_inistate = PortHandler(
+ocean_inistate_port = IconPort(
     port_name="ocean_inistate",
     valid_model_types=[ModelType.OCEAN],
     section="ocean_initialConditions_nml",
     parameter="InitialState_InputFileName",
 )
 # HAMOCC reads the following files under fixed names
-hamocc_dust_handler = PortHandler(
+hamocc_dust_port = IconPort(
     port_name="hamocc_dust",
     valid_model_types=[ModelType.OCEAN],
     target_link_name="dust.nc",
 )
-hamocc_nitrogen_handler = PortHandler(
+hamocc_nitrogen_port = IconPort(
     port_name="hamocc_nitrogen",
     valid_model_types=[ModelType.OCEAN],
     target_link_name="nitrogen.nc",
 )
 
 
-def ocean_restart_init_handler_callable(port_name: str, model: IconModel) -> None:
-    """Initialize the ocean state from a restart file without making the whole task a restart run"""
-    if not (data_list := model.inputs[port_name]):
-        return
-    if len(data_list) > 1:
-        msg = f"port '{port_name}' only accepts a single data object"
-        raise ValueError(msg)
-    if not model.namelist.get("ocean_initialConditions_nml", {}).get("initialize_fromRestart", False):
-        msg = f"task {model.task_label}, model {model.name}: port '{port_name}' requires 'initialize_fromRestart = .true.' in 'ocean_initialConditions_nml'"
-        raise ValueError(msg)
-    (model.task_run_dir / f"multifile_restart_{model.name}.mfr").symlink_to(data_list[0].resolved_path)
-
-
-ocean_restart_init_handler = PortHandler(
-    port_name="ocean_restart_init",
-    valid_model_types=[ModelType.OCEAN],
-    custom_callable=ocean_restart_init_handler_callable,
-)
-
-
-def restart_in_handler_callable(port_name: str, model: IconModel, run_dir: Path, path_resolver: PathResolver) -> None:
-    if (restart_write_mode := model.namelist["io_nml"].get("restart_write_mode")) != "joint procs multifile":
-        msg = f"Only supported restart_write_mode is 'joint procs multifile', got {restart_write_mode}"
-        raise ValueError(msg)
-    # Ignore empty restart port or possible when conditions
-    if not (data_list := model.inputs[port_name]):
-        return
-    if len(data_list) > 1:
-        msg = f"port '{port_name}' only accepts a single data object"
-        raise ValueError(msg)
-    (run_dir / f"multifile_restart_{model.name}.mfr").symlink_to(path_resolver.path(data_list[0]))
-
-
-restart_in_handler = PortHandler(
+# Ports with a specific behaviour, handled by the engines
+restart_in_port = IconPort(
     port_name="restart_in",
     valid_model_types=[ModelType.ATMOSPHERE, ModelType.OCEAN],
-    custom_callable=restart_in_handler_callable,
 )
-
-
-def restart_out_handler_callable(port_name: str, model: IconModel, run_dir: Path, path_resolver: PathResolver) -> None:
-    if (restart_write_mode := model.namelist["io_nml"].get("restart_write_mode")) != "joint procs multifile":
-        msg = f"Only supported restart_write_mode is 'joint procs multifile', got {restart_write_mode}"
-        raise ValueError(msg)
-    # Ignore empty restart port or possible when conditions
-    if not (data_list := model.outputs[port_name]):
-        return
-    if len(data_list) > 1:
-        msg = f"port '{port_name}' only accepts a single data object"
-        raise ValueError(msg)
-    path_resolver.set_path(data_list[0], run_dir / f"multifile_restart_{model.name}.mfr")
-
-
-restart_out_handler = PortHandler(
+restart_out_port = IconPort(
     port_name="restart_out",
     valid_model_types=[ModelType.ATMOSPHERE, ModelType.OCEAN],
-    custom_callable=restart_out_handler_callable,
 )
-
-
-def output_streams_handler_callable(
-    port_name: str, model: IconModel, run_dir: Path, path_resolver: PathResolver
-) -> None:
-    nml_streams = [*model.namelist.iter_nml("output_nml")]
-    if (n_nml := len(nml_streams)) != (n_yaml := len(model.outputs[port_name])):
-        msg = f"task {model.task_label}, model {model.name}: number of output streams speficied in namelist ({n_nml}) differs from number of streams specified in the workflow config ({n_yaml})"
-        raise ValueError(msg)
-    for k, (nml_stream, output_data) in enumerate(zip(nml_streams, model.outputs[port_name], strict=False)):
-        filename_format = nml_stream.get("filename_format", "<output_filename>_XXX_YYY")
-        output_filename = nml_stream.get("output_filename", "")
-        # for type checkers
-        if not isinstance(filename_format, str) or not isinstance(output_filename, str):
-            msg = f"task {model.task_label}, model {model.name}, output stream number {k}: 'filename_format' and 'output_filename' namelist parameters must be strings"
-            raise TypeError(msg)
-        stream_dir = Path(filename_format.replace("<output_filename>", output_filename)).parent
-        if stream_dir == Path("."):
-            msg = f"task {model.task_label}, model {model.name}: output stream number {k} specifies an output stream directly in the run directory. Please specify a subdirectory using the 'filename_format' and 'output_filename' parameters (see ICON documentation)"
-            raise ValueError(msg)
-        path_resolver.set_path(output_data, stream_dir if stream_dir.is_absolute() else run_dir / stream_dir)
-        path_resolver.path(output_data).mkdir(parents=True, exist_ok=True)
-
-
-output_streams_handler = PortHandler(
+output_streams_port = IconPort(
     port_name="output_streams",
     valid_model_types=[ModelType.ATMOSPHERE, ModelType.OCEAN, ModelType.LAND],
-    custom_callable=output_streams_handler_callable,
 )
-
-
-def finish_status_handler_callable(
-    port_name: str,  # noqa: ARG001
-    model: IconModel,
-    run_dir: Path,
-    path_resolver: PathResolver,
-) -> None:
-    if len(model.outputs["finish_status"]) != 1:
-        msg = "port finish_status accepts one and only one data object"
-        raise ValueError(msg)
-    path_resolver.set_path(model.outputs["finish_status"][0], run_dir / f"finish_{model.name}.status")
-
-
-finish_status_handler = PortHandler(
+finish_status_port = IconPort(
     port_name="finish_status",
     valid_model_types=[ModelType.ATMOSPHERE, ModelType.OCEAN],
-    custom_callable=finish_status_handler_callable,
+)
+ocean_restart_init_port = IconPort(
+    port_name="ocean_restart_init",
+    valid_model_types=[ModelType.OCEAN],
 )
