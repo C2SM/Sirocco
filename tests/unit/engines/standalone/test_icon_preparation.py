@@ -19,8 +19,8 @@ from typing import TYPE_CHECKING
 import pytest
 
 from sirocco.core.tasks.icon_task import IconTask
+from sirocco.core.tasks.icon_task.launch import RUNTIME_ROOT
 from sirocco.engines.standalone import StandaloneEngine, handlers
-from sirocco.engines.standalone.tasks.icon import RUNTIME_ROOT
 
 if TYPE_CHECKING:
     from pathlib import Path

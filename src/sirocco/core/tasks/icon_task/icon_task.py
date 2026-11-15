@@ -310,27 +310,6 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
             f"{self.master_models[name].min_rank}-{self.master_models[name].max_rank}" for name in exe.model_names()
         )
 
-    def generate_multi_prog_config(self, directory: Path) -> None:
-        match self.computer:
-            case "santis":
-                multi_prog_lines: list[str] = []
-                if self.exe.gpu:
-                    multi_prog_lines.append(
-                        f"{self.get_exe_ranks_str(self.exe.gpu)} ./santis_icon_wrapper.sh ./icon_gpu"
-                    )
-                if self.exe.cpu:
-                    multi_prog_lines.append(
-                        f"{self.get_exe_ranks_str(self.exe.cpu)} ./santis_icon_wrapper.sh ./icon_cpu"
-                    )
-                if self.exe.hiopy:
-                    multi_prog_lines.append(
-                        f"{self.exe.hiopy.min_rank}-{self.exe.hiopy.max_rank} ./santis_hiopy_wrapper.sh"
-                    )
-                (directory / "multi-prog.conf").write_text("\n".join(multi_prog_lines))
-            case _:
-                msg = f"{self.label}: generate_multi_prog_config not implemented for machine {self.computer}"
-                raise NotImplementedError(msg)
-
     def get_exe_compute_rank_bounds(self, exe: yaml_data_models.ConfigIconExe) -> Iterable[tuple[int, int]]:
         return (
             (self.master_models[name].min_rank, self.master_models[name].max_rank - exe.procs[name].tot_io_procs)
@@ -343,8 +322,8 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
             for name in exe.model_names()
         )
 
-    def distribute_ranks(self, directory: Path) -> None:
-        """Compute task distribution and dump to template file with placeholder node names in `directory`"""
+    def distribute_ranks(self) -> None:
+        """Compute the node and numa node of each rank in `ranks_info`"""
 
         match self.computer:
             case "santis":
@@ -393,17 +372,6 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                     if r["node_id"] == -1 or r["numa_node"] == -1:
                         msg = f"{self.label}: rank {k} has unitialized node_id and/or numa_node"
                         raise ValueError(msg)
-
-                # Write annotated hostfile
-                nid_length = len(str(self.nodes - 1))
-                (directory / "hostfile-sirocco").write_text(
-                    "\n".join(
-                        "sirocco_nid{node_id:0{nid_length}} {numa_node} {pe_type} {target} {model}".format(
-                            **self.ranks_info[k], nid_length=nid_length
-                        )
-                        for k in range(self.n_procs)
-                    )
-                )
 
             case _:
                 msg = f"{self.label}: distribute_ranks not implemented for machine {self.computer}"
