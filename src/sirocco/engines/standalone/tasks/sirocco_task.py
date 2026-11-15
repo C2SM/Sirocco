@@ -5,19 +5,27 @@ It still subclasses `core.Task` so that the scheduler can submit it like any
 other task.
 """
 
+from __future__ import annotations
+
 import os
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from sirocco.core.graph_items import Task
 from sirocco.engines.standalone.handlers import (
     SubmissionSettings,
     prepare_for_submission,
+    resolve_output_paths,
+    run_dir,
     runscript_lines,
     submission_settings,
 )
 from sirocco.parsing import yaml_data_models as models
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from sirocco.engines.standalone.path_resolver import PathResolver
 
 
 # NOTE: SiroccoTask is a subclass of `GraphItem` for implementation simplicity
@@ -36,11 +44,7 @@ class SiroccoContinueTask(models.ConfigSiroccoTaskSpecs, Task):
     config_rootdir: Path
 
     def __post_init__(self) -> None:
-        self.run_dir = self.config_rootdir
         self.label = "Sirocco_continue"
-
-    def resolve_output_data_paths(self) -> None:
-        pass
 
 
 @submission_settings.register(SiroccoContinueTask)
@@ -53,13 +57,24 @@ def submission_settings_sirocco_continue(task: SiroccoContinueTask) -> Submissio
     )
 
 
+@run_dir.register(SiroccoContinueTask)
+def run_dir_sirocco_continue(task: SiroccoContinueTask, path_resolver: PathResolver) -> Path:  # noqa: ARG001
+    # Runs from the config directory, where it keeps its log
+    return task.config_rootdir
+
+
+@resolve_output_paths.register(SiroccoContinueTask)
+def resolve_output_paths_sirocco_continue(task: SiroccoContinueTask, path_resolver: PathResolver) -> None:
+    pass  # No outputs
+
+
 @prepare_for_submission.register(SiroccoContinueTask)
-def prepare_for_submission_sirocco_continue(task: SiroccoContinueTask) -> None:
+def prepare_for_submission_sirocco_continue(task: SiroccoContinueTask, path_resolver: PathResolver) -> None:
     pass
 
 
 @runscript_lines.register(SiroccoContinueTask)
-def runscript_lines_sirocco_continue(task: SiroccoContinueTask) -> list[str]:
+def runscript_lines_sirocco_continue(task: SiroccoContinueTask, path_resolver: PathResolver) -> list[str]:  # noqa: ARG001
     lines: list[str] = []
     if task.venv is not None:
         lines.append(f"source {task.venv}/bin/activate")

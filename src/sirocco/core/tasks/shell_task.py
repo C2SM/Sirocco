@@ -59,14 +59,3 @@ class ShellTask(models.ConfigShellTaskSpecs, Task):
             msg = "Only single component taks can unambiguously define outputs"
             raise ValueError(msg)
         return next(iter(self.components.values())).outputs
-
-    def resolve_output_data_paths(self) -> None:
-        for data in self.output_data_nodes():
-            if data.path is None:
-                msg = "shell task output data must specify a path"
-                raise ValueError(msg)
-            if isinstance(data, GeneratedData):
-                if data.path.is_absolute():
-                    data.resolved_path = data.path
-                else:
-                    data.resolved_path = self.run_dir / data.path

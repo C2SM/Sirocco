@@ -4,8 +4,7 @@ import enum
 from dataclasses import dataclass, field
 from datetime import datetime
 from itertools import chain, product
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Self, TypeVar, cast
 
 from sirocco.parsing.target_cycle import LagList, NoTargetCycle, TargetDateList
 from sirocco.parsing.yaml_data_models import (
@@ -19,6 +18,7 @@ from sirocco.parsing.yaml_data_models import (
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+    from pathlib import Path
 
     from sirocco.parsing.cycling import CyclePoint
     from sirocco.parsing.yaml_data_models import (
@@ -61,8 +61,6 @@ class GraphItem:
 
 GRAPH_ITEM_T = TypeVar("GRAPH_ITEM_T", bound=GraphItem)
 
-_UNRESOLVED_PATH_ = Path("_UNRESOLVED_PATH_")
-
 
 @dataclass(kw_only=True)
 class Data(ConfigBaseDataSpecs, GraphItem):
@@ -70,7 +68,6 @@ class Data(ConfigBaseDataSpecs, GraphItem):
 
     color: ClassVar[str] = field(default="light_blue", repr=False)
     downstream_tasks: list[Task] = field(default_factory=list, repr=False)
-    _resolved_path: Path = _UNRESOLVED_PATH_
 
     @classmethod
     def from_config(cls, config: ConfigBaseData, coordinates: dict) -> AvailableData | GeneratedData:
@@ -79,17 +76,6 @@ class Data(ConfigBaseDataSpecs, GraphItem):
         del config_kwargs["parameters"]
         return data_class(coordinates=coordinates, **config_kwargs)
 
-    @property
-    def resolved_path(self) -> Path:
-        return self._resolved_path
-
-    @resolved_path.setter
-    def resolved_path(self, path: Path):
-        if not path.is_absolute():
-            msg = "resolved path must be absolute"
-            raise ValueError(msg)
-        self._resolved_path = path
-
 
 @dataclass(kw_only=True)
 class AvailableData(Data, ConfigAvailableDataSpecs):
@@ -97,29 +83,14 @@ class AvailableData(Data, ConfigAvailableDataSpecs):
 
     def __post_init__(self) -> None:
         Data.__post_init__(self)
-        self.resolved_path = self.path
+        if not self.path.is_absolute():
+            msg = f"available data {self.name}: path must be absolute, got {self.path}"
+            raise ValueError(msg)
 
 
 @dataclass(kw_only=True)
 class GeneratedData(Data, ConfigGeneratedDataSpecs):
     origin_task: Task = field(init=False, repr=False)
-
-    def __post_init__(self) -> None:
-        Data.__post_init__(self)
-        if isinstance(self.path, Path) and self.path.is_absolute():
-            self.resolved_path = self.path
-
-    @Data.resolved_path.getter  # type: ignore[attr-defined]
-    def resolved_path(self) -> Path:
-        """Make sure generated data path is resolved before returning it"""
-
-        # NOTE: The call to resolve_output_data_paths() has been placed here
-        #       in order to reduce algorithm complexity. There is no requirement
-        #       for the parts using Data.resolved_path to ensure it has indeed
-        #       been resolved.
-        if self._resolved_path is _UNRESOLVED_PATH_:
-            self.origin_task.resolve_output_data_paths()
-        return self._resolved_path
 
 
 @dataclass(kw_only=True)
@@ -136,10 +107,8 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
 
     plugin_classes: ClassVar[dict[str, type[Self]]] = field(default={}, repr=False)
     color: ClassVar[str] = field(default="light_red", repr=False)
-    RUN_ROOT: ClassVar[Literal["run"]] = "run"
 
     config_rootdir: Path
-    run_dir: Path = field(init=False, repr=False)
     cycle_point: CyclePoint
     cycle: Cycle = field(init=False, repr=False)
 
@@ -160,7 +129,6 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
                     msg += f", component {comp_name}"
                 msg += f": port names must be unique, even between inputs and outputs.\ninputs ports: {comp.inputs.keys()}\noutputs ports: {comp.outputs.keys()}"
                 raise ValueError(msg)
-        self.run_dir = (self.config_rootdir / self.RUN_ROOT / self.label).resolve()
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -267,9 +235,6 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
         self.children = unique_item_list(
             chain(self.waiters, *chain(data_out.downstream_tasks for data_out in self.output_data_nodes()))
         )
-
-    def resolve_output_data_paths(self) -> None:
-        raise NotImplementedError
 
 
 @dataclass(kw_only=True)

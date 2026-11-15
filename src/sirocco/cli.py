@@ -268,10 +268,10 @@ def start(
     tee_console.print(add_now())
     if cleanup:
         tee_console.print(f"{CmdStatus.PLAY} Cleaning up workflow at {eng.config_rootdir} ...")
-        if (run_dir := eng.rundir).exists():
-            shutil.rmtree(run_dir)
+        if (run_root := eng.run_root).exists():
+            shutil.rmtree(run_root)
         (eng.config_rootdir / SiroccoContinueTask.SUBMIT_FILENAME).unlink(missing_ok=True)
-    if (eng.rundir).exists():
+    if (eng.run_root).exists():
         msg = "Workflow already exists, cannot start. Use --cleanup to clean up before starting."
         raise ValueError(msg)
     tee_console.print(f"{CmdStatus.PLAY} Starting workflow at {eng.config_rootdir} ...")

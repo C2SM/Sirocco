@@ -163,7 +163,7 @@ class PrettyPrinter:
 
     @format.register
     def format_task(self, obj: core.Task, parent: Literal["none", "list", "dict", "list_first_dict_item"]) -> str:
-        obj_dict = self.dataclass_to_dict(obj, exclude=["name", "coordinates", "config_rootdir", "RUN_ROOT"])
+        obj_dict = self.dataclass_to_dict(obj, exclude=["name", "coordinates", "config_rootdir"])
         if obj.wait_on:
             obj_dict["wait_on"] = [self.graphitem_label(task) for task in obj.wait_on]
         else:
