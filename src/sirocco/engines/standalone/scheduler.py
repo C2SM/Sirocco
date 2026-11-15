@@ -51,7 +51,7 @@ class Scheduler(ABC):
 
         # Prepare for submission ( create rundir, wipe rundir, link/copy necessary files/dirs, ...)
         # ======================
-        if task.CLEAN_UP_BEFORE_SUBMIT:
+        if handlers.submission_settings(task).clean_up_run_dir:
             shutil.rmtree(task.run_dir, ignore_errors=True)
         task.run_dir.mkdir(parents=True, exist_ok=True)
         handlers.prepare_for_submission(task)
@@ -95,7 +95,7 @@ class Scheduler(ABC):
 
         # Write to runscript file
         if script_path is None:
-            script_path = task.run_dir / task.SUBMIT_FILENAME
+            script_path = task.run_dir / handlers.submission_settings(task).submit_filename
         script_path.write_text("\n".join(script_lines))
         script_path.chmod(0o755)
 
@@ -143,9 +143,10 @@ class Slurm(Scheduler):
         task: Task,
         stdouterr_mode: STDOUTERR_MODE_T = "overwrite",
     ) -> list[str]:
+        stdouterr_filename = handlers.submission_settings(task).stdouterr_filename
         header: list[str] = [
-            f"#SBATCH --output={task.STDOUTERR_FILENAME}",
-            f"#SBATCH --error={task.STDOUTERR_FILENAME}",
+            f"#SBATCH --output={stdouterr_filename}",
+            f"#SBATCH --error={stdouterr_filename}",
             f"#SBATCH --job-name={task.label}",
         ]
         if account := task.account:
@@ -189,7 +190,7 @@ class Slurm(Scheduler):
                     pass
                 case _:
                     assert_never(dependency_type)
-        submit_cmd.append(task.SUBMIT_FILENAME)
+        submit_cmd.append(handlers.submission_settings(task).submit_filename)
 
         if not env:
             msg = f"{task.label}: submission environment is empty"
