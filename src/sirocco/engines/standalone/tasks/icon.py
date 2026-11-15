@@ -13,6 +13,8 @@ from sirocco.engines.standalone.handlers import prepare_for_submission, runscrip
 from sirocco.engines.standalone.scheduler import UENV_MACHINES
 
 RUNTIME_ROOT = Path(__file__).parents[3] / "core" / "tasks" / "icon_task" / "runtime"
+# Entry point of the runtime scripts, sourced by the run script
+RUNTIME_MAIN = "main.sh"
 
 
 @prepare_for_submission.register(IconTask)
@@ -70,8 +72,8 @@ def prepare_for_submission_icon(task: IconTask) -> None:
         if not runtime_dir.is_dir():
             msg = f"{task.label}: 'runtime' directory not found at {runtime_dir}"
             raise ValueError(msg)
-        if not (runtime_dir / task.MAIN).is_file():
-            msg = f"{task.label}: {task.MAIN} not found in runtime at {runtime_dir}"
+        if not (runtime_dir / RUNTIME_MAIN).is_file():
+            msg = f"{task.label}: {RUNTIME_MAIN} not found in runtime at {runtime_dir}"
             raise ValueError(msg)
     shutil.copytree(runtime_dir, task.run_dir, dirs_exist_ok=True)
 
@@ -95,5 +97,5 @@ def runscript_lines_icon(task: IconTask) -> list[str]:
             lines.append(f"export ICON4PY_VENV={task.exe.gpu.icon4py_venv}")
         if task.exe.gpu.gt4py_build_cache_dir:
             lines.append(f"export GT4PY_BUILD_CACHE_DIR={task.exe.gpu.gt4py_build_cache_dir}")
-    lines.append(f"source ./{task.MAIN}")
+    lines.append(f"source ./{RUNTIME_MAIN}")
     return lines

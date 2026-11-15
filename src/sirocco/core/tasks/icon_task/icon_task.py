@@ -37,7 +37,6 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
     SUPPORTED_MACHINES: ClassVar[list[str]] = field(default=["santis"], repr=False)
     _MASTER_NAMELIST_NAME: ClassVar[str] = field(default="icon_master.namelist", repr=False)
     _MODEL_NML_KEYS: ClassVar[list[str]] = field(default=["master_model_nml", "jsb_model_nml"], repr=False)
-    MAIN: ClassVar[str] = field(default="main.sh", repr=False)
 
     namelists: list[NamelistFile]
     master_namelist: NamelistFile = field(init=False, repr=False)
