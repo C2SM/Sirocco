@@ -6,11 +6,9 @@ submission. Only the engine reads and writes the state table.
 """
 
 import logging
-import os
 import shutil
 import subprocess
 from abc import ABC, abstractmethod
-from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, assert_never
@@ -26,15 +24,6 @@ type DEPENDENCY_TYPE_T = Literal["ALL_COMPLETED", "ANY", "NONE"]
 
 
 class SchedulerCommandError(RuntimeError): ...
-
-
-@contextmanager
-def ignore_env(*args: str):
-    ignored_vars: dict[str, str] = {var: os.environ.pop(var) for var in args if var in os.environ}
-    try:
-        yield
-    finally:
-        os.environ.update(ignored_vars)
 
 
 @dataclass(kw_only=True)
