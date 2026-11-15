@@ -9,7 +9,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from sirocco.core.tasks.icon_task import IconTask
-from sirocco.engines.standalone.handlers import prepare_for_submission, resolve_output_paths, runscript_lines
+from sirocco.engines.standalone.handlers import (
+    SubmissionSettings,
+    prepare_for_submission,
+    resolve_output_paths,
+    runscript_lines,
+    submission_settings,
+)
 from sirocco.engines.standalone.scheduler import UENV_MACHINES
 from sirocco.engines.standalone.tasks.icon_ports import apply_port
 
@@ -19,6 +25,15 @@ if TYPE_CHECKING:
 RUNTIME_ROOT = Path(__file__).parents[3] / "core" / "tasks" / "icon_task" / "runtime"
 # Entry point of the runtime scripts, sourced by the run script
 RUNTIME_MAIN = "main.sh"
+# Machines on which ICON tasks can run
+SUPPORTED_MACHINES = ["santis"]
+
+
+@submission_settings.register(IconTask)
+def submission_settings_icon(task: IconTask) -> SubmissionSettings:  # noqa: ARG001
+    # The uenv is not set by the scheduler but passed to the runtime scripts (ICON_UENV),
+    # together with the mount points of the squashed images
+    return SubmissionSettings(scheduler_uenv=False)
 
 
 @resolve_output_paths.register(IconTask)
@@ -34,24 +49,17 @@ def prepare_for_submission_icon(task: IconTask, path_resolver: PathResolver) -> 
     run_dir = path_resolver.run_dir(task)
 
     # Check supported machine
-    if task.computer not in task.SUPPORTED_MACHINES:
-        msg = f"{task.label}: machine {task.computer} not suportted for icon task. Supported machines are {task.SUPPORTED_MACHINES}"
+    if task.computer not in SUPPORTED_MACHINES:
+        msg = f"{task.label}: machine {task.computer} not suportted for icon task. Supported machines are {SUPPORTED_MACHINES}"
         raise ValueError(msg)
 
-    # Handle uenv and squashed images
-    # - reset task.uenv and task.view to None so that they doesn't get taken into account by the scheduler
-    # - store them in task.icon_uenv and task.icon_view to expose them with `export ICON_UENV=XYZ` in the run script
-    # - append squashed images paths and mount points to icon_uenv
+    # Check uenv and create the mount points of the squashed images
     if task.computer in UENV_MACHINES:
         if task.uenv is None:
             msg = f"{task.label}: uenv is required for ICON tasks on {task.computer}"
             raise ValueError(msg)
-        uenv_list = [task.uenv]
-        uenv_list.extend((f"{path_resolver.path(image)}:{mount}" for image, mount in task.get_squash_mounts(run_dir)))
-        task.icon_uenv = ",".join(uenv_list)
-        task.icon_view = task.view
-    task.uenv = None
-    task.view = None
+        for _, mount_point in task.get_squash_mounts(run_dir):
+            mount_point.mkdir(parents=True, exist_ok=True)
 
     # Link ICON binaries
     if task.exe.cpu is not None:
@@ -98,12 +106,16 @@ def prepare_for_submission_icon(task: IconTask, path_resolver: PathResolver) -> 
 
 
 @runscript_lines.register(IconTask)
-def runscript_lines_icon(task: IconTask, path_resolver: PathResolver) -> list[str]:  # noqa: ARG001
+def runscript_lines_icon(task: IconTask, path_resolver: PathResolver) -> list[str]:
     lines: list[str] = []
-    if task.icon_uenv is not None:
-        lines.append(f"export ICON_UENV={shlex.quote(task.icon_uenv)}")
-        if task.icon_view is not None:
-            lines.append(f"export ICON_VIEW={task.icon_view}")
+    # Expose the uenv to the runtime scripts, with the squashed images and their mount points
+    if task.computer in UENV_MACHINES and task.uenv is not None:
+        run_dir = path_resolver.run_dir(task)
+        uenv_list = [task.uenv]
+        uenv_list.extend(f"{path_resolver.path(image)}:{mount}" for image, mount in task.get_squash_mounts(run_dir))
+        lines.append(f"export ICON_UENV={shlex.quote(','.join(uenv_list))}")
+        if task.view is not None:
+            lines.append(f"export ICON_VIEW={task.view}")
     lines.append(f"export N_PROCS={task.n_procs}")
     lines.append(f"export SIROCCO_TARGET={task.target}")
     if task.exe.gpu:

@@ -174,7 +174,7 @@ class Slurm(Scheduler):
             header.append(f"#SBATCH --gres-flags={gres_flags}")
         if gres := task.gres:
             header.append(f"#SBATCH --gres={gres}")
-        if task.computer in UENV_MACHINES:
+        if task.computer in UENV_MACHINES and handlers.submission_settings(task).scheduler_uenv:
             if uenv := task.uenv:
                 header.append(f"#SBATCH --uenv={uenv}")
             if view := task.view:

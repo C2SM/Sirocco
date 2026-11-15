@@ -55,6 +55,7 @@ class SubmissionSettings:
     submit_filename: str = "run_script.sh"
     stdouterr_filename: str = "run_script.%j.o"
     clean_up_run_dir: bool = True  # Wipe the run directory before submitting
+    scheduler_uenv: bool = True  # Let the scheduler start the job in the task uenv and view
 
 
 @singledispatch

@@ -35,7 +35,6 @@ LOGGER = logging.getLogger(__name__)
 
 @dataclass(kw_only=True)
 class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
-    SUPPORTED_MACHINES: ClassVar[list[str]] = field(default=["santis"], repr=False)
     _MASTER_NAMELIST_NAME: ClassVar[str] = field(default="icon_master.namelist", repr=False)
     _MODEL_NML_KEYS: ClassVar[list[str]] = field(default=["master_model_nml", "jsb_model_nml"], repr=False)
 
@@ -47,8 +46,6 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
     io_nodes: int = field(init=False, repr=False)
     n_procs: int = field(init=False, repr=False)
     ranks_info: dict[int, RankInfo] = field(init=False, repr=False, default_factory=dict)
-    icon_uenv: str | None = None
-    icon_view: str | None = None
 
     def is_coupled(self) -> bool:
         return len(self.master_models) > 1
@@ -468,9 +465,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                 msg = f"{self.label}: number of squashed images ({n}) differs from the number of mount points ({m})"
                 raise ValueError(msg)
             for image, mount in zip(squash_data, self.squash_mount, strict=False):
-                mount_point = mount if mount.is_absolute() else directory / mount
-                mount_point.mkdir(parents=True, exist_ok=True)
-                squash_mounts.append((image, mount_point))
+                squash_mounts.append((image, mount if mount.is_absolute() else directory / mount))
         return squash_mounts
 
     @classmethod
