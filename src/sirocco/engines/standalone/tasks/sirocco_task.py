@@ -39,12 +39,12 @@ class SiroccoContinueTask(models.ConfigSiroccoTaskSpecs, Task):
         pass
 
 
-@prepare_for_submission.register
+@prepare_for_submission.register(SiroccoContinueTask)
 def prepare_for_submission_sirocco_continue(task: SiroccoContinueTask) -> None:
     pass
 
 
-@runscript_lines.register
+@runscript_lines.register(SiroccoContinueTask)
 def runscript_lines_sirocco_continue(task: SiroccoContinueTask) -> list[str]:
     lines: list[str] = []
     if task.venv is not None:

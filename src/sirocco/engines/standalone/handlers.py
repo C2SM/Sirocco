@@ -8,15 +8,18 @@ is the fallback, used when no more specific implementation is registered.
 Plugin modules register their own implementation with:
 
 ```python
-@prepare_for_submission.register
+@prepare_for_submission.register(ShellTask)
 def prepare_for_submission_shell(task: ShellTask) -> None: ...
 ```
 
 Registered implementations are named `<generic function>_<task type>`, as in
 `pretty_print.py`, so that they can be told apart in tracebacks.
 
-`register` reads the type annotation of the first parameter (`ShellTask`)
-and stores the function in a `{class: implementation}` table attached to
+The class is passed explicitly to `register` rather than read from the type
+annotation of the first parameter: an annotation needs the class at runtime,
+which linters cannot see, so they would move its import under `TYPE_CHECKING`.
+
+`register(ShellTask)` stores the function in a `{class: implementation}` table attached to
 `prepare_for_submission`. A call `prepare_for_submission(task)` then looks
 up `type(task)` in that table, walking up the MRO, so a subclass of
 `ShellTask` would reuse the `ShellTask` implementation unless it registers
