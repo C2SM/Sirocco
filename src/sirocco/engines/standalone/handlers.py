@@ -1,0 +1,97 @@
+"""Per-plugin behaviour of the standalone engine.
+
+Each function below is a ``functools.singledispatch`` generic function: a
+function whose implementation is picked at call time from the *class of its
+first argument*. The base implementation (decorated with ``@singledispatch``)
+is the fallback, used when no more specific implementation is registered.
+
+Plugin modules register their own implementation with::
+
+    @prepare_for_submission.register
+    def _(task: ShellTask) -> None: ...
+
+``register`` reads the type annotation of the first parameter (``ShellTask``)
+and stores the function in a ``{class: implementation}`` table attached to
+``prepare_for_submission``. A call ``prepare_for_submission(task)`` then looks
+up ``type(task)`` in that table, walking up the MRO, so a subclass of
+``ShellTask`` would reuse the ``ShellTask`` implementation unless it registers
+its own. This is the same lookup as for methods, but the table lives in the
+engine instead of in the core classes.
+
+Registration happens when the module containing the ``register`` call is
+imported. ``sirocco.engines.standalone.tasks`` imports all built-in plugin
+modules, and ``sirocco.engines.standalone`` imports that package, so using the
+engine at all guarantees every built-in plugin is registered.
+"""
+
+from __future__ import annotations
+
+from functools import singledispatch
+from typing import TYPE_CHECKING
+
+from sirocco.parsing import cycling
+
+if TYPE_CHECKING:
+    from sirocco.core.graph_items import Task
+
+
+# NOTE: These stay on the engine side even if every task class shares them,
+#       because they define what a *standalone run script* looks like.
+SUBMIT_FILENAME = "run_script.sh"
+STDOUTERR_FILENAME = "run_script.%j.o"
+
+
+@singledispatch
+def prepare_for_submission(task: Task) -> None:
+    """Generate or copy any file required at runtime to the task run_dir"""
+    msg = f"standalone engine: plugin {task.plugin!r} has no prepare_for_submission implementation"
+    raise NotImplementedError(msg)
+
+
+@singledispatch
+def runscript_lines(task: Task) -> list[str]:
+    """Plugin specific lines of the run script"""
+    msg = f"standalone engine: plugin {task.plugin!r} has no runscript_lines implementation"
+    raise NotImplementedError(msg)
+
+
+@singledispatch
+def submit_filename(task: Task) -> str:  # noqa: ARG001  # overridden by special tasks
+    return SUBMIT_FILENAME
+
+
+@singledispatch
+def stdouterr_filename(task: Task) -> str:  # noqa: ARG001
+    return STDOUTERR_FILENAME
+
+
+@singledispatch
+def clean_up_before_submit(task: Task) -> bool:  # noqa: ARG001
+    return True
+
+
+# =========== Plugin independent parts of the run script ===========
+
+
+def sirocco_environment_lines(task: Task) -> list[str]:
+    # TODO: Add parameters
+    env_list: list[str] = []
+    if isinstance(task.cycle_point, cycling.DateCyclePoint):
+        env_list.append(f"export SIROCCO_START_DATE={task.cycle_point.chunk_start_date.isoformat()}")
+        env_list.append(f"export SIROCCO_STOP_DATE={task.cycle_point.chunk_stop_date.isoformat()}")
+    return env_list
+
+
+def link_lines(task: Task) -> list[str]:
+    link_list: list[str] = []
+    for component in task.components.values():
+        if "link" in component.inputs:
+            link_list.extend([f"ln -s {data.resolved_path} ." for data in component.inputs["link"]])
+        if "link_content" in component.inputs:
+            link_list.extend(
+                [
+                    f"for item in {data.resolved_path}/*; do ln -s ${{item}} .; done"
+                    for data in component.inputs["link_content"]
+                ]
+            )
+    return link_list

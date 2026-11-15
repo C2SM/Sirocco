@@ -1,9 +1,23 @@
+"""The special task that resubmits ``sirocco continue``.
+
+It only exists for the standalone engine, so it lives here and not in core.
+It still subclasses ``core.Task`` so that the scheduler can submit it like any
+other task.
+"""
+
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import ClassVar
 
 from sirocco.core.graph_items import Task
+from sirocco.engines.standalone.handlers import (
+    clean_up_before_submit,
+    prepare_for_submission,
+    runscript_lines,
+    stdouterr_filename,
+    submit_filename,
+)
 from sirocco.parsing import yaml_data_models as models
 
 
@@ -14,15 +28,12 @@ class SiroccoContinueTask(models.ConfigSiroccoTaskSpecs, Task):
     """Special Sirocco Task for continuing the workflow"""
 
     plugin: ClassVar[str] = "sirocco_continue"
-    SUBMIT_FILENAME: ClassVar[str] = field(default=".sirocco_continue.sh", repr=False)
-    CMD_FILENAME: ClassVar[str] = field(default=".sirocco_cmd", repr=False)
-    STDOUTERR_FILENAME: ClassVar[str] = field(default="sirocco.log", repr=False)
-    CLEAN_UP_BEFORE_SUBMIT: ClassVar[bool] = field(default=False, repr=False)  # Clean up directory when submitting
-    LOCK_FILE_NAME: ClassVar[str] = field(default=".sirocco.lock", repr=False)
+    SUBMIT_FILENAME: ClassVar[str] = ".sirocco_continue.sh"
+    STDOUTERR_FILENAME: ClassVar[str] = "sirocco.log"
+    LOCK_FILE_NAME: ClassVar[str] = ".sirocco.lock"
 
     name: str = "SIROCCO"
     computer: str = "dummy"
-    rank: int = 0
     config_rootdir: Path
 
     def __post_init__(self) -> None:
@@ -32,16 +43,35 @@ class SiroccoContinueTask(models.ConfigSiroccoTaskSpecs, Task):
     def resolve_output_data_paths(self) -> None:
         pass
 
-    def prepare_for_submission(self) -> None:
-        pass
 
-    def runscript_lines(self) -> list[str]:
-        lines: list[str] = []
-        if self.venv is not None:
-            lines.append(f"source {self.venv}/bin/activate")
-        cmd: list[str] = ["sirocco"]
-        if os.environ.get("NO_COLOR") == "1":
-            cmd.append("--no-ansi")
-        cmd.append(f"continue --from_wf {self.config_rootdir} || exit")
-        lines.append(" ".join(cmd))
-        return lines
+@prepare_for_submission.register
+def _(task: SiroccoContinueTask) -> None:
+    pass
+
+
+@runscript_lines.register
+def _(task: SiroccoContinueTask) -> list[str]:
+    lines: list[str] = []
+    if task.venv is not None:
+        lines.append(f"source {task.venv}/bin/activate")
+    cmd: list[str] = ["sirocco"]
+    if os.environ.get("NO_COLOR") == "1":
+        cmd.append("--no-ansi")
+    cmd.append(f"continue --from_wf {task.config_rootdir} || exit")
+    lines.append(" ".join(cmd))
+    return lines
+
+
+@submit_filename.register
+def _(task: SiroccoContinueTask) -> str:
+    return task.SUBMIT_FILENAME
+
+
+@stdouterr_filename.register
+def _(task: SiroccoContinueTask) -> str:
+    return task.STDOUTERR_FILENAME
+
+
+@clean_up_before_submit.register
+def _(task: SiroccoContinueTask) -> bool:  # noqa: ARG001
+    return False

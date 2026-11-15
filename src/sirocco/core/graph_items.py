@@ -7,7 +7,6 @@ from itertools import chain, product
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, TypeVar, cast
 
-from sirocco.parsing import cycling
 from sirocco.parsing.target_cycle import LagList, NoTargetCycle, TargetDateList
 from sirocco.parsing.yaml_data_models import (
     ConfigAvailableData,
@@ -148,18 +147,12 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
 
     plugin_classes: ClassVar[dict[str, type[Self]]] = field(default={}, repr=False)
     color: ClassVar[str] = field(default="light_red", repr=False)
-    SUBMIT_FILENAME: ClassVar[str] = field(default="run_script.sh", repr=False)
-    STDOUTERR_FILENAME: ClassVar[str] = field(default="run_script.%j.o", repr=False)
-    CLEAN_UP_BEFORE_SUBMIT: ClassVar[bool] = field(default=True, repr=False)  # Clean up directory when submitting
     RUN_ROOT: ClassVar[Literal["run"]] = "run"
 
     config_rootdir: Path
     run_dir: Path = field(init=False, repr=False)
-    jobid: str = field(default="_NO_ID_", repr=False)
-    rank: int = field(init=False, repr=False)
     cycle_point: CyclePoint
     cycle: Cycle = field(init=False, repr=False)
-    base_env: dict[str, str] = field(default_factory=dict, repr=False)
 
     components: dict[str, TaskComponent] = field(default_factory=dict)
     wait_on: list[Task] = field(default_factory=list)
@@ -215,7 +208,6 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
         coordinates: dict[str, Any],
         datastore: Store,
         graph_spec: ConfigCycleTask,
-        base_env: dict[str, str],
     ) -> Task:
         if (plugin_cls := Task.plugin_classes.get(type(config).plugin, None)) is None:
             msg = f"Plugin {type(config).plugin!r} is not supported."
@@ -241,7 +233,6 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
                 )
                 for comp_name, conf_comp in graph_spec.components.items()
             },
-            base_env=base_env,
         )
 
         # Store for actual linking in link_wait_on_tasks() once all tasks are created
@@ -288,43 +279,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
             chain(self.waiters, *chain(data_out.downstream_tasks for data_out in self.output_data_nodes()))
         )
 
-    def sirocco_environemnt(self) -> list[str]:
-        # TODO: Add parameters
-        env_list: list[str] = []
-        if isinstance(self.cycle_point, cycling.DateCyclePoint):
-            env_list.append(f"export SIROCCO_START_DATE={self.cycle_point.chunk_start_date.isoformat()}")
-            env_list.append(f"export SIROCCO_STOP_DATE={self.cycle_point.chunk_stop_date.isoformat()}")
-        return env_list
-
-    def add_links(self) -> list[str]:
-        link_list: list[str] = []
-        for component in self.components.values():
-            if "link" in component.inputs:
-                link_list.extend([f"ln -s {data.resolved_path} ." for data in component.inputs["link"]])
-            if "link_content" in component.inputs:
-                link_list.extend(
-                    [
-                        f"for item in {data.resolved_path}/*; do ln -s ${{item}} .; done"
-                        for data in component.inputs["link_content"]
-                    ]
-                )
-        return link_list
-
-    def to_yaml_state(self) -> dict[str, dict[str, Any]]:
-        return {
-            self.name: {
-                "coordinates": {k: v.isoformat() if k == "date" else v for k, v in self.coordinates.items()},
-                "jobid": self.jobid,
-            }
-        }
-
-    def runscript_lines(self) -> list[str]:
-        raise NotImplementedError
-
     def resolve_output_data_paths(self) -> None:
-        raise NotImplementedError
-
-    def prepare_for_submission(self) -> None:
         raise NotImplementedError
 
 

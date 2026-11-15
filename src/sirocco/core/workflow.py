@@ -1,22 +1,9 @@
 from __future__ import annotations
 
-import enum
-import json
-import logging
-import os
-import subprocess
-import sys
-from colorsys import hls_to_rgb
-from datetime import datetime
 from itertools import chain, product
-from typing import TYPE_CHECKING, Any, Literal, Self, assert_never
+from typing import TYPE_CHECKING, Any, Self
 
-from ruamel.yaml import YAML
-from termcolor import colored
-
-from sirocco.core.graph_items import Cycle, Data, Store, Task, TaskStatus
-from sirocco.engines.standalone.scheduler import Scheduler
-from sirocco.engines.standalone.tasks.sirocco_task import SiroccoContinueTask
+from sirocco.core.graph_items import Cycle, Data, Store, Task
 from sirocco.parsing.cycling import DateCyclePoint, OneOffPoint
 from sirocco.parsing.yaml_data_models import (
     ConfigBaseData,
@@ -37,75 +24,29 @@ if TYPE_CHECKING:
     )
 
 
-class WorkflowStatus(enum.Enum):
-    INIT = 0
-    CONTINUE = 1
-    COMPLETED = 2
-    FAILED = 3
-    STOPPED = 4
-    STOPPING = 5
-    RESTART_FAILED = 6
-
-
-class StatusPoint:
-    BASE = "●"
-    HUE_FRONT = 216
-    COLOR_COMPLETED = (0, 191, 91)
-    COLOR_FAILED = (255, 87, 87)
-
-    @classmethod
-    def from_status(cls, status: Literal["COMPLETED", "FRONT", "FAILED"], rank: int | None = None) -> str:
-        # We generate the colored point in this classmethod and not as class variables otherwise
-        # they are defined at import time so that termcolor wiould not take into account the controlling
-        # environment variables FORCE_COLOR and NO_COLOR
-        match status:
-            case "COMPLETED":
-                return colored(cls.BASE, cls.COLOR_COMPLETED)  # type: ignore
-            case "FAILED":
-                return colored(cls.BASE, cls.COLOR_FAILED)  # type: ignore
-            case "FRONT":
-                if rank is None:
-                    msg = "rank is required when asking for a 'FRONT' StatusPoint"
-                    raise ValueError(msg)
-                # lightness between 0.7 and 0.3
-                lightness = 0.7 - min(rank, 3) / 3 * 0.4
-                rgb_norm = hls_to_rgb(cls.HUE_FRONT / 360, lightness, 1)
-                return colored(cls.BASE, tuple(round(v * 255) for v in rgb_norm))  # type: ignore
-            case _:
-                assert_never(status)
-
-
 class Workflow:
     """Internal representation of a workflow"""
 
     RUN_ROOT: str = Task.RUN_ROOT
-    STATE_FILE_NAME: str = "state.yaml"
 
     def __init__(
         self,
         name: str,
         config_rootdir: Path,
-        scheduler: Scheduler,
         config_cycles: list[ConfigCycle],
         config_tasks: list[ConfigTask],
         config_data: ConfigData,
         front_depth: int,
         parameters: dict[str, list],
-        config_sirocco_task: ConfigSiroccoTask | None = None,
     ) -> None:
         self.name: str = name
         self.config_rootdir: Path = config_rootdir
-        self.scheduler = scheduler
+        # NOTE: front_depth is the only engine setting kept in core as it is shared by all engines
         self.front_depth = front_depth
-        self.front: list[list[Task]] = [[] for _ in range(self.front_depth)]
-        self.completed_tasks: list[Task] = []
-        self.cool_down_tasks: list[Task] = []
 
         self.tasks: Store[Task] = Store()
         self.data: Store[Data] = Store()
         self.cycles: Store[Cycle] = Store()
-        self.status: WorkflowStatus = WorkflowStatus.INIT
-        self.base_env: dict[str, str] = self.set_bash_base_env()
 
         config_data_dict: dict[str, ConfigBaseData] = {
             data.name: data for data in chain(config_data.available, config_data.generated)
@@ -154,10 +95,7 @@ class Workflow:
                             coordinates=coordinates,
                             datastore=self.data,
                             graph_spec=task_graph_spec,
-                            # NOTE: If hte computer becomes a workflow attribute instead of a task one we can simplify this
-                            base_env=self.base_env,
                         )
-                        task.rank = self.front_depth
                         self.tasks.add(task)
                         cycle_tasks.append(task)
                 self.cycles.add(
@@ -178,301 +116,9 @@ class Workflow:
         for task in self.tasks:
             task.link_parents_children()
 
-        # 6 - Create Sirocco continuation task
-        config_kwargs = dict(config_sirocco_task) if config_sirocco_task else {}
-        if config_kwargs:
-            del config_kwargs["parameters"]
-        self.sirocco_continue_task = SiroccoContinueTask(
-            coordinates={},
-            cycle_point=OneOffPoint(),
-            config_rootdir=self.config_rootdir,
-            parents=[],
-            base_env=self.base_env,
-            **config_kwargs,
-        )
-
     @property
     def rundir(self) -> Path:
         return self.config_rootdir / self.RUN_ROOT
-
-    @property
-    def state_file(self) -> Path:
-        return self.rundir / self.STATE_FILE_NAME
-
-    @property
-    def lock_file(self) -> Path:
-        return self.rundir / SiroccoContinueTask.LOCK_FILE_NAME
-
-    @property
-    def locked(self) -> bool:
-        return self.lock_file.exists()
-
-    # =========== Methods to control workflow ===========
-
-    def start(self, log_type: Literal["std", "tee"] = "tee") -> None:
-        logger = self.get_logger(log_type)
-        self.init_front(logger=logger)
-        self.auto_submit()
-        self.dump_state()
-
-    def continue_wf(self, log_type: Literal["std", "tee"] = "std") -> None:  # NOTE: cannot use "continue"
-        logger = self.get_logger(log_type)
-        if not self.locked:
-            self.lock()
-        else:
-            msg = "Workflow getting stopped, not continuing"
-            logger.info(msg)
-            self.status = WorkflowStatus.STOPPING
-            return
-
-        self.load_state()
-        self.propagate_front(logger=logger)
-        self.auto_submit()
-        self.dump_state()
-        self.unlock()
-
-    def restart(self, log_type: Literal["std", "tee"] = "tee") -> None:
-        self.load_state()
-        logger = self.get_logger(log_type)
-        if self.sirocco_continue_task.jobid != "_NO_ID_":
-            msg = "Workflow ongoing, cannot restart"
-            logger.error(msg)
-            self.status = WorkflowStatus.RESTART_FAILED
-            return
-        if not self.rundir.exists():
-            msg = "Workflow did not start, cannot restart"
-            logger.error(msg)
-            self.status = WorkflowStatus.RESTART_FAILED
-            return
-        self.restart_front(logger=logger)
-        self.propagate_front(logger=logger)
-        self.auto_submit()
-        self.dump_state()
-
-    def stop(self, mode: Literal["cancel", "cool-down"], log_type: Literal["std", "tee"] = "tee") -> None:
-        self.load_state()
-        if not self.rundir.exists():
-            msg = "Workflow did not start, cannot stop"
-            raise ValueError(msg)
-        logger = self.get_logger(log_type)
-        if not self.locked:
-            self.lock()
-        else:
-            msg = "Workflow continuaiton ongoing, please retry"
-            logger.info(msg)
-            self.status = WorkflowStatus.CONTINUE
-            return
-        if self.sirocco_continue_task.jobid == "_NO_ID_":
-            msg = "Workflow not running, no need to stop"
-            logger.error(msg)
-            self.unlock()
-            return
-        self.scheduler.cancel(self.sirocco_continue_task)
-        self.cancel_all_tasks(mode=mode, logger=logger)
-        self.status = WorkflowStatus.STOPPED
-        self.sirocco_continue_task.jobid = "_NO_ID_"
-        self.dump_state()
-        self.unlock()
-
-    # =========== Helper methods for workflow control ===========
-
-    def get_logger(self, log_type: Literal["std", "tee"]) -> logging.Logger:
-        """Get a logger
-
-        - either for stdout/stderr
-        - or for both stdout/stderr and sirocco log file (like tee)"""
-
-        log_formatter = logging.Formatter("[%(levelname)s]  %(message)s")
-
-        console_handler = logging.StreamHandler()
-        console_handler.setFormatter(log_formatter)
-
-        logger = logging.getLogger(log_type)
-        logger.setLevel(logging.INFO)
-        logger.addHandler(console_handler)
-
-        if log_type == "tee":
-            file_handler = logging.FileHandler(self.config_rootdir / SiroccoContinueTask.STDOUTERR_FILENAME)
-            file_handler.setFormatter(log_formatter)
-            logger.addHandler(file_handler)
-
-        return logger
-
-    def lock(self) -> None:
-        self.lock_file.touch()
-
-    def unlock(self) -> None:
-        self.lock_file.unlink()
-
-    def dump_state(self) -> None:
-        yaml_front: list[list[dict[str, dict[str, Any]]]] = [[] for _ in range(self.front_depth)]
-        yaml_completed_tasks = [task.to_yaml_state() for task in self.completed_tasks]
-        yaml_cool_down_tasks = [task.to_yaml_state() for task in self.cool_down_tasks]
-        yaml_front = [[task.to_yaml_state() for task in generation] for generation in self.front]
-        YAML().dump(
-            {
-                "sirocco_jobid": self.sirocco_continue_task.jobid,
-                "completed_tasks": yaml_completed_tasks,
-                "cool_down_tasks": yaml_cool_down_tasks,
-                "front": yaml_front,
-            },
-            self.state_file,
-        )
-
-    def load_state(self) -> None:
-        yaml_state = YAML().load(self.state_file)
-        self.sirocco_continue_task.jobid = yaml_state["sirocco_jobid"]
-        self.completed_tasks = [self.task_from_yaml_state(yaml_task, -1) for yaml_task in yaml_state["completed_tasks"]]
-        self.cool_down_tasks = [self.task_from_yaml_state(yaml_task, 0) for yaml_task in yaml_state["cool_down_tasks"]]
-        for k, yaml_generation in enumerate(yaml_state["front"]):
-            self.front[k] = [self.task_from_yaml_state(yaml_task, k) for yaml_task in yaml_generation]
-
-    def task_from_yaml_state(self, yaml_task: dict[str, dict[str, Any]], rank: int) -> Task:
-        name, yaml_specs = next(iter(yaml_task.items()))
-        coordinates = {k: datetime.fromisoformat(v) if k == "date" else v for k, v in yaml_specs["coordinates"].items()}
-        task = self.tasks[name, coordinates]
-        task.jobid = yaml_specs["jobid"]
-        task.rank = rank
-        return task
-
-    def init_front(self, logger: logging.Logger) -> None:
-        """Populate front and submit corresponding tasks"""
-
-        for task in self.tasks:
-            if not task.parents:
-                task.rank = 0
-                self.scheduler.submit(task)
-                self.front[0].append(task)
-                msg = f"{StatusPoint.from_status('FRONT', task.rank)} {task.label} ({task.jobid}) SUBMITTED to rank {task.rank}"
-                logger.info(msg)
-        for k in range(self.front_depth - 1):
-            for task in self.front[k]:
-                for child in task.children:
-                    if (max(parent.rank for parent in child.parents) == k) and (child.rank == self.front_depth):
-                        self.scheduler.submit(child)
-                        child.rank = k + 1
-                        self.front[k + 1].append(child)
-                        msg = f"{StatusPoint.from_status('FRONT', child.rank)} {child.label} ({child.jobid}) SUBMITTED to rank {child.rank}"
-                        logger.info(msg)
-
-    def restart_front(self, logger: logging.Logger) -> None:
-        """Submit all tasks currently in the front"""
-
-        for generation in self.front:
-            for task in generation:
-                # Do not resubmit tasks in cool down mode
-                if (
-                    task.rank == 0
-                    and task in self.cool_down_tasks
-                    and self.scheduler.get_status(task)
-                    in (TaskStatus.COMPLETED, TaskStatus.RUNNING, TaskStatus.WAITING)
-                ):
-                    self.cool_down_tasks.remove(task)
-                    msg = f"{StatusPoint.from_status('FRONT', task.rank)} {task.label} ({task.jobid}) CONTINUED as rank 0 from cool-down"
-                    logger.info(msg)
-                else:
-                    self.scheduler.cancel(task)
-                    self.scheduler.submit(task)
-                    msg = f"{StatusPoint.from_status('FRONT', task.rank)} {task.label} ({task.jobid}) SUBMITTED to rank {task.rank}"
-                    logger.info(msg)
-
-    def propagate_front(self, logger: logging.Logger) -> None:
-        """Propagate front of submitted tasks and submit new ones"""
-
-        # Handle first generation of the front
-        to_promote: list[Task] = []
-        for task in self.front[0]:
-            if (status := self.scheduler.get_status(task)) == TaskStatus.FAILED:
-                msg = f"{StatusPoint.from_status('FAILED')} {task.label} ({task.jobid}) FAILED"
-                logger.info(msg)
-                self.cancel_all_tasks(mode="cancel", logger=logger)
-                msg = f"All workflow tasks canceled because {task.label} failed"
-                logger.info(msg)
-                self.status = WorkflowStatus.FAILED
-                return
-            if status == TaskStatus.COMPLETED:
-                to_promote.append(task)
-        for task in to_promote:
-            task.rank = -1
-            self.front[0].remove(task)
-            self.completed_tasks.append(task)
-            msg = f"{StatusPoint.from_status('COMPLETED')} {task.label} ({task.jobid}) COMPLETED"
-            logger.info(msg)
-
-        # Update front rank of tasks currently in the front after the first generation
-        for k in range(1, self.front_depth):
-            to_promote = [task for task in self.front[k] if max(parent.rank for parent in task.parents) == k - 2]
-            for task in to_promote:
-                task.rank = k - 1
-                self.front[k].remove(task)
-                msg = f"{StatusPoint.from_status('FRONT', task.rank)} {task.label} ({task.jobid}) PROMOTED from rank {k} to {k - 1}"
-                self.front[k - 1].append(task)
-                logger.info(msg)
-
-        # Add new tasks to the last generation of the front
-        before_last_generation = to_promote if self.front_depth == 1 else self.front[-2]
-        for task in before_last_generation:
-            for child in task.children:
-                if (
-                    child.rank == self.front_depth
-                    and max(parent.rank for parent in child.parents) == self.front_depth - 2
-                ):
-                    self.scheduler.submit(child)
-                    child.rank = self.front_depth - 1
-                    self.front[-1].append(child)
-                    msg = f"{StatusPoint.from_status('FRONT', child.rank)} {child.label} ({child.jobid}) SUBMITTED to rank {child.rank}"
-                    logger.info(msg)
-
-    def cancel_all_tasks(self, mode: Literal["cancel", "cool-down"], logger: logging.Logger) -> None:
-        """Cancel all workflow tasks except cool-down tasks"""
-
-        for generation in self.front:
-            for task in generation:
-                if (
-                    task.rank == 0
-                    and mode == "cool-down"
-                    and self.scheduler.get_status(task) in (TaskStatus.COMPLETED, TaskStatus.RUNNING)
-                ):
-                    self.cool_down_tasks.append(task)
-                    msg = f"{StatusPoint.from_status('FRONT', task.rank)} {task.label} ({task.jobid}) COOLING DOWN"
-                    logger.info(msg)
-                else:
-                    self.scheduler.cancel(task)
-                    msg = f"{StatusPoint.from_status('FAILED')} {task.label} ({task.jobid}) CANCELED"
-                    logger.info(msg)
-
-    def auto_submit(self) -> None:
-        """Submit next Sirocco task"""
-
-        if self.status == WorkflowStatus.FAILED:
-            self.sirocco_continue_task.jobid = "_NO_ID_"
-        elif self.front[0]:
-            self.sirocco_continue_task.parents = self.front[0]
-            self.scheduler.submit(self.sirocco_continue_task, output_mode="append", dependency_type="ANY")
-            self.status = WorkflowStatus.CONTINUE
-        else:
-            self.sirocco_continue_task.jobid = "_NO_ID_"
-            self.status = WorkflowStatus.COMPLETED
-
-    @staticmethod
-    def set_bash_base_env() -> dict[str, str]:
-        """Set the base env from which tasks are submitted"""
-
-        current_python = sys.executable
-        home = os.environ.get("HOME", "")
-        user = os.environ.get("USER", "")
-        cmd = [
-            "env",
-            "-i",
-            f"HOME={home}",
-            f"USER={user}",
-            "bash",
-            "--login",
-            "-c",
-            f"'{current_python}' -c 'import os, json; print(json.dumps(dict(os.environ)))'",
-        ]
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        return json.loads(result.stdout)
 
     @classmethod
     def from_config_path(
@@ -519,18 +165,12 @@ class Workflow:
         cls: type[Self],
         config_workflow: ConfigWorkflow,
     ) -> Self:
-        sirocco_task_config: ConfigSiroccoTask | None = None
-        for task in config_workflow.tasks:
-            if isinstance(task, ConfigSiroccoTask):
-                sirocco_task_config = task
         return cls(
             name=config_workflow.name,
             config_rootdir=config_workflow.rootdir,
-            scheduler=Scheduler.create(config_workflow.scheduler),
             config_cycles=config_workflow.cycles,
             config_tasks=config_workflow.tasks,
             config_data=config_workflow.data,
             parameters=config_workflow.parameters,
             front_depth=config_workflow.front_depth,
-            config_sirocco_task=sirocco_task_config,
         )

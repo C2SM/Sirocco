@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import logging
-import shlex
-import shutil
 from dataclasses import dataclass, field
 from datetime import timedelta
 from itertools import chain
@@ -12,7 +10,6 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 
 from sirocco.core.graph_items import Task
 from sirocco.core.namelistfile import NamelistFile
-from sirocco.engines.standalone.scheduler import UENV_MACHINES
 from sirocco.core.tasks.icon_task.models import IconModel, ModelType
 from sirocco.core.tasks.icon_task.ports import PortHandler, restart_in_handler
 from sirocco.core.tasks.icon_task.task_distribution import (
@@ -40,7 +37,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
     SUPPORTED_MACHINES: ClassVar[list[str]] = field(default=["santis"], repr=False)
     _MASTER_NAMELIST_NAME: ClassVar[str] = field(default="icon_master.namelist", repr=False)
     _MODEL_NML_KEYS: ClassVar[list[str]] = field(default=["master_model_nml", "jsb_model_nml"], repr=False)
-    _MAIN: ClassVar[str] = field(default="main.sh", repr=False)
+    MAIN: ClassVar[str] = field(default="main.sh", repr=False)
 
     namelists: list[NamelistFile]
     master_namelist: NamelistFile = field(init=False, repr=False)
@@ -443,69 +440,6 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                 filename += "_" + suffix
             namelist.dump(directory / filename)
 
-    def prepare_for_submission(self) -> None:
-        """Generate or copy any file required at runtime to task run_dir"""
-
-        # Check supported machine
-        if self.computer not in self.SUPPORTED_MACHINES:
-            msg = f"{self.label}: machine {self.computer} not suportted for icon task. Supported machines are {self.SUPPORTED_MACHINES}"
-            raise ValueError(msg)
-
-        # Handle uenv and squashed images
-        # - reset self.uenv and self.view to None so that they doesn't get taken into account by the scheduler
-        # - store them in self.icon_uenv and self.icon_view to expose them with `export ICON_UENV=XYZ` in the run script
-        # - append squashed images paths and mount points to icon_uenv
-        if self.computer in UENV_MACHINES:
-            if self.uenv is None:
-                msg = f"{self.label}: uenv is required for ICON tasks on {self.computer}"
-                raise ValueError(msg)
-            uenv_list = [self.uenv]
-            uenv_list.extend((f"{squash}:{mount}" for squash, mount in self.get_squash_paths()))
-            self.icon_uenv = ",".join(uenv_list)
-            self.icon_view = self.view
-        self.uenv = None
-        self.view = None
-
-        # Link ICON binaries
-        if self.exe.cpu is not None:
-            (self.run_dir / "icon_cpu").symlink_to(self.exe.cpu.path)
-        if self.exe.gpu is not None:
-            (self.run_dir / "icon_gpu").symlink_to(self.exe.gpu.path)
-
-        # Take input/output ports specifications into account:
-        # - adapt namelist parameters
-        # - resolve data path
-        # - link data
-        for model in self.models.values():
-            for port in chain(model.inputs, model.outputs):
-                PortHandler.handle(port, model)
-
-        # Dump ICON config files
-        self.dump_namelists(directory=self.run_dir, filename_mode="raw")
-        if self.is_coupled() and self.yac_coupling is not None:
-            shutil.copy(self.config_rootdir / self.yac_coupling, self.run_dir / self.yac_coupling.name)
-
-        # Copy required runtime files
-        if self.runtime is None:
-            runtime_dir = Path(__file__).parent / "runtime" / self.computer
-            if not runtime_dir.exists():
-                msg = f"{self.label}: runtime not defined for computer {self.computer}"
-                raise ValueError(msg)
-        else:
-            runtime_dir = self.config_rootdir / self.runtime
-            if not runtime_dir.is_dir():
-                msg = f"{self.label}: 'runtime' directory not found at {runtime_dir}"
-                raise ValueError(msg)
-            if not (runtime_dir / self._MAIN).is_file():
-                msg = f"{self.label}: {self._MAIN} not found in runtime at {runtime_dir}"
-                raise ValueError(msg)
-        shutil.copytree(runtime_dir, self.run_dir, dirs_exist_ok=True)
-
-        # Hostfile and multi-prog config file
-        self.distribute_ranks()
-        if self.target == "hybrid":
-            self.generate_multi_prog_config()
-
     def get_squash_paths(self) -> list[tuple[Path, Path]]:
         """Get squashed images paths and mount points"""
 
@@ -524,23 +458,6 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                 mount_point.mkdir(parents=True, exist_ok=True)
                 squash_paths.append((image.resolved_path, mount_point))
         return squash_paths
-
-    def runscript_lines(self) -> list[str]:
-        lines: list[str] = []
-        # Total number of tasks
-        if self.icon_uenv is not None:
-            lines.append(f"export ICON_UENV={shlex.quote(self.icon_uenv)}")
-            if self.icon_view is not None:
-                lines.append(f"export ICON_VIEW={self.icon_view}")
-        lines.append(f"export N_PROCS={self.n_procs}")
-        lines.append(f"export SIROCCO_TARGET={self.target}")
-        if self.exe.gpu:
-            if self.exe.gpu.icon4py_venv:
-                lines.append(f"export ICON4PY_VENV={self.exe.gpu.icon4py_venv}")
-            if self.exe.gpu.gt4py_build_cache_dir:
-                lines.append(f"export GT4PY_BUILD_CACHE_DIR={self.exe.gpu.gt4py_build_cache_dir}")
-        lines.append(f"source ./{self._MAIN}")
-        return lines
 
     def resolve_output_data_paths(self) -> None:
         for model in self.models.values():
