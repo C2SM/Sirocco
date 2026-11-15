@@ -1,7 +1,7 @@
-"""The special task that resubmits ``sirocco continue``.
+"""The special task that resubmits `sirocco continue`.
 
 It only exists for the standalone engine, so it lives here and not in core.
-It still subclasses ``core.Task`` so that the scheduler can submit it like any
+It still subclasses `core.Task` so that the scheduler can submit it like any
 other task.
 """
 

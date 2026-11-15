@@ -1,4 +1,4 @@
-"""Standalone engine support for ``core.IconTask``"""
+"""Standalone engine support for `core.IconTask`"""
 
 from __future__ import annotations
 

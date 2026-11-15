@@ -1,4 +1,4 @@
-"""Standalone engine support for ``core.ShellTask``"""
+"""Standalone engine support for `core.ShellTask`"""
 
 from __future__ import annotations
 
