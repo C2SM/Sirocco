@@ -15,7 +15,6 @@ from sirocco.engines.standalone.handlers import (
     runscript_lines,
     submission_settings,
 )
-from sirocco.engines.standalone.scheduler import UENV_MACHINES
 from sirocco.engines.standalone.tasks.icon_ports import apply_port
 
 if TYPE_CHECKING:
@@ -43,13 +42,9 @@ def prepare_for_submission_icon(task: IconTask, path_resolver: PathResolver) -> 
 
     launch.check_machine(task)
 
-    # Check uenv and create the mount points of the squashed images
-    if task.computer in UENV_MACHINES:
-        if task.uenv is None:
-            msg = f"{task.label}: uenv is required for ICON tasks on {task.computer}"
-            raise ValueError(msg)
-        for _, mount_point in task.get_squash_mounts(run_dir):
-            mount_point.mkdir(parents=True, exist_ok=True)
+    # Mount points of the squashed images
+    for _, mount_point in task.get_squash_mounts(run_dir):
+        mount_point.mkdir(parents=True, exist_ok=True)
 
     # Link ICON binaries
     if task.exe.cpu is not None:

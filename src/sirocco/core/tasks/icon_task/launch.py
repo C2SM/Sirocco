@@ -28,6 +28,8 @@ RUNTIME_ROOT = Path(__file__).parent / "runtime"
 RUNTIME_MAIN = "main.sh"
 # Machines with runtime scripts and rank distribution
 SUPPORTED_MACHINES = ["santis"]
+# Machines on which the runtime scripts start ICON in a uenv (`ICON_UENV`)
+UENV_REQUIRED_MACHINES = ["santis"]
 
 ICON_CPU_LINK = "icon_cpu"
 ICON_GPU_LINK = "icon_gpu"
@@ -36,8 +38,12 @@ MULTI_PROG_CONFIG = "multi-prog.conf"
 
 
 def check_machine(task: IconTask) -> None:
+    """Check that the task can be launched on its machine"""
     if task.computer not in SUPPORTED_MACHINES:
         msg = f"{task.label}: machine {task.computer} not suportted for icon task. Supported machines are {SUPPORTED_MACHINES}"
+        raise ValueError(msg)
+    if task.computer in UENV_REQUIRED_MACHINES and task.uenv is None:
+        msg = f"{task.label}: uenv is required for ICON tasks on {task.computer}"
         raise ValueError(msg)
 
 
