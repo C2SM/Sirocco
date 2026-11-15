@@ -35,12 +35,6 @@ if TYPE_CHECKING:
     from sirocco.core.graph_items import Task
 
 
-# NOTE: These stay on the engine side even if every task class shares them,
-#       because they define what a *standalone run script* looks like.
-SUBMIT_FILENAME = "run_script.sh"
-STDOUTERR_FILENAME = "run_script.%j.o"
-
-
 @singledispatch
 def prepare_for_submission(task: Task) -> None:
     """Generate or copy any file required at runtime to the task run_dir"""
@@ -53,21 +47,6 @@ def runscript_lines(task: Task) -> list[str]:
     """Plugin specific lines of the run script"""
     msg = f"standalone engine: plugin {task.plugin!r} has no runscript_lines implementation"
     raise NotImplementedError(msg)
-
-
-@singledispatch
-def submit_filename(task: Task) -> str:  # noqa: ARG001  # overridden by special tasks
-    return SUBMIT_FILENAME
-
-
-@singledispatch
-def stdouterr_filename(task: Task) -> str:  # noqa: ARG001
-    return STDOUTERR_FILENAME
-
-
-@singledispatch
-def clean_up_before_submit(task: Task) -> bool:  # noqa: ARG001
-    return True
 
 
 # =========== Plugin independent parts of the run script ===========

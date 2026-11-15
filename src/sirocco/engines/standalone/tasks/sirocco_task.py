@@ -6,18 +6,12 @@ other task.
 """
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import ClassVar
 
 from sirocco.core.graph_items import Task
-from sirocco.engines.standalone.handlers import (
-    clean_up_before_submit,
-    prepare_for_submission,
-    runscript_lines,
-    stdouterr_filename,
-    submit_filename,
-)
+from sirocco.engines.standalone.handlers import prepare_for_submission, runscript_lines
 from sirocco.parsing import yaml_data_models as models
 
 
@@ -28,9 +22,10 @@ class SiroccoContinueTask(models.ConfigSiroccoTaskSpecs, Task):
     """Special Sirocco Task for continuing the workflow"""
 
     plugin: ClassVar[str] = "sirocco_continue"
-    SUBMIT_FILENAME: ClassVar[str] = ".sirocco_continue.sh"
-    STDOUTERR_FILENAME: ClassVar[str] = "sirocco.log"
-    LOCK_FILE_NAME: ClassVar[str] = ".sirocco.lock"
+    SUBMIT_FILENAME: ClassVar[str] = field(default=".sirocco_continue.sh", repr=False)
+    STDOUTERR_FILENAME: ClassVar[str] = field(default="sirocco.log", repr=False)
+    CLEAN_UP_BEFORE_SUBMIT: ClassVar[bool] = field(default=False, repr=False)  # Clean up directory when submitting
+    LOCK_FILE_NAME: ClassVar[str] = field(default=".sirocco.lock", repr=False)
 
     name: str = "SIROCCO"
     computer: str = "dummy"
@@ -60,18 +55,3 @@ def _(task: SiroccoContinueTask) -> list[str]:
     cmd.append(f"continue --from_wf {task.config_rootdir} || exit")
     lines.append(" ".join(cmd))
     return lines
-
-
-@submit_filename.register
-def _(task: SiroccoContinueTask) -> str:
-    return task.SUBMIT_FILENAME
-
-
-@stdouterr_filename.register
-def _(task: SiroccoContinueTask) -> str:
-    return task.STDOUTERR_FILENAME
-
-
-@clean_up_before_submit.register
-def _(task: SiroccoContinueTask) -> bool:  # noqa: ARG001
-    return False

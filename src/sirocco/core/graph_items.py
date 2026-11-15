@@ -147,6 +147,10 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
 
     plugin_classes: ClassVar[dict[str, type[Self]]] = field(default={}, repr=False)
     color: ClassVar[str] = field(default="light_red", repr=False)
+    # NOTE: Run script related class attributes are only used by the standalone engine
+    SUBMIT_FILENAME: ClassVar[str] = field(default="run_script.sh", repr=False)
+    STDOUTERR_FILENAME: ClassVar[str] = field(default="run_script.%j.o", repr=False)
+    CLEAN_UP_BEFORE_SUBMIT: ClassVar[bool] = field(default=True, repr=False)  # Clean up directory when submitting
     RUN_ROOT: ClassVar[Literal["run"]] = "run"
 
     config_rootdir: Path
