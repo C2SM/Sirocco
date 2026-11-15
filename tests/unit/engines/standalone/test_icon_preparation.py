@@ -4,7 +4,9 @@ The `icon-standalone` case covers ICON ports of every kind: available and genera
 inputs, link only inputs, squashed images, restarts, output streams and finish status.
 For each ICON task, the trace records the resolved output paths, the run script and the
 run directory (symlinks with their targets, directories, content of generated files).
-Files copied unchanged from the ICON runtime directory are only listed.
+Files copied unchanged from the ICON runtime directory are only listed. For namelists,
+only the entries Sirocco changed with respect to the source namelists of the config are
+recorded (config overrides, port paths, I/O processes, dates).
 
 On mismatch, the new trace is written next to the reference with a `.new.txt` suffix.
 Run pytest with `--reserialize` to regenerate the reference after an intended change.
@@ -16,6 +18,7 @@ import os
 import shutil
 from typing import TYPE_CHECKING
 
+import f90nml
 import pytest
 
 from sirocco.core.tasks.icon_task import IconTask
@@ -24,6 +27,7 @@ from sirocco.engines.standalone import StandaloneEngine, handlers
 
 if TYPE_CHECKING:
     from pathlib import Path
+    from typing import Any
 
 CASE = "icon-standalone"
 
@@ -38,7 +42,33 @@ def prepare(engine: StandaloneEngine, task: IconTask) -> Path:
     return run_dir
 
 
-def trace_run_dir(run_dir: Path, runtime_files: set[str]) -> list[str]:
+def namelist_entries(path: Path) -> dict[str, Any]:
+    """Namelist entries keyed by `group.key`, or `group[i].key` for repeated groups"""
+    entries: dict[str, Any] = {}
+    for group, content in f90nml.read(path).items():
+        blocks = list(enumerate(content, start=1)) if isinstance(content, list) else [(None, content)]
+        for index, block in blocks:
+            name = group if index is None else f"{group}[{index}]"
+            entries.update({f"{name}.{key}": value for key, value in block.items()})
+    return entries
+
+
+def namelist_changes(source: Path, prepared: Path) -> list[str]:
+    before, after = namelist_entries(source), namelist_entries(prepared)
+    changes: list[str] = []
+    for key in sorted(before.keys() | after.keys()):
+        if key not in after:
+            changes.append(f"{key}: removed")
+        elif key not in before:
+            changes.append(f"{key}: {after[key]!r}")
+        elif before[key] != after[key]:
+            changes.append(f"{key}: {before[key]!r} -> {after[key]!r}")
+    return changes
+
+
+def trace_run_dir(run_dir: Path, runtime_files: set[str], namelist_sources: dict[str, Path] | None = None) -> list[str]:
+    """Trace of the run directory, namelists being reduced to their changes if their sources are given"""
+    namelist_sources = namelist_sources or {}
     lines: list[str] = []
     for path in sorted(run_dir.rglob("*")):
         rel = path.relative_to(run_dir)
@@ -48,6 +78,10 @@ def trace_run_dir(run_dir: Path, runtime_files: set[str]) -> list[str]:
             lines.append(f"{rel}/")
         elif str(rel) in runtime_files:
             lines.append(f"{rel} (runtime file)")
+        elif (source := namelist_sources.get(str(rel))) is not None:
+            lines.append(f"--- {rel} (changes to the source namelist)")
+            lines.extend(namelist_changes(source, path))
+            lines.append("---")
         else:
             lines.append(f"--- {rel}\n{path.read_text().rstrip()}\n---")
     return lines
@@ -73,7 +107,8 @@ def test_icon_preparation(engine, tmp_path, test_rootdir, pytestconfig):
         trace.append("--- resolved outputs")
         trace.extend(f"{data.label}: {engine.path_resolver.path(data)}" for data in task.output_data_nodes())
         trace.append("--- run directory")
-        trace.extend(trace_run_dir(run_dir, runtime_files))
+        namelist_sources = {namelist.name: namelist.path for namelist in task.namelists}
+        trace.extend(trace_run_dir(run_dir, runtime_files, namelist_sources))
         trace.append("")
     text = "\n".join(trace).replace(str(tmp_path), "<ROOTDIR>").replace(str(test_rootdir), "<TESTS_ROOTDIR>")
 
