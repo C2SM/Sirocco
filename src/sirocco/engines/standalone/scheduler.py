@@ -12,6 +12,7 @@ import subprocess
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Literal, assert_never
 
 from sirocco.core.graph_items import Task, TaskStatus
@@ -20,7 +21,8 @@ from sirocco.engines.standalone import handlers
 LOGGER = logging.getLogger(__name__)
 UENV_MACHINES: list[str] = ["santis"]
 
-DependencyType = Literal["ALL_COMPLETED", "ANY", "NONE"]
+type STDOUTERR_MODE_T = Literal["overwrite", "append"]
+type DEPENDENCY_TYPE_T = Literal["ALL_COMPLETED", "ANY", "NONE"]
 
 
 class SchedulerCommandError(RuntimeError): ...
@@ -42,8 +44,8 @@ class Scheduler(ABC):
         task: Task,
         parent_ids: list[str],
         env: dict[str, str],
-        output_mode: Literal["overwrite", "append"] = "overwrite",
-        dependency_type: DependencyType = "ALL_COMPLETED",
+        stdouterr_mode: STDOUTERR_MODE_T = "overwrite",
+        dependency_type: DEPENDENCY_TYPE_T = "ALL_COMPLETED",
     ) -> str:
         """Submit a task from environment ``env`` and return its job id"""
 
@@ -54,13 +56,22 @@ class Scheduler(ABC):
         task.run_dir.mkdir(parents=True, exist_ok=True)
         handlers.prepare_for_submission(task)
 
-        # Build runscript
-        # ===============
+        # Generate runscript
+        # ==================
+        self.generate_run_script(task=task, stdouterr_mode=stdouterr_mode)
+
+        # Submit runscript
+        # ================
+        return self.submit_to_scheduler(task, parent_ids=parent_ids, env=env, dependency_type=dependency_type)
+
+    def generate_run_script(
+        self, task: Task, stdouterr_mode: STDOUTERR_MODE_T, script_path: Path | None = None
+    ) -> None:
         # Shebang
         script_lines: list[str] = ["#!/bin/bash -l", ""]
 
         # Scheduler header
-        script_lines.extend(self.header_lines(task, output_mode=output_mode))
+        script_lines.extend(self.header_lines(task, stdouterr_mode=stdouterr_mode))
 
         # Some MPI environment variables for potential usage by the user provided script
         script_lines.append("")
@@ -82,18 +93,17 @@ class Scheduler(ABC):
         script_lines.append("")
         script_lines.extend(handlers.runscript_lines(task))
 
-        # Submit runscript
-        # ================
-        submit_file = task.run_dir / task.SUBMIT_FILENAME
-        submit_file.write_text("\n".join(script_lines))
-        submit_file.chmod(0o755)
-        return self.submit_to_scheduler(task, parent_ids=parent_ids, env=env, dependency_type=dependency_type)
+        # Write to runscript file
+        if script_path is None:
+            script_path = task.run_dir / task.SUBMIT_FILENAME
+        script_path.write_text("\n".join(script_lines))
+        script_path.chmod(0o755)
 
     @abstractmethod
     def header_lines(
         self,
         task: Task,
-        output_mode: Literal["overwrite", "append"] = "overwrite",
+        stdouterr_mode: STDOUTERR_MODE_T = "overwrite",
     ) -> list[str]:
         pass
 
@@ -103,7 +113,7 @@ class Scheduler(ABC):
         task: Task,
         parent_ids: list[str],
         env: dict[str, str],
-        dependency_type: DependencyType = "ALL_COMPLETED",
+        dependency_type: DEPENDENCY_TYPE_T = "ALL_COMPLETED",
     ) -> str:
         pass
 
@@ -136,7 +146,7 @@ class Slurm(Scheduler):
     def header_lines(
         self,
         task: Task,
-        output_mode: Literal["overwrite", "append"] = "overwrite",
+        stdouterr_mode: STDOUTERR_MODE_T = "overwrite",
     ) -> list[str]:
         header: list[str] = [
             f"#SBATCH --output={task.STDOUTERR_FILENAME}",
@@ -162,7 +172,7 @@ class Slurm(Scheduler):
                 header.append(f"#SBATCH --uenv={uenv}")
             if view := task.view:
                 header.append(f"#SBATCH --view={view}")
-        if output_mode == "append":
+        if stdouterr_mode == "append":
             header.append("#SBATCH --open-mode=append")
         return header
 
@@ -171,7 +181,7 @@ class Slurm(Scheduler):
         task: Task,
         parent_ids: list[str],
         env: dict[str, str],
-        dependency_type: DependencyType = "ALL_COMPLETED",
+        dependency_type: DEPENDENCY_TYPE_T = "ALL_COMPLETED",
     ) -> str:
         submit_cmd: list[str] = ["sbatch", "--parsable"]
         if parent_ids:
