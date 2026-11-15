@@ -213,4 +213,6 @@ exclude = ["tests/cases/**", "tests/integration/engines/**", "tests/unit/engines
 [tool.ty.rules]
 # Aligns with mypy's disable_error_code = ["import-untyped"] globally
 import-not-found = "ignore"
+# `ty: ignore` and `type: ignore` comments (the latter are meant for mypy)
 unused-ignore-comment = "ignore"
+unused-type-ignore-comment = "ignore"
