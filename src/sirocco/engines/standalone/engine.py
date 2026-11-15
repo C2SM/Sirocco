@@ -31,7 +31,7 @@ from termcolor import colored
 
 from sirocco.core.graph_items import TaskStatus
 from sirocco.core.workflow import Workflow
-from sirocco.engines.standalone.scheduler import DependencyType, Scheduler
+from sirocco.engines.standalone.scheduler import DEPENDENCY_TYPE_T, STDOUTERR_MODE_T, Scheduler
 from sirocco.engines.standalone.state import NO_ID, StateTable
 from sirocco.engines.standalone.tasks.sirocco_task import SiroccoContinueTask
 from sirocco.parsing.cycling import OneOffPoint
@@ -162,15 +162,15 @@ class StandaloneEngine:
     def submit(
         self,
         task: Task,
-        output_mode: Literal["overwrite", "append"] = "overwrite",
-        dependency_type: DependencyType = "ALL_COMPLETED",
+        stdouterr_mode: STDOUTERR_MODE_T = "overwrite",
+        dependency_type: DEPENDENCY_TYPE_T = "ALL_COMPLETED",
     ) -> None:
         parent_ids = [self.jobid(parent) for parent in task.parents if self.rank(parent) >= 0]
         self.state[task].jobid = self.scheduler.submit(
             task,
             parent_ids=parent_ids,
             env=self.base_env,
-            output_mode=output_mode,
+            stdouterr_mode=stdouterr_mode,
             dependency_type=dependency_type,
         )
 
@@ -443,7 +443,7 @@ class StandaloneEngine:
             self.state[self.sirocco_continue_task].jobid = NO_ID
         elif self.front[0]:
             self.sirocco_continue_task.parents = self.front[0]
-            self.submit(self.sirocco_continue_task, output_mode="append", dependency_type="ANY")
+            self.submit(self.sirocco_continue_task, stdouterr_mode="append", dependency_type="ANY")
             self.status = WorkflowStatus.CONTINUE
         else:
             self.state[self.sirocco_continue_task].jobid = NO_ID
