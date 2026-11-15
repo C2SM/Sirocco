@@ -5,17 +5,23 @@ engine for parents, task to cancel or query and returns the new job id for
 submitted tasks. Only the engine reads and writes the state table.
 """
 
+from __future__ import annotations
+
 import logging
 import shutil
 import subprocess
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from pathlib import Path
-from typing import ClassVar, Literal, Self, assert_never
+from typing import TYPE_CHECKING, ClassVar, Literal, Self, assert_never
 
-from sirocco.core.graph_items import Task
 from sirocco.engines.standalone import handlers
 from sirocco.engines.standalone.state import TaskStatus
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from sirocco.core.graph_items import Task
+    from sirocco.engines.standalone.path_resolver import PathResolver
 
 LOGGER = logging.getLogger(__name__)
 UENV_MACHINES: list[str] = ["santis"]
@@ -42,6 +48,7 @@ class Scheduler(ABC):
     def submit(
         self,
         task: Task,
+        path_resolver: PathResolver,
         parent_ids: list[str],
         env: dict[str, str],
         stdouterr_mode: STDOUTERR_MODE_T = "overwrite",
@@ -49,23 +56,26 @@ class Scheduler(ABC):
     ) -> str:
         """Submit a task from environment `env` and return its job id"""
 
-        # Prepare for submission ( create rundir, wipe rundir, link/copy necessary files/dirs, ...)
+        # Prepare for submission (create or wipe the run directory, link/copy necessary files/dirs, ...)
         # ======================
+        run_dir = path_resolver.run_dir(task)
         if handlers.submission_settings(task).clean_up_run_dir:
-            shutil.rmtree(task.run_dir, ignore_errors=True)
-        task.run_dir.mkdir(parents=True, exist_ok=True)
-        handlers.prepare_for_submission(task)
+            shutil.rmtree(run_dir, ignore_errors=True)
+        run_dir.mkdir(parents=True, exist_ok=True)
+        handlers.prepare_for_submission(task, path_resolver)
 
         # Generate runscript
         # ==================
-        self.generate_run_script(task=task, stdouterr_mode=stdouterr_mode)
+        self.generate_run_script(task=task, path_resolver=path_resolver, stdouterr_mode=stdouterr_mode)
 
         # Submit runscript
         # ================
-        return self.submit_to_scheduler(task, parent_ids=parent_ids, env=env, dependency_type=dependency_type)
+        return self.submit_to_scheduler(
+            task, run_dir=run_dir, parent_ids=parent_ids, env=env, dependency_type=dependency_type
+        )
 
     def generate_run_script(
-        self, task: Task, stdouterr_mode: STDOUTERR_MODE_T, script_path: Path | None = None
+        self, task: Task, path_resolver: PathResolver, stdouterr_mode: STDOUTERR_MODE_T, script_path: Path | None = None
     ) -> None:
         # Shebang
         script_lines: list[str] = ["#!/bin/bash -l", ""]
@@ -87,15 +97,15 @@ class Scheduler(ABC):
         script_lines.extend(handlers.sirocco_environment_lines(task))
 
         # Linked input
-        script_lines.extend(handlers.link_lines(task))
+        script_lines.extend(handlers.link_lines(task, path_resolver))
 
         # Task runscript "content"
         script_lines.append("")
-        script_lines.extend(handlers.runscript_lines(task))
+        script_lines.extend(handlers.runscript_lines(task, path_resolver))
 
         # Write to runscript file
         if script_path is None:
-            script_path = task.run_dir / handlers.submission_settings(task).submit_filename
+            script_path = path_resolver.run_dir(task) / handlers.submission_settings(task).submit_filename
         script_path.write_text("\n".join(script_lines))
         script_path.chmod(0o755)
 
@@ -111,6 +121,7 @@ class Scheduler(ABC):
     def submit_to_scheduler(
         self,
         task: Task,
+        run_dir: Path,
         parent_ids: list[str],
         env: dict[str, str],
         dependency_type: DEPENDENCY_TYPE_T = "ALL_COMPLETED",
@@ -175,6 +186,7 @@ class Slurm(Scheduler):
     def submit_to_scheduler(
         self,
         task: Task,
+        run_dir: Path,
         parent_ids: list[str],
         env: dict[str, str],
         dependency_type: DEPENDENCY_TYPE_T = "ALL_COMPLETED",
@@ -195,7 +207,7 @@ class Slurm(Scheduler):
         if not env:
             msg = f"{task.label}: submission environment is empty"
             raise ValueError(msg)
-        result = self.run_command(submit_cmd, cwd=task.run_dir, env=env)
+        result = self.run_command(submit_cmd, cwd=run_dir, env=env)
         return result.stdout.strip()
 
     def cancel(self, task: Task, jobid: str):

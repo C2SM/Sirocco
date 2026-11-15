@@ -65,6 +65,7 @@ class FakeScheduler(Scheduler):
     def submit_to_scheduler(
         self,
         task: Task,
+        run_dir: Path,
         parent_ids: list[str],
         env: dict[str, str],  # noqa: ARG002
         dependency_type: DEPENDENCY_TYPE_T = "ALL_COMPLETED",
@@ -73,7 +74,7 @@ class FakeScheduler(Scheduler):
         self.cluster.next_jobid += 1
         self.cluster.status[jobid] = TaskStatus.WAITING
         self.cluster.record(f"submit {task.label} ({jobid}) after {parent_ids} [{dependency_type}]")
-        script = (task.run_dir / handlers.submission_settings(task).submit_filename).read_text()
+        script = (run_dir / handlers.submission_settings(task).submit_filename).read_text()
         if self.cluster.scripts.get(task.label) != script:
             self.cluster.scripts[task.label] = script
             self.cluster.record(f"--- run script {task.label}\n{script}\n---")

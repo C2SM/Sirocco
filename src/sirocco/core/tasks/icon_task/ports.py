@@ -1,10 +1,18 @@
-from collections.abc import Callable
+from __future__ import annotations
+
 from dataclasses import dataclass
 from pathlib import Path
-from typing import ClassVar, Self
+from typing import TYPE_CHECKING, ClassVar, Self
 
 from sirocco.core.graph_items import GeneratedData
 from sirocco.core.tasks.icon_task.models import IconModel, ModelType
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    # NOTE: Applying port handlers to a run directory is specific to the standalone engine.
+    #       This part moves to the standalone engine in a second stage.
+    from sirocco.engines.standalone.path_resolver import PathResolver
 
 
 @dataclass(kw_only=True)
@@ -15,7 +23,7 @@ class PortHandler:
     section: str | None = None
     parameter: str | None = None
     target_link_name: str | None = None
-    custom_callable: Callable[[str, IconModel], None] | None = None
+    custom_callable: Callable[[str, IconModel, Path, PathResolver], None] | None = None
 
     def __post_init__(self) -> None:
         if self.port_name in self.registered_handlers:
@@ -23,12 +31,12 @@ class PortHandler:
             raise ValueError(msg)
         PortHandler.registered_handlers[self.port_name] = self
 
-    def __call__(self, model: IconModel) -> None:
+    def __call__(self, model: IconModel, run_dir: Path, path_resolver: PathResolver) -> None:
         if model.model_type not in self.valid_model_types:
             msg = f"port {self.port_name} not valid for model {model.name} of type {model.model_type}"
             raise ValueError(msg)
         if self.custom_callable:
-            self.custom_callable(self.port_name, model)
+            self.custom_callable(self.port_name, model, run_dir, path_resolver)
         else:
             if len(model.inputs[self.port_name]) != 1:
                 msg = f"port {self.port_name} accepts one and only one data object"
@@ -37,28 +45,28 @@ class PortHandler:
             # Adapt namelist and link
             if self.section is not None and self.parameter is not None:
                 if isinstance(data, GeneratedData):
-                    target_link_name = self.target_link_name if self.target_link_name else data.resolved_path.name
+                    target_link_name = self.target_link_name if self.target_link_name else path_resolver.path(data).name
                     if self.section not in model.namelist:
                         model.namelist[self.section] = {}
                     model.namelist[self.section][self.parameter] = f"./{target_link_name}"
                     # NOTE: the piece of data could be linked by different ports, hence the check.
-                    if not (origin := model.task_run_dir / target_link_name).is_symlink():
-                        origin.symlink_to(data.resolved_path)
+                    if not (origin := run_dir / target_link_name).is_symlink():
+                        origin.symlink_to(path_resolver.path(data))
                 else:
-                    model.namelist[self.section][self.parameter] = str(data.resolved_path)
+                    model.namelist[self.section][self.parameter] = str(path_resolver.path(data))
             # Only link
             elif self.target_link_name is not None:
-                (model.task_run_dir / self.target_link_name).symlink_to(data.resolved_path)
+                (run_dir / self.target_link_name).symlink_to(path_resolver.path(data))
             else:
                 msg = "wrong combination of section, parameter and target_link_name"
                 raise ValueError(msg)
 
     @classmethod
-    def handle(cls: type[Self], port_name: str, model: IconModel) -> None:
+    def handle(cls: type[Self], port_name: str, model: IconModel, run_dir: Path, path_resolver: PathResolver) -> None:
         if port_name not in cls.registered_handlers:
             msg = f"IconTask {model.task_label}, model {model.name}: unsopported input port {port_name}"
             raise KeyError(msg)
-        cls.registered_handlers[port_name](model)
+        cls.registered_handlers[port_name](model, run_dir, path_resolver)
 
 
 # TODO: Check port names with regards to:
@@ -255,7 +263,7 @@ ocean_inistate = PortHandler(
 )
 
 
-def restart_in_handler_callable(port_name: str, model: IconModel) -> None:
+def restart_in_handler_callable(port_name: str, model: IconModel, run_dir: Path, path_resolver: PathResolver) -> None:
     if (restart_write_mode := model.namelist["io_nml"].get("restart_write_mode")) != "joint procs multifile":
         msg = f"Only supported restart_write_mode is 'joint procs multifile', got {restart_write_mode}"
         raise ValueError(msg)
@@ -265,7 +273,7 @@ def restart_in_handler_callable(port_name: str, model: IconModel) -> None:
     if len(data_list) > 1:
         msg = f"port '{port_name}' only accepts a single data object"
         raise ValueError(msg)
-    (model.task_run_dir / f"multifile_restart_{model.name}.mfr").symlink_to(data_list[0].resolved_path)
+    (run_dir / f"multifile_restart_{model.name}.mfr").symlink_to(path_resolver.path(data_list[0]))
 
 
 restart_in_handler = PortHandler(
@@ -275,7 +283,7 @@ restart_in_handler = PortHandler(
 )
 
 
-def restart_out_handler_callable(port_name: str, model: IconModel) -> None:
+def restart_out_handler_callable(port_name: str, model: IconModel, run_dir: Path, path_resolver: PathResolver) -> None:
     if (restart_write_mode := model.namelist["io_nml"].get("restart_write_mode")) != "joint procs multifile":
         msg = f"Only supported restart_write_mode is 'joint procs multifile', got {restart_write_mode}"
         raise ValueError(msg)
@@ -285,7 +293,7 @@ def restart_out_handler_callable(port_name: str, model: IconModel) -> None:
     if len(data_list) > 1:
         msg = f"port '{port_name}' only accepts a single data object"
         raise ValueError(msg)
-    data_list[0].resolved_path = model.task_run_dir / f"multifile_restart_{model.name}.mfr"
+    path_resolver.set_path(data_list[0], run_dir / f"multifile_restart_{model.name}.mfr")
 
 
 restart_out_handler = PortHandler(
@@ -295,7 +303,9 @@ restart_out_handler = PortHandler(
 )
 
 
-def output_streams_handler_callable(port_name: str, model: IconModel) -> None:
+def output_streams_handler_callable(
+    port_name: str, model: IconModel, run_dir: Path, path_resolver: PathResolver
+) -> None:
     nml_streams = [*model.namelist.iter_nml("output_nml")]
     if (n_nml := len(nml_streams)) != (n_yaml := len(model.outputs[port_name])):
         msg = f"task {model.task_label}, model {model.name}: number of output streams speficied in namelist ({n_nml}) differs from number of streams specified in the workflow config ({n_yaml})"
@@ -311,8 +321,8 @@ def output_streams_handler_callable(port_name: str, model: IconModel) -> None:
         if stream_dir == Path("."):
             msg = f"task {model.task_label}, model {model.name}: output stream number {k} specifies an output stream directly in the run directory. Please specify a subdirectory using the 'filename_format' and 'output_filename' parameters (see ICON documentation)"
             raise ValueError(msg)
-        output_data.resolved_path = stream_dir if stream_dir.is_absolute() else model.task_run_dir / stream_dir
-        output_data.resolved_path.mkdir(parents=True, exist_ok=True)
+        path_resolver.set_path(output_data, stream_dir if stream_dir.is_absolute() else run_dir / stream_dir)
+        path_resolver.path(output_data).mkdir(parents=True, exist_ok=True)
 
 
 output_streams_handler = PortHandler(
@@ -322,11 +332,16 @@ output_streams_handler = PortHandler(
 )
 
 
-def finish_status_handler_callable(port_name: str, model: IconModel) -> None:  # noqa: ARG001
+def finish_status_handler_callable(
+    port_name: str,  # noqa: ARG001
+    model: IconModel,
+    run_dir: Path,
+    path_resolver: PathResolver,
+) -> None:
     if len(model.outputs["finish_status"]) != 1:
         msg = "port finish_status accepts one and only one data object"
         raise ValueError(msg)
-    model.outputs["finish_status"][0].resolved_path = model.task_run_dir / f"finish_{model.name}.status"
+    path_resolver.set_path(model.outputs["finish_status"][0], run_dir / f"finish_{model.name}.status")
 
 
 finish_status_handler = PortHandler(

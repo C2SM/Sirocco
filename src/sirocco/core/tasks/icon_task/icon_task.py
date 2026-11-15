@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 from sirocco.core.graph_items import Task
 from sirocco.core.namelistfile import NamelistFile
 from sirocco.core.tasks.icon_task.models import IconModel, ModelType
-from sirocco.core.tasks.icon_task.ports import PortHandler, restart_in_handler
+from sirocco.core.tasks.icon_task.ports import restart_in_handler
 from sirocco.core.tasks.icon_task.task_distribution import (
     RankInfo,
     allocate_tasks_from_weights,
@@ -27,6 +27,7 @@ if TYPE_CHECKING:
 
     import f90nml
 
+    from sirocco.core.graph_items import Data
     from sirocco.parsing.cycling import CyclePoint
 
 LOGGER = logging.getLogger(__name__)
@@ -142,7 +143,6 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                     is_master_model=is_master[comp_name],
                     core_component=component,
                     task_label=self.label,
-                    task_run_dir=self.run_dir,
                     master_namelist_block=master_namelist_model_nml_blocks[comp_name],
                     namelist=model_namelists[comp_name],
                     model_type=ModelType(model_types[comp_name]),
@@ -313,7 +313,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
             f"{self.master_models[name].min_rank}-{self.master_models[name].max_rank}" for name in exe.model_names()
         )
 
-    def generate_multi_prog_config(self) -> None:
+    def generate_multi_prog_config(self, directory: Path) -> None:
         match self.computer:
             case "santis":
                 multi_prog_lines: list[str] = []
@@ -329,7 +329,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                     multi_prog_lines.append(
                         f"{self.exe.hiopy.min_rank}-{self.exe.hiopy.max_rank} ./santis_hiopy_wrapper.sh"
                     )
-                (self.run_dir / "multi-prog.conf").write_text("\n".join(multi_prog_lines))
+                (directory / "multi-prog.conf").write_text("\n".join(multi_prog_lines))
             case _:
                 msg = f"{self.label}: generate_multi_prog_config not implemented for machine {self.computer}"
                 raise NotImplementedError(msg)
@@ -346,8 +346,8 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
             for name in exe.model_names()
         )
 
-    def distribute_ranks(self) -> None:
-        """Compute task distribution and dump to template file with placeholder node names"""
+    def distribute_ranks(self, directory: Path) -> None:
+        """Compute task distribution and dump to template file with placeholder node names in `directory`"""
 
         match self.computer:
             case "santis":
@@ -399,7 +399,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
 
                 # Write annotated hostfile
                 nid_length = len(str(self.nodes - 1))
-                (self.run_dir / "hostfile-sirocco").write_text(
+                (directory / "hostfile-sirocco").write_text(
                     "\n".join(
                         "sirocco_nid{node_id:0{nid_length}} {numa_node} {pe_type} {target} {model}".format(
                             **self.ranks_info[k], nid_length=nid_length
@@ -439,10 +439,10 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                 filename += "_" + suffix
             namelist.dump(directory / filename)
 
-    def get_squash_paths(self) -> list[tuple[Path, Path]]:
-        """Get squashed images paths and mount points"""
+    def get_squash_mounts(self, directory: Path) -> list[tuple[Data, Path]]:
+        """Get squashed images and their mount points, relative ones being taken from `directory`"""
 
-        squash_paths: list[tuple[Path, Path]] = []
+        squash_mounts: list[tuple[Data, Path]] = []
         if (master_comp := self.components.get("master")) is not None and (
             squash_data := master_comp.inputs.get("squash")
         ) is not None:
@@ -453,15 +453,10 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                 msg = f"{self.label}: number of squashed images ({n}) differs from the number of mount points ({m})"
                 raise ValueError(msg)
             for image, mount in zip(squash_data, self.squash_mount, strict=False):
-                mount_point = mount if mount.is_absolute() else self.run_dir / mount
+                mount_point = mount if mount.is_absolute() else directory / mount
                 mount_point.mkdir(parents=True, exist_ok=True)
-                squash_paths.append((image.resolved_path, mount_point))
-        return squash_paths
-
-    def resolve_output_data_paths(self) -> None:
-        for model in self.models.values():
-            for port in model.outputs:
-                PortHandler.handle(port, model)
+                squash_mounts.append((image, mount_point))
+        return squash_mounts
 
     @classmethod
     def build_from_config(

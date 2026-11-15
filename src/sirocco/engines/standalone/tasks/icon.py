@@ -6,19 +6,33 @@ import shlex
 import shutil
 from itertools import chain
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from sirocco.core.tasks.icon_task import IconTask
 from sirocco.core.tasks.icon_task.ports import PortHandler
-from sirocco.engines.standalone.handlers import prepare_for_submission, runscript_lines
+from sirocco.engines.standalone.handlers import prepare_for_submission, resolve_output_paths, runscript_lines
 from sirocco.engines.standalone.scheduler import UENV_MACHINES
+
+if TYPE_CHECKING:
+    from sirocco.engines.standalone.path_resolver import PathResolver
 
 RUNTIME_ROOT = Path(__file__).parents[3] / "core" / "tasks" / "icon_task" / "runtime"
 # Entry point of the runtime scripts, sourced by the run script
 RUNTIME_MAIN = "main.sh"
 
 
+@resolve_output_paths.register(IconTask)
+def resolve_output_paths_icon(task: IconTask, path_resolver: PathResolver) -> None:
+    run_dir = path_resolver.run_dir(task)
+    for model in task.models.values():
+        for port in model.outputs:
+            PortHandler.handle(port, model, run_dir, path_resolver)
+
+
 @prepare_for_submission.register(IconTask)
-def prepare_for_submission_icon(task: IconTask) -> None:
+def prepare_for_submission_icon(task: IconTask, path_resolver: PathResolver) -> None:
+    run_dir = path_resolver.run_dir(task)
+
     # Check supported machine
     if task.computer not in task.SUPPORTED_MACHINES:
         msg = f"{task.label}: machine {task.computer} not suportted for icon task. Supported machines are {task.SUPPORTED_MACHINES}"
@@ -33,7 +47,7 @@ def prepare_for_submission_icon(task: IconTask) -> None:
             msg = f"{task.label}: uenv is required for ICON tasks on {task.computer}"
             raise ValueError(msg)
         uenv_list = [task.uenv]
-        uenv_list.extend((f"{squash}:{mount}" for squash, mount in task.get_squash_paths()))
+        uenv_list.extend((f"{path_resolver.path(image)}:{mount}" for image, mount in task.get_squash_mounts(run_dir)))
         task.icon_uenv = ",".join(uenv_list)
         task.icon_view = task.view
     task.uenv = None
@@ -41,9 +55,9 @@ def prepare_for_submission_icon(task: IconTask) -> None:
 
     # Link ICON binaries
     if task.exe.cpu is not None:
-        (task.run_dir / "icon_cpu").symlink_to(task.exe.cpu.path)
+        (run_dir / "icon_cpu").symlink_to(task.exe.cpu.path)
     if task.exe.gpu is not None:
-        (task.run_dir / "icon_gpu").symlink_to(task.exe.gpu.path)
+        (run_dir / "icon_gpu").symlink_to(task.exe.gpu.path)
 
     # Take input/output ports specifications into account:
     # - adapt namelist parameters
@@ -51,14 +65,14 @@ def prepare_for_submission_icon(task: IconTask) -> None:
     # - link data
     for model in task.models.values():
         for port in chain(model.inputs, model.outputs):
-            PortHandler.handle(port, model)
+            PortHandler.handle(port, model, run_dir, path_resolver)
 
     # Dump ICON config files
-    task.dump_namelists(directory=task.run_dir, filename_mode="raw")
+    task.dump_namelists(directory=run_dir, filename_mode="raw")
     if task.is_coupled() and task.yac_coupling is not None:
         shutil.copy(
             task.config_rootdir / task.yac_coupling,
-            task.run_dir / task.yac_coupling.name,
+            run_dir / task.yac_coupling.name,
         )
 
     # Copy required runtime files
@@ -75,16 +89,16 @@ def prepare_for_submission_icon(task: IconTask) -> None:
         if not (runtime_dir / RUNTIME_MAIN).is_file():
             msg = f"{task.label}: {RUNTIME_MAIN} not found in runtime at {runtime_dir}"
             raise ValueError(msg)
-    shutil.copytree(runtime_dir, task.run_dir, dirs_exist_ok=True)
+    shutil.copytree(runtime_dir, run_dir, dirs_exist_ok=True)
 
     # Hostfile and multi-prog config file
-    task.distribute_ranks()
+    task.distribute_ranks(directory=run_dir)
     if task.target == "hybrid":
-        task.generate_multi_prog_config()
+        task.generate_multi_prog_config(directory=run_dir)
 
 
 @runscript_lines.register(IconTask)
-def runscript_lines_icon(task: IconTask) -> list[str]:
+def runscript_lines_icon(task: IconTask, path_resolver: PathResolver) -> list[str]:  # noqa: ARG001
     lines: list[str] = []
     if task.icon_uenv is not None:
         lines.append(f"export ICON_UENV={shlex.quote(task.icon_uenv)}")

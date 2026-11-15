@@ -27,8 +27,6 @@ if TYPE_CHECKING:
 class Workflow:
     """Internal representation of a workflow"""
 
-    RUN_ROOT: str = Task.RUN_ROOT
-
     def __init__(
         self,
         name: str,
@@ -115,10 +113,6 @@ class Workflow:
         # 5 - Link parent and children tasks
         for task in self.tasks:
             task.link_parents_children()
-
-    @property
-    def rundir(self) -> Path:
-        return self.config_rootdir / self.RUN_ROOT
 
     @classmethod
     def from_config_path(

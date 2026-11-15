@@ -5,6 +5,7 @@ the graph, built once per sirocco command from the config. The engine adds
 what only the standalone orchestration needs:
 
 - the state table (job id and front rank per task, see `state.py`),
+- the run directories and data paths (see `path_resolver.py`),
 - the propagating front and the completed / cool-down task lists,
 - the scheduler, the lock and the state file,
 - the special `SiroccoContinueTask`.
@@ -30,6 +31,7 @@ from ruamel.yaml import YAML
 from termcolor import colored
 
 from sirocco.core.workflow import Workflow
+from sirocco.engines.standalone.path_resolver import PathResolver
 from sirocco.engines.standalone.scheduler import DEPENDENCY_TYPE_T, STDOUTERR_MODE_T, Scheduler
 from sirocco.engines.standalone.state import NO_ID, StateTable, TaskStatus
 from sirocco.engines.standalone.tasks.sirocco_task import SiroccoContinueTask
@@ -93,6 +95,7 @@ class StandaloneEngine:
         self.scheduler = scheduler
         self.front_depth: int = workflow.front_depth
         self.state = StateTable(default_rank=self.front_depth)
+        self.path_resolver = PathResolver(workflow.config_rootdir)
         self.front: list[list[Task]] = [[] for _ in range(self.front_depth)]
         self.completed_tasks: list[Task] = []
         self.cool_down_tasks: list[Task] = []
@@ -176,6 +179,7 @@ class StandaloneEngine:
         parent_ids = [self.jobid(parent) for parent in task.parents if self.rank(parent) >= 0]
         self.state[task].jobid = self.scheduler.submit(
             task,
+            path_resolver=self.path_resolver,
             parent_ids=parent_ids,
             env=self.base_env,
             stdouterr_mode=stdouterr_mode,
@@ -195,16 +199,16 @@ class StandaloneEngine:
         return self.workflow.config_rootdir
 
     @property
-    def rundir(self) -> Path:
-        return self.workflow.rundir
+    def run_root(self) -> Path:
+        return self.path_resolver.run_root
 
     @property
     def state_file(self) -> Path:
-        return self.rundir / self.STATE_FILE_NAME
+        return self.run_root / self.STATE_FILE_NAME
 
     @property
     def lock_file(self) -> Path:
-        return self.rundir / SiroccoContinueTask.LOCK_FILE_NAME
+        return self.run_root / SiroccoContinueTask.LOCK_FILE_NAME
 
     @property
     def locked(self) -> bool:
@@ -242,7 +246,7 @@ class StandaloneEngine:
             logger.error(msg)
             self.status = WorkflowStatus.RESTART_FAILED
             return
-        if not self.rundir.exists():
+        if not self.run_root.exists():
             msg = "Workflow did not start, cannot restart"
             logger.error(msg)
             self.status = WorkflowStatus.RESTART_FAILED
@@ -258,7 +262,7 @@ class StandaloneEngine:
         log_type: Literal["std", "tee"] = "tee",
     ) -> None:
         self.load_state()
-        if not self.rundir.exists():
+        if not self.run_root.exists():
             msg = "Workflow did not start, cannot stop"
             raise ValueError(msg)
         logger = self.get_logger(log_type)
