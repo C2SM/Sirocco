@@ -29,7 +29,7 @@ If a task named `ROOT` is declared, its attributes are propagated as default for
 
 ## The special `SIROCCO` task
 
-When using the standalone engine, the task named `SIROCCO` hosts the specifications of the [Sirocco continuation task](../orchestration.md#standalone-engine), the job propagating the task front: it checks the current state of the workflow, submits new tasks as needed and dumps the new state to file. This task needs to find the `sirocco` executable in `PATH`, which can be achieved in different ways:
+When using the standalone engine, the task named `SIROCCO` hosts the specifications of the [Sirocco continuation task](../orchestration.md#standalone-engine), the job propagating the task front: it checks the current state of the workflow, submits new tasks as needed and dumps the new state to file. It is **required** by the standalone engine, which refuses to run a workflow without it. Like any other task, it inherits the specifications of the `ROOT` task, so `- SIROCCO:` alone is enough if `ROOT` already provides everything needed. This task needs to find the `sirocco` executable in `PATH`, which can be achieved in different ways:
 
 - through the virtual environment where it is installed via the [`venv`](#venv) specification (see below)
 - provided by a [`uenv`](#uenv) in a certain [`view`](#view)
