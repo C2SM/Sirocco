@@ -87,7 +87,7 @@ class StandaloneEngine:
         self,
         workflow: Workflow,
         scheduler: Scheduler,
-        config_sirocco_task: ConfigSiroccoTask | None = None,
+        config_sirocco_task: ConfigSiroccoTask,
     ) -> None:
         self.workflow = workflow
         self.scheduler = scheduler
@@ -98,7 +98,7 @@ class StandaloneEngine:
         self.cool_down_tasks: list[Task] = []
         self.status: WorkflowStatus = WorkflowStatus.INIT
 
-        config_kwargs = dict(config_sirocco_task) if config_sirocco_task else {}
+        config_kwargs = dict(config_sirocco_task)
         config_kwargs.pop("parameters", None)
         self.sirocco_continue_task = SiroccoContinueTask(
             coordinates={},
@@ -116,6 +116,12 @@ class StandaloneEngine:
             (task for task in config_workflow.tasks if isinstance(task, ConfigSiroccoTask)),
             None,
         )
+        if config_sirocco_task is None:
+            msg = (
+                "The standalone engine requires the special SIROCCO task to be defined in the tasks section of the"
+                " workflow config. It configures the job that resubmits sirocco (computer, account, walltime, venv, ...)."
+            )
+            raise ValueError(msg)
         if (scheduler_cls := Scheduler.scheduler_classes.get(config_workflow.scheduler)) is None:
             msg = f"Scheduler {config_workflow.scheduler!r} is not supported by the standalone engine."
             raise ValueError(msg)

@@ -1,0 +1,17 @@
+import pytest
+
+from sirocco.engines.standalone import StandaloneEngine
+from sirocco.parsing import yaml_data_models as models
+
+
+def test_sirocco_task_required(minimal_config):
+    with pytest.raises(ValueError, match="requires the special SIROCCO task"):
+        StandaloneEngine.from_config_workflow(minimal_config)
+
+
+def test_sirocco_task_used(minimal_config):
+    sirocco_task = models.ConfigSiroccoTask(name="SIROCCO", computer="localhost", walltime="00:05:00")
+    config = minimal_config.model_copy(update={"tasks": [*minimal_config.tasks, sirocco_task]})
+    engine = StandaloneEngine.from_config_workflow(config)
+    assert engine.sirocco_continue_task.computer == "localhost"
+    assert engine.sirocco_continue_task.walltime == "00:05:00"
