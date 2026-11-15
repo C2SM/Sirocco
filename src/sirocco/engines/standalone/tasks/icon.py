@@ -6,19 +6,16 @@ import shlex
 import shutil
 from itertools import chain
 from pathlib import Path
-from typing import TYPE_CHECKING
 
+from sirocco.core.tasks.icon_task import IconTask
 from sirocco.core.tasks.icon_task.ports import PortHandler
 from sirocco.engines.standalone.handlers import prepare_for_submission, runscript_lines
 from sirocco.engines.standalone.scheduler import UENV_MACHINES
 
-if TYPE_CHECKING:
-    from sirocco.core.tasks.icon_task import IconTask
-
 RUNTIME_ROOT = Path(__file__).parents[3] / "core" / "tasks" / "icon_task" / "runtime"
 
 
-@prepare_for_submission.register
+@prepare_for_submission.register(IconTask)
 def prepare_for_submission_icon(task: IconTask) -> None:
     # Check supported machine
     if task.computer not in task.SUPPORTED_MACHINES:
@@ -84,7 +81,7 @@ def prepare_for_submission_icon(task: IconTask) -> None:
         task.generate_multi_prog_config()
 
 
-@runscript_lines.register
+@runscript_lines.register(IconTask)
 def runscript_lines_icon(task: IconTask) -> list[str]:
     lines: list[str] = []
     if task.icon_uenv is not None:
