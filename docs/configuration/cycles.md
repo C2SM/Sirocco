@@ -194,7 +194,7 @@ In all generality, from a task perspective, linking a piece of data as an input 
 
     Just like tasks, these data names must be references to data declared in the [root level `data`](data.md) section, which can be confusing at first.
 
-There are two cases where the targeted data instance is unambiguous: if the data instance doesn't have any date or parameters (_e.g._ available data) or when the data was generated in the same cycle. This is for instance the case for the `bc` port of the `model` task. Even though the `boundary conditions` data is generated at each occurrence of the `bi-monthly` cycle by the `pre proc` task, the default instance taken into account is the one generated in the same cycle as the current one. The configuration then looks like
+There are two cases where the targeted data instance is unambiguous: if the data instance doesn't have any date or parameters (_e.g._ available data) or when the data instance has the same `date` as the current task. This is for instance the case for the `bc` port of the `model` task. Even though the `boundary conditions` data is generated at each occurrence of the `bi-monthly` cycle by the `pre proc` task, the default instance taken into account is the one with the same `date` as the current task, here the one generated in the same cycle occurrence. Note that this default only relies on the `date`, not on the cycle: it also applies to data generated in another cycle, as long as an instance with the same `date` exists. The configuration then looks like
 ```sirocco-yaml
 cycle name:
   [...]
@@ -269,7 +269,7 @@ cycle name:
 
 #### Targeting nodes
 
-When a task refers to another node of the graph, either a data instance in [`inputs`](#inputs) or a task instance in [`wait_on`](#wait_on), the following specifications select which instances of that **targeted node** are meant. They are all optional and expressed relative to the **current task**, _i.e._ the task instance being described, with its own `date` and parameter values. Without any of them, the targeted instance is the one belonging to the same cycle occurrence as the current task (and, for parameters, see the default [below](#parameters)).
+When a task refers to another node of the graph, either a data instance in [`inputs`](#inputs) or a task instance in [`wait_on`](#wait_on), the following specifications select which instances of that **targeted node** are meant. They are all optional and expressed relative to the **current task**, _i.e._ the task instance being described, with its own `date` and parameter values. Without any of them, the targeted instance is the one with the same `date` as the current task, whichever cycle it belongs to (and, for parameters, see the default [below](#parameters)).
 
 ##### `target_cycle`
 
