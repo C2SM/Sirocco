@@ -80,7 +80,7 @@ Stop the workflow, which means cancel all front tasks. Use `--cool-down` to let 
 
 !!! warning "Manual task cancellation"
 
-    Do not cancel tasks manually, this would break the workflow state.
+    Do not cancel tasks manually, especially the Sirocco continuation one, this would break the workflow state.
 
 #### `restart`
 
