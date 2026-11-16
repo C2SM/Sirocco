@@ -27,7 +27,7 @@ First release of Sirocco.
 
 - Checking commands: `verify`, `represent`, `visualize`, `stviz`.
 - Standalone controlling commands: `start`, `stop` (with cool-down mode), `restart`.
-- AiiDA commands: `run`, `submit`.
+- AiiDA commands: `run`, `submit`, `create-symlink-tree`.
 
 ### Requirements
 

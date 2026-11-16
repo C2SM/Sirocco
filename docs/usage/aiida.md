@@ -15,4 +15,6 @@ uv pip install "sirocco[aiida]"
 ```
 The workflow can then be either run in a blocking fashion with `sirocco run` or submitted to the AiiDA daemon with `sirocco submit`. Both take the [configuration directory](../glossary.md#configuration-directory) as positional argument, like the [standalone commands](standalone.md#cli).
 
+Since AiiDA runs each task in a directory with a non human readable name, `sirocco create-symlink-tree <PK>` creates, on the HPC system, a directory of symbolic links named after the tasks and pointing to their run directories, `<PK>` being the identifier of the submitted workflow. It can be run again as the workflow progresses to add the new tasks.
+
 Its interface and supported features may still change in upcoming versions.
