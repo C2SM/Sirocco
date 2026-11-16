@@ -100,6 +100,7 @@ class StandaloneEngine:
         self.completed_tasks: list[Task] = []
         self.cool_down_tasks: list[Task] = []
         self.status: WorkflowStatus = WorkflowStatus.INIT
+        self.logger: logging.Logger = logging.getLogger(__name__)  # set by each command
 
         config_kwargs = dict(config_sirocco_task)
         config_kwargs.pop("parameters", None)
@@ -220,42 +221,39 @@ class StandaloneEngine:
     # =========== Methods to control workflow ===========
 
     def start(self, log_type: Literal["std", "tee"] = "tee") -> None:
-        logger = self.get_logger(log_type)
-        self.init_front(logger=logger)
+        self.logger = self.get_logger(log_type)
+        self.init_front()
         self.auto_submit()
         self.dump_state()
 
     def continue_wf(self, log_type: Literal["std", "tee"] = "std") -> None:  # NOTE: cannot use "continue"
-        logger = self.get_logger(log_type)
+        self.logger = self.get_logger(log_type)
         if not self.locked:
             self.lock()
         else:
-            msg = "Workflow getting stopped, not continuing"
-            logger.info(msg)
+            self.logger.info("Workflow getting stopped, not continuing")
             self.status = WorkflowStatus.STOPPING
             return
 
         self.load_state()
-        self.propagate_front(logger=logger)
+        self.propagate_front()
         self.auto_submit()
         self.dump_state()
         self.unlock()
 
     def restart(self, log_type: Literal["std", "tee"] = "tee") -> None:
         self.load_state()
-        logger = self.get_logger(log_type)
+        self.logger = self.get_logger(log_type)
         if self.jobid(self.sirocco_continue_task) != NO_ID:
-            msg = "Workflow ongoing, cannot restart"
-            logger.error(msg)
+            self.logger.error("Workflow ongoing, cannot restart")
             self.status = WorkflowStatus.RESTART_FAILED
             return
         if not self.run_root.exists():
-            msg = "Workflow did not start, cannot restart"
-            logger.error(msg)
+            self.logger.error("Workflow did not start, cannot restart")
             self.status = WorkflowStatus.RESTART_FAILED
             return
-        self.restart_front(logger=logger)
-        self.propagate_front(logger=logger)
+        self.restart_front()
+        self.propagate_front()
         self.auto_submit()
         self.dump_state()
 
@@ -268,21 +266,19 @@ class StandaloneEngine:
         if not self.run_root.exists():
             msg = "Workflow did not start, cannot stop"
             raise ValueError(msg)
-        logger = self.get_logger(log_type)
+        self.logger = self.get_logger(log_type)
         if not self.locked:
             self.lock()
         else:
-            msg = "Workflow continuaiton ongoing, please retry"
-            logger.info(msg)
+            self.logger.info("Workflow continuaiton ongoing, please retry")
             self.status = WorkflowStatus.CONTINUE
             return
         if self.jobid(self.sirocco_continue_task) == NO_ID:
-            msg = "Workflow not running, no need to stop"
-            logger.error(msg)
+            self.logger.error("Workflow not running, no need to stop")
             self.unlock()
             return
         self.cancel(self.sirocco_continue_task)
-        self.cancel_all_tasks(mode=mode, logger=logger)
+        self.cancel_all_tasks(mode=mode)
         self.status = WorkflowStatus.STOPPED
         self.state[self.sirocco_continue_task].jobid = NO_ID
         self.dump_state()
@@ -312,10 +308,10 @@ class StandaloneEngine:
 
         return logger
 
-    def front_msg(self, task: Task, action: str) -> str:
-        """Log message for a task in the front"""
-        rank = self.rank(task)
-        return f"{StatusPoint.from_status('FRONT', rank)} {task.label} ({self.jobid(task)}) {action}"
+    def log_task(self, task: Task, action: str, status: Literal["COMPLETED", "FRONT", "FAILED"] = "FRONT") -> None:
+        """Log what happens to a task, with a point colored after `status` (and the task rank in the front)"""
+        point = StatusPoint.from_status(status, self.rank(task) if status == "FRONT" else None)
+        self.logger.info(f"{point} {task.label} ({self.jobid(task)}) {action}")  # noqa: G004
 
     def lock(self) -> None:
         self.lock_file.touch()
@@ -350,27 +346,28 @@ class StandaloneEngine:
         self.state[task].rank = rank
         return task
 
-    def init_front(self, logger: logging.Logger) -> None:
+    def add_to_front(self, task: Task, rank: int) -> None:
+        """Submit `task` and add it to generation `rank` of the front"""
+        self.state[task].rank = rank
+        self.submit(task)
+        self.front[rank].append(task)
+        self.log_task(task, f"SUBMITTED to rank {rank}")
+
+    def init_front(self) -> None:
         """Populate front and submit corresponding tasks"""
 
         for task in self.workflow.tasks:
             if not task.parents:
-                self.state[task].rank = 0
-                self.submit(task)
-                self.front[0].append(task)
-                logger.info(self.front_msg(task, f"SUBMITTED to rank {self.rank(task)}"))
+                self.add_to_front(task, 0)
         for k in range(self.front_depth - 1):
             for task in self.front[k]:
                 for child in task.children:
                     if (max(self.rank(parent) for parent in child.parents) == k) and (
                         self.rank(child) == self.front_depth
                     ):
-                        self.submit(child)
-                        self.state[child].rank = k + 1
-                        self.front[k + 1].append(child)
-                        logger.info(self.front_msg(child, f"SUBMITTED to rank {self.rank(child)}"))
+                        self.add_to_front(child, k + 1)
 
-    def restart_front(self, logger: logging.Logger) -> None:
+    def restart_front(self) -> None:
         """Submit all tasks currently in the front"""
 
         for generation in self.front:
@@ -382,24 +379,22 @@ class StandaloneEngine:
                     and self.get_status(task) in (TaskStatus.COMPLETED, TaskStatus.RUNNING, TaskStatus.WAITING)
                 ):
                     self.cool_down_tasks.remove(task)
-                    logger.info(self.front_msg(task, "CONTINUED as rank 0 from cool-down"))
+                    self.log_task(task, "CONTINUED as rank 0 from cool-down")
                 else:
                     self.cancel(task)
                     self.submit(task)
-                    logger.info(self.front_msg(task, f"SUBMITTED to rank {self.rank(task)}"))
+                    self.log_task(task, f"SUBMITTED to rank {self.rank(task)}")
 
-    def propagate_front(self, logger: logging.Logger) -> None:
+    def propagate_front(self) -> None:
         """Propagate front of submitted tasks and submit new ones"""
 
         # Handle first generation of the front
         to_promote: list[Task] = []
         for task in self.front[0]:
             if (status := self.get_status(task)) == TaskStatus.FAILED:
-                msg = f"{StatusPoint.from_status('FAILED')} {task.label} ({self.jobid(task)}) FAILED"
-                logger.info(msg)
-                self.cancel_all_tasks(mode="cancel", logger=logger)
-                msg = f"All workflow tasks canceled because {task.label} failed"
-                logger.info(msg)
+                self.log_task(task, "FAILED", status="FAILED")
+                self.cancel_all_tasks(mode="cancel")
+                self.logger.info(f"All workflow tasks canceled because {task.label} failed")  # noqa: G004
                 self.status = WorkflowStatus.FAILED
                 return
             if status == TaskStatus.COMPLETED:
@@ -408,8 +403,7 @@ class StandaloneEngine:
             self.state[task].rank = -1
             self.front[0].remove(task)
             self.completed_tasks.append(task)
-            msg = f"{StatusPoint.from_status('COMPLETED')} {task.label} ({self.jobid(task)}) COMPLETED"
-            logger.info(msg)
+            self.log_task(task, "COMPLETED", status="COMPLETED")
 
         # Update front rank of tasks currently in the front after the first generation
         for k in range(1, self.front_depth):
@@ -417,9 +411,8 @@ class StandaloneEngine:
             for task in to_promote:
                 self.state[task].rank = k - 1
                 self.front[k].remove(task)
-                msg = self.front_msg(task, f"PROMOTED from rank {k} to {k - 1}")
                 self.front[k - 1].append(task)
-                logger.info(msg)
+                self.log_task(task, f"PROMOTED from rank {k} to {k - 1}")
 
         # Add new tasks to the last generation of the front
         before_last_generation = to_promote if self.front_depth == 1 else self.front[-2]
@@ -429,12 +422,9 @@ class StandaloneEngine:
                     self.rank(child) == self.front_depth
                     and max(self.rank(parent) for parent in child.parents) == self.front_depth - 2
                 ):
-                    self.submit(child)
-                    self.state[child].rank = self.front_depth - 1
-                    self.front[-1].append(child)
-                    logger.info(self.front_msg(child, f"SUBMITTED to rank {self.rank(child)}"))
+                    self.add_to_front(child, self.front_depth - 1)
 
-    def cancel_all_tasks(self, mode: Literal["cancel", "cool-down"], logger: logging.Logger) -> None:
+    def cancel_all_tasks(self, mode: Literal["cancel", "cool-down"]) -> None:
         """Cancel all workflow tasks except cool-down tasks"""
 
         for generation in self.front:
@@ -445,11 +435,10 @@ class StandaloneEngine:
                     and self.get_status(task) in (TaskStatus.COMPLETED, TaskStatus.RUNNING)
                 ):
                     self.cool_down_tasks.append(task)
-                    logger.info(self.front_msg(task, "COOLING DOWN"))
+                    self.log_task(task, "COOLING DOWN")
                 else:
                     self.cancel(task)
-                    msg = f"{StatusPoint.from_status('FAILED')} {task.label} ({self.jobid(task)}) CANCELED"
-                    logger.info(msg)
+                    self.log_task(task, "CANCELED", status="FAILED")
 
     def auto_submit(self) -> None:
         """Submit next Sirocco task"""
