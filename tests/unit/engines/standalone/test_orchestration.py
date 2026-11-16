@@ -7,11 +7,15 @@ recorded in a trace and compared to a reference file:
 
 - every submission (job id, parent job ids, dependency type, stdout/stderr mode),
 - every cancellation,
-- the state file after each command,
+- the state file after each command, in a compact form showing the front generations
+  (`compact_state`),
 - the run script of each submission (only when it changed since the last submission of
   the same task, to keep the reference readable).
 
-On mismatch, the new trace is written next to the reference with a `.new.txt` suffix.
+A separate test guards the format of the state file itself, on which continuing a
+workflow across Sirocco versions relies.
+
+On mismatch, the new output is written next to the reference with a `.new` suffix.
 Run pytest with `--reserialize` to regenerate the references after an intended change.
 """
 
@@ -22,6 +26,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar, Literal
 
 import pytest
+from ruamel.yaml import YAML
 
 from sirocco.engines.standalone import StandaloneEngine, handlers
 from sirocco.engines.standalone.scheduler import DEPENDENCY_TYPE_T, STDOUTERR_MODE_T, Scheduler
@@ -88,6 +93,26 @@ class FakeScheduler(Scheduler):
         self.cluster.status[jobid] = TaskStatus.FAILED
 
 
+def compact_state(state_file: Path) -> str:
+    """Content of the state file, one task per line, grouped by front generation"""
+    state = YAML(typ="safe").load(state_file)
+
+    def task(entry: dict) -> str:
+        name, spec = next(iter(entry.items()))
+        coordinates = ", ".join(f"{key}={value}" for key, value in spec["coordinates"].items())
+        return f"  {name}[{coordinates}] ({spec['jobid']})" if coordinates else f"  {name} ({spec['jobid']})"
+
+    lines = [f"--- state (continuation job {state['sirocco_jobid']})"]
+    for k, generation in enumerate(state["front"]):
+        lines.append(f"front[{k}]:")
+        lines.extend(task(entry) for entry in generation)
+    for key in ("cool_down_tasks", "completed_tasks"):
+        lines.append(f"{key}:")
+        lines.extend(task(entry) for entry in state[key])
+    lines.append("---")
+    return "\n".join(lines)
+
+
 class Simulation:
     def __init__(self, config_dir: Path, cluster: FakeCluster) -> None:
         self.config_dir = config_dir
@@ -110,7 +135,7 @@ class Simulation:
             case "restart":
                 engine.restart(log_type="std")
         self.cluster.record(f"status: {engine.status.name}")
-        self.cluster.record(f"--- state.yaml\n{engine.state_file.read_text()}---")
+        self.cluster.record(compact_state(engine.state_file))
         return engine
 
     def loaded_engine(self) -> StandaloneEngine:
@@ -147,9 +172,8 @@ def run_scenario(sim: Simulation, scenario: Literal["complete", "fail"]) -> None
     pytest.fail(f"workflow not completed after {MAX_STEPS} steps")
 
 
-@pytest.mark.parametrize("scenario", ["complete", "fail"])
-@pytest.mark.parametrize("case", ORCHESTRATION_CASES)
-def test_orchestration(case, scenario, tmp_path, test_rootdir, monkeypatch, pytestconfig):
+def simulation(case: str, tmp_path: Path, test_rootdir: Path, monkeypatch: pytest.MonkeyPatch) -> Simulation:
+    """Simulation of `case`, copied to `tmp_path`, against a fresh fake cluster"""
     config_dir = tmp_path / "config"
     shutil.copytree(test_rootdir / f"tests/cases/{case}/config", config_dir)
     cluster = FakeCluster(rootdir=config_dir)
@@ -157,14 +181,35 @@ def test_orchestration(case, scenario, tmp_path, test_rootdir, monkeypatch, pyte
     monkeypatch.setitem(Scheduler.scheduler_classes, "slurm", FakeScheduler)
     # Avoid spawning a login shell, the fake scheduler doesn't use the environment
     monkeypatch.setattr(StandaloneEngine, "base_env", {"SIROCCO_TEST": "1"})
+    return Simulation(config_dir, cluster)
 
-    run_scenario(Simulation(config_dir, cluster), scenario)
 
-    trace = "\n".join(cluster.trace).lstrip() + "\n"
-    reference = test_rootdir / f"tests/cases/{case}/data/standalone_{scenario}.txt"
+def check_reference(text: str, reference: Path, pytestconfig: pytest.Config) -> None:
+    """Compare `text` to `reference`, regenerating it with `--reserialize`"""
     if pytestconfig.getoption("reserialize"):
-        reference.write_text(trace)
-    if not reference.exists() or reference.read_text() != trace:
-        new_path = reference.with_suffix(".new.txt")
-        new_path.write_text(trace)
-        pytest.fail(f"Orchestration trace differs from {reference}. New trace dumped to {new_path}.")
+        reference.write_text(text)
+    if not reference.exists() or reference.read_text() != text:
+        new_path = reference.with_name(f"{reference.stem}.new{reference.suffix}")
+        new_path.write_text(text)
+        pytest.fail(f"Output differs from {reference}. New output dumped to {new_path}.")
+
+
+@pytest.mark.parametrize("scenario", ["complete", "fail"])
+@pytest.mark.parametrize("case", ORCHESTRATION_CASES)
+def test_orchestration(case, scenario, tmp_path, test_rootdir, monkeypatch, pytestconfig):
+    sim = simulation(case, tmp_path, test_rootdir, monkeypatch)
+    run_scenario(sim, scenario)
+    trace = "\n".join(sim.cluster.trace).lstrip() + "\n"
+    check_reference(trace, test_rootdir / f"tests/cases/{case}/data/standalone_{scenario}.txt", pytestconfig)
+
+
+def test_state_file_format(tmp_path, test_rootdir, monkeypatch, pytestconfig):
+    """The state file written by `sirocco start` keeps its format
+
+    Workflows started with one Sirocco version are continued by the next one through
+    this file, so changing its format needs to be deliberate.
+    """
+    sim = simulation("partial-dates", tmp_path, test_rootdir, monkeypatch)
+    engine = sim.command("start")
+    reference = test_rootdir / "tests/cases/partial-dates/data/standalone_state_after_start.yaml"
+    check_reference(engine.state_file.read_text(), reference, pytestconfig)

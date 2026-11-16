@@ -128,61 +128,21 @@ export N_NODES=1
 sirocco continue --from_wf <ROOTDIR> || exit
 ---
 status: CONTINUE
---- state.yaml
-sirocco_jobid: '1010'
-completed_tasks: []
-cool_down_tasks: []
-front:
-- - icon:
-      coordinates:
-        foo: 0
-        bar: 3.0
-        date: '2026-01-01T00:00:00+00:00'
-      jobid: '1001'
-  - icon:
-      coordinates:
-        foo: 1
-        bar: 3.0
-        date: '2026-01-01T00:00:00+00:00'
-      jobid: '1002'
-- - statistics_foo:
-      coordinates:
-        bar: 3.0
-        date: '2026-01-01T00:00:00+00:00'
-      jobid: '1003'
-  - icon:
-      coordinates:
-        foo: 0
-        bar: 3.0
-        date: '2026-07-01T00:00:00+00:00'
-      jobid: '1004'
-  - icon:
-      coordinates:
-        foo: 1
-        bar: 3.0
-        date: '2026-07-01T00:00:00+00:00'
-      jobid: '1005'
-- - statistics_foo_bar:
-      coordinates:
-        date: '2026-01-01T00:00:00+00:00'
-      jobid: '1006'
-  - statistics_foo:
-      coordinates:
-        bar: 3.0
-        date: '2026-07-01T00:00:00+00:00'
-      jobid: '1007'
-  - icon:
-      coordinates:
-        foo: 0
-        bar: 3.0
-        date: '2027-01-01T00:00:00+00:00'
-      jobid: '1008'
-  - icon:
-      coordinates:
-        foo: 1
-        bar: 3.0
-        date: '2027-01-01T00:00:00+00:00'
-      jobid: '1009'
+--- state (continuation job 1010)
+front[0]:
+  icon[foo=0, bar=3.0, date=2026-01-01T00:00:00+00:00] (1001)
+  icon[foo=1, bar=3.0, date=2026-01-01T00:00:00+00:00] (1002)
+front[1]:
+  statistics_foo[bar=3.0, date=2026-01-01T00:00:00+00:00] (1003)
+  icon[foo=0, bar=3.0, date=2026-07-01T00:00:00+00:00] (1004)
+  icon[foo=1, bar=3.0, date=2026-07-01T00:00:00+00:00] (1005)
+front[2]:
+  statistics_foo_bar[date=2026-01-01T00:00:00+00:00] (1006)
+  statistics_foo[bar=3.0, date=2026-07-01T00:00:00+00:00] (1007)
+  icon[foo=0, bar=3.0, date=2027-01-01T00:00:00+00:00] (1008)
+  icon[foo=1, bar=3.0, date=2027-01-01T00:00:00+00:00] (1009)
+cool_down_tasks:
+completed_tasks:
 ---
 # icon__foo_0__bar_3.0__date_2026-01-01T00-00-00 -> COMPLETED
 # icon__foo_1__bar_3.0__date_2026-01-01T00-00-00 -> COMPLETED
@@ -242,82 +202,25 @@ python icon.py --restart <ROOTDIR>/run/icon__foo_1__bar_3.0__date_2027-01-01T00-
 ---
 submit Sirocco_continue (1015) after ['1003', '1004', '1005'] [ANY]
 status: CONTINUE
---- state.yaml
-sirocco_jobid: '1015'
+--- state (continuation job 1015)
+front[0]:
+  statistics_foo[bar=3.0, date=2026-01-01T00:00:00+00:00] (1003)
+  icon[foo=0, bar=3.0, date=2026-07-01T00:00:00+00:00] (1004)
+  icon[foo=1, bar=3.0, date=2026-07-01T00:00:00+00:00] (1005)
+front[1]:
+  statistics_foo_bar[date=2026-01-01T00:00:00+00:00] (1006)
+  statistics_foo[bar=3.0, date=2026-07-01T00:00:00+00:00] (1007)
+  icon[foo=0, bar=3.0, date=2027-01-01T00:00:00+00:00] (1008)
+  icon[foo=1, bar=3.0, date=2027-01-01T00:00:00+00:00] (1009)
+front[2]:
+  statistics_foo_bar[date=2026-07-01T00:00:00+00:00] (1011)
+  statistics_foo[bar=3.0, date=2027-01-01T00:00:00+00:00] (1012)
+  icon[foo=0, bar=3.0, date=2027-07-01T00:00:00+00:00] (1013)
+  icon[foo=1, bar=3.0, date=2027-07-01T00:00:00+00:00] (1014)
+cool_down_tasks:
 completed_tasks:
-- icon:
-    coordinates:
-      foo: 0
-      bar: 3.0
-      date: '2026-01-01T00:00:00+00:00'
-    jobid: '1001'
-- icon:
-    coordinates:
-      foo: 1
-      bar: 3.0
-      date: '2026-01-01T00:00:00+00:00'
-    jobid: '1002'
-cool_down_tasks: []
-front:
-- - statistics_foo:
-      coordinates:
-        bar: 3.0
-        date: '2026-01-01T00:00:00+00:00'
-      jobid: '1003'
-  - icon:
-      coordinates:
-        foo: 0
-        bar: 3.0
-        date: '2026-07-01T00:00:00+00:00'
-      jobid: '1004'
-  - icon:
-      coordinates:
-        foo: 1
-        bar: 3.0
-        date: '2026-07-01T00:00:00+00:00'
-      jobid: '1005'
-- - statistics_foo_bar:
-      coordinates:
-        date: '2026-01-01T00:00:00+00:00'
-      jobid: '1006'
-  - statistics_foo:
-      coordinates:
-        bar: 3.0
-        date: '2026-07-01T00:00:00+00:00'
-      jobid: '1007'
-  - icon:
-      coordinates:
-        foo: 0
-        bar: 3.0
-        date: '2027-01-01T00:00:00+00:00'
-      jobid: '1008'
-  - icon:
-      coordinates:
-        foo: 1
-        bar: 3.0
-        date: '2027-01-01T00:00:00+00:00'
-      jobid: '1009'
-- - statistics_foo_bar:
-      coordinates:
-        date: '2026-07-01T00:00:00+00:00'
-      jobid: '1011'
-  - statistics_foo:
-      coordinates:
-        bar: 3.0
-        date: '2027-01-01T00:00:00+00:00'
-      jobid: '1012'
-  - icon:
-      coordinates:
-        foo: 0
-        bar: 3.0
-        date: '2027-07-01T00:00:00+00:00'
-      jobid: '1013'
-  - icon:
-      coordinates:
-        foo: 1
-        bar: 3.0
-        date: '2027-07-01T00:00:00+00:00'
-      jobid: '1014'
+  icon[foo=0, bar=3.0, date=2026-01-01T00:00:00+00:00] (1001)
+  icon[foo=1, bar=3.0, date=2026-01-01T00:00:00+00:00] (1002)
 ---
 # statistics_foo__bar_3.0__date_2026-01-01T00-00-00 -> FAILED
 
@@ -334,80 +237,23 @@ cancel statistics_foo__bar_3.0__date_2027-01-01T00-00-00 (1012)
 cancel icon__foo_0__bar_3.0__date_2027-07-01T00-00-00 (1013)
 cancel icon__foo_1__bar_3.0__date_2027-07-01T00-00-00 (1014)
 status: FAILED
---- state.yaml
-sirocco_jobid: _NO_ID_
+--- state (continuation job _NO_ID_)
+front[0]:
+  statistics_foo[bar=3.0, date=2026-01-01T00:00:00+00:00] (1003)
+  icon[foo=0, bar=3.0, date=2026-07-01T00:00:00+00:00] (1004)
+  icon[foo=1, bar=3.0, date=2026-07-01T00:00:00+00:00] (1005)
+front[1]:
+  statistics_foo_bar[date=2026-01-01T00:00:00+00:00] (1006)
+  statistics_foo[bar=3.0, date=2026-07-01T00:00:00+00:00] (1007)
+  icon[foo=0, bar=3.0, date=2027-01-01T00:00:00+00:00] (1008)
+  icon[foo=1, bar=3.0, date=2027-01-01T00:00:00+00:00] (1009)
+front[2]:
+  statistics_foo_bar[date=2026-07-01T00:00:00+00:00] (1011)
+  statistics_foo[bar=3.0, date=2027-01-01T00:00:00+00:00] (1012)
+  icon[foo=0, bar=3.0, date=2027-07-01T00:00:00+00:00] (1013)
+  icon[foo=1, bar=3.0, date=2027-07-01T00:00:00+00:00] (1014)
+cool_down_tasks:
 completed_tasks:
-- icon:
-    coordinates:
-      foo: 0
-      bar: 3.0
-      date: '2026-01-01T00:00:00+00:00'
-    jobid: '1001'
-- icon:
-    coordinates:
-      foo: 1
-      bar: 3.0
-      date: '2026-01-01T00:00:00+00:00'
-    jobid: '1002'
-cool_down_tasks: []
-front:
-- - statistics_foo:
-      coordinates:
-        bar: 3.0
-        date: '2026-01-01T00:00:00+00:00'
-      jobid: '1003'
-  - icon:
-      coordinates:
-        foo: 0
-        bar: 3.0
-        date: '2026-07-01T00:00:00+00:00'
-      jobid: '1004'
-  - icon:
-      coordinates:
-        foo: 1
-        bar: 3.0
-        date: '2026-07-01T00:00:00+00:00'
-      jobid: '1005'
-- - statistics_foo_bar:
-      coordinates:
-        date: '2026-01-01T00:00:00+00:00'
-      jobid: '1006'
-  - statistics_foo:
-      coordinates:
-        bar: 3.0
-        date: '2026-07-01T00:00:00+00:00'
-      jobid: '1007'
-  - icon:
-      coordinates:
-        foo: 0
-        bar: 3.0
-        date: '2027-01-01T00:00:00+00:00'
-      jobid: '1008'
-  - icon:
-      coordinates:
-        foo: 1
-        bar: 3.0
-        date: '2027-01-01T00:00:00+00:00'
-      jobid: '1009'
-- - statistics_foo_bar:
-      coordinates:
-        date: '2026-07-01T00:00:00+00:00'
-      jobid: '1011'
-  - statistics_foo:
-      coordinates:
-        bar: 3.0
-        date: '2027-01-01T00:00:00+00:00'
-      jobid: '1012'
-  - icon:
-      coordinates:
-        foo: 0
-        bar: 3.0
-        date: '2027-07-01T00:00:00+00:00'
-      jobid: '1013'
-  - icon:
-      coordinates:
-        foo: 1
-        bar: 3.0
-        date: '2027-07-01T00:00:00+00:00'
-      jobid: '1014'
+  icon[foo=0, bar=3.0, date=2026-01-01T00:00:00+00:00] (1001)
+  icon[foo=1, bar=3.0, date=2026-01-01T00:00:00+00:00] (1002)
 ---
