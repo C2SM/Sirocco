@@ -44,7 +44,7 @@ To see what the front looks like on a real workflow, see the [status graph](usag
 
 ## Standalone engine
 
-The standalone engine enables Sirocco workflows to run autonomously on the HPC cluster, relying on the scheduler as the sole running daemon. The [task front](#the-deep-propagating-task-front) described above is thus not propagated by a permanently running process but by a dedicated job, the **Sirocco continuation task**. It is submitted with a scheduler dependency on the termination of _any_ rank 0 task, so that the scheduler starts it as soon as one of them terminates, successfully or not. Between two continuation tasks, the workflow state, _i.e._ the front generations and the completed tasks, is stored in the `run/state.yaml` file. The continuation task is configured via the [special `SIROCCO` task](configuration/tasks.md#the-special-sirocco-task) and, as other Sirocco [controling processes](usage/standalone.md#controlling), logs its activity to `sirocco.log` in the configuration directory.
+The standalone engine enables Sirocco workflows to run autonomously on the HPC cluster, relying on the scheduler as the sole running daemon. The [task front](#the-deep-propagating-task-front) described above is thus not propagated by a permanently running process but by a dedicated job, the **Sirocco continuation task**. It is submitted with a scheduler dependency on the termination of _any_ rank 0 task, so that the scheduler starts it as soon as one of them terminates, successfully or not. Between two continuation tasks, the workflow state, _i.e._ the front generations and the completed tasks, is stored in the `run/state.yaml` file. The continuation task is configured via the [special `SIROCCO` task](configuration/tasks.md#the-special-sirocco-task) and, as other Sirocco [controlling processes](usage/standalone.md#controlling), logs its activity to `sirocco.log` in the configuration directory.
 
 ### Front propagation
 
@@ -75,7 +75,7 @@ The standalone engine executes workflows in place, _inside their [configuration 
 ```shell
 <task_name>__<coordinate1_name>_<coordinate1_value>__<coordinate2_name>_<coordinate2_value>__[...]
 ```
-[Coordinates](glossary.md#coordinates) of a task are either its date, in which case `<coordinatex_name>` is `"date"` and `<coordinatex_value>` is the date formatted as `"YYYY-MM-DDThh-mm-ss"` or a [parameter](configuration/parameters.md), in which case `"<coordinatex_name>"` and `<coordinatex_value>` are the parameters name and value.
+[Coordinates](glossary.md#coordinates) of a task are either its date, in which case `<coordinatex_name>` is `"date"` and `<coordinatex_value>` is the date formatted as `"YYYY-MM-DDThh-mm-ss"` or a [parameter](configuration/parameters.md), in which case `"<coordinatex_name>"` and `<coordinatex_value>` are the parameter name and value. The date, if any, comes first, followed by the parameters in alphabetical order.
 
 ### `bash` shebang and base environment
 
