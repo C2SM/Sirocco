@@ -9,7 +9,7 @@
   <a href="./CHANGELOG.md">Changelog</a>
 </p>
 
-**Sirocco** is a Python workflow tool for climate and weather applications running on HPC systems. Workflows are described in a YAML dialect inspired by [cylc](https://cylc.github.io/) and [AiiDA](https://www.aiida.net/), and unrolled into a graph of tasks and data.
+**Sirocco** is a Python workflow tool for climate and weather applications running on HPC systems. Workflows are described in a YAML dialect inspired by [Cylc](https://cylc.github.io/) and [AiiDA](https://www.aiida.net/), and unrolled into a graph of tasks and data.
 
 - **Data as graph nodes.** Tasks explicitly declare the data they consume and produce, through named ports. No task needs to make assumptions on where others read or write, so workflows are truly composable.
 - **Cycles.** Recurring sets of tasks with their own periodicity, so that describing climate and weather workflows feels natural.

@@ -18,7 +18,7 @@ The ICON plugin is designed as an interface between the Sirocco workflow and the
 
 ## Supported machines
 
-ICON tasks can currently only run on the **Säntis** machine at CSCS, _i.e._ with [`computer: santis`](../configuration/tasks.md#computer), as they rely on machine specific [`runtime`](#runtime) scripts and MPI ranks mapping. On this machine:
+ICON tasks can currently only run on the **Santis** machine at CSCS, _i.e._ with [`computer: santis`](../configuration/tasks.md#computer), as they rely on machine specific [`runtime`](#runtime) scripts and MPI ranks mapping. On this machine:
 
 - the [`uenv`](../configuration/tasks.md#uenv) task specification is **required**.
 - contrary to other tasks, `uenv` and [`view`](../configuration/tasks.md#view) are not set in the job header. They are exported as `ICON_UENV` and `ICON_VIEW` in the submitted run script, together with potential [squashfs images](#squash), for further use by the [`runtime`](#runtime) scripts.
@@ -142,7 +142,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 <br>
 **actions**:
 
-- If the associated data is generated, link it as `rrtmg_lw.nc` in the task run directory.
+- If the associated data is generated, link it in the task run directory with its original name.
 - Reflect data path in `radiation_nml > ghg_filename` namelist parameter.
 
 #### `rrtmg_lw`
@@ -153,7 +153,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 <br>
 **actions**:
 
-- If the associated data is generated, link it in the task run directory with its original name.
+- If the associated data is generated, link it as `rrtmg_lw.nc` in the task run directory.
 - Reflect the data path in `nwp_phy_nml > lrtm_filename` namelist parameter.
 
 #### `rrtmg_sw`
@@ -613,7 +613,7 @@ tasks:
 
 Based on the `exe` specifications, Sirocco allocates MPI processes to the models, including potential processes dedicated to I/O. Ranks are mapped by blocks over the requested nodes and then by sub-blocks over NUMA nodes. This design choice keeps close subdomains together as much as possible while also load balancing the memory requirement over the nodes.
 
-The resulting mapping is written to the `hostfile-sirocco` file in the task run directory, one line per MPI rank giving its node, NUMA node, process type, target and model. This file is scheduler independent: applying it is the job of the [`runtime`](#runtime) scripts. The default runtime for Säntis, for instance, does so with SLURM's arbitrary distribution (`srun --distribution=arbitrary`).
+The resulting mapping is written to the `hostfile-sirocco` file in the task run directory, one line per MPI rank giving its node, NUMA node, process type, target and model. This file is scheduler independent: applying it is the job of the [`runtime`](#runtime) scripts. The default runtime for Santis, for instance, does so with SLURM's arbitrary distribution (`srun --distribution=arbitrary`).
 
 ##### `separate_io`
 

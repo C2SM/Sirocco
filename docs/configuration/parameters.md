@@ -79,8 +79,8 @@ In order to better understand where and how parameters are declared, attached an
 </figure>
 
 ```sirocco-yaml hl_lines="35-37 45-47 54-56 63-64 73 76 79 89 92 95 98 101-103" title="sirocco.yaml"
-start_date: &root_start_date '2026-01-01T00:00'
-stop_date: &root_stop_date '2026-05-01T00:00'
+var_start_date: &root_start_date '2026-01-01T00:00'
+var_stop_date: &root_stop_date '2026-05-01T00:00'
 scheduler: slurm
 cycles:
   - bi-monthly:

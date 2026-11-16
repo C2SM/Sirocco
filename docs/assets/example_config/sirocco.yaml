@@ -1,6 +1,6 @@
 ---
-start_date: &root_start_date '2026-01-01T00:00'
-stop_date: &root_stop_date '2026-08-01T00:00'
+var_start_date: &root_start_date '2026-01-01T00:00'
+var_stop_date: &root_stop_date '2026-08-01T00:00'
 scheduler: slurm
 cycles:
   - bi-monthly:

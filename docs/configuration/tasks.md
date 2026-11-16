@@ -99,7 +99,7 @@ Specifications describing requested resources are translated into options of the
 
 **type**: string
 <br>
-**format** "HH:MM:SS"
+**format**: "HH:MM:SS"
 <br>
 **optional**
 <br>
@@ -111,7 +111,7 @@ Specifications describing requested resources are translated into options of the
 <br>
 **default**: 1
 <br>
-**description**: number of requested nodes. Set in the job header (see [scheduler options](configuration.md#scheduler-options)). When set, the corresponding environment variable `N_NODES` is exported in the submitted run script.
+**description**: number of requested nodes. Set in the job header (see [scheduler options](configuration.md#scheduler-options)). The corresponding environment variable `N_NODES` is exported in the submitted run script.
 
 #### `sockets_per_node`
 
@@ -119,7 +119,7 @@ Specifications describing requested resources are translated into options of the
 <br>
 **default**: 1
 <br>
-**description**: Number of physical coherent sub-units per node. On the Säntis machine, it maps to `--gpus-per-node`. The [ICON plugin](../plugins/icon.md) uses it to dispatch MPI processes on different [NUMA :lucide-external-link:](https://en.wikipedia.org/wiki/Non-uniform_memory_access) nodes.
+**description**: Number of physical coherent sub-units per node. On the Santis machine, it maps to `--gpus-per-node`. The [ICON plugin](../plugins/icon.md) uses it to dispatch MPI processes on different [NUMA :lucide-external-link:](https://en.wikipedia.org/wiki/Non-uniform_memory_access) nodes.
 
 #### `gpus_per_node`
 

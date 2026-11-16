@@ -16,7 +16,7 @@
 <br>
 <br>
 
-**Sirocco** is a workflow tool written in Python dedicated to climate & weather applications running on HPC systems. At its core is a graph representation of the workflow that borrows concepts from the [AiiDA :lucide-external-link:](https://aiida.net/) workflow library and the [cylc :lucide-external-link:](https://cylc.github.io/) format, expressed by users in a [YAML dialect](configuration/configuration.md):
+**Sirocco** is a workflow tool written in Python dedicated to climate & weather applications running on HPC systems. At its core is a graph representation of the workflow that borrows concepts from the [AiiDA :lucide-external-link:](https://aiida.net/) workflow library and the [Cylc :lucide-external-link:](https://cylc.github.io/) format, expressed by users in a [YAML dialect](configuration/configuration.md):
 
 - **Data nodes** are represented in the graph alongside task nodes, so that users explicitly specify the input and output data of each task. Tasks thus no longer need to make assumptions about upstream and downstream tasks, which makes workflows truly composable.
 - The graph results from unrolling specified sets of recurring tasks that have a certain periodicity, called **cycles**, so that describing climate and weather workflows feels natural.

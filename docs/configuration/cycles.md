@@ -41,8 +41,8 @@ The example below shows a short but comprehensive graph covering most of the ded
 The corresponding `cycles` section reads like the following.
 
 ```sirocco-yaml title="sirocco.yaml"
-var_start_date: &root_start_date "2026-01-01T00:00"  # (1)!
-var_stop_date: &root_stop_date "2026-08-01T00:00"
+start_date: &root_start_date "2026-01-01T00:00"  # (1)!
+stop_date: &root_stop_date "2026-08-01T00:00"
 [...]
 cycles:
   - bi-monthly:
@@ -143,7 +143,7 @@ cycles:
 <br>
 **optional**: if omitted, the cycle will be considered a *one-off* cycle, *i.e.* happening only once.
 <br>
-**description**: recurrence of the cycle. `"START_DATE"`, `"STOP_DATE"` and `"PERIOD"` must all be specified in [ISO 8601 format](https://en.wikipedia.org/wiki/ISO_8601). Each occurrence of the cycle gets itself a start and stop date later named "occurrence start date" and "occurrence stop date" to avoid confusion. These are naturally computed by iterating every `"PERIOD"`, starting from `"START_DATE"`, the last occurrence stop date being exactly `"STOP_DATE"` even if the duration of that last cycle occurrence is shorter than `"PERIOD"`. Finally, cycle occurrences, tasks happenning within it and associated generated pieces of data receive a `date` attribute which, by convention, is the cycle occurrence start date. It will be used later to target different task or data instances in ambiguous cases.
+**description**: recurrence of the cycle. `"START_DATE"`, `"STOP_DATE"` and `"PERIOD"` must all be specified in [ISO 8601 format](https://en.wikipedia.org/wiki/ISO_8601). Each occurrence of the cycle gets itself a start and stop date later named "occurrence start date" and "occurrence stop date" to avoid confusion. These are naturally computed by iterating every `"PERIOD"`, starting from `"START_DATE"`, the last occurrence stop date being exactly `"STOP_DATE"` even if the duration of that last cycle occurrence is shorter than `"PERIOD"`. Finally, cycle occurrences, tasks happening within it and associated generated pieces of data receive a `date` attribute which, by convention, is the cycle occurrence start date. It will be used later to target different task or data instances in ambiguous cases.
 
 ### `tasks`
 

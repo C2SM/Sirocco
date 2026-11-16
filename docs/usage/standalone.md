@@ -68,7 +68,7 @@ Generate a graphical representation similar to `visualize` focusing on the [task
 
 ### :material-play-pause: Controlling
 
-Sirocco has the 3 following self-explanatory commands to control the workflow. Each of them, as well as the [continuation tasks](../orchestration.md#standalone-engine), logs information to `sirocco.log` located in the configuration directory. By default Sirocco uses [ANSI escape codes](https://en.wikipedia.org/wiki/ANSI_escape_code) for coloring, which can be disabled with `--no-ansi` as a global option coming before the acutal command like `sirocco --no-ansi <command> <args>`.
+Sirocco has the 3 following self-explanatory commands to control the workflow. Each of them, as well as the [continuation tasks](../orchestration.md#standalone-engine), logs information to `sirocco.log` located in the configuration directory. By default Sirocco uses [ANSI escape codes](https://en.wikipedia.org/wiki/ANSI_escape_code) for coloring, which can be disabled with `--no-ansi` as a global option coming before the actual command like `sirocco --no-ansi <command> <args>`.
 
 #### `start`
 
