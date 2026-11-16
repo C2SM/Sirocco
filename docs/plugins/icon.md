@@ -481,6 +481,42 @@ tasks:
               modelTimeStep: "PT2M"
 ```
 
+#### Repeated namelist sections
+
+Some sections appear several times in a namelist file, typically `output_nml` with one occurrence per output stream. A specific occurrence is targeted by appending its index between square brackets to the section name, **starting at 1** and following the order of the namelist file. Without index, the overwrite applies to **all** occurrences of the section.
+```sirocco-yaml
+tasks:
+  - icon_task:
+      [...]
+      namelists:
+        - "path/to/icon_master.namelist"
+        - "path/to/atmo_namelist.nml":
+            output_nml:  # (1)!
+              filetype: 5
+            output_nml[2]:  # (2)!
+              output_interval: "PT6H"
+```
+
+1.  Applies to all `output_nml` sections.
+2.  Only applies to the second `output_nml` section of the file.
+
+A new occurrence of the section is appended by using the index right after the last existing one, _e.g._ `output_nml[3]` for a namelist file containing 2 `output_nml` sections, or `output_nml[1]` if it does not contain any. Several occurrences can be appended at once, in any order, as long as no index is skipped. Overwrites given without index also apply to the appended occurrences, while the ones given with an index always take precedence.
+
+#### Monthly values for `allow_overcast`
+
+The `nwp_tuning_nml > allow_overcast` overwrite accepts, on top of a single value, a sequence of 12 monthly values (January to December). Each task instance then gets the value corresponding to the month of its cycle occurrence.
+```sirocco-yaml
+tasks:
+  - icon_task:
+      [...]
+      namelists:
+        - "path/to/icon_master.namelist"
+        - "path/to/atmo_namelist.nml":
+            nwp_tuning_nml:
+              allow_overcast: [0.9, 0.9, 0.85, 0.8, 0.75, 0.7, 0.7, 0.75, 0.8, 0.85, 0.9, 0.9]
+```
+This requires each cycle occurrence to lie within a single calendar month, _e.g._ with a monthly cycle starting on the first day of a month.
+
 #### Namelist entries managed by Sirocco
 
 The namelists written to the task run directory are not plain copies of the ones provided in the configuration directory. Some entries directly follow from the workflow description, so Sirocco sets them itself. They are listed below and **take precedence** over both the original namelist files and the overwrites specified in `namelists`: there is no need to set them and any value given for them is ignored.
