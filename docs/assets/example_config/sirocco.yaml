@@ -69,6 +69,7 @@ cycles:
 tasks:
   - ROOT:
       computer: "machine"
+  - SIROCCO:
   - pre proc:
       plugin: shell
       src: scripts/preproc.sh

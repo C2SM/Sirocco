@@ -55,6 +55,9 @@ tasks:
       computer: santis
       account: my_account
       walltime: "01:00:00"
+  - SIROCCO:  # For the standalone orchestration engine
+      walltime: "00:05:00"
+      venv: /path/to/sirocco/.venv
   - icon:
       plugin: icon
       uenv: icon/25.2:v3
