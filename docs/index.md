@@ -33,6 +33,10 @@ Finally, Sirocco workflows can [be orchestrated](orchestration.md) by two differ
 - [Usage :material-arrow-right: Standalone](usage/standalone.md): verify, visualize and run a workflow
 - [Glossary](glossary.md): Sirocco terminology at a glance
 
+<u><b>Contact</b></u>
+
+For questions about Sirocco or to discuss a use case, contact [Matthieu Leclair :lucide-mail:](mailto:matthieu.leclair@c2sm.ethz.ch). For bugs and feature requests, please open an issue on [GitHub :lucide-external-link:](https://github.com/C2SM/Sirocco/issues).
+
 <u><b>Acknowledgments</b></u>
 
 We would like to acknowledge the [EXCLAIM :lucide-external-link:](https://exclaim.ethz.ch) and [Swiss Twins :lucide-external-link:](https://www.cscs.ch/about/collaborations/swisstwins) projects for the initial funding of Sirocco.

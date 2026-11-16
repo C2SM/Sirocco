@@ -125,6 +125,10 @@ hatch run types:check     # type check
 hatch run docs:serve      # live preview of the documentation
 ```
 
+## Contact
+
+For questions about Sirocco or to discuss a use case, contact [Matthieu Leclair](mailto:matthieu.leclair@c2sm.ethz.ch). For bugs and feature requests, please open an [issue](https://github.com/C2SM/Sirocco/issues).
+
 ## License
 
 Sirocco is released under the [MIT license](./LICENSE).

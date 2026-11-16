@@ -8,7 +8,7 @@ name = 'sirocco'
 dynamic = ["version"]
 description = 'A library for creating weather and climate workflows.'
 authors = [
-  {name = 'Matthieu Leclair', email = 'matthieu.leclair@env.ethz.ch'},
+  {name = 'Matthieu Leclair', email = 'matthieu.leclair@c2sm.ethz.ch'},
   {name = 'Julian Geiger', email = 'julian.geiger@psi.ch'},
   {name = 'Alexander Goscinski', email = 'alexander.goscinski@psi.ch'},
 ]
