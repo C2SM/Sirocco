@@ -41,8 +41,8 @@ The example below shows a short but comprehensive graph covering most of the ded
 The corresponding `cycles` section reads like the following.
 
 ```sirocco-yaml title="sirocco.yaml"
-start_date: &root_start_date "2026-01-01T00:00"  # (1)!
-stop_date: &root_stop_date "2026-08-01T00:00"
+var_start_date: &root_start_date "2026-01-01T00:00"  # (1)!
+var_stop_date: &root_stop_date "2026-08-01T00:00"
 [...]
 cycles:
   - bi-monthly:
