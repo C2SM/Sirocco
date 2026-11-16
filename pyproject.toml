@@ -63,7 +63,7 @@ aiida = [
 
 [project.urls]
 Repository = "https://github.com/C2SM/Sirocco.git"
-Documentation = "https://c2sm.github.io/Sirocco/"
+Documentation = "https://sirocco.ethz.ch"
 Changelog = "https://github.com/C2SM/Sirocco/blob/main/CHANGELOG.md"
 
 [project.scripts]
@@ -165,7 +165,7 @@ dependencies = [
 [tool.hatch.envs.docs.scripts]
 build = [
   "zensical build",
-  "echo 'Now open docs/site/index.html with your browser'"
+  "echo 'Now open site/index.html with your browser'"
 ]
 serve = [
   "zensical serve",
