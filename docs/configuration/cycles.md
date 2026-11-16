@@ -172,7 +172,7 @@ cycles:
 
 !!! info "Tasks components"
 
-    In reality a `components` level is introduced between the task name and `inputs` and `outputs` (`wait_on` stays right below the task name). This is hidden to the user for basic ["shell tasks"](../plugins/shell.md), while it needs to be explicitly provided for ["icon tasks"](../plugins/icon.md#components). It is omitted here for simplicity.
+    In reality a `components` level is introduced between the task name and `inputs` and `outputs` (`wait_on` stays right below the task name). This is hidden to the user for basic [shell tasks](../plugins/shell.md), while it needs to be explicitly provided for [ICON tasks](../plugins/icon.md#components). It is omitted here for simplicity.
 
 #### Ports
 
@@ -180,7 +180,7 @@ In all generality, from a task perspective, linking a piece of data as an input 
 
 !!! warning "Unique port names"
 
-    Port names must be unique within a task, even between inputs and outputs. For instance, a task reading and writing a restart file would use two distinct ports like `restart_in` and `restart_out`.
+    Port names must be unique within a task (task component when it applies, _e.g._ for [ICON tasks](../plugins/icon.md#components)), even between inputs and outputs. For instance, a task reading and writing a restart file would use two distinct ports like `restart_in` and `restart_out`.
 
 #### `inputs`
 
