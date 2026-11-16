@@ -47,7 +47,7 @@ parameters:
 
 #### Scheduler options
 
-Task specifications describing requested resources are translated into options of the selected scheduler as follows.
+[Task specifications](../../configuration/tasks/#all-tasks) describing requested resources are translated into options of the selected scheduler as follows.
 
 | Task specification | SLURM |
 |---|---|
