@@ -481,6 +481,38 @@ tasks:
               modelTimeStep: "PT2M"
 ```
 
+#### Namelist entries managed by Sirocco
+
+The namelists written to the task run directory are not plain copies of the ones provided in the configuration directory. Some entries directly follow from the workflow description, so Sirocco sets them itself. They are listed below and **take precedence** over both the original namelist files and the overwrites specified in `namelists`: there is no need to set them and any value given for them is ignored.
+
+| Namelist file | Entry | Value set by Sirocco |
+|---|---|---|
+| master namelist | `master_time_control_nml > experimentStopDate` | stop date of the current [cycle occurrence](../glossary.md#cycle-occurrence) |
+| master namelist | `master_time_control_nml > restartTimeIntval` | [cycle period](../configuration/cycles.md#cycling) |
+| master namelist | `master_time_control_nml > checkpointTimeIntval` | [cycle period](../configuration/cycles.md#cycling) |
+| master namelist | `master_nml > lrestart` | `.true.` if the task restarts (see below), `.false.` otherwise |
+| master namelist | `master_nml > read_restart_namelists` | same as `lrestart` |
+| master namelist | `jsb_control_nml > restart_jsbach` | same as `lrestart` |
+| master namelist | `master_model_nml > model_min_rank` and `model_max_rank` | MPI rank range allocated to the model from the [`exe`](#exe) specifications |
+| model namelists | `parallel_nml > num_io_procs` | [`streams`](#procs) of the model |
+| model namelists | `parallel_nml > num_prefetch_proc` | [`prefetch`](#procs) of the model |
+| model namelists | `parallel_nml > num_restart_procs` | [`restart`](#procs) of the model |
+| model namelists | entries associated to [input ports](#input-ports) | path of the data linked to the port |
+
+The dates and intervals imply that an ICON task always simulates exactly one cycle occurrence, writing its restart state at the end of it. ICON tasks therefore have to belong to a recurring [cycle](../configuration/cycles.md#cycling).
+
+A task is **restarting** when its [`restart_in`](#restart_in) port links some data, which typically depends on a [`when`](../configuration/cycles.md#when) condition, and is otherwise considered a **cold start**. All the master models of a task must have the same restart status.
+
+!!! warning "`experimentStartDate` is left to the user"
+
+    `master_time_control_nml > experimentStartDate` is not set by Sirocco since it might precede the cycle start date, _e.g._ when continuing a previous simulation. For a cold start however, it must be specified and match the cycle `start_date`, otherwise the workflow is rejected.
+
+Conversely, Sirocco relies on the following entries, which thus have to be correctly set by the user:
+
+- `master_model_nml` (and `jsb_model_nml`) in `icon_master.namelist`: `model_name`, which must match the [component](#components) names, `model_namelist_filename`, which must be the file name of one of the provided `namelists`, and `model_type` for `master_model_nml`.
+- `io_nml > restart_write_mode` must be `"joint procs multifile"` for models using the [`restart_in`](#restart_in) or [`restart_out`](#restart_out) ports.
+- `output_nml` sections, see the [`output_streams`](#output_streams) port.
+
 
 ### `yac_coupling`
 
