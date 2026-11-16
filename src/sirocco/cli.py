@@ -139,8 +139,7 @@ def represent(
     """
     Display the text representation of the unrolled workflow graph.
 
-    Note: Uses auto-detected vars.yml/vars.yaml if present.
-    Use 'sirocco resolve' first if you need custom variable substitution.
+    Note: jinja placeholders are resolved from sirocco_vars.yaml if present.
     """
     console.print(f"📄 Representing workflow from: [cyan]{config_dir}[/cyan]")
     try:
@@ -176,8 +175,7 @@ def visualize(
     """
     Generate an interactive SVG visualization of the unrolled workflow.
 
-    Note: Uses auto-detected vars.yml/vars.yaml if present.
-    Use 'sirocco resolve' first if you need custom variable substitution.
+    Note: jinja placeholders are resolved from sirocco_vars.yaml if present.
     """
     console.print(f"📊 Visualizing workflow from: [cyan]{config_dir!s}[/cyan]")
     try:
@@ -243,7 +241,7 @@ def stviz(
         console.print(f"{CmdStatus.SUCCESS} Status visualization saved to: [cyan]{output_path.resolve()}[/cyan]")
 
     except Exception as e:
-        console.print("{CmdStatus.FAIL} Failed to generate status visualization:")
+        console.print(f"{CmdStatus.FAIL} Failed to generate status visualization:")
         console.print_exception()
         raise typer.Exit(code=1) from e
 
