@@ -240,7 +240,7 @@ def stviz(
         viz_graph = vizgraph.VizGraph.from_status_workflow(wf)
         output_path = Path("./state.svg") if output_file is None else output_file
         viz_graph.draw(file_path=output_path)
-        console.print(f"{CmdStatus.SUCCESS} Status visualization saved to: [cyan]./status.svg[/cyan]")
+        console.print(f"{CmdStatus.SUCCESS} Status visualization saved to: [cyan]{output_path.resolve()}[/cyan]")
 
     except Exception as e:
         console.print("{CmdStatus.FAIL} Failed to generate status visualization:")
