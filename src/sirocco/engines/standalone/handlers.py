@@ -1,35 +1,23 @@
 """Per-plugin behaviour of the standalone engine.
 
-Each function below is a `functools.singledispatch` generic function: a
-function whose implementation is picked at call time from the *class of its
-first argument*. The base implementation (decorated with `@singledispatch`)
-is the fallback, used when no more specific implementation is registered.
-
-Plugin modules register their own implementation with:
+Each function decorated with `@singledispatch` below is a generic function: its
+implementation is picked from the class of its first argument, walking up the MRO like a
+method lookup, the decorated function being the fallback. Plugin modules add theirs with:
 
 ```python
 @prepare_for_submission.register(ShellTask)
-def prepare_for_submission_shell(task: ShellTask) -> None: ...
+def prepare_for_submission_shell(
+    task: ShellTask, path_resolver: PathResolver
+) -> None: ...
 ```
 
-Registered implementations are named `<generic function>_<task type>`, as in
-`pretty_print.py`, so that they can be told apart in tracebacks.
-
-The class is passed explicitly to `register` rather than read from the type
-annotation of the first parameter: an annotation needs the class at runtime,
-which linters cannot see, so they would move its import under `TYPE_CHECKING`.
-
-`register(ShellTask)` stores the function in a `{class: implementation}` table attached to
-`prepare_for_submission`. A call `prepare_for_submission(task)` then looks
-up `type(task)` in that table, walking up the MRO, so a subclass of
-`ShellTask` would reuse the `ShellTask` implementation unless it registers
-its own. This is the same lookup as for methods, but the table lives in the
-engine instead of in the core classes.
-
-Registration happens when the module containing the `register` call is
-imported. `sirocco.engines.standalone.tasks` imports all built-in plugin
-modules, and `sirocco.engines.standalone` imports that package, so using the
-engine at all guarantees every built-in plugin is registered.
+- Implementations are named `<generic function>_<task type>`, as in `pretty_print.py`, to
+  tell them apart in tracebacks.
+- The class is passed explicitly to `register`. Reading it from the type annotation would
+  need the class at runtime, which linters cannot see: they would move its import under
+  `TYPE_CHECKING`.
+- Registration happens when the registering module is imported, which
+  `sirocco.engines.standalone` does for all built-in plugins (see `tasks/`).
 """
 
 from __future__ import annotations
@@ -71,7 +59,7 @@ def run_dir(task: Task, path_resolver: PathResolver) -> Path:
 
 @singledispatch
 def resolve_output_paths(task: Task, path_resolver: PathResolver) -> None:
-    """Set the resolved path_resolver of all the task outputs with `path_resolver.set_path`"""
+    """Set the resolved paths of all the task outputs with `path_resolver.set_path`"""
     msg = f"standalone engine: plugin {task.plugin!r} has no resolve_output_paths implementation"
     raise NotImplementedError(msg)
 
