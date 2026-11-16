@@ -122,7 +122,7 @@ depending on whether `port_name_2` links data or not.
 Before invoking the task `command` in the submitted run script, some environment variables are exported to provide context information or propagate information provided in the configuration file.
 
 - `SIROCCO_START_DATE` and `SIROCCO_STOP_DATE`: start and stop date of the [current cycle occurrence](../configuration/cycles.md#cycling)
-- `N_NODES`: if provided, [number of requested nodes](../configuration/tasks.md#nodes)
+- `N_NODES`: [number of requested nodes](../configuration/tasks.md#nodes)
 - `PROCS_PER_NODE`: if provided, [number of requested MPI processes per node](../configuration/tasks.md#procs_per_node)
 - `CORES_PER_PROC`: if provided, [number of requested cores per MPI process](../configuration/tasks.md#cores_per_proc)
 
