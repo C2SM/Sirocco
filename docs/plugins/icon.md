@@ -56,14 +56,6 @@ This list regularly gets extended as use cases start to cover more ICON features
 
 - All data instances of that port are [squashfs :lucide-external-link:](https://en.wikipedia.org/wiki/SquashFS) images that will be mounted at runtime at the mount points given in the [`squash_mount`](#squash_mount) task specification. So far, this feature is only supported on  machines using the [uenv technology :lucide-external-link:](https://docs.cscs.ch/software/uenv/).
 
-#### `finish_status`
-
-**component types**: atmosphere, ocean
-<br>
-**data instances**: 1
-<br>
-**actions**: None
-
 #### `restart_in`
 
 **component types**: atmosphere, ocean
@@ -97,6 +89,17 @@ This list regularly gets extended as use cases start to cover more ICON features
 - If the associated data is generated, link it in the task run directory with its original name.
 - Reflect data path in `initicon_nml > ifs2icon_filename`.
 
+#### `latbc`
+
+**component types**: atmosphere
+<br>
+**data instances**: 1
+<br>
+**actions**:
+
+- If the associated data is generated, link it as `latbc` in the task run directory.
+- Reflect data path in `limarea_nml > latbc_path`.
+
 #### `extpar_file`
 
 **component types**: atmosphere
@@ -128,7 +131,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 <br>
 **actions**:
 
-- If the associated data is generated, link it in the task run directory with its original name.
+- If the associated data is generated, link it as `rrtmg_lw.nc` in the task run directory.
 - Reflect data path in `radiation_nml > ghg_filename` namelist parameter.
 
 #### `rrtmg_lw`
@@ -313,7 +316,7 @@ This list regularly gets extended as use cases start to cover more ICON features
 **actions**:
 
 - If the associated data is generated, link it in the task run directory with its original name.
-- Reflect data path in `jsb_hydro_nml:bc > sso_filename`.
+- Reflect data path in `jsb_hydro_nml > bc_sso_filename`.
 
 #### `jsb_hydro_ic`
 
@@ -426,6 +429,14 @@ This list regularly gets extended as use cases start to cover more ICON features
 - Check that the number of output streams declared as `output_nml` sections matches the number of associated data pieces.
 - Ensure that all `output_nml` streams specify an output sub-directory using the combination of `filename_format` and `output_filename` parameters (see in [ICON namelist overview :lucide-external-link:](https://docs.icon-model.org/2026.04/documentation/buildrun/buildrun_namelist_overview.html#output-nml) ). For instance `filename_format = 'atm_mon/atm_mon_<datetime2>'` is a valid entry while `filename_format = 'atm_mon_<datetime2>'` isn't.
 - Create these sub-directories in the task run directory.
+
+#### `finish_status`
+
+**component types**: atmosphere, ocean
+<br>
+**data instances**: 1
+<br>
+**actions**: None
 
 ## Task specifications
 
