@@ -19,8 +19,9 @@ from sirocco.core.tasks.icon_task import ports as core_icon_ports
 from sirocco.core.tasks.icon_task.ports import IconPort
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Sequence
 
+    from sirocco.core.graph_items import Data
     from sirocco.core.tasks.icon_task.models import IconModel
     from sirocco.engines.standalone.path_resolver import PathResolver
 
@@ -85,32 +86,30 @@ def apply_link_and_namelist(port: IconPort, model: IconModel, run_dir: Path, pat
 # =========== Special ports ===========
 
 
-@special_port(core_icon_ports.restart_in_port)
-def apply_restart_in_port(port: IconPort, model: IconModel, run_dir: Path, path_resolver: PathResolver) -> None:
-    if restart_write_mode := model.namelist["io_nml"].get("restart_write_mode") != "joint procs multifile":
-        msg = f"Only supported restart_write_mode is 'joint procs multifile', got {restart_write_mode}"
+def restart_data(port: IconPort, model: IconModel, data_list: Sequence[Data]) -> Data | None:
+    """The single data node of a restart port, if any, after checking the restart mode of `model`"""
+    if (restart_write_mode := model.namelist["io_nml"].get("restart_write_mode")) != "joint procs multifile":
+        msg = f"Only supported restart_write_mode is 'joint procs multifile', got {restart_write_mode!r}"
         raise ValueError(msg)
     # Ignore empty restart port or possible when conditions
-    if not (data_list := model.inputs[port.port_name]):
-        return
+    if not data_list:
+        return None
     if len(data_list) > 1:
         msg = f"port '{port.port_name}' only accepts a single data object"
         raise ValueError(msg)
-    (run_dir / f"multifile_restart_{model.name}.mfr").symlink_to(path_resolver.path(data_list[0]))
+    return data_list[0]
+
+
+@special_port(core_icon_ports.restart_in_port)
+def apply_restart_in_port(port: IconPort, model: IconModel, run_dir: Path, path_resolver: PathResolver) -> None:
+    if (data := restart_data(port, model, model.inputs[port.port_name])) is not None:
+        (run_dir / f"multifile_restart_{model.name}.mfr").symlink_to(path_resolver.path(data))
 
 
 @special_port(core_icon_ports.restart_out_port)
 def apply_restart_out_port(port: IconPort, model: IconModel, run_dir: Path, path_resolver: PathResolver) -> None:
-    if restart_write_mode := model.namelist["io_nml"].get("restart_write_mode") != "joint procs multifile":
-        msg = f"Only supported restart_write_mode is 'joint procs multifile', got {restart_write_mode}"
-        raise ValueError(msg)
-    # Ignore empty restart port or possible when conditions
-    if not (data_list := model.outputs[port.port_name]):
-        return
-    if len(data_list) > 1:
-        msg = f"port '{port.port_name}' only accepts a single data object"
-        raise ValueError(msg)
-    path_resolver.set_path(data_list[0], run_dir / f"multifile_restart_{model.name}.mfr")
+    if (data := restart_data(port, model, model.outputs[port.port_name])) is not None:
+        path_resolver.set_path(data, run_dir / f"multifile_restart_{model.name}.mfr")
 
 
 @special_port(core_icon_ports.output_streams_port)
