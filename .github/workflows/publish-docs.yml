@@ -1,0 +1,87 @@
+name: publish-docs
+
+# Build the documentation and push it to https://sirocco.ethz.ch
+#
+# The web server directory lives on atmos.ethz.ch, which is only reachable
+# through the fog.ethz.ch jump host. Required repository secrets:
+# - DOCS_DEPLOY_FOG_SSH_KEY: private key (without passphrase) accepted by fog.ethz.ch
+# - DOCS_DEPLOY_ATMOS_SSH_KEY: private key (without passphrase) accepted by atmos.ethz.ch
+
+on:
+  push:
+    branches:
+    - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Never run two deployments at the same time, the last one wins
+concurrency:
+  group: publish-docs
+  cancel-in-progress: true
+
+env:
+  DEPLOY_USER: leclairm
+  DEPLOY_PATH: /net/iacc2sm/data/sirocco.ethz.ch/htdocs/
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.12
+
+    - name: Install hatch
+      run: |
+        pip install --upgrade pip
+        pip install "click<8.3.0"  # NOTE: click 8.2 -> 8.3 is backwards incompatible
+        pip install "virtualenv<21.0.0"  # NOTE: virtualenv 21.0.0 has breaking changes incompatible with hatch
+        pip install hatch
+
+    - name: Build docs
+      run: hatch run docs:build
+
+    - name: Set up SSH
+      env:
+        FOG_SSH_KEY: ${{ secrets.DOCS_DEPLOY_FOG_SSH_KEY }}
+        ATMOS_SSH_KEY: ${{ secrets.DOCS_DEPLOY_ATMOS_SSH_KEY }}
+      run: |
+        umask 077
+        mkdir -p ~/.ssh
+        printf '%s\n' "${FOG_SSH_KEY}" > ~/.ssh/fog_key
+        printf '%s\n' "${ATMOS_SSH_KEY}" > ~/.ssh/atmos_key
+        # Public host keys, pinned so that the connection fails if a host cannot be authenticated
+        cat > ~/.ssh/known_hosts <<'EOF'
+        fog.ethz.ch ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMMGddQwl0gXqcPeL4FFjiyXBrfPXdfDOdX5f+gM+o1F
+        atmos.ethz.ch ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFfsYeCPtHCKawTPw603Zyr95DLVlJgBA3oCmsh5zAmJ
+        EOF
+        cat > ~/.ssh/config <<EOF
+        Host *
+          User ${DEPLOY_USER}
+          IdentitiesOnly yes
+          StrictHostKeyChecking yes
+          HostKeyAlgorithms ssh-ed25519
+          BatchMode yes
+          ConnectTimeout 30
+        Host fog
+          HostName fog.ethz.ch
+          IdentityFile ~/.ssh/fog_key
+        Host atmos
+          HostName atmos.ethz.ch
+          IdentityFile ~/.ssh/atmos_key
+          ProxyJump fog
+        EOF
+
+    - name: Push site to web server
+      run: rsync -rlt --delete --chmod=D755,F644 site/ "atmos:${DEPLOY_PATH}"
+
+    - name: Remove SSH keys
+      if: always()
+      run: rm -f ~/.ssh/fog_key ~/.ssh/atmos_key
