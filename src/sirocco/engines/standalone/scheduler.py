@@ -7,7 +7,6 @@ submitted tasks. Only the engine reads and writes the state table.
 
 from __future__ import annotations
 
-import logging
 import shutil
 import subprocess
 from abc import ABC, abstractmethod
@@ -15,7 +14,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar, Literal, Self, assert_never
 
 from sirocco.engines.standalone import handlers
-from sirocco.engines.standalone.state import TaskStatus
+from sirocco.engines.standalone.state import NO_ID, TaskStatus
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -23,7 +22,6 @@ if TYPE_CHECKING:
     from sirocco.core.graph_items import Task
     from sirocco.engines.standalone.path_resolver import PathResolver
 
-LOGGER = logging.getLogger(__name__)
 UENV_MACHINES: list[str] = ["santis"]
 
 type STDOUTERR_MODE_T = Literal["overwrite", "append"]
@@ -213,7 +211,7 @@ class Slurm(Scheduler):
     def cancel(self, task: Task, jobid: str):
         """Cancel a submitted task"""
 
-        if jobid == "_NO_ID_":
+        if jobid == NO_ID:
             msg = f"task {task.label} cannot be canceled as it does not have a jobid"
             raise ValueError(msg)
         self.run_command(["scancel", jobid])
