@@ -619,7 +619,7 @@ Of course the final proportions might not exactly match the specified weights as
 <br>
 **optional**
 <br>
-**description**: Path to the [icon4py :lucide-external-link:](https://github.com/C2SM/icon4py) virtual environment. If provided, it will be exported as `ICON4PY_VENV` in the submitted runscript so that subsequent [`runtime`](#runtime) can make use of it.
+**description**: Path to the [icon4py :lucide-external-link:](https://github.com/C2SM/icon4py) virtual environment. If provided to the `gpu` executable (`cpu` is ignored for now), it will be exported as `ICON4PY_VENV` in the submitted runscript so that subsequent [`runtime`](#runtime) can make use of it.
 
 ##### `gt4py_build_cache_dir`
 
@@ -627,7 +627,7 @@ Of course the final proportions might not exactly match the specified weights as
 <br>
 **optional**
 <br>
-**description**: Path to the [gt4py :lucide-external-link:](https://github.com/GridTools/gt4py) build cache dir. It is used at runtime by the submitted ICON task so that relative paths are resolved from the task run directory. When using the standalone engine, given how Sirocco organizes [task run directories](../orchestration.md#workflow-folder-hierarchy), specifying `..` can be useful as all icon tasks would point to the same path, avoiding cache filling by each of them. If provided, it will be exported as `GT4PY_BUILD_CACHE_DIR` in the submitted runscript so that subsequent [`runtime`](#runtime) can make use of it.
+**description**: Path to the [gt4py :lucide-external-link:](https://github.com/GridTools/gt4py) build cache dir. It is used at runtime by the submitted ICON task so that relative paths are resolved from the task run directory. When using the standalone engine, given how Sirocco organizes [task run directories](../orchestration.md#workflow-folder-hierarchy), specifying `..` can be useful as all icon tasks would point to the same path, avoiding cache filling by each of them. If provided to the `gpu` executable (`cpu` is ignored for now), it will be exported as `GT4PY_BUILD_CACHE_DIR` in the submitted runscript so that subsequent [`runtime`](#runtime) can make use of it.
 
 ### `runtime`
 
