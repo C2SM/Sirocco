@@ -42,6 +42,13 @@ extra_javascript = [
   "javascripts/svg-viewer.js",
 ]
 
+# Files of the docs directory which are not part of the site (gitignore syntax)
+exclude_docs = """
+/tools/
+/overrides/
+__pycache__/
+"""
+
 [project.theme]
 # variant = "classic"
 custom_dir = "docs/overrides"
