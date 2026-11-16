@@ -191,7 +191,7 @@ def visualize(
         viz_graph = vizgraph.VizGraph.from_core_workflow(core_workflow)
 
         # Determine output path
-        output_path = config_dir.parent / f"{core_workflow.name}.svg" if output_file is None else output_file
+        output_path = config_dir / f"{core_workflow.name}.svg" if output_file is None else output_file
 
         # Ensure the output directory exists
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -221,13 +221,25 @@ def add_now(width: int = 25) -> str:
 @app.command(help="\\[Standalone] Visualize workflow status.")
 def stviz(
     config_dir: CONFIG_DIR_ARG_T = Path("."),
+    output_file: Annotated[
+        Path | None,
+        typer.Option(
+            "--output",
+            "-o",
+            writable=True,
+            file_okay=False,
+            dir_okay=True,
+            help="Optional path to save the output SVG file.",
+        ),
+    ] = None,
 ):
     console.print(f"{CmdStatus.PLAY} Visualizing workflow status from: [cyan]{config_dir!s}[/cyan]")
     try:
         wf = core.Workflow.from_config_path(config_dir)
         wf.load_state()
         viz_graph = vizgraph.VizGraph.from_status_workflow(wf)
-        viz_graph.draw(file_path=Path("./status.svg"))
+        output_path = Path("./state.svg") if output_file is None else output_file
+        viz_graph.draw(file_path=output_path)
         console.print(f"{CmdStatus.SUCCESS} Status visualization saved to: [cyan]./status.svg[/cyan]")
 
     except Exception as e:

@@ -48,7 +48,7 @@ Unroll the workflow graph and print it as a string formatted à la `yaml`. It is
 
 #### `visualize`
 
-Generate a visual representation of the workflow graph as an `svg` file. By default, it is written next to the configuration directory, _i.e._ in its parent directory, and named after it: `<configuration directory name>.svg`. Use `--output` (`-o`) to choose another path. An example is displayed [in the cycles section](../configuration/cycles.md#example). It is pretty useful to confirm that the workflow graph corresponds to the intended nodes relationship.
+Generate a visual representation of the workflow graph as an `svg` file. By default, it is written in the configuration directory and named after it: `<configuration directory name>.svg`. Use `--output` (`-o`) to choose another path. An example is displayed [in the cycles section](../configuration/cycles.md#example). It is pretty useful to confirm that the workflow graph corresponds to the intended nodes relationship.
 
 !!! warning "long graph representation"
 
@@ -56,7 +56,7 @@ Generate a visual representation of the workflow graph as an `svg` file. By defa
 
 #### `stviz`
 
-Generate a graphical representation similar to `visualize` focusing on the [task front](../orchestration.md#the-deep-propagating-task-front) and dump it to `status.svg` in the current working directory. Only cycles containing tasks from the front are represented. Rank $0$ tasks (running or queued) and involved input/output data are displayed in bold. Other front tasks ($r \geq 1$) and involved input/output data are unchanged compared to `visualize`. Other tasks and data nodes are grayed out. Task ranks are also added to the tooltip (hover on the task nodes to see).
+Generate a graphical representation similar to `visualize` focusing on the [task front](../orchestration.md#the-deep-propagating-task-front) and dump it to `state.svg` in the current working directory. Use `--output` (`-o`) to choose another path. Only cycles containing tasks from the front are represented. Rank $0$ tasks (running or queued) and involved input/output data are displayed in bold. Other front tasks ($r \geq 1$) and involved input/output data are unchanged compared to `visualize`. Other tasks and data nodes are grayed out. Task ranks are also added to the tooltip (hover on the task nodes to see).
 
 <!-- Use object to keep the embedded javascript runnable -->
 <object type="image/svg+xml" data="../../assets/example_config/status.svg" width="100%">
