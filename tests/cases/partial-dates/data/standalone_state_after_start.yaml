@@ -1,0 +1,44 @@
+sirocco_jobid: '1011'
+completed_tasks: []
+cool_down_tasks: []
+front:
+- - icon:
+      coordinates:
+        date: '2026-01-01T00:00:00+00:00'
+      jobid: '1001'
+  - icon:
+      coordinates:
+        date: '2027-01-01T00:00:00+00:00'
+      jobid: '1002'
+- - waiter:
+      coordinates:
+        date: '2026-01-01T00:00:00+00:00'
+      jobid: '1003'
+  - waiter:
+      coordinates:
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1004'
+  - biannual_postprocessing:
+      coordinates:
+        date: '2026-01-01T00:00:00+00:00'
+      jobid: '1005'
+  - biannual_postprocessing:
+      coordinates:
+        date: '2026-07-01T00:00:00+00:00'
+      jobid: '1006'
+  - waiter:
+      coordinates:
+        date: '2027-01-01T00:00:00+00:00'
+      jobid: '1007'
+  - waiter:
+      coordinates:
+        date: '2027-07-01T00:00:00+00:00'
+      jobid: '1008'
+  - biannual_postprocessing:
+      coordinates:
+        date: '2027-01-01T00:00:00+00:00'
+      jobid: '1009'
+  - biannual_postprocessing:
+      coordinates:
+        date: '2027-07-01T00:00:00+00:00'
+      jobid: '1010'
