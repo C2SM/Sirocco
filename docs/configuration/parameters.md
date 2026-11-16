@@ -63,8 +63,8 @@ In order to better understand where and how parameters are declared, attached an
 
 <figure class="svg-viewer" data-zoom="2" style="--svg-viewer-height: 40vh;" markdown="block">
   <div class="svg-viewer__toolbar">
-    <button type="button" data-svg-zoom="in" title="Zoom in">+</button>
     <button type="button" data-svg-zoom="out" title="Zoom out">−</button>
+    <button type="button" data-svg-zoom="in" title="Zoom in">+</button>
     <button type="button" data-svg-zoom="reset" title="Reset zoom">Reset</button>
   </div>
   <div class="svg-viewer__viewport">
