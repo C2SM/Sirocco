@@ -141,51 +141,21 @@ export N_NODES=1
 sirocco continue --from_wf <ROOTDIR> || exit
 ---
 status: CONTINUE
---- state.yaml
-sirocco_jobid: '1011'
-completed_tasks: []
-cool_down_tasks: []
-front:
-- - icon:
-      coordinates:
-        date: '2026-01-01T00:00:00+00:00'
-      jobid: '1001'
-  - icon:
-      coordinates:
-        date: '2027-01-01T00:00:00+00:00'
-      jobid: '1002'
-- - waiter:
-      coordinates:
-        date: '2026-01-01T00:00:00+00:00'
-      jobid: '1003'
-  - waiter:
-      coordinates:
-        date: '2026-07-01T00:00:00+00:00'
-      jobid: '1004'
-  - biannual_postprocessing:
-      coordinates:
-        date: '2026-01-01T00:00:00+00:00'
-      jobid: '1005'
-  - biannual_postprocessing:
-      coordinates:
-        date: '2026-07-01T00:00:00+00:00'
-      jobid: '1006'
-  - waiter:
-      coordinates:
-        date: '2027-01-01T00:00:00+00:00'
-      jobid: '1007'
-  - waiter:
-      coordinates:
-        date: '2027-07-01T00:00:00+00:00'
-      jobid: '1008'
-  - biannual_postprocessing:
-      coordinates:
-        date: '2027-01-01T00:00:00+00:00'
-      jobid: '1009'
-  - biannual_postprocessing:
-      coordinates:
-        date: '2027-07-01T00:00:00+00:00'
-      jobid: '1010'
+--- state (continuation job 1011)
+front[0]:
+  icon[date=2026-01-01T00:00:00+00:00] (1001)
+  icon[date=2027-01-01T00:00:00+00:00] (1002)
+front[1]:
+  waiter[date=2026-01-01T00:00:00+00:00] (1003)
+  waiter[date=2026-07-01T00:00:00+00:00] (1004)
+  biannual_postprocessing[date=2026-01-01T00:00:00+00:00] (1005)
+  biannual_postprocessing[date=2026-07-01T00:00:00+00:00] (1006)
+  waiter[date=2027-01-01T00:00:00+00:00] (1007)
+  waiter[date=2027-07-01T00:00:00+00:00] (1008)
+  biannual_postprocessing[date=2027-01-01T00:00:00+00:00] (1009)
+  biannual_postprocessing[date=2027-07-01T00:00:00+00:00] (1010)
+cool_down_tasks:
+completed_tasks:
 ---
 # icon__date_2026-01-01T00-00-00 -> COMPLETED
 # icon__date_2027-01-01T00-00-00 -> COMPLETED
@@ -193,52 +163,21 @@ front:
 === sirocco continue
 submit Sirocco_continue (1012) after ['1003', '1004', '1005', '1006', '1007', '1008', '1009', '1010'] [ANY]
 status: CONTINUE
---- state.yaml
-sirocco_jobid: '1012'
+--- state (continuation job 1012)
+front[0]:
+  waiter[date=2026-01-01T00:00:00+00:00] (1003)
+  waiter[date=2026-07-01T00:00:00+00:00] (1004)
+  biannual_postprocessing[date=2026-01-01T00:00:00+00:00] (1005)
+  biannual_postprocessing[date=2026-07-01T00:00:00+00:00] (1006)
+  waiter[date=2027-01-01T00:00:00+00:00] (1007)
+  waiter[date=2027-07-01T00:00:00+00:00] (1008)
+  biannual_postprocessing[date=2027-01-01T00:00:00+00:00] (1009)
+  biannual_postprocessing[date=2027-07-01T00:00:00+00:00] (1010)
+front[1]:
+cool_down_tasks:
 completed_tasks:
-- icon:
-    coordinates:
-      date: '2026-01-01T00:00:00+00:00'
-    jobid: '1001'
-- icon:
-    coordinates:
-      date: '2027-01-01T00:00:00+00:00'
-    jobid: '1002'
-cool_down_tasks: []
-front:
-- - waiter:
-      coordinates:
-        date: '2026-01-01T00:00:00+00:00'
-      jobid: '1003'
-  - waiter:
-      coordinates:
-        date: '2026-07-01T00:00:00+00:00'
-      jobid: '1004'
-  - biannual_postprocessing:
-      coordinates:
-        date: '2026-01-01T00:00:00+00:00'
-      jobid: '1005'
-  - biannual_postprocessing:
-      coordinates:
-        date: '2026-07-01T00:00:00+00:00'
-      jobid: '1006'
-  - waiter:
-      coordinates:
-        date: '2027-01-01T00:00:00+00:00'
-      jobid: '1007'
-  - waiter:
-      coordinates:
-        date: '2027-07-01T00:00:00+00:00'
-      jobid: '1008'
-  - biannual_postprocessing:
-      coordinates:
-        date: '2027-01-01T00:00:00+00:00'
-      jobid: '1009'
-  - biannual_postprocessing:
-      coordinates:
-        date: '2027-07-01T00:00:00+00:00'
-      jobid: '1010'
-- []
+  icon[date=2026-01-01T00:00:00+00:00] (1001)
+  icon[date=2027-01-01T00:00:00+00:00] (1002)
 ---
 # waiter__date_2026-01-01T00-00-00 -> RUNNING
 
@@ -252,56 +191,22 @@ cancel waiter__date_2027-07-01T00-00-00 (1008)
 cancel biannual_postprocessing__date_2027-01-01T00-00-00 (1009)
 cancel biannual_postprocessing__date_2027-07-01T00-00-00 (1010)
 status: STOPPED
---- state.yaml
-sirocco_jobid: _NO_ID_
-completed_tasks:
-- icon:
-    coordinates:
-      date: '2026-01-01T00:00:00+00:00'
-    jobid: '1001'
-- icon:
-    coordinates:
-      date: '2027-01-01T00:00:00+00:00'
-    jobid: '1002'
+--- state (continuation job _NO_ID_)
+front[0]:
+  waiter[date=2026-01-01T00:00:00+00:00] (1003)
+  waiter[date=2026-07-01T00:00:00+00:00] (1004)
+  biannual_postprocessing[date=2026-01-01T00:00:00+00:00] (1005)
+  biannual_postprocessing[date=2026-07-01T00:00:00+00:00] (1006)
+  waiter[date=2027-01-01T00:00:00+00:00] (1007)
+  waiter[date=2027-07-01T00:00:00+00:00] (1008)
+  biannual_postprocessing[date=2027-01-01T00:00:00+00:00] (1009)
+  biannual_postprocessing[date=2027-07-01T00:00:00+00:00] (1010)
+front[1]:
 cool_down_tasks:
-- waiter:
-    coordinates:
-      date: '2026-01-01T00:00:00+00:00'
-    jobid: '1003'
-front:
-- - waiter:
-      coordinates:
-        date: '2026-01-01T00:00:00+00:00'
-      jobid: '1003'
-  - waiter:
-      coordinates:
-        date: '2026-07-01T00:00:00+00:00'
-      jobid: '1004'
-  - biannual_postprocessing:
-      coordinates:
-        date: '2026-01-01T00:00:00+00:00'
-      jobid: '1005'
-  - biannual_postprocessing:
-      coordinates:
-        date: '2026-07-01T00:00:00+00:00'
-      jobid: '1006'
-  - waiter:
-      coordinates:
-        date: '2027-01-01T00:00:00+00:00'
-      jobid: '1007'
-  - waiter:
-      coordinates:
-        date: '2027-07-01T00:00:00+00:00'
-      jobid: '1008'
-  - biannual_postprocessing:
-      coordinates:
-        date: '2027-01-01T00:00:00+00:00'
-      jobid: '1009'
-  - biannual_postprocessing:
-      coordinates:
-        date: '2027-07-01T00:00:00+00:00'
-      jobid: '1010'
-- []
+  waiter[date=2026-01-01T00:00:00+00:00] (1003)
+completed_tasks:
+  icon[date=2026-01-01T00:00:00+00:00] (1001)
+  icon[date=2027-01-01T00:00:00+00:00] (1002)
 ---
 
 === sirocco restart
@@ -321,52 +226,21 @@ cancel biannual_postprocessing__date_2027-07-01T00-00-00 (1010)
 submit biannual_postprocessing__date_2027-07-01T00-00-00 (1019) after [] [ALL_COMPLETED]
 submit Sirocco_continue (1020) after ['1003', '1013', '1014', '1015', '1016', '1017', '1018', '1019'] [ANY]
 status: CONTINUE
---- state.yaml
-sirocco_jobid: '1020'
+--- state (continuation job 1020)
+front[0]:
+  waiter[date=2026-01-01T00:00:00+00:00] (1003)
+  waiter[date=2026-07-01T00:00:00+00:00] (1013)
+  biannual_postprocessing[date=2026-01-01T00:00:00+00:00] (1014)
+  biannual_postprocessing[date=2026-07-01T00:00:00+00:00] (1015)
+  waiter[date=2027-01-01T00:00:00+00:00] (1016)
+  waiter[date=2027-07-01T00:00:00+00:00] (1017)
+  biannual_postprocessing[date=2027-01-01T00:00:00+00:00] (1018)
+  biannual_postprocessing[date=2027-07-01T00:00:00+00:00] (1019)
+front[1]:
+cool_down_tasks:
 completed_tasks:
-- icon:
-    coordinates:
-      date: '2026-01-01T00:00:00+00:00'
-    jobid: '1001'
-- icon:
-    coordinates:
-      date: '2027-01-01T00:00:00+00:00'
-    jobid: '1002'
-cool_down_tasks: []
-front:
-- - waiter:
-      coordinates:
-        date: '2026-01-01T00:00:00+00:00'
-      jobid: '1003'
-  - waiter:
-      coordinates:
-        date: '2026-07-01T00:00:00+00:00'
-      jobid: '1013'
-  - biannual_postprocessing:
-      coordinates:
-        date: '2026-01-01T00:00:00+00:00'
-      jobid: '1014'
-  - biannual_postprocessing:
-      coordinates:
-        date: '2026-07-01T00:00:00+00:00'
-      jobid: '1015'
-  - waiter:
-      coordinates:
-        date: '2027-01-01T00:00:00+00:00'
-      jobid: '1016'
-  - waiter:
-      coordinates:
-        date: '2027-07-01T00:00:00+00:00'
-      jobid: '1017'
-  - biannual_postprocessing:
-      coordinates:
-        date: '2027-01-01T00:00:00+00:00'
-      jobid: '1018'
-  - biannual_postprocessing:
-      coordinates:
-        date: '2027-07-01T00:00:00+00:00'
-      jobid: '1019'
-- []
+  icon[date=2026-01-01T00:00:00+00:00] (1001)
+  icon[date=2027-01-01T00:00:00+00:00] (1002)
 ---
 # waiter__date_2026-01-01T00-00-00 -> COMPLETED
 # waiter__date_2026-07-01T00-00-00 -> COMPLETED
@@ -379,51 +253,19 @@ front:
 
 === sirocco continue
 status: COMPLETED
---- state.yaml
-sirocco_jobid: _NO_ID_
+--- state (continuation job _NO_ID_)
+front[0]:
+front[1]:
+cool_down_tasks:
 completed_tasks:
-- icon:
-    coordinates:
-      date: '2026-01-01T00:00:00+00:00'
-    jobid: '1001'
-- icon:
-    coordinates:
-      date: '2027-01-01T00:00:00+00:00'
-    jobid: '1002'
-- waiter:
-    coordinates:
-      date: '2026-01-01T00:00:00+00:00'
-    jobid: '1003'
-- waiter:
-    coordinates:
-      date: '2026-07-01T00:00:00+00:00'
-    jobid: '1013'
-- biannual_postprocessing:
-    coordinates:
-      date: '2026-01-01T00:00:00+00:00'
-    jobid: '1014'
-- biannual_postprocessing:
-    coordinates:
-      date: '2026-07-01T00:00:00+00:00'
-    jobid: '1015'
-- waiter:
-    coordinates:
-      date: '2027-01-01T00:00:00+00:00'
-    jobid: '1016'
-- waiter:
-    coordinates:
-      date: '2027-07-01T00:00:00+00:00'
-    jobid: '1017'
-- biannual_postprocessing:
-    coordinates:
-      date: '2027-01-01T00:00:00+00:00'
-    jobid: '1018'
-- biannual_postprocessing:
-    coordinates:
-      date: '2027-07-01T00:00:00+00:00'
-    jobid: '1019'
-cool_down_tasks: []
-front:
-- []
-- []
+  icon[date=2026-01-01T00:00:00+00:00] (1001)
+  icon[date=2027-01-01T00:00:00+00:00] (1002)
+  waiter[date=2026-01-01T00:00:00+00:00] (1003)
+  waiter[date=2026-07-01T00:00:00+00:00] (1013)
+  biannual_postprocessing[date=2026-01-01T00:00:00+00:00] (1014)
+  biannual_postprocessing[date=2026-07-01T00:00:00+00:00] (1015)
+  waiter[date=2027-01-01T00:00:00+00:00] (1016)
+  waiter[date=2027-07-01T00:00:00+00:00] (1017)
+  biannual_postprocessing[date=2027-01-01T00:00:00+00:00] (1018)
+  biannual_postprocessing[date=2027-07-01T00:00:00+00:00] (1019)
 ---
