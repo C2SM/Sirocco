@@ -55,8 +55,12 @@ jobs:
       run: |
         umask 077
         mkdir -p ~/.ssh
-        printf '%s\n' "${FOG_SSH_KEY}" > ~/.ssh/fog_key
-        printf '%s\n' "${ATMOS_SSH_KEY}" > ~/.ssh/atmos_key
+        # Drop potential carriage returns from pasted secrets and make sure the keys are readable
+        printf '%s\n' "${FOG_SSH_KEY}" | tr -d '\r' > ~/.ssh/fog_key
+        printf '%s\n' "${ATMOS_SSH_KEY}" | tr -d '\r' > ~/.ssh/atmos_key
+        for key in fog_key atmos_key; do
+          ssh-keygen -y -f ~/.ssh/${key} > /dev/null || { echo "::error::${key}: the secret is not a valid passphrase-less private key"; exit 1; }
+        done
         # Public host keys, pinned so that the connection fails if a host cannot be authenticated
         cat > ~/.ssh/known_hosts <<'EOF'
         fog.ethz.ch ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMMGddQwl0gXqcPeL4FFjiyXBrfPXdfDOdX5f+gM+o1F
