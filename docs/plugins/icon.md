@@ -16,6 +16,17 @@ h4, h5, h6 {
 
 The ICON plugin is designed as an interface between the Sirocco workflow and the [ICON model :lucide-external-link:](https://www.icon-model.org/). It will generate the final run scripts executed on the system based on specifications like namelists, MPI ranks distribution, hardware properties, etc ...
 
+## Supported machines
+
+ICON tasks can currently only run on the **Säntis** machine at CSCS, _i.e._ with [`computer: santis`](../configuration/tasks.md#computer), as they rely on machine specific [`runtime`](#runtime) scripts and MPI ranks mapping. On this machine:
+
+- the [`uenv`](../configuration/tasks.md#uenv) task specification is **required**.
+- contrary to other tasks, `uenv` and [`view`](../configuration/tasks.md#view) are not set in the job header. They are exported as `ICON_UENV` and `ICON_VIEW` in the submitted run script, together with potential [squashfs images](#squash), for further use by the [`runtime`](#runtime) scripts.
+
+!!! example "Other machines"
+
+    We plan to soon support other specific machines out of the box, as well as arbitrary ones, provided users bring the required specifications, like the `runtime` scripts and the node topology (see [issue #304 :lucide-external-link:](https://github.com/C2SM/Sirocco/issues/304)).
+
 ## Components
 As mentioned in the [cycles](../configuration/cycles.md#tasks) section, we need to introduce the `components` level between tasks and their inputs/outputs in the `cycles` root section where the workflow graph topology is defined. In order to avoid conflicts between identical ports of models listed in `icon_master.namelist` (and bring clarity), each of them is mapped to a component with its own inputs and outputs. Restart state or output streams would be typical conflicting inputs without the component level. The `cycles` section hence reads like the following
 
@@ -36,7 +47,7 @@ cycles:
               land:
                 inputs: [...]
 ```
-Each of the models listed in `icon_master.namelist` must have a corresponding component specified. So `atm`, `ocean` and `land` in this example. On top of these, a special and optional `master` component is available to host ports that are not specifically linked to a component, like [basic input linking](../configuration/cycles.md#special-input-linking-ports).
+Each of the models listed in `icon_master.namelist` must have a corresponding component specified. So `atm`, `ocean` and `land` in this example. On top of these, a special and optional `master` component is available to host ports that are not specifically linked to a component, like [basic input linking](../configuration/cycles.md#special-input-linking-ports). Note that the `link` and `link_content` ports as well as [`squash`](#squash) are only available in the `master` component.
 
 ## Ports
 
@@ -554,9 +565,9 @@ Conversely, Sirocco relies on the following entries, which thus have to be corre
 
 **type**: string
 <br>
-**optional**
+**required** for coupled runs, _i.e._ with several master models, ignored otherwise
 <br>
-**description**: Path, relative to the configuration directory, to the YAC coupling file `coupling.yaml`.
+**description**: Path, relative to the configuration directory, to the YAC coupling file `coupling.yaml`. It is copied to the task run directory.
 
 ### `exe`
 
