@@ -13,18 +13,21 @@ Sirocco has 2 types of data: already available or generated as output by a task.
 ```sirocco-yaml
 data:
   available:
-     - raw input data:
-         path: "/path/to/raw_input_data"
-     - initial conditions:
-         path: "/path/to/initial_conditions"
+    - raw input data:
+        path: "/path/to/raw_input_data"
+    - initial conditions:
+        path: "/path/to/initial_conditions"
   generated:
-     - boundary conditions:
-         path: processed_data
-     - stream 1: {}
-     - stream 2: {}
-     - restart_file: {}
-     - processed:
-         path: processed_output
+    - boundary conditions:
+        path: processed_data
+    - stream 1:
+        path: stream_1
+    - stream 2:
+        path: stream_2
+    - restart_file:
+        path: restart
+    - processed:
+        path: processed_output
 ```
 
 ### `available`
