@@ -114,9 +114,11 @@ class Workflow:
 
         # Function to iterate over date and parameter combinations
         def iter_coordinates(cycle_point: CyclePoint, param_refs: list[str]) -> Iterator[dict]:
-            axes = {k: parameters[k] for k in param_refs}
-            if isinstance(cycle_point, DateCyclePoint):
-                axes["date"] = [cycle_point.chunk_start_date]
+            axes: dict[str, Any] = (
+                {"date": [cycle_point.chunk_start_date]} if isinstance(cycle_point, DateCyclePoint) else {}
+            )
+            axes.update({k: parameters[k] for k in sorted(param_refs)})
+
             yield from (dict(zip(axes.keys(), x, strict=False)) for x in product(*axes.values()))
 
         # 1 - create available data nodes
