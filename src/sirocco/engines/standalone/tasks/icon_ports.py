@@ -67,17 +67,17 @@ def apply_link_and_namelist(port: IconPort, model: IconModel, run_dir: Path, pat
     # Adapt namelist and link
     if port.section is not None and port.parameter is not None:
         if isinstance(data, GeneratedData):
-            target_link_name = port.target_link_name if port.target_link_name else path_resolver.path(data).name
+            target_link_name = port.target_link_name if port.target_link_name else path_resolver.get_path(data).name
             if port.section not in model.namelist:
                 model.namelist[port.section] = {}
             model.namelist[port.section][port.parameter] = f"./{target_link_name}"
             if not (origin := run_dir / target_link_name).is_symlink():
-                origin.symlink_to(path_resolver.path(data))
+                origin.symlink_to(path_resolver.get_path(data))
         else:
-            model.namelist[port.section][port.parameter] = str(path_resolver.path(data))
+            model.namelist[port.section][port.parameter] = str(path_resolver.get_path(data))
     # Only link
     elif port.target_link_name is not None:
-        (run_dir / port.target_link_name).symlink_to(path_resolver.path(data))
+        (run_dir / port.target_link_name).symlink_to(path_resolver.get_path(data))
     else:
         msg = "wrong combination of section, parameter and target_link_name"
         raise ValueError(msg)
@@ -103,7 +103,7 @@ def restart_data(port: IconPort, model: IconModel, data_list: Sequence[Data]) ->
 @special_port(core_icon_ports.restart_in_port)
 def apply_restart_in_port(port: IconPort, model: IconModel, run_dir: Path, path_resolver: PathResolver) -> None:
     if (data := restart_data(port, model, model.inputs[port.port_name])) is not None:
-        (run_dir / f"multifile_restart_{model.name}.mfr").symlink_to(path_resolver.path(data))
+        (run_dir / f"multifile_restart_{model.name}.mfr").symlink_to(path_resolver.get_path(data))
 
 
 @special_port(core_icon_ports.restart_out_port)
@@ -130,7 +130,7 @@ def apply_output_streams_port(port: IconPort, model: IconModel, run_dir: Path, p
             msg = f"task {model.task_label}, model {model.name}: output stream number {k} specifies an output stream directly in the run directory. Please specify a subdirectory using the 'filename_format' and 'output_filename' parameters (see ICON documentation)"
             raise ValueError(msg)
         path_resolver.set_path(output_data, stream_dir if stream_dir.is_absolute() else run_dir / stream_dir)
-        path_resolver.path(output_data).mkdir(parents=True, exist_ok=True)
+        path_resolver.get_path(output_data).mkdir(parents=True, exist_ok=True)
 
 
 @special_port(core_icon_ports.finish_status_port)

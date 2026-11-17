@@ -1,8 +1,7 @@
-"""Per-plugin behaviour of the standalone engine.
+"""Generic behaviour of the standalone engine.
 
-Each function decorated with `@singledispatch` below is a generic function: its
-implementation is picked from the class of its first argument, walking up the MRO like a
-method lookup, the decorated function being the fallback. Plugin modules add theirs with:
+Each function decorated with `@singledispatch` below is a generic function for plugin
+behaviours. Each plugin implementation is registered in its own engine module in `tasks/`:
 
 ```python
 @prepare_for_submission.register(ShellTask)
@@ -18,6 +17,7 @@ def prepare_for_submission_shell(
   `TYPE_CHECKING`.
 - Registration happens when the registering module is imported, which
   `sirocco.engines.standalone` does for all built-in plugins (see `tasks/`).
+
 """
 
 from __future__ import annotations
@@ -117,11 +117,11 @@ def link_lines(task: Task, path_resolver: PathResolver) -> list[str]:
     link_list: list[str] = []
     for component in task.components.values():
         if "link" in component.inputs:
-            link_list.extend([f"ln -s {path_resolver.path(data)} ." for data in component.inputs["link"]])
+            link_list.extend([f"ln -s {path_resolver.get_path(data)} ." for data in component.inputs["link"]])
         if "link_content" in component.inputs:
             link_list.extend(
                 [
-                    f"for item in {path_resolver.path(data)}/*; do ln -s ${{item}} .; done"
+                    f"for item in {path_resolver.get_path(data)}/*; do ln -s ${{item}} .; done"
                     for data in component.inputs["link_content"]
                 ]
             )

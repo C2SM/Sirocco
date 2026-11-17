@@ -35,7 +35,7 @@ def runscript_lines_shell(task: ShellTask, path_resolver: PathResolver) -> list[
     return [
         task.resolve_ports(
             {
-                port: [str(path_resolver.path(data)) for data in input_data]
+                port: [str(path_resolver.get_path(data)) for data in input_data]
                 for port, input_data in (task.outputs | task.inputs).items()
             }
         )
