@@ -1,7 +1,7 @@
 """Standalone engine: orchestrates a core workflow with the machine scheduler only.
 
-Importing this package registers the standalone handlers of all built-in task
-plugins (see `handlers.py` and `tasks/`).
+Importing this package registers the handlers of all built-in task plugins (see
+`handlers.py` and `tasks/`).
 """
 
 from .engine import StandaloneEngine, WorkflowStatus

@@ -12,20 +12,11 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar
 
 from sirocco.core.graph_items import Task
-from sirocco.engines.standalone.handlers import (
-    SubmissionSettings,
-    prepare_for_submission,
-    resolve_output_paths,
-    run_dir,
-    runscript_lines,
-    submission_settings,
-)
+from sirocco.engines.standalone.handlers import PluginHandler
 from sirocco.parsing import yaml_data_models as models
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-    from sirocco.engines.standalone.path_resolver import PathResolver
 
 
 # NOTE: SiroccoTask is a subclass of `GraphItem` for implementation simplicity
@@ -47,40 +38,30 @@ class SiroccoContinueTask(models.ConfigSiroccoTaskSpecs, Task):
         self.label = "Sirocco_continue"
 
 
-@submission_settings.register(SiroccoContinueTask)
-def submission_settings_sirocco_continue(task: SiroccoContinueTask) -> SubmissionSettings:
-    # The run directory is the config directory, never wipe it
-    return SubmissionSettings(
-        submit_filename=task.SUBMIT_FILENAME,
-        stdouterr_filename=task.STDOUTERR_FILENAME,
-        clean_up_run_dir=False,
-    )
+class SiroccoTaskHandler(PluginHandler[SiroccoContinueTask]):
+    task_type = SiroccoContinueTask
 
+    submit_filename = SiroccoContinueTask.SUBMIT_FILENAME
+    stdouterr_filename = SiroccoContinueTask.STDOUTERR_FILENAME
+    clean_up_rundir = False  # The run directory is the config directory, never wipe it
 
-@run_dir.register(SiroccoContinueTask)
-def run_dir_sirocco_continue(task: SiroccoContinueTask, path_resolver: PathResolver) -> Path:  # noqa: ARG001
-    # Runs from the config directory, where it keeps its log
-    return task.config_rootdir
+    def get_rundir(self) -> Path:
+        # Runs from the config directory, where it keeps its log
+        return self.task.config_rootdir
 
+    def resolve_output_paths(self) -> None:
+        pass  # No outputs
 
-@resolve_output_paths.register(SiroccoContinueTask)
-def resolve_output_paths_sirocco_continue(task: SiroccoContinueTask, path_resolver: PathResolver) -> None:
-    pass  # No outputs
+    def prepare_rundir_content(self) -> None:
+        pass
 
-
-@prepare_for_submission.register(SiroccoContinueTask)
-def prepare_for_submission_sirocco_continue(task: SiroccoContinueTask, path_resolver: PathResolver) -> None:
-    pass
-
-
-@runscript_lines.register(SiroccoContinueTask)
-def runscript_lines_sirocco_continue(task: SiroccoContinueTask, path_resolver: PathResolver) -> list[str]:  # noqa: ARG001
-    lines: list[str] = []
-    if task.venv is not None:
-        lines.append(f"source {task.venv}/bin/activate")
-    cmd: list[str] = ["sirocco"]
-    if os.environ.get("NO_COLOR") == "1":
-        cmd.append("--no-ansi")
-    cmd.append(f"continue --from_wf {task.config_rootdir} || exit")
-    lines.append(" ".join(cmd))
-    return lines
+    def get_runscript_lines(self) -> list[str]:
+        lines: list[str] = []
+        if self.task.venv is not None:
+            lines.append(f"source {self.task.venv}/bin/activate")
+        cmd: list[str] = ["sirocco"]
+        if os.environ.get("NO_COLOR") == "1":
+            cmd.append("--no-ansi")
+        cmd.append(f"continue --from_wf {self.task.config_rootdir} || exit")
+        lines.append(" ".join(cmd))
+        return lines

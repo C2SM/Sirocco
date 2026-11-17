@@ -5,7 +5,7 @@ the graph, built once per sirocco command from the config. The engine adds
 what only the standalone orchestration needs:
 
 - the state table (job id and front rank per task, see `state.py`),
-- the run directories and data paths (see `path_resolver.py`),
+- the task handlers (see `handlers.py`) and the data paths they resolve,
 - the propagating front and the completed / cool-down task lists,
 - the scheduler, the lock and the state file,
 - the special `SiroccoContinueTask`.
@@ -31,7 +31,7 @@ from ruamel.yaml import YAML
 from termcolor import colored
 
 from sirocco.core.workflow import Workflow
-from sirocco.engines.standalone.path_resolver import PathResolver
+from sirocco.engines.standalone.handlers import PluginHandler
 from sirocco.engines.standalone.scheduler import DEPENDENCY_TYPE_T, STDOUTERR_MODE_T, Scheduler
 from sirocco.engines.standalone.state import NO_ID, StateTable, TaskStatus
 from sirocco.engines.standalone.tasks.sirocco_task import SiroccoContinueTask
@@ -84,6 +84,7 @@ class StatusPoint:
 
 class StandaloneEngine:
     STATE_FILE_NAME: str = "state.yaml"
+    RUN_ROOT_NAME: str = "run"
 
     def __init__(
         self,
@@ -95,7 +96,8 @@ class StandaloneEngine:
         self.scheduler = scheduler
         self.front_depth: int = workflow.front_depth
         self.state = StateTable(default_rank=self.front_depth)
-        self.path_resolver = PathResolver(workflow.config_rootdir)
+        self.data_paths: dict[str, Path] = {}  # Resolved data paths, by data label
+        self._handlers: dict[str, PluginHandler] = {}  # Task handlers, by task label
         self.front: list[list[Task]] = [[] for _ in range(self.front_depth)]
         self.completed_tasks: list[Task] = []
         self.cool_down_tasks: list[Task] = []
@@ -150,6 +152,14 @@ class StandaloneEngine:
     def rank(self, task: Task) -> int:
         return self.state[task].rank
 
+    # =========== Task handlers ===========
+
+    def get_handler(self, task: Task) -> PluginHandler:
+        """Handler of `task`, created on first access"""
+        if (handler := self._handlers.get(task.label)) is None:
+            handler = self._handlers[task.label] = PluginHandler.handler_class(task)(task, self)
+        return handler
+
     # =========== Scheduler interface ===========
 
     @cached_property
@@ -182,8 +192,7 @@ class StandaloneEngine:
     ) -> None:
         parent_ids = [self.jobid(parent) for parent in task.parents if self.rank(parent) >= 0]
         self.state[task].jobid = self.scheduler.submit(
-            task,
-            path_resolver=self.path_resolver,
+            self.get_handler(task),
             parent_ids=parent_ids,
             env=self.base_env,
             stdouterr_mode=stdouterr_mode,
@@ -204,7 +213,8 @@ class StandaloneEngine:
 
     @property
     def run_root(self) -> Path:
-        return self.path_resolver.run_root
+        """Root of all task run directories"""
+        return self.config_rootdir / self.RUN_ROOT_NAME
 
     @property
     def state_file(self) -> Path:
