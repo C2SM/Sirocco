@@ -75,7 +75,7 @@ def test_sirocco_task_runs_from_config_dir(tmp_path, test_rootdir):
     config_dir = tmp_path / "config"
     shutil.copytree(test_rootdir / "tests/cases/parameters/config", config_dir)
     engine = StandaloneEngine.from_config_path(config_dir)
-    handler = engine.get_handler(engine.sirocco_continue_task)
+    handler = engine.handlers[engine.sirocco_continue_task]
     assert isinstance(handler, SiroccoTaskHandler)
     assert handler.get_rundir() == config_dir
     assert handler.get_runscript_path() == config_dir / ".sirocco_continue.sh"
