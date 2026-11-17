@@ -1,0 +1,23 @@
+.svg-viewer__toolbar {
+  display: flex;
+  gap: 0.3rem;
+  margin-bottom: 0.3rem;
+}
+.svg-viewer__toolbar button {
+  padding: 0.1rem 0.6rem;
+  cursor: pointer;
+  border: 1px solid var(--md-default-fg-color--lighter);
+  border-radius: 0.2rem;
+  background: var(--md-default-bg-color);
+  color: var(--md-default-fg-color);
+}
+.svg-viewer__viewport {
+  height: var(--svg-viewer-height, 70vh);  /* settable per figure */
+  overflow: auto;
+  resize: vertical;
+  border: 2px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.2rem;
+}
+.svg-viewer__viewport object {
+  display: block;
+}
