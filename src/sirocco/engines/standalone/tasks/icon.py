@@ -78,6 +78,6 @@ def prepare_for_submission_icon(task: IconTask, path_resolver: PathResolver) -> 
 @runscript_lines.register(IconTask)
 def runscript_lines_icon(task: IconTask, path_resolver: PathResolver) -> list[str]:
     run_dir = path_resolver.run_dir(task)
-    squash_mounts = [(path_resolver.path(image), mount) for image, mount in task.get_squash_mounts(run_dir)]
+    squash_mounts = [(path_resolver.get_path(image), mount) for image, mount in task.get_squash_mounts(run_dir)]
     env = launch.runtime_environment(task, squash_mounts)
     return [*(f"export {name}={shlex.quote(value)}" for name, value in env.items()), f"source ./{launch.RUNTIME_MAIN}"]

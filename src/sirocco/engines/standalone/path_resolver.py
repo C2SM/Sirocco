@@ -37,7 +37,7 @@ class PathResolver:
     def run_dir(self, task: Task) -> Path:
         return handlers.run_dir(task, self)
 
-    def path(self, data: Data) -> Path:
+    def get_path(self, data: Data) -> Path:
         """Resolved path of a data node"""
         if (path := self._data_paths.get(data.label)) is None:
             handlers.resolve_data_path(data, self)
