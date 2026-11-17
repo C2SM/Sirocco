@@ -5,11 +5,12 @@ from __future__ import annotations
 import shutil
 
 from sirocco.core.tasks.shell_task import ShellTask
-from sirocco.engines.standalone.handlers import PluginHandler
+from sirocco.engines.standalone.plugin_handlers.plugin_handler import PluginHandler
 
 
-class ShellHandler(PluginHandler[ShellTask]):
+class ShellHandler(PluginHandler):
     task_type = ShellTask
+    task: ShellTask
 
     def resolve_output_paths(self) -> None:
         for data in self.task.output_data_nodes():

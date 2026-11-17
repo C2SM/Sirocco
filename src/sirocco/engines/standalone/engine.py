@@ -5,7 +5,7 @@ the graph, built once per sirocco command from the config. The engine adds
 what only the standalone orchestration needs:
 
 - the state table (job id and front rank per task, see `state.py`),
-- the task handlers (see `handlers.py`) and the data paths they resolve,
+- the task handlers (see `plugin_handlers/`) and the data paths they resolve,
 - the propagating front and the completed / cool-down task lists,
 - the scheduler, the lock and the state file,
 - the special `SiroccoContinueTask`.
@@ -31,10 +31,9 @@ from ruamel.yaml import YAML
 from termcolor import colored
 
 from sirocco.core.workflow import Workflow
-from sirocco.engines.standalone.handlers import PluginHandler
+from sirocco.engines.standalone.plugin_handlers import PluginHandler, SiroccoContinueTask
 from sirocco.engines.standalone.scheduler import DEPENDENCY_TYPE_T, STDOUTERR_MODE_T, Scheduler
 from sirocco.engines.standalone.state import NO_ID, StateTable, TaskStatus
-from sirocco.engines.standalone.tasks.sirocco_task import SiroccoContinueTask
 from sirocco.parsing.cycling import OneOffPoint
 from sirocco.parsing.yaml_data_models import ConfigSiroccoTask, ConfigWorkflow
 

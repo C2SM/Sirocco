@@ -8,8 +8,7 @@ import pytest
 from sirocco.core.graph_items import GeneratedData, Task
 from sirocco.core.tasks.shell_task import ShellTask
 from sirocco.engines.standalone import StandaloneEngine
-from sirocco.engines.standalone.handlers import PluginHandler
-from sirocco.engines.standalone.tasks import ShellHandler, SiroccoTaskHandler
+from sirocco.engines.standalone.plugin_handlers import PluginHandler, ShellHandler, SiroccoTaskHandler
 
 DATA = GeneratedData(name="some_data", coordinates={})
 
