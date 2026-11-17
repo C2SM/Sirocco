@@ -34,7 +34,7 @@ CASE = "icon-standalone"
 
 def prepare(engine: StandaloneEngine, task: IconTask) -> Path:
     """Prepare `task` in a fresh run directory and generate its run script"""
-    handler = engine.get_handler(task)
+    handler = engine.handlers[task]
     handler.prepare_rundir()
     engine.scheduler.generate_run_script(handler, "overwrite")
     return handler.get_rundir()
@@ -103,9 +103,7 @@ def test_icon_preparation(engine, tmp_path, test_rootdir, pytestconfig):
         run_dir = prepare(engine, task)
         trace.append(f"=== {task.label}")
         trace.append("--- resolved outputs")
-        trace.extend(
-            f"{data.label}: {engine.get_handler(task).get_data_path(data)}" for data in task.output_data_nodes()
-        )
+        trace.extend(f"{data.label}: {engine.handlers[task].get_data_path(data)}" for data in task.output_data_nodes())
         trace.append("--- run directory")
         namelist_sources = {namelist.name: namelist.path for namelist in task.namelists}
         trace.extend(trace_run_dir(run_dir, runtime_files, namelist_sources))

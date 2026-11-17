@@ -5,10 +5,10 @@ may override the generic ones (normal methods and class variables). Each subclas
 the task type it handles with `task_type`, which registers it at class creation. The
 built-in handlers are in `tasks/`, imported by `sirocco.engines.standalone`.
 
-Handlers are created per task by `StandaloneEngine.get_handler`. The engine also holds
-what all of them share: the run root and the resolved data paths. Paths follow from the
-config only, so they are recomputed by every sirocco command and never stored in the
-state file.
+Handlers are created per task, on first access to `StandaloneEngine.handlers[task]`. The
+engine also holds what all of them share: the run root and the resolved data paths. Paths
+follow from the config only, so they are recomputed by every sirocco command and never
+stored in the state file.
 
 Generated data paths are resolved on demand: asking for the path of an output that is
 not known yet asks the handler of its origin task to resolve all of its outputs (see
@@ -119,7 +119,7 @@ class PluginHandler[T: Task](ABC):
             case GeneratedData() if data.path is not None and data.path.is_absolute():
                 self.set_data_path(data, data.path)
             case GeneratedData():
-                self.engine.get_handler(data.origin_task).resolve_output_paths()
+                self.engine.handlers[data.origin_task].resolve_output_paths()
             case _:
                 msg = f"standalone engine: cannot resolve the path of {type(data).__name__}"
                 raise NotImplementedError(msg)

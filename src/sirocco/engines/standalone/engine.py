@@ -82,6 +82,19 @@ class StatusPoint:
                 assert_never(status)
 
 
+class HandlerTable:
+    """Handler of each task, keyed by the task label and created on first access"""
+
+    def __init__(self, engine: StandaloneEngine) -> None:
+        self.engine = engine
+        self._handlers: dict[str, PluginHandler] = {}
+
+    def __getitem__(self, task: Task) -> PluginHandler:
+        if (handler := self._handlers.get(task.label)) is None:
+            handler = self._handlers[task.label] = PluginHandler.handler_class(task)(task, self.engine)
+        return handler
+
+
 class StandaloneEngine:
     STATE_FILE_NAME: str = "state.yaml"
     RUN_ROOT_NAME: str = "run"
@@ -97,7 +110,7 @@ class StandaloneEngine:
         self.front_depth: int = workflow.front_depth
         self.state = StateTable(default_rank=self.front_depth)
         self.data_paths: dict[str, Path] = {}  # Resolved data paths, by data label
-        self._handlers: dict[str, PluginHandler] = {}  # Task handlers, by task label
+        self.handlers = HandlerTable(self)
         self.front: list[list[Task]] = [[] for _ in range(self.front_depth)]
         self.completed_tasks: list[Task] = []
         self.cool_down_tasks: list[Task] = []
@@ -152,14 +165,6 @@ class StandaloneEngine:
     def rank(self, task: Task) -> int:
         return self.state[task].rank
 
-    # =========== Task handlers ===========
-
-    def get_handler(self, task: Task) -> PluginHandler:
-        """Handler of `task`, created on first access"""
-        if (handler := self._handlers.get(task.label)) is None:
-            handler = self._handlers[task.label] = PluginHandler.handler_class(task)(task, self)
-        return handler
-
     # =========== Scheduler interface ===========
 
     @cached_property
@@ -192,7 +197,7 @@ class StandaloneEngine:
     ) -> None:
         parent_ids = [self.jobid(parent) for parent in task.parents if self.rank(parent) >= 0]
         self.state[task].jobid = self.scheduler.submit(
-            self.get_handler(task),
+            self.handlers[task],
             parent_ids=parent_ids,
             env=self.base_env,
             stdouterr_mode=stdouterr_mode,
