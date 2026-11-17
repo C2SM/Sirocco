@@ -3,7 +3,8 @@
 A `PluginHandler` subclass implements the plugin specific parts (abstract methods) and
 may override the generic ones (normal methods and class variables). Each subclass sets
 the task type it handles with `task_type`, which registers it at class creation. The
-built-in handlers are in `tasks/`, imported by `sirocco.engines.standalone`.
+built-in handlers are the other modules of this package, imported by
+`sirocco.engines.standalone`.
 
 Handlers are created per task, on first access to `StandaloneEngine.handlers[task]`. The
 engine also holds what all of them share: the run root and the resolved data paths. Paths
@@ -32,7 +33,7 @@ if TYPE_CHECKING:
     from sirocco.engines.standalone.engine import StandaloneEngine
 
 
-class PluginHandler[T: Task](ABC):
+class PluginHandler(ABC):
     """Standalone engine behaviour for one task"""
 
     handler_classes: ClassVar[dict[type[Any], type[PluginHandler]]] = {}
@@ -61,7 +62,7 @@ class PluginHandler[T: Task](ABC):
             raise NotImplementedError(msg)
         return handler_class
 
-    def __init__(self, task: T, engine: StandaloneEngine) -> None:
+    def __init__(self, task: Task, engine: StandaloneEngine) -> None:
         self.task = task
         self.engine = engine
 

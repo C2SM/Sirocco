@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar
 
 from sirocco.core.graph_items import Task
-from sirocco.engines.standalone.handlers import PluginHandler
+from sirocco.engines.standalone.plugin_handlers.plugin_handler import PluginHandler
 from sirocco.parsing import yaml_data_models as models
 
 if TYPE_CHECKING:
@@ -38,8 +38,9 @@ class SiroccoContinueTask(models.ConfigSiroccoTaskSpecs, Task):
         self.label = "Sirocco_continue"
 
 
-class SiroccoTaskHandler(PluginHandler[SiroccoContinueTask]):
+class SiroccoTaskHandler(PluginHandler):
     task_type = SiroccoContinueTask
+    task: SiroccoContinueTask
 
     submit_filename = SiroccoContinueTask.SUBMIT_FILENAME
     stdouterr_filename = SiroccoContinueTask.STDOUTERR_FILENAME

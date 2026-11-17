@@ -16,7 +16,7 @@ from sirocco.engines.standalone.state import NO_ID, TaskStatus
 
 if TYPE_CHECKING:
     from sirocco.core.graph_items import Task
-    from sirocco.engines.standalone.handlers import PluginHandler
+    from sirocco.engines.standalone.plugin_handlers import PluginHandler
 
 UENV_MACHINES: list[str] = ["santis"]
 

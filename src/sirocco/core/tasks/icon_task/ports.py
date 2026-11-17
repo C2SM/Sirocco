@@ -4,7 +4,7 @@ Each `IconPort` declares the model types a port is valid for and, for regular po
 which namelist parameter refers to the port data and under which name it is linked.
 Special ports declare none of these: their behaviour cannot be described this way, so
 every engine has to implement it. Applying a port to an actual run directory is engine
-specific (see for instance `sirocco.engines.standalone.tasks.icon`).
+specific (see for instance `sirocco.engines.standalone.plugin_handlers.icon_handler`).
 """
 
 from __future__ import annotations

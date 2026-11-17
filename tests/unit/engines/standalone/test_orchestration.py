@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from sirocco.core import Task
-    from sirocco.engines.standalone.handlers import PluginHandler
+    from sirocco.engines.standalone.plugin_handlers import PluginHandler
 
 ORCHESTRATION_CASES = ["parameters", "partial-dates"]
 MAX_STEPS = 60  # Safety net, cases complete well before
