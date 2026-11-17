@@ -26,13 +26,12 @@ from dataclasses import dataclass
 from functools import singledispatch
 from typing import TYPE_CHECKING
 
-from sirocco.core.graph_items import AvailableData, GeneratedData
 from sirocco.parsing import cycling
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from sirocco.core.graph_items import Data, Task
+    from sirocco.core.graph_items import Task
     from sirocco.engines.standalone.path_resolver import PathResolver
 
 
@@ -47,7 +46,7 @@ class SubmissionSettings:
 
 
 @singledispatch
-def submission_settings(task: Task) -> SubmissionSettings:  # noqa: ARG001  # default for all tasks
+def submission_settings(task: Task) -> SubmissionSettings:
     return SubmissionSettings()
 
 
@@ -76,29 +75,6 @@ def runscript_lines(task: Task, path_resolver: PathResolver) -> list[str]:
     """Plugin specific lines of the run script"""
     msg = f"standalone engine: plugin {task.plugin!r} has no runscript_lines implementation"
     raise NotImplementedError(msg)
-
-
-# =========== Data paths ===========
-
-
-@singledispatch
-def resolve_data_path(data: Data, path_resolver: PathResolver) -> None:
-    """Set the resolved path of a data node with `path_resolver.set_path`"""
-    msg = f"standalone engine: no resolve_data_path implementation for {type(data).__name__}"
-    raise NotImplementedError(msg)
-
-
-@resolve_data_path.register(AvailableData)
-def resolve_data_path_available(data: AvailableData, path_resolver: PathResolver) -> None:
-    path_resolver.set_path(data, data.path)
-
-
-@resolve_data_path.register(GeneratedData)
-def resolve_data_path_generated(data: GeneratedData, path_resolver: PathResolver) -> None:
-    if data.path is not None and data.path.is_absolute():
-        path_resolver.set_path(data, data.path)
-    else:
-        resolve_output_paths(data.origin_task, path_resolver)
 
 
 # =========== Plugin independent parts of the run script ===========
