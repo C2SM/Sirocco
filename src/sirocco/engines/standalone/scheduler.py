@@ -7,20 +7,16 @@ submitted tasks. Only the engine reads and writes the state table.
 
 from __future__ import annotations
 
-import shutil
 import subprocess
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar, Literal, Self, assert_never
 
-from sirocco.engines.standalone import handlers
 from sirocco.engines.standalone.state import NO_ID, TaskStatus
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from sirocco.core.graph_items import Task
-    from sirocco.engines.standalone.path_resolver import PathResolver
+    from sirocco.engines.standalone.handlers import PluginHandler
 
 UENV_MACHINES: list[str] = ["santis"]
 
@@ -45,8 +41,7 @@ class Scheduler(ABC):
 
     def submit(
         self,
-        task: Task,
-        path_resolver: PathResolver,
+        handler: PluginHandler,
         parent_ids: list[str],
         env: dict[str, str],
         stdouterr_mode: STDOUTERR_MODE_T = "overwrite",
@@ -55,31 +50,18 @@ class Scheduler(ABC):
         """Submit a task from environment `env` and return its job id"""
 
         # Prepare for submission (create or wipe the run directory, link/copy necessary files/dirs, ...)
-        # ======================
-        run_dir = path_resolver.run_dir(task)
-        if handlers.submission_settings(task).clean_up_run_dir:
-            shutil.rmtree(run_dir, ignore_errors=True)
-        run_dir.mkdir(parents=True, exist_ok=True)
-        handlers.prepare_for_submission(task, path_resolver)
+        handler.prepare_rundir()
+        self.generate_run_script(handler, stdouterr_mode=stdouterr_mode)
+        return self.submit_to_scheduler(handler, parent_ids=parent_ids, env=env, dependency_type=dependency_type)
 
-        # Generate runscript
-        # ==================
-        self.generate_run_script(task=task, path_resolver=path_resolver, stdouterr_mode=stdouterr_mode)
+    def generate_run_script(self, handler: PluginHandler, stdouterr_mode: STDOUTERR_MODE_T) -> None:
+        task = handler.task
 
-        # Submit runscript
-        # ================
-        return self.submit_to_scheduler(
-            task, run_dir=run_dir, parent_ids=parent_ids, env=env, dependency_type=dependency_type
-        )
-
-    def generate_run_script(
-        self, task: Task, path_resolver: PathResolver, stdouterr_mode: STDOUTERR_MODE_T, script_path: Path | None = None
-    ) -> None:
         # Shebang
         script_lines: list[str] = ["#!/bin/bash -l", ""]
 
         # Scheduler header
-        script_lines.extend(self.header_lines(task, stdouterr_mode=stdouterr_mode))
+        script_lines.extend(self.header_lines(handler, stdouterr_mode=stdouterr_mode))
 
         # Some MPI environment variables for potential usage by the user provided script
         script_lines.append("")
@@ -92,25 +74,24 @@ class Scheduler(ABC):
 
         # Sirocco context
         script_lines.append("")
-        script_lines.extend(handlers.sirocco_environment_lines(task))
+        script_lines.extend(handler.get_sirocco_environment_lines())
 
         # Linked input
-        script_lines.extend(handlers.link_lines(task, path_resolver))
+        script_lines.extend(handler.get_link_lines())
 
         # Task runscript "content"
         script_lines.append("")
-        script_lines.extend(handlers.runscript_lines(task, path_resolver))
+        script_lines.extend(handler.get_runscript_lines())
 
         # Write to runscript file
-        if script_path is None:
-            script_path = path_resolver.run_dir(task) / handlers.submission_settings(task).submit_filename
+        script_path = handler.get_runscript_path()
         script_path.write_text("\n".join(script_lines))
         script_path.chmod(0o755)
 
     @abstractmethod
     def header_lines(
         self,
-        task: Task,
+        handler: PluginHandler,
         stdouterr_mode: STDOUTERR_MODE_T = "overwrite",
     ) -> list[str]:
         pass
@@ -118,8 +99,7 @@ class Scheduler(ABC):
     @abstractmethod
     def submit_to_scheduler(
         self,
-        task: Task,
-        run_dir: Path,
+        handler: PluginHandler,
         parent_ids: list[str],
         env: dict[str, str],
         dependency_type: DEPENDENCY_TYPE_T = "ALL_COMPLETED",
@@ -149,13 +129,13 @@ class Slurm(Scheduler):
 
     def header_lines(
         self,
-        task: Task,
+        handler: PluginHandler,
         stdouterr_mode: STDOUTERR_MODE_T = "overwrite",
     ) -> list[str]:
-        stdouterr_filename = handlers.submission_settings(task).stdouterr_filename
+        task = handler.task
         header: list[str] = [
-            f"#SBATCH --output={stdouterr_filename}",
-            f"#SBATCH --error={stdouterr_filename}",
+            f"#SBATCH --output={handler.stdouterr_filename}",
+            f"#SBATCH --error={handler.stdouterr_filename}",
             f"#SBATCH --job-name={task.label}",
         ]
         if account := task.account:
@@ -172,7 +152,7 @@ class Slurm(Scheduler):
             header.append(f"#SBATCH --gres-flags={gres_flags}")
         if gres := task.gres:
             header.append(f"#SBATCH --gres={gres}")
-        if task.computer in UENV_MACHINES and handlers.submission_settings(task).scheduler_uenv:
+        if task.computer in UENV_MACHINES and handler.scheduler_uenv:
             if uenv := task.uenv:
                 header.append(f"#SBATCH --uenv={uenv}")
             if view := task.view:
@@ -183,12 +163,12 @@ class Slurm(Scheduler):
 
     def submit_to_scheduler(
         self,
-        task: Task,
-        run_dir: Path,
+        handler: PluginHandler,
         parent_ids: list[str],
         env: dict[str, str],
         dependency_type: DEPENDENCY_TYPE_T = "ALL_COMPLETED",
     ) -> str:
+        task = handler.task
         submit_cmd: list[str] = ["sbatch", "--parsable"]
         if parent_ids:
             match dependency_type:
@@ -200,12 +180,12 @@ class Slurm(Scheduler):
                     pass
                 case _:
                     assert_never(dependency_type)
-        submit_cmd.append(handlers.submission_settings(task).submit_filename)
+        submit_cmd.append(handler.submit_filename)
 
         if not env:
             msg = f"{task.label}: submission environment is empty"
             raise ValueError(msg)
-        result = self.run_command(submit_cmd, cwd=run_dir, env=env)
+        result = self.run_command(submit_cmd, cwd=handler.get_rundir(), env=env)
         return result.stdout.strip()
 
     def cancel(self, task: Task, jobid: str):

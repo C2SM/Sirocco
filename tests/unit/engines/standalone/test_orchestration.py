@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, ClassVar, Literal
 import pytest
 from ruamel.yaml import YAML
 
-from sirocco.engines.standalone import StandaloneEngine, handlers
+from sirocco.engines.standalone import StandaloneEngine
 from sirocco.engines.standalone.scheduler import DEPENDENCY_TYPE_T, STDOUTERR_MODE_T, Scheduler
 from sirocco.engines.standalone.state import TaskStatus
 
@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from sirocco.core import Task
+    from sirocco.engines.standalone.handlers import PluginHandler
 
 ORCHESTRATION_CASES = ["parameters", "partial-dates"]
 MAX_STEPS = 60  # Safety net, cases complete well before
@@ -63,23 +64,22 @@ class FakeScheduler(Scheduler):
     name: ClassVar[str] = "fake"
     cluster: ClassVar[FakeCluster]
 
-    def header_lines(self, task: Task, stdouterr_mode: STDOUTERR_MODE_T = "overwrite") -> list[str]:
-        stdouterr_filename = handlers.submission_settings(task).stdouterr_filename
-        return [f"#FAKE --job-name={task.label} --output={stdouterr_filename} --mode={stdouterr_mode}"]
+    def header_lines(self, handler: PluginHandler, stdouterr_mode: STDOUTERR_MODE_T = "overwrite") -> list[str]:
+        return [f"#FAKE --job-name={handler.task.label} --output={handler.stdouterr_filename} --mode={stdouterr_mode}"]
 
     def submit_to_scheduler(
         self,
-        task: Task,
-        run_dir: Path,
+        handler: PluginHandler,
         parent_ids: list[str],
         env: dict[str, str],  # noqa: ARG002
         dependency_type: DEPENDENCY_TYPE_T = "ALL_COMPLETED",
     ) -> str:
+        task = handler.task
         jobid = str(self.cluster.next_jobid)
         self.cluster.next_jobid += 1
         self.cluster.status[jobid] = TaskStatus.WAITING
         self.cluster.record(f"submit {task.label} ({jobid}) after {parent_ids} [{dependency_type}]")
-        script = (run_dir / handlers.submission_settings(task).submit_filename).read_text()
+        script = handler.get_runscript_path().read_text()
         if self.cluster.scripts.get(task.label) != script:
             self.cluster.scripts[task.label] = script
             self.cluster.record(f"--- run script {task.label}\n{script}\n---")

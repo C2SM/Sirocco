@@ -5,7 +5,7 @@ import pytest
 
 from sirocco.core.tasks.icon_task import ports as core_icon_ports
 from sirocco.core.tasks.icon_task.ports import IconPort
-from sirocco.engines.standalone.tasks.icon_ports import restart_data, special_ports
+from sirocco.engines.standalone.tasks.icon import restart_data, special_ports
 
 if TYPE_CHECKING:
     from sirocco.core.tasks.icon_task.models import IconModel
