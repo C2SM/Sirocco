@@ -105,7 +105,7 @@ def test_icon_preparation(engine, tmp_path, test_rootdir, pytestconfig):
         run_dir = prepare(engine, task)
         trace.append(f"=== {task.label}")
         trace.append("--- resolved outputs")
-        trace.extend(f"{data.label}: {engine.path_resolver.path(data)}" for data in task.output_data_nodes())
+        trace.extend(f"{data.label}: {engine.path_resolver.get_path(data)}" for data in task.output_data_nodes())
         trace.append("--- run directory")
         namelist_sources = {namelist.name: namelist.path for namelist in task.namelists}
         trace.extend(trace_run_dir(run_dir, runtime_files, namelist_sources))
