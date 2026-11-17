@@ -12,8 +12,10 @@ in which tasks are processed.
 
 from __future__ import annotations
 
+from functools import singledispatchmethod
 from typing import TYPE_CHECKING
 
+from sirocco.core.graph_items import AvailableData, GeneratedData
 from sirocco.engines.standalone import handlers
 
 if TYPE_CHECKING:
@@ -35,12 +37,34 @@ class PathResolver:
         return self.config_rootdir / self._RUN_ROOT_NAME
 
     def run_dir(self, task: Task) -> Path:
-        return handlers.run_dir(task, self)
+        return (self.run_root / task.label).resolve()
+
+    # =========== Data paths ===========
+
+
+    @singledispatchmethod
+    def resolve_data_path(self, data: Data) -> None:
+        """Set the resolved path of a data node with `path_resolver.set_path`"""
+        msg = f"standalone engine: no resolve_data_path implementation for {type(data).__name__}"
+        raise NotImplementedError(msg)
+
+
+    @resolve_data_path.register(AvailableData)
+    def resolve_data_path_available(self, data: AvailableData) -> None:
+        self.set_path(data, data.path)
+
+
+    @resolve_data_path.register(GeneratedData)
+    def resolve_data_path_generated(self, data: GeneratedData) -> None:
+        if data.path is not None and data.path.is_absolute():
+            self.set_path(data, data.path)
+        else:
+            handlers.resolve_output_paths(data.origin_task, self)
 
     def get_path(self, data: Data) -> Path:
         """Resolved path of a data node"""
         if (path := self._data_paths.get(data.label)) is None:
-            handlers.resolve_data_path(data, self)
+            self.resolve_data_path(data)
             if (path := self._data_paths.get(data.label)) is None:
                 msg = f"path of data {data.label} could not be resolved"
                 raise ValueError(msg)
