@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from sirocco.vizgraph import VIZ_STATUS_T
 
 
-def status_vizgraph(engine: StandaloneEngine) -> VizGraph:
+def state_vizgraph(engine: StandaloneEngine) -> VizGraph:
     # Cycles of the front tasks, with all their tasks, the tasks these wait on and their data.
     # Dicts keyed by label keep each item once, in order of first appearance.
     cycles: dict[str, core.Cycle] = {task.cycle.label: task.cycle for task in chain(*engine.front)}
