@@ -164,6 +164,7 @@ class IconPortHandler:
                 if section not in self.model.namelist:
                     self.model.namelist[section] = {}
                 self.model.namelist[section][parameter] = f"./{link_name}"
+                # NOTE: the piece of data could be linked by different ports, hence the check.
                 if not (link := self.rundir / link_name).is_symlink():
                     link.symlink_to(path)
             else:

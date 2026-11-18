@@ -1,9 +1,9 @@
 === sirocco start
-submit icon__foo_0__bar_3.0__date_2026-01-01T00-00-00 (1001) after [] [ALL_COMPLETED]
---- run script icon__foo_0__bar_3.0__date_2026-01-01T00-00-00
+submit icon__date_2026-01-01T00-00-00__bar_3.0__foo_0 (1001) after [] [ALL_COMPLETED]
+--- run script icon__date_2026-01-01T00-00-00__bar_3.0__foo_0
 #!/bin/bash -l
 
-#FAKE --job-name=icon__foo_0__bar_3.0__date_2026-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+#FAKE --job-name=icon__date_2026-01-01T00-00-00__bar_3.0__foo_0 --output=run_script.%j.o --mode=overwrite
 
 export N_NODES=1
 
@@ -12,11 +12,11 @@ export SIROCCO_STOP_DATE=2026-07-01T00:00:00+00:00
 
 python icon.py  --init /TESTS_ROOTDIR/tests/cases/parameters/config/data/initial_conditions --forcing /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
 ---
-submit icon__foo_1__bar_3.0__date_2026-01-01T00-00-00 (1002) after [] [ALL_COMPLETED]
---- run script icon__foo_1__bar_3.0__date_2026-01-01T00-00-00
+submit icon__date_2026-01-01T00-00-00__bar_3.0__foo_1 (1002) after [] [ALL_COMPLETED]
+--- run script icon__date_2026-01-01T00-00-00__bar_3.0__foo_1
 #!/bin/bash -l
 
-#FAKE --job-name=icon__foo_1__bar_3.0__date_2026-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+#FAKE --job-name=icon__date_2026-01-01T00-00-00__bar_3.0__foo_1 --output=run_script.%j.o --mode=overwrite
 
 export N_NODES=1
 
@@ -25,44 +25,44 @@ export SIROCCO_STOP_DATE=2026-07-01T00:00:00+00:00
 
 python icon.py  --init /TESTS_ROOTDIR/tests/cases/parameters/config/data/initial_conditions --forcing /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
 ---
-submit statistics_foo__bar_3.0__date_2026-01-01T00-00-00 (1003) after ['1001', '1002'] [ALL_COMPLETED]
---- run script statistics_foo__bar_3.0__date_2026-01-01T00-00-00
+submit statistics_foo__date_2026-01-01T00-00-00__bar_3.0 (1003) after ['1001', '1002'] [ALL_COMPLETED]
+--- run script statistics_foo__date_2026-01-01T00-00-00__bar_3.0
 #!/bin/bash -l
 
-#FAKE --job-name=statistics_foo__bar_3.0__date_2026-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+#FAKE --job-name=statistics_foo__date_2026-01-01T00-00-00__bar_3.0 --output=run_script.%j.o --mode=overwrite
 
 export N_NODES=1
 
 export SIROCCO_START_DATE=2026-01-01T00:00:00+00:00
 export SIROCCO_STOP_DATE=2026-07-01T00:00:00+00:00
 
-python statistics.py <ROOTDIR>/run/icon__foo_0__bar_3.0__date_2026-01-01T00-00-00/icon_output <ROOTDIR>/run/icon__foo_1__bar_3.0__date_2026-01-01T00-00-00/icon_output
+python statistics.py <ROOTDIR>/run/icon__date_2026-01-01T00-00-00__bar_3.0__foo_0/icon_output <ROOTDIR>/run/icon__date_2026-01-01T00-00-00__bar_3.0__foo_1/icon_output
 ---
-submit icon__foo_0__bar_3.0__date_2026-07-01T00-00-00 (1004) after ['1001'] [ALL_COMPLETED]
---- run script icon__foo_0__bar_3.0__date_2026-07-01T00-00-00
+submit icon__date_2026-07-01T00-00-00__bar_3.0__foo_0 (1004) after ['1001'] [ALL_COMPLETED]
+--- run script icon__date_2026-07-01T00-00-00__bar_3.0__foo_0
 #!/bin/bash -l
 
-#FAKE --job-name=icon__foo_0__bar_3.0__date_2026-07-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+#FAKE --job-name=icon__date_2026-07-01T00-00-00__bar_3.0__foo_0 --output=run_script.%j.o --mode=overwrite
 
 export N_NODES=1
 
 export SIROCCO_START_DATE=2026-07-01T00:00:00+00:00
 export SIROCCO_STOP_DATE=2027-01-01T00:00:00+00:00
 
-python icon.py --restart <ROOTDIR>/run/icon__foo_0__bar_3.0__date_2026-01-01T00-00-00/restart  --forcing /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
+python icon.py --restart <ROOTDIR>/run/icon__date_2026-01-01T00-00-00__bar_3.0__foo_0/restart  --forcing /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
 ---
-submit icon__foo_1__bar_3.0__date_2026-07-01T00-00-00 (1005) after ['1002'] [ALL_COMPLETED]
---- run script icon__foo_1__bar_3.0__date_2026-07-01T00-00-00
+submit icon__date_2026-07-01T00-00-00__bar_3.0__foo_1 (1005) after ['1002'] [ALL_COMPLETED]
+--- run script icon__date_2026-07-01T00-00-00__bar_3.0__foo_1
 #!/bin/bash -l
 
-#FAKE --job-name=icon__foo_1__bar_3.0__date_2026-07-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+#FAKE --job-name=icon__date_2026-07-01T00-00-00__bar_3.0__foo_1 --output=run_script.%j.o --mode=overwrite
 
 export N_NODES=1
 
 export SIROCCO_START_DATE=2026-07-01T00:00:00+00:00
 export SIROCCO_STOP_DATE=2027-01-01T00:00:00+00:00
 
-python icon.py --restart <ROOTDIR>/run/icon__foo_1__bar_3.0__date_2026-01-01T00-00-00/restart  --forcing /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
+python icon.py --restart <ROOTDIR>/run/icon__date_2026-01-01T00-00-00__bar_3.0__foo_1/restart  --forcing /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
 ---
 submit statistics_foo_bar__date_2026-01-01T00-00-00 (1006) after ['1003'] [ALL_COMPLETED]
 --- run script statistics_foo_bar__date_2026-01-01T00-00-00
@@ -75,46 +75,46 @@ export N_NODES=1
 export SIROCCO_START_DATE=2026-01-01T00:00:00+00:00
 export SIROCCO_STOP_DATE=2026-07-01T00:00:00+00:00
 
-python statistics.py <ROOTDIR>/run/statistics_foo__bar_3.0__date_2026-01-01T00-00-00/analysis
+python statistics.py <ROOTDIR>/run/statistics_foo__date_2026-01-01T00-00-00__bar_3.0/analysis
 ---
-submit statistics_foo__bar_3.0__date_2026-07-01T00-00-00 (1007) after ['1004', '1005'] [ALL_COMPLETED]
---- run script statistics_foo__bar_3.0__date_2026-07-01T00-00-00
+submit statistics_foo__date_2026-07-01T00-00-00__bar_3.0 (1007) after ['1004', '1005'] [ALL_COMPLETED]
+--- run script statistics_foo__date_2026-07-01T00-00-00__bar_3.0
 #!/bin/bash -l
 
-#FAKE --job-name=statistics_foo__bar_3.0__date_2026-07-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+#FAKE --job-name=statistics_foo__date_2026-07-01T00-00-00__bar_3.0 --output=run_script.%j.o --mode=overwrite
 
 export N_NODES=1
 
 export SIROCCO_START_DATE=2026-07-01T00:00:00+00:00
 export SIROCCO_STOP_DATE=2027-01-01T00:00:00+00:00
 
-python statistics.py <ROOTDIR>/run/icon__foo_0__bar_3.0__date_2026-07-01T00-00-00/icon_output <ROOTDIR>/run/icon__foo_1__bar_3.0__date_2026-07-01T00-00-00/icon_output
+python statistics.py <ROOTDIR>/run/icon__date_2026-07-01T00-00-00__bar_3.0__foo_0/icon_output <ROOTDIR>/run/icon__date_2026-07-01T00-00-00__bar_3.0__foo_1/icon_output
 ---
-submit icon__foo_0__bar_3.0__date_2027-01-01T00-00-00 (1008) after ['1004'] [ALL_COMPLETED]
---- run script icon__foo_0__bar_3.0__date_2027-01-01T00-00-00
+submit icon__date_2027-01-01T00-00-00__bar_3.0__foo_0 (1008) after ['1004'] [ALL_COMPLETED]
+--- run script icon__date_2027-01-01T00-00-00__bar_3.0__foo_0
 #!/bin/bash -l
 
-#FAKE --job-name=icon__foo_0__bar_3.0__date_2027-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+#FAKE --job-name=icon__date_2027-01-01T00-00-00__bar_3.0__foo_0 --output=run_script.%j.o --mode=overwrite
 
 export N_NODES=1
 
 export SIROCCO_START_DATE=2027-01-01T00:00:00+00:00
 export SIROCCO_STOP_DATE=2027-07-01T00:00:00+00:00
 
-python icon.py --restart <ROOTDIR>/run/icon__foo_0__bar_3.0__date_2026-07-01T00-00-00/restart  --forcing /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
+python icon.py --restart <ROOTDIR>/run/icon__date_2026-07-01T00-00-00__bar_3.0__foo_0/restart  --forcing /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
 ---
-submit icon__foo_1__bar_3.0__date_2027-01-01T00-00-00 (1009) after ['1005'] [ALL_COMPLETED]
---- run script icon__foo_1__bar_3.0__date_2027-01-01T00-00-00
+submit icon__date_2027-01-01T00-00-00__bar_3.0__foo_1 (1009) after ['1005'] [ALL_COMPLETED]
+--- run script icon__date_2027-01-01T00-00-00__bar_3.0__foo_1
 #!/bin/bash -l
 
-#FAKE --job-name=icon__foo_1__bar_3.0__date_2027-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+#FAKE --job-name=icon__date_2027-01-01T00-00-00__bar_3.0__foo_1 --output=run_script.%j.o --mode=overwrite
 
 export N_NODES=1
 
 export SIROCCO_START_DATE=2027-01-01T00:00:00+00:00
 export SIROCCO_STOP_DATE=2027-07-01T00:00:00+00:00
 
-python icon.py --restart <ROOTDIR>/run/icon__foo_1__bar_3.0__date_2026-07-01T00-00-00/restart  --forcing /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
+python icon.py --restart <ROOTDIR>/run/icon__date_2026-07-01T00-00-00__bar_3.0__foo_1/restart  --forcing /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
 ---
 submit Sirocco_continue (1010) after ['1001', '1002'] [ANY]
 --- run script Sirocco_continue
@@ -130,22 +130,22 @@ sirocco continue --from_wf <ROOTDIR> || exit
 status: CONTINUE
 --- state (continuation job 1010)
 front[0]:
-  icon[foo=0, bar=3.0, date=2026-01-01T00:00:00+00:00] (1001)
-  icon[foo=1, bar=3.0, date=2026-01-01T00:00:00+00:00] (1002)
+  icon[date=2026-01-01T00:00:00+00:00, bar=3.0, foo=0] (1001)
+  icon[date=2026-01-01T00:00:00+00:00, bar=3.0, foo=1] (1002)
 front[1]:
-  statistics_foo[bar=3.0, date=2026-01-01T00:00:00+00:00] (1003)
-  icon[foo=0, bar=3.0, date=2026-07-01T00:00:00+00:00] (1004)
-  icon[foo=1, bar=3.0, date=2026-07-01T00:00:00+00:00] (1005)
+  statistics_foo[date=2026-01-01T00:00:00+00:00, bar=3.0] (1003)
+  icon[date=2026-07-01T00:00:00+00:00, bar=3.0, foo=0] (1004)
+  icon[date=2026-07-01T00:00:00+00:00, bar=3.0, foo=1] (1005)
 front[2]:
   statistics_foo_bar[date=2026-01-01T00:00:00+00:00] (1006)
-  statistics_foo[bar=3.0, date=2026-07-01T00:00:00+00:00] (1007)
-  icon[foo=0, bar=3.0, date=2027-01-01T00:00:00+00:00] (1008)
-  icon[foo=1, bar=3.0, date=2027-01-01T00:00:00+00:00] (1009)
+  statistics_foo[date=2026-07-01T00:00:00+00:00, bar=3.0] (1007)
+  icon[date=2027-01-01T00:00:00+00:00, bar=3.0, foo=0] (1008)
+  icon[date=2027-01-01T00:00:00+00:00, bar=3.0, foo=1] (1009)
 cool_down_tasks:
 completed_tasks:
 ---
-# icon__foo_0__bar_3.0__date_2026-01-01T00-00-00 -> COMPLETED
-# icon__foo_1__bar_3.0__date_2026-01-01T00-00-00 -> COMPLETED
+# icon__date_2026-01-01T00-00-00__bar_3.0__foo_0 -> COMPLETED
+# icon__date_2026-01-01T00-00-00__bar_3.0__foo_1 -> COMPLETED
 
 === sirocco continue
 submit statistics_foo_bar__date_2026-07-01T00-00-00 (1011) after ['1007'] [ALL_COMPLETED]
@@ -159,152 +159,152 @@ export N_NODES=1
 export SIROCCO_START_DATE=2026-07-01T00:00:00+00:00
 export SIROCCO_STOP_DATE=2027-01-01T00:00:00+00:00
 
-python statistics.py <ROOTDIR>/run/statistics_foo__bar_3.0__date_2026-07-01T00-00-00/analysis
+python statistics.py <ROOTDIR>/run/statistics_foo__date_2026-07-01T00-00-00__bar_3.0/analysis
 ---
-submit statistics_foo__bar_3.0__date_2027-01-01T00-00-00 (1012) after ['1008', '1009'] [ALL_COMPLETED]
---- run script statistics_foo__bar_3.0__date_2027-01-01T00-00-00
+submit statistics_foo__date_2027-01-01T00-00-00__bar_3.0 (1012) after ['1008', '1009'] [ALL_COMPLETED]
+--- run script statistics_foo__date_2027-01-01T00-00-00__bar_3.0
 #!/bin/bash -l
 
-#FAKE --job-name=statistics_foo__bar_3.0__date_2027-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+#FAKE --job-name=statistics_foo__date_2027-01-01T00-00-00__bar_3.0 --output=run_script.%j.o --mode=overwrite
 
 export N_NODES=1
 
 export SIROCCO_START_DATE=2027-01-01T00:00:00+00:00
 export SIROCCO_STOP_DATE=2027-07-01T00:00:00+00:00
 
-python statistics.py <ROOTDIR>/run/icon__foo_0__bar_3.0__date_2027-01-01T00-00-00/icon_output <ROOTDIR>/run/icon__foo_1__bar_3.0__date_2027-01-01T00-00-00/icon_output
+python statistics.py <ROOTDIR>/run/icon__date_2027-01-01T00-00-00__bar_3.0__foo_0/icon_output <ROOTDIR>/run/icon__date_2027-01-01T00-00-00__bar_3.0__foo_1/icon_output
 ---
-submit icon__foo_0__bar_3.0__date_2027-07-01T00-00-00 (1013) after ['1008'] [ALL_COMPLETED]
---- run script icon__foo_0__bar_3.0__date_2027-07-01T00-00-00
+submit icon__date_2027-07-01T00-00-00__bar_3.0__foo_0 (1013) after ['1008'] [ALL_COMPLETED]
+--- run script icon__date_2027-07-01T00-00-00__bar_3.0__foo_0
 #!/bin/bash -l
 
-#FAKE --job-name=icon__foo_0__bar_3.0__date_2027-07-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+#FAKE --job-name=icon__date_2027-07-01T00-00-00__bar_3.0__foo_0 --output=run_script.%j.o --mode=overwrite
 
 export N_NODES=1
 
 export SIROCCO_START_DATE=2027-07-01T00:00:00+00:00
 export SIROCCO_STOP_DATE=2028-01-01T00:00:00+00:00
 
-python icon.py --restart <ROOTDIR>/run/icon__foo_0__bar_3.0__date_2027-01-01T00-00-00/restart  --forcing /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
+python icon.py --restart <ROOTDIR>/run/icon__date_2027-01-01T00-00-00__bar_3.0__foo_0/restart  --forcing /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
 ---
-submit icon__foo_1__bar_3.0__date_2027-07-01T00-00-00 (1014) after ['1009'] [ALL_COMPLETED]
---- run script icon__foo_1__bar_3.0__date_2027-07-01T00-00-00
+submit icon__date_2027-07-01T00-00-00__bar_3.0__foo_1 (1014) after ['1009'] [ALL_COMPLETED]
+--- run script icon__date_2027-07-01T00-00-00__bar_3.0__foo_1
 #!/bin/bash -l
 
-#FAKE --job-name=icon__foo_1__bar_3.0__date_2027-07-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+#FAKE --job-name=icon__date_2027-07-01T00-00-00__bar_3.0__foo_1 --output=run_script.%j.o --mode=overwrite
 
 export N_NODES=1
 
 export SIROCCO_START_DATE=2027-07-01T00:00:00+00:00
 export SIROCCO_STOP_DATE=2028-01-01T00:00:00+00:00
 
-python icon.py --restart <ROOTDIR>/run/icon__foo_1__bar_3.0__date_2027-01-01T00-00-00/restart  --forcing /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
+python icon.py --restart <ROOTDIR>/run/icon__date_2027-01-01T00-00-00__bar_3.0__foo_1/restart  --forcing /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
 ---
 submit Sirocco_continue (1015) after ['1003', '1004', '1005'] [ANY]
 status: CONTINUE
 --- state (continuation job 1015)
 front[0]:
-  statistics_foo[bar=3.0, date=2026-01-01T00:00:00+00:00] (1003)
-  icon[foo=0, bar=3.0, date=2026-07-01T00:00:00+00:00] (1004)
-  icon[foo=1, bar=3.0, date=2026-07-01T00:00:00+00:00] (1005)
+  statistics_foo[date=2026-01-01T00:00:00+00:00, bar=3.0] (1003)
+  icon[date=2026-07-01T00:00:00+00:00, bar=3.0, foo=0] (1004)
+  icon[date=2026-07-01T00:00:00+00:00, bar=3.0, foo=1] (1005)
 front[1]:
   statistics_foo_bar[date=2026-01-01T00:00:00+00:00] (1006)
-  statistics_foo[bar=3.0, date=2026-07-01T00:00:00+00:00] (1007)
-  icon[foo=0, bar=3.0, date=2027-01-01T00:00:00+00:00] (1008)
-  icon[foo=1, bar=3.0, date=2027-01-01T00:00:00+00:00] (1009)
+  statistics_foo[date=2026-07-01T00:00:00+00:00, bar=3.0] (1007)
+  icon[date=2027-01-01T00:00:00+00:00, bar=3.0, foo=0] (1008)
+  icon[date=2027-01-01T00:00:00+00:00, bar=3.0, foo=1] (1009)
 front[2]:
   statistics_foo_bar[date=2026-07-01T00:00:00+00:00] (1011)
-  statistics_foo[bar=3.0, date=2027-01-01T00:00:00+00:00] (1012)
-  icon[foo=0, bar=3.0, date=2027-07-01T00:00:00+00:00] (1013)
-  icon[foo=1, bar=3.0, date=2027-07-01T00:00:00+00:00] (1014)
+  statistics_foo[date=2027-01-01T00:00:00+00:00, bar=3.0] (1012)
+  icon[date=2027-07-01T00:00:00+00:00, bar=3.0, foo=0] (1013)
+  icon[date=2027-07-01T00:00:00+00:00, bar=3.0, foo=1] (1014)
 cool_down_tasks:
 completed_tasks:
-  icon[foo=0, bar=3.0, date=2026-01-01T00:00:00+00:00] (1001)
-  icon[foo=1, bar=3.0, date=2026-01-01T00:00:00+00:00] (1002)
+  icon[date=2026-01-01T00:00:00+00:00, bar=3.0, foo=0] (1001)
+  icon[date=2026-01-01T00:00:00+00:00, bar=3.0, foo=1] (1002)
 ---
-# statistics_foo__bar_3.0__date_2026-01-01T00-00-00 -> RUNNING
+# statistics_foo__date_2026-01-01T00-00-00__bar_3.0 -> RUNNING
 
 === sirocco stop
 cancel Sirocco_continue (1015)
-cancel icon__foo_0__bar_3.0__date_2026-07-01T00-00-00 (1004)
-cancel icon__foo_1__bar_3.0__date_2026-07-01T00-00-00 (1005)
+cancel icon__date_2026-07-01T00-00-00__bar_3.0__foo_0 (1004)
+cancel icon__date_2026-07-01T00-00-00__bar_3.0__foo_1 (1005)
 cancel statistics_foo_bar__date_2026-01-01T00-00-00 (1006)
-cancel statistics_foo__bar_3.0__date_2026-07-01T00-00-00 (1007)
-cancel icon__foo_0__bar_3.0__date_2027-01-01T00-00-00 (1008)
-cancel icon__foo_1__bar_3.0__date_2027-01-01T00-00-00 (1009)
+cancel statistics_foo__date_2026-07-01T00-00-00__bar_3.0 (1007)
+cancel icon__date_2027-01-01T00-00-00__bar_3.0__foo_0 (1008)
+cancel icon__date_2027-01-01T00-00-00__bar_3.0__foo_1 (1009)
 cancel statistics_foo_bar__date_2026-07-01T00-00-00 (1011)
-cancel statistics_foo__bar_3.0__date_2027-01-01T00-00-00 (1012)
-cancel icon__foo_0__bar_3.0__date_2027-07-01T00-00-00 (1013)
-cancel icon__foo_1__bar_3.0__date_2027-07-01T00-00-00 (1014)
+cancel statistics_foo__date_2027-01-01T00-00-00__bar_3.0 (1012)
+cancel icon__date_2027-07-01T00-00-00__bar_3.0__foo_0 (1013)
+cancel icon__date_2027-07-01T00-00-00__bar_3.0__foo_1 (1014)
 status: STOPPED
 --- state (continuation job _NO_ID_)
 front[0]:
-  statistics_foo[bar=3.0, date=2026-01-01T00:00:00+00:00] (1003)
-  icon[foo=0, bar=3.0, date=2026-07-01T00:00:00+00:00] (1004)
-  icon[foo=1, bar=3.0, date=2026-07-01T00:00:00+00:00] (1005)
+  statistics_foo[date=2026-01-01T00:00:00+00:00, bar=3.0] (1003)
+  icon[date=2026-07-01T00:00:00+00:00, bar=3.0, foo=0] (1004)
+  icon[date=2026-07-01T00:00:00+00:00, bar=3.0, foo=1] (1005)
 front[1]:
   statistics_foo_bar[date=2026-01-01T00:00:00+00:00] (1006)
-  statistics_foo[bar=3.0, date=2026-07-01T00:00:00+00:00] (1007)
-  icon[foo=0, bar=3.0, date=2027-01-01T00:00:00+00:00] (1008)
-  icon[foo=1, bar=3.0, date=2027-01-01T00:00:00+00:00] (1009)
+  statistics_foo[date=2026-07-01T00:00:00+00:00, bar=3.0] (1007)
+  icon[date=2027-01-01T00:00:00+00:00, bar=3.0, foo=0] (1008)
+  icon[date=2027-01-01T00:00:00+00:00, bar=3.0, foo=1] (1009)
 front[2]:
   statistics_foo_bar[date=2026-07-01T00:00:00+00:00] (1011)
-  statistics_foo[bar=3.0, date=2027-01-01T00:00:00+00:00] (1012)
-  icon[foo=0, bar=3.0, date=2027-07-01T00:00:00+00:00] (1013)
-  icon[foo=1, bar=3.0, date=2027-07-01T00:00:00+00:00] (1014)
+  statistics_foo[date=2027-01-01T00:00:00+00:00, bar=3.0] (1012)
+  icon[date=2027-07-01T00:00:00+00:00, bar=3.0, foo=0] (1013)
+  icon[date=2027-07-01T00:00:00+00:00, bar=3.0, foo=1] (1014)
 cool_down_tasks:
-  statistics_foo[bar=3.0, date=2026-01-01T00:00:00+00:00] (1003)
+  statistics_foo[date=2026-01-01T00:00:00+00:00, bar=3.0] (1003)
 completed_tasks:
-  icon[foo=0, bar=3.0, date=2026-01-01T00:00:00+00:00] (1001)
-  icon[foo=1, bar=3.0, date=2026-01-01T00:00:00+00:00] (1002)
+  icon[date=2026-01-01T00:00:00+00:00, bar=3.0, foo=0] (1001)
+  icon[date=2026-01-01T00:00:00+00:00, bar=3.0, foo=1] (1002)
 ---
 
 === sirocco restart
-cancel icon__foo_0__bar_3.0__date_2026-07-01T00-00-00 (1004)
-submit icon__foo_0__bar_3.0__date_2026-07-01T00-00-00 (1016) after [] [ALL_COMPLETED]
-cancel icon__foo_1__bar_3.0__date_2026-07-01T00-00-00 (1005)
-submit icon__foo_1__bar_3.0__date_2026-07-01T00-00-00 (1017) after [] [ALL_COMPLETED]
+cancel icon__date_2026-07-01T00-00-00__bar_3.0__foo_0 (1004)
+submit icon__date_2026-07-01T00-00-00__bar_3.0__foo_0 (1016) after [] [ALL_COMPLETED]
+cancel icon__date_2026-07-01T00-00-00__bar_3.0__foo_1 (1005)
+submit icon__date_2026-07-01T00-00-00__bar_3.0__foo_1 (1017) after [] [ALL_COMPLETED]
 cancel statistics_foo_bar__date_2026-01-01T00-00-00 (1006)
 submit statistics_foo_bar__date_2026-01-01T00-00-00 (1018) after ['1003'] [ALL_COMPLETED]
-cancel statistics_foo__bar_3.0__date_2026-07-01T00-00-00 (1007)
-submit statistics_foo__bar_3.0__date_2026-07-01T00-00-00 (1019) after ['1016', '1017'] [ALL_COMPLETED]
-cancel icon__foo_0__bar_3.0__date_2027-01-01T00-00-00 (1008)
-submit icon__foo_0__bar_3.0__date_2027-01-01T00-00-00 (1020) after ['1016'] [ALL_COMPLETED]
-cancel icon__foo_1__bar_3.0__date_2027-01-01T00-00-00 (1009)
-submit icon__foo_1__bar_3.0__date_2027-01-01T00-00-00 (1021) after ['1017'] [ALL_COMPLETED]
+cancel statistics_foo__date_2026-07-01T00-00-00__bar_3.0 (1007)
+submit statistics_foo__date_2026-07-01T00-00-00__bar_3.0 (1019) after ['1016', '1017'] [ALL_COMPLETED]
+cancel icon__date_2027-01-01T00-00-00__bar_3.0__foo_0 (1008)
+submit icon__date_2027-01-01T00-00-00__bar_3.0__foo_0 (1020) after ['1016'] [ALL_COMPLETED]
+cancel icon__date_2027-01-01T00-00-00__bar_3.0__foo_1 (1009)
+submit icon__date_2027-01-01T00-00-00__bar_3.0__foo_1 (1021) after ['1017'] [ALL_COMPLETED]
 cancel statistics_foo_bar__date_2026-07-01T00-00-00 (1011)
 submit statistics_foo_bar__date_2026-07-01T00-00-00 (1022) after ['1019'] [ALL_COMPLETED]
-cancel statistics_foo__bar_3.0__date_2027-01-01T00-00-00 (1012)
-submit statistics_foo__bar_3.0__date_2027-01-01T00-00-00 (1023) after ['1020', '1021'] [ALL_COMPLETED]
-cancel icon__foo_0__bar_3.0__date_2027-07-01T00-00-00 (1013)
-submit icon__foo_0__bar_3.0__date_2027-07-01T00-00-00 (1024) after ['1020'] [ALL_COMPLETED]
-cancel icon__foo_1__bar_3.0__date_2027-07-01T00-00-00 (1014)
-submit icon__foo_1__bar_3.0__date_2027-07-01T00-00-00 (1025) after ['1021'] [ALL_COMPLETED]
+cancel statistics_foo__date_2027-01-01T00-00-00__bar_3.0 (1012)
+submit statistics_foo__date_2027-01-01T00-00-00__bar_3.0 (1023) after ['1020', '1021'] [ALL_COMPLETED]
+cancel icon__date_2027-07-01T00-00-00__bar_3.0__foo_0 (1013)
+submit icon__date_2027-07-01T00-00-00__bar_3.0__foo_0 (1024) after ['1020'] [ALL_COMPLETED]
+cancel icon__date_2027-07-01T00-00-00__bar_3.0__foo_1 (1014)
+submit icon__date_2027-07-01T00-00-00__bar_3.0__foo_1 (1025) after ['1021'] [ALL_COMPLETED]
 submit Sirocco_continue (1026) after ['1003', '1016', '1017'] [ANY]
 status: CONTINUE
 --- state (continuation job 1026)
 front[0]:
-  statistics_foo[bar=3.0, date=2026-01-01T00:00:00+00:00] (1003)
-  icon[foo=0, bar=3.0, date=2026-07-01T00:00:00+00:00] (1016)
-  icon[foo=1, bar=3.0, date=2026-07-01T00:00:00+00:00] (1017)
+  statistics_foo[date=2026-01-01T00:00:00+00:00, bar=3.0] (1003)
+  icon[date=2026-07-01T00:00:00+00:00, bar=3.0, foo=0] (1016)
+  icon[date=2026-07-01T00:00:00+00:00, bar=3.0, foo=1] (1017)
 front[1]:
   statistics_foo_bar[date=2026-01-01T00:00:00+00:00] (1018)
-  statistics_foo[bar=3.0, date=2026-07-01T00:00:00+00:00] (1019)
-  icon[foo=0, bar=3.0, date=2027-01-01T00:00:00+00:00] (1020)
-  icon[foo=1, bar=3.0, date=2027-01-01T00:00:00+00:00] (1021)
+  statistics_foo[date=2026-07-01T00:00:00+00:00, bar=3.0] (1019)
+  icon[date=2027-01-01T00:00:00+00:00, bar=3.0, foo=0] (1020)
+  icon[date=2027-01-01T00:00:00+00:00, bar=3.0, foo=1] (1021)
 front[2]:
   statistics_foo_bar[date=2026-07-01T00:00:00+00:00] (1022)
-  statistics_foo[bar=3.0, date=2027-01-01T00:00:00+00:00] (1023)
-  icon[foo=0, bar=3.0, date=2027-07-01T00:00:00+00:00] (1024)
-  icon[foo=1, bar=3.0, date=2027-07-01T00:00:00+00:00] (1025)
+  statistics_foo[date=2027-01-01T00:00:00+00:00, bar=3.0] (1023)
+  icon[date=2027-07-01T00:00:00+00:00, bar=3.0, foo=0] (1024)
+  icon[date=2027-07-01T00:00:00+00:00, bar=3.0, foo=1] (1025)
 cool_down_tasks:
 completed_tasks:
-  icon[foo=0, bar=3.0, date=2026-01-01T00:00:00+00:00] (1001)
-  icon[foo=1, bar=3.0, date=2026-01-01T00:00:00+00:00] (1002)
+  icon[date=2026-01-01T00:00:00+00:00, bar=3.0, foo=0] (1001)
+  icon[date=2026-01-01T00:00:00+00:00, bar=3.0, foo=1] (1002)
 ---
-# statistics_foo__bar_3.0__date_2026-01-01T00-00-00 -> COMPLETED
-# icon__foo_0__bar_3.0__date_2026-07-01T00-00-00 -> COMPLETED
-# icon__foo_1__bar_3.0__date_2026-07-01T00-00-00 -> COMPLETED
+# statistics_foo__date_2026-01-01T00-00-00__bar_3.0 -> COMPLETED
+# icon__date_2026-07-01T00-00-00__bar_3.0__foo_0 -> COMPLETED
+# icon__date_2026-07-01T00-00-00__bar_3.0__foo_1 -> COMPLETED
 
 === sirocco continue
 submit merge__date_2026-01-01T00-00-00 (1027) after ['1018', '1022'] [ALL_COMPLETED]
@@ -331,50 +331,50 @@ export N_NODES=1
 export SIROCCO_START_DATE=2027-01-01T00:00:00+00:00
 export SIROCCO_STOP_DATE=2027-07-01T00:00:00+00:00
 
-python statistics.py <ROOTDIR>/run/statistics_foo__bar_3.0__date_2027-01-01T00-00-00/analysis
+python statistics.py <ROOTDIR>/run/statistics_foo__date_2027-01-01T00-00-00__bar_3.0/analysis
 ---
-submit statistics_foo__bar_3.0__date_2027-07-01T00-00-00 (1029) after ['1024', '1025'] [ALL_COMPLETED]
---- run script statistics_foo__bar_3.0__date_2027-07-01T00-00-00
+submit statistics_foo__date_2027-07-01T00-00-00__bar_3.0 (1029) after ['1024', '1025'] [ALL_COMPLETED]
+--- run script statistics_foo__date_2027-07-01T00-00-00__bar_3.0
 #!/bin/bash -l
 
-#FAKE --job-name=statistics_foo__bar_3.0__date_2027-07-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+#FAKE --job-name=statistics_foo__date_2027-07-01T00-00-00__bar_3.0 --output=run_script.%j.o --mode=overwrite
 
 export N_NODES=1
 
 export SIROCCO_START_DATE=2027-07-01T00:00:00+00:00
 export SIROCCO_STOP_DATE=2028-01-01T00:00:00+00:00
 
-python statistics.py <ROOTDIR>/run/icon__foo_0__bar_3.0__date_2027-07-01T00-00-00/icon_output <ROOTDIR>/run/icon__foo_1__bar_3.0__date_2027-07-01T00-00-00/icon_output
+python statistics.py <ROOTDIR>/run/icon__date_2027-07-01T00-00-00__bar_3.0__foo_0/icon_output <ROOTDIR>/run/icon__date_2027-07-01T00-00-00__bar_3.0__foo_1/icon_output
 ---
 submit Sirocco_continue (1030) after ['1018', '1019', '1020', '1021'] [ANY]
 status: CONTINUE
 --- state (continuation job 1030)
 front[0]:
   statistics_foo_bar[date=2026-01-01T00:00:00+00:00] (1018)
-  statistics_foo[bar=3.0, date=2026-07-01T00:00:00+00:00] (1019)
-  icon[foo=0, bar=3.0, date=2027-01-01T00:00:00+00:00] (1020)
-  icon[foo=1, bar=3.0, date=2027-01-01T00:00:00+00:00] (1021)
+  statistics_foo[date=2026-07-01T00:00:00+00:00, bar=3.0] (1019)
+  icon[date=2027-01-01T00:00:00+00:00, bar=3.0, foo=0] (1020)
+  icon[date=2027-01-01T00:00:00+00:00, bar=3.0, foo=1] (1021)
 front[1]:
   statistics_foo_bar[date=2026-07-01T00:00:00+00:00] (1022)
-  statistics_foo[bar=3.0, date=2027-01-01T00:00:00+00:00] (1023)
-  icon[foo=0, bar=3.0, date=2027-07-01T00:00:00+00:00] (1024)
-  icon[foo=1, bar=3.0, date=2027-07-01T00:00:00+00:00] (1025)
+  statistics_foo[date=2027-01-01T00:00:00+00:00, bar=3.0] (1023)
+  icon[date=2027-07-01T00:00:00+00:00, bar=3.0, foo=0] (1024)
+  icon[date=2027-07-01T00:00:00+00:00, bar=3.0, foo=1] (1025)
 front[2]:
   merge[date=2026-01-01T00:00:00+00:00] (1027)
   statistics_foo_bar[date=2027-01-01T00:00:00+00:00] (1028)
-  statistics_foo[bar=3.0, date=2027-07-01T00:00:00+00:00] (1029)
+  statistics_foo[date=2027-07-01T00:00:00+00:00, bar=3.0] (1029)
 cool_down_tasks:
 completed_tasks:
-  icon[foo=0, bar=3.0, date=2026-01-01T00:00:00+00:00] (1001)
-  icon[foo=1, bar=3.0, date=2026-01-01T00:00:00+00:00] (1002)
-  statistics_foo[bar=3.0, date=2026-01-01T00:00:00+00:00] (1003)
-  icon[foo=0, bar=3.0, date=2026-07-01T00:00:00+00:00] (1016)
-  icon[foo=1, bar=3.0, date=2026-07-01T00:00:00+00:00] (1017)
+  icon[date=2026-01-01T00:00:00+00:00, bar=3.0, foo=0] (1001)
+  icon[date=2026-01-01T00:00:00+00:00, bar=3.0, foo=1] (1002)
+  statistics_foo[date=2026-01-01T00:00:00+00:00, bar=3.0] (1003)
+  icon[date=2026-07-01T00:00:00+00:00, bar=3.0, foo=0] (1016)
+  icon[date=2026-07-01T00:00:00+00:00, bar=3.0, foo=1] (1017)
 ---
 # statistics_foo_bar__date_2026-01-01T00-00-00 -> COMPLETED
-# statistics_foo__bar_3.0__date_2026-07-01T00-00-00 -> COMPLETED
-# icon__foo_0__bar_3.0__date_2027-01-01T00-00-00 -> COMPLETED
-# icon__foo_1__bar_3.0__date_2027-01-01T00-00-00 -> COMPLETED
+# statistics_foo__date_2026-07-01T00-00-00__bar_3.0 -> COMPLETED
+# icon__date_2027-01-01T00-00-00__bar_3.0__foo_0 -> COMPLETED
+# icon__date_2027-01-01T00-00-00__bar_3.0__foo_1 -> COMPLETED
 
 === sirocco continue
 submit statistics_foo_bar__date_2027-07-01T00-00-00 (1031) after ['1029'] [ALL_COMPLETED]
@@ -388,38 +388,38 @@ export N_NODES=1
 export SIROCCO_START_DATE=2027-07-01T00:00:00+00:00
 export SIROCCO_STOP_DATE=2028-01-01T00:00:00+00:00
 
-python statistics.py <ROOTDIR>/run/statistics_foo__bar_3.0__date_2027-07-01T00-00-00/analysis
+python statistics.py <ROOTDIR>/run/statistics_foo__date_2027-07-01T00-00-00__bar_3.0/analysis
 ---
 submit Sirocco_continue (1032) after ['1022', '1023', '1024', '1025'] [ANY]
 status: CONTINUE
 --- state (continuation job 1032)
 front[0]:
   statistics_foo_bar[date=2026-07-01T00:00:00+00:00] (1022)
-  statistics_foo[bar=3.0, date=2027-01-01T00:00:00+00:00] (1023)
-  icon[foo=0, bar=3.0, date=2027-07-01T00:00:00+00:00] (1024)
-  icon[foo=1, bar=3.0, date=2027-07-01T00:00:00+00:00] (1025)
+  statistics_foo[date=2027-01-01T00:00:00+00:00, bar=3.0] (1023)
+  icon[date=2027-07-01T00:00:00+00:00, bar=3.0, foo=0] (1024)
+  icon[date=2027-07-01T00:00:00+00:00, bar=3.0, foo=1] (1025)
 front[1]:
   merge[date=2026-01-01T00:00:00+00:00] (1027)
   statistics_foo_bar[date=2027-01-01T00:00:00+00:00] (1028)
-  statistics_foo[bar=3.0, date=2027-07-01T00:00:00+00:00] (1029)
+  statistics_foo[date=2027-07-01T00:00:00+00:00, bar=3.0] (1029)
 front[2]:
   statistics_foo_bar[date=2027-07-01T00:00:00+00:00] (1031)
 cool_down_tasks:
 completed_tasks:
-  icon[foo=0, bar=3.0, date=2026-01-01T00:00:00+00:00] (1001)
-  icon[foo=1, bar=3.0, date=2026-01-01T00:00:00+00:00] (1002)
-  statistics_foo[bar=3.0, date=2026-01-01T00:00:00+00:00] (1003)
-  icon[foo=0, bar=3.0, date=2026-07-01T00:00:00+00:00] (1016)
-  icon[foo=1, bar=3.0, date=2026-07-01T00:00:00+00:00] (1017)
+  icon[date=2026-01-01T00:00:00+00:00, bar=3.0, foo=0] (1001)
+  icon[date=2026-01-01T00:00:00+00:00, bar=3.0, foo=1] (1002)
+  statistics_foo[date=2026-01-01T00:00:00+00:00, bar=3.0] (1003)
+  icon[date=2026-07-01T00:00:00+00:00, bar=3.0, foo=0] (1016)
+  icon[date=2026-07-01T00:00:00+00:00, bar=3.0, foo=1] (1017)
   statistics_foo_bar[date=2026-01-01T00:00:00+00:00] (1018)
-  statistics_foo[bar=3.0, date=2026-07-01T00:00:00+00:00] (1019)
-  icon[foo=0, bar=3.0, date=2027-01-01T00:00:00+00:00] (1020)
-  icon[foo=1, bar=3.0, date=2027-01-01T00:00:00+00:00] (1021)
+  statistics_foo[date=2026-07-01T00:00:00+00:00, bar=3.0] (1019)
+  icon[date=2027-01-01T00:00:00+00:00, bar=3.0, foo=0] (1020)
+  icon[date=2027-01-01T00:00:00+00:00, bar=3.0, foo=1] (1021)
 ---
 # statistics_foo_bar__date_2026-07-01T00-00-00 -> COMPLETED
-# statistics_foo__bar_3.0__date_2027-01-01T00-00-00 -> COMPLETED
-# icon__foo_0__bar_3.0__date_2027-07-01T00-00-00 -> COMPLETED
-# icon__foo_1__bar_3.0__date_2027-07-01T00-00-00 -> COMPLETED
+# statistics_foo__date_2027-01-01T00-00-00__bar_3.0 -> COMPLETED
+# icon__date_2027-07-01T00-00-00__bar_3.0__foo_0 -> COMPLETED
+# icon__date_2027-07-01T00-00-00__bar_3.0__foo_1 -> COMPLETED
 
 === sirocco continue
 submit merge__date_2027-01-01T00-00-00 (1033) after ['1028', '1031'] [ALL_COMPLETED]
@@ -441,30 +441,30 @@ status: CONTINUE
 front[0]:
   merge[date=2026-01-01T00:00:00+00:00] (1027)
   statistics_foo_bar[date=2027-01-01T00:00:00+00:00] (1028)
-  statistics_foo[bar=3.0, date=2027-07-01T00:00:00+00:00] (1029)
+  statistics_foo[date=2027-07-01T00:00:00+00:00, bar=3.0] (1029)
 front[1]:
   statistics_foo_bar[date=2027-07-01T00:00:00+00:00] (1031)
 front[2]:
   merge[date=2027-01-01T00:00:00+00:00] (1033)
 cool_down_tasks:
 completed_tasks:
-  icon[foo=0, bar=3.0, date=2026-01-01T00:00:00+00:00] (1001)
-  icon[foo=1, bar=3.0, date=2026-01-01T00:00:00+00:00] (1002)
-  statistics_foo[bar=3.0, date=2026-01-01T00:00:00+00:00] (1003)
-  icon[foo=0, bar=3.0, date=2026-07-01T00:00:00+00:00] (1016)
-  icon[foo=1, bar=3.0, date=2026-07-01T00:00:00+00:00] (1017)
+  icon[date=2026-01-01T00:00:00+00:00, bar=3.0, foo=0] (1001)
+  icon[date=2026-01-01T00:00:00+00:00, bar=3.0, foo=1] (1002)
+  statistics_foo[date=2026-01-01T00:00:00+00:00, bar=3.0] (1003)
+  icon[date=2026-07-01T00:00:00+00:00, bar=3.0, foo=0] (1016)
+  icon[date=2026-07-01T00:00:00+00:00, bar=3.0, foo=1] (1017)
   statistics_foo_bar[date=2026-01-01T00:00:00+00:00] (1018)
-  statistics_foo[bar=3.0, date=2026-07-01T00:00:00+00:00] (1019)
-  icon[foo=0, bar=3.0, date=2027-01-01T00:00:00+00:00] (1020)
-  icon[foo=1, bar=3.0, date=2027-01-01T00:00:00+00:00] (1021)
+  statistics_foo[date=2026-07-01T00:00:00+00:00, bar=3.0] (1019)
+  icon[date=2027-01-01T00:00:00+00:00, bar=3.0, foo=0] (1020)
+  icon[date=2027-01-01T00:00:00+00:00, bar=3.0, foo=1] (1021)
   statistics_foo_bar[date=2026-07-01T00:00:00+00:00] (1022)
-  statistics_foo[bar=3.0, date=2027-01-01T00:00:00+00:00] (1023)
-  icon[foo=0, bar=3.0, date=2027-07-01T00:00:00+00:00] (1024)
-  icon[foo=1, bar=3.0, date=2027-07-01T00:00:00+00:00] (1025)
+  statistics_foo[date=2027-01-01T00:00:00+00:00, bar=3.0] (1023)
+  icon[date=2027-07-01T00:00:00+00:00, bar=3.0, foo=0] (1024)
+  icon[date=2027-07-01T00:00:00+00:00, bar=3.0, foo=1] (1025)
 ---
 # merge__date_2026-01-01T00-00-00 -> COMPLETED
 # statistics_foo_bar__date_2027-01-01T00-00-00 -> COMPLETED
-# statistics_foo__bar_3.0__date_2027-07-01T00-00-00 -> COMPLETED
+# statistics_foo__date_2027-07-01T00-00-00__bar_3.0 -> COMPLETED
 
 === sirocco continue
 submit Sirocco_continue (1035) after ['1031'] [ANY]
@@ -477,22 +477,22 @@ front[1]:
 front[2]:
 cool_down_tasks:
 completed_tasks:
-  icon[foo=0, bar=3.0, date=2026-01-01T00:00:00+00:00] (1001)
-  icon[foo=1, bar=3.0, date=2026-01-01T00:00:00+00:00] (1002)
-  statistics_foo[bar=3.0, date=2026-01-01T00:00:00+00:00] (1003)
-  icon[foo=0, bar=3.0, date=2026-07-01T00:00:00+00:00] (1016)
-  icon[foo=1, bar=3.0, date=2026-07-01T00:00:00+00:00] (1017)
+  icon[date=2026-01-01T00:00:00+00:00, bar=3.0, foo=0] (1001)
+  icon[date=2026-01-01T00:00:00+00:00, bar=3.0, foo=1] (1002)
+  statistics_foo[date=2026-01-01T00:00:00+00:00, bar=3.0] (1003)
+  icon[date=2026-07-01T00:00:00+00:00, bar=3.0, foo=0] (1016)
+  icon[date=2026-07-01T00:00:00+00:00, bar=3.0, foo=1] (1017)
   statistics_foo_bar[date=2026-01-01T00:00:00+00:00] (1018)
-  statistics_foo[bar=3.0, date=2026-07-01T00:00:00+00:00] (1019)
-  icon[foo=0, bar=3.0, date=2027-01-01T00:00:00+00:00] (1020)
-  icon[foo=1, bar=3.0, date=2027-01-01T00:00:00+00:00] (1021)
+  statistics_foo[date=2026-07-01T00:00:00+00:00, bar=3.0] (1019)
+  icon[date=2027-01-01T00:00:00+00:00, bar=3.0, foo=0] (1020)
+  icon[date=2027-01-01T00:00:00+00:00, bar=3.0, foo=1] (1021)
   statistics_foo_bar[date=2026-07-01T00:00:00+00:00] (1022)
-  statistics_foo[bar=3.0, date=2027-01-01T00:00:00+00:00] (1023)
-  icon[foo=0, bar=3.0, date=2027-07-01T00:00:00+00:00] (1024)
-  icon[foo=1, bar=3.0, date=2027-07-01T00:00:00+00:00] (1025)
+  statistics_foo[date=2027-01-01T00:00:00+00:00, bar=3.0] (1023)
+  icon[date=2027-07-01T00:00:00+00:00, bar=3.0, foo=0] (1024)
+  icon[date=2027-07-01T00:00:00+00:00, bar=3.0, foo=1] (1025)
   merge[date=2026-01-01T00:00:00+00:00] (1027)
   statistics_foo_bar[date=2027-01-01T00:00:00+00:00] (1028)
-  statistics_foo[bar=3.0, date=2027-07-01T00:00:00+00:00] (1029)
+  statistics_foo[date=2027-07-01T00:00:00+00:00, bar=3.0] (1029)
 ---
 # statistics_foo_bar__date_2027-07-01T00-00-00 -> COMPLETED
 
@@ -506,22 +506,22 @@ front[1]:
 front[2]:
 cool_down_tasks:
 completed_tasks:
-  icon[foo=0, bar=3.0, date=2026-01-01T00:00:00+00:00] (1001)
-  icon[foo=1, bar=3.0, date=2026-01-01T00:00:00+00:00] (1002)
-  statistics_foo[bar=3.0, date=2026-01-01T00:00:00+00:00] (1003)
-  icon[foo=0, bar=3.0, date=2026-07-01T00:00:00+00:00] (1016)
-  icon[foo=1, bar=3.0, date=2026-07-01T00:00:00+00:00] (1017)
+  icon[date=2026-01-01T00:00:00+00:00, bar=3.0, foo=0] (1001)
+  icon[date=2026-01-01T00:00:00+00:00, bar=3.0, foo=1] (1002)
+  statistics_foo[date=2026-01-01T00:00:00+00:00, bar=3.0] (1003)
+  icon[date=2026-07-01T00:00:00+00:00, bar=3.0, foo=0] (1016)
+  icon[date=2026-07-01T00:00:00+00:00, bar=3.0, foo=1] (1017)
   statistics_foo_bar[date=2026-01-01T00:00:00+00:00] (1018)
-  statistics_foo[bar=3.0, date=2026-07-01T00:00:00+00:00] (1019)
-  icon[foo=0, bar=3.0, date=2027-01-01T00:00:00+00:00] (1020)
-  icon[foo=1, bar=3.0, date=2027-01-01T00:00:00+00:00] (1021)
+  statistics_foo[date=2026-07-01T00:00:00+00:00, bar=3.0] (1019)
+  icon[date=2027-01-01T00:00:00+00:00, bar=3.0, foo=0] (1020)
+  icon[date=2027-01-01T00:00:00+00:00, bar=3.0, foo=1] (1021)
   statistics_foo_bar[date=2026-07-01T00:00:00+00:00] (1022)
-  statistics_foo[bar=3.0, date=2027-01-01T00:00:00+00:00] (1023)
-  icon[foo=0, bar=3.0, date=2027-07-01T00:00:00+00:00] (1024)
-  icon[foo=1, bar=3.0, date=2027-07-01T00:00:00+00:00] (1025)
+  statistics_foo[date=2027-01-01T00:00:00+00:00, bar=3.0] (1023)
+  icon[date=2027-07-01T00:00:00+00:00, bar=3.0, foo=0] (1024)
+  icon[date=2027-07-01T00:00:00+00:00, bar=3.0, foo=1] (1025)
   merge[date=2026-01-01T00:00:00+00:00] (1027)
   statistics_foo_bar[date=2027-01-01T00:00:00+00:00] (1028)
-  statistics_foo[bar=3.0, date=2027-07-01T00:00:00+00:00] (1029)
+  statistics_foo[date=2027-07-01T00:00:00+00:00, bar=3.0] (1029)
   statistics_foo_bar[date=2027-07-01T00:00:00+00:00] (1031)
 ---
 # merge__date_2027-01-01T00-00-00 -> COMPLETED
@@ -534,22 +534,22 @@ front[1]:
 front[2]:
 cool_down_tasks:
 completed_tasks:
-  icon[foo=0, bar=3.0, date=2026-01-01T00:00:00+00:00] (1001)
-  icon[foo=1, bar=3.0, date=2026-01-01T00:00:00+00:00] (1002)
-  statistics_foo[bar=3.0, date=2026-01-01T00:00:00+00:00] (1003)
-  icon[foo=0, bar=3.0, date=2026-07-01T00:00:00+00:00] (1016)
-  icon[foo=1, bar=3.0, date=2026-07-01T00:00:00+00:00] (1017)
+  icon[date=2026-01-01T00:00:00+00:00, bar=3.0, foo=0] (1001)
+  icon[date=2026-01-01T00:00:00+00:00, bar=3.0, foo=1] (1002)
+  statistics_foo[date=2026-01-01T00:00:00+00:00, bar=3.0] (1003)
+  icon[date=2026-07-01T00:00:00+00:00, bar=3.0, foo=0] (1016)
+  icon[date=2026-07-01T00:00:00+00:00, bar=3.0, foo=1] (1017)
   statistics_foo_bar[date=2026-01-01T00:00:00+00:00] (1018)
-  statistics_foo[bar=3.0, date=2026-07-01T00:00:00+00:00] (1019)
-  icon[foo=0, bar=3.0, date=2027-01-01T00:00:00+00:00] (1020)
-  icon[foo=1, bar=3.0, date=2027-01-01T00:00:00+00:00] (1021)
+  statistics_foo[date=2026-07-01T00:00:00+00:00, bar=3.0] (1019)
+  icon[date=2027-01-01T00:00:00+00:00, bar=3.0, foo=0] (1020)
+  icon[date=2027-01-01T00:00:00+00:00, bar=3.0, foo=1] (1021)
   statistics_foo_bar[date=2026-07-01T00:00:00+00:00] (1022)
-  statistics_foo[bar=3.0, date=2027-01-01T00:00:00+00:00] (1023)
-  icon[foo=0, bar=3.0, date=2027-07-01T00:00:00+00:00] (1024)
-  icon[foo=1, bar=3.0, date=2027-07-01T00:00:00+00:00] (1025)
+  statistics_foo[date=2027-01-01T00:00:00+00:00, bar=3.0] (1023)
+  icon[date=2027-07-01T00:00:00+00:00, bar=3.0, foo=0] (1024)
+  icon[date=2027-07-01T00:00:00+00:00, bar=3.0, foo=1] (1025)
   merge[date=2026-01-01T00:00:00+00:00] (1027)
   statistics_foo_bar[date=2027-01-01T00:00:00+00:00] (1028)
-  statistics_foo[bar=3.0, date=2027-07-01T00:00:00+00:00] (1029)
+  statistics_foo[date=2027-07-01T00:00:00+00:00, bar=3.0] (1029)
   statistics_foo_bar[date=2027-07-01T00:00:00+00:00] (1031)
   merge[date=2027-01-01T00:00:00+00:00] (1033)
 ---
