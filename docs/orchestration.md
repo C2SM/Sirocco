@@ -41,7 +41,7 @@ flowchart LR
 *Propagation of a task front of depth $d = 2$.* Dark blue: rank 0 tasks (running or queued). Light blue: rank 1 tasks (submitted ahead of time). Dashed: tasks beyond the front ($r = d$, not submitted). Grey: completed tasks ($r = -1$). Once branch `a` has progressed, generation 0 of the front contains `a3` ($R = 2$) and `b1` ($R = 0$).
 </figcaption>
 
-To see what the front looks like on a real workflow, see the [status graph](usage/standalone.md#stviz) produced by `sirocco stviz` for the [Cycles example](configuration/cycles.md#example), here also with a front depth of 2.
+To see what the front looks like on a real workflow, see the [state graph](usage/standalone.md#stviz) produced by `sirocco stviz` for the [Cycles example](configuration/cycles.md#example), here also with a front depth of 2.
 
 ## Standalone engine
 

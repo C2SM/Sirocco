@@ -218,7 +218,7 @@ def add_now(width: int = 25) -> str:
     return "\n".join([f"{space}╭{date_rule}╮", f"{rule}┤ {date_str} ├{rule}", f"{space}╰{date_rule}╯"])
 
 
-@app.command(help="\\[Standalone] Visualize workflow status.")
+@app.command(help="\\[Standalone] Visualize workflow state.")
 def stviz(
     config_dir: CONFIG_DIR_ARG_T = Path("."),
     output_file: Annotated[
@@ -233,17 +233,17 @@ def stviz(
         ),
     ] = None,
 ):
-    console.print(f"{CmdStatus.PLAY} Visualizing workflow status from: [cyan]{config_dir!s}[/cyan]")
+    console.print(f"{CmdStatus.PLAY} Visualizing workflow state from: [cyan]{config_dir!s}[/cyan]")
     try:
         eng = StandaloneEngine.from_config_path(config_dir)
         eng.load_state()
         viz_graph = state_vizgraph(eng)
         output_path = Path("./state.svg") if output_file is None else output_file
         viz_graph.draw(file_path=output_path)
-        console.print(f"{CmdStatus.SUCCESS} Status visualization saved to: [cyan]{output_path.resolve()}[/cyan]")
+        console.print(f"{CmdStatus.SUCCESS} State visualization saved to: [cyan]{output_path.resolve()}[/cyan]")
 
     except Exception as e:
-        console.print(f"{CmdStatus.FAIL} Failed to generate status visualization:")
+        console.print(f"{CmdStatus.FAIL} Failed to generate state visualization:")
         console.print_exception()
         raise typer.Exit(code=1) from e
 
