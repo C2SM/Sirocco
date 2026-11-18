@@ -1,4 +1,4 @@
-# This workflow will upload a Python Package using hatch when a release is created
+# Build and upload the package to PyPI when a version tag is pushed
 
 name: Publish Python Package
 
@@ -14,11 +14,12 @@ jobs:
   deploy:
 
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Python
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v5
       with:
         python-version: '3.12'
     - name: Install hatch
@@ -27,10 +28,18 @@ jobs:
         pip install "click<8.3.0"  # NOTE: click 8.2 -> 8.3 is backwards incompatible
         pip install "virtualenv<21.0.0"  # NOTE: virtualenv 21.0.0 has breaking changes incompatible with hatch
         pip install hatch
+    - name: Check that the tag matches the package version
+      run: |
+        pkg_version="$(hatch version)"
+        tag_version="${GITHUB_REF_NAME#v}"
+        if [ "${pkg_version}" != "${tag_version}" ]; then
+          echo "::error::Tag ${GITHUB_REF_NAME} does not match package version ${pkg_version}"
+          exit 1
+        fi
+    - name: Build package
+      run: hatch build
     - name: Publish package
       env:
-        HATCH_INDEX_AUTH: ${{ secrets.PYPI_API_TOKEN }} 
+        HATCH_INDEX_AUTH: ${{ secrets.PYPI_API_TOKEN }}
         HATCH_INDEX_USER: __token__
-      run: |
-        hatch build
-        hatch publish 
+      run: hatch publish
