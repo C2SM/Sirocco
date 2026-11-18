@@ -110,6 +110,8 @@ sirocco stviz       # render the current state of the task front
 
 See [Usage](https://sirocco.ethz.ch/usage/standalone/) for all commands, including `stop` and `restart`.
 
+The AiiDA engine requires a development install (`git clone` then `uv sync --group aiida` or `hatch shell`), see the [AiiDA engine documentation](https://sirocco.ethz.ch/usage/aiida/).
+
 ## Development
 
 Sirocco uses [hatch](https://hatch.pypa.io) to manage environments:
