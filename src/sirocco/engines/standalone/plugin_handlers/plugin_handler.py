@@ -37,7 +37,7 @@ class PluginHandler(ABC):
     """Standalone engine behaviour for one task"""
 
     handler_classes: ClassVar[dict[type[Any], type[PluginHandler]]] = {}
-    task_type: ClassVar[type[Task]]
+    task_type: ClassVar[type[Task] | None] = None  # Set by subclasses handling a task type
 
     # Submission settings
     submit_filename: ClassVar[str] = "run_script.sh"
@@ -47,12 +47,12 @@ class PluginHandler(ABC):
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
-        if "task_type" not in cls.__dict__:
+        if (task_type := cls.task_type) is None:
             return  # Intermediate or test class, handles no task type of its own
-        if cls.task_type in PluginHandler.handler_classes:
-            msg = f"standalone engine: handler for {cls.task_type.__name__} already registered"
+        if task_type in PluginHandler.handler_classes:
+            msg = f"standalone engine: handler for {task_type.__name__} already registered"
             raise ValueError(msg)
-        PluginHandler.handler_classes[cls.task_type] = cls
+        PluginHandler.handler_classes[task_type] = cls
 
     @staticmethod
     def handler_class(task: Task) -> type[PluginHandler]:

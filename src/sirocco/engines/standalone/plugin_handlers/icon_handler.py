@@ -1,23 +1,27 @@
 """Standalone engine support for `core.IconTask`
 
 What a port means for ICON (valid model types, namelist parameter, link name) is
-declared in core by `IconPort`. Applying it is engine specific: link the data in the
-run directory, point the namelist to it, and resolve the paths of output data.
+declared in core by `IconPort`. Applying it is engine specific and done by
+`IconPortHandler`, for one port of one model in one run directory:
 
-Regular ports are applied generically from their declaration. Special ports (see
-`IconPort.is_special`) are implemented by `IconHandler` methods registered with
-`@special_port(<core port>)`.
+- input ports: link the input data in the run directory and point the namelist to it,
+  from the input data paths resolved beforehand by `IconHandler`,
+- output ports: decide the paths of the output data, set by `IconHandler`, and possibly
+  create directories ICON expects to exist.
+
+`IconPortHandler` mirrors `IconPort`: it applies regular ports generically from their
+declaration, and each special port (see `IconPort.is_special`) is implemented by a
+subclass setting `special_port`, which registers it.
 """
 
 from __future__ import annotations
 
 import shlex
 import shutil
-from collections.abc import Callable
-from functools import cached_property, partial
+from dataclasses import dataclass
 from itertools import chain
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from sirocco.core.graph_items import GeneratedData
 from sirocco.core.tasks.icon_task import IconTask, launch
@@ -26,32 +30,10 @@ from sirocco.core.tasks.icon_task.ports import IconPort
 from sirocco.engines.standalone.plugin_handlers.plugin_handler import PluginHandler
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Mapping, Sequence
 
     from sirocco.core.graph_items import Data
     from sirocco.core.tasks.icon_task.models import IconModel
-
-
-type SPECIAL_PORT_METHOD_T = Callable[[IconHandler, IconPort, IconModel], None]
-
-# `IconHandler` methods implementing the special ports, by port name
-special_port_methods: dict[str, SPECIAL_PORT_METHOD_T] = {}
-
-
-def special_port(port: IconPort) -> Callable[[SPECIAL_PORT_METHOD_T], SPECIAL_PORT_METHOD_T]:
-    """Register the decorated `IconHandler` method as the implementation of the special `port`"""
-
-    def register(method: SPECIAL_PORT_METHOD_T) -> SPECIAL_PORT_METHOD_T:
-        if not port.is_special:
-            msg = f"port {port.port_name} is not special, it is applied from its declaration"
-            raise ValueError(msg)
-        if port.port_name in special_port_methods:
-            msg = f"special port {port.port_name} already implemented"
-            raise ValueError(msg)
-        special_port_methods[port.port_name] = method
-        return method
-
-    return register
 
 
 class IconHandler(PluginHandler):
@@ -64,8 +46,8 @@ class IconHandler(PluginHandler):
 
     def resolve_output_paths(self) -> None:
         for model in self.task.models.values():
-            for port in model.outputs:
-                self.apply_port(port, model)
+            for port_name in model.outputs:
+                self.apply_port(port_name, model)
 
     def prepare_rundir_content(self) -> None:
         rundir = self.get_rundir()
@@ -87,8 +69,8 @@ class IconHandler(PluginHandler):
         # - resolve data path
         # - link data
         for model in self.task.models.values():
-            for port in chain(model.inputs, model.outputs):
-                self.apply_port(port, model)
+            for port_name in chain(model.inputs, model.outputs):
+                self.apply_port(port_name, model)
 
         # Dump ICON config files
         self.task.dump_namelists(directory=rundir, filename_mode="raw")
@@ -104,6 +86,12 @@ class IconHandler(PluginHandler):
         if self.task.target == "hybrid":
             (rundir / launch.MULTI_PROG_CONFIG).write_text(launch.multi_prog_content(self.task))
 
+    def apply_port(self, port_name: str, model: IconModel) -> None:
+        """Apply port `port_name` of `model` and set the paths of the output data it resolves"""
+        input_paths = {data.label: self.get_data_path(data) for data in model.inputs.get(port_name, [])}
+        for data, path in IconPortHandler.get(port_name, model, self.get_rundir()).apply(input_paths):
+            self.set_data_path(data, path)
+
     def get_runscript_lines(self) -> list[str]:
         squash_mounts = [
             (self.get_data_path(image), mount) for image, mount in self.task.get_squash_mounts(self.get_rundir())
@@ -114,77 +102,134 @@ class IconHandler(PluginHandler):
             f"source ./{launch.RUNTIME_MAIN}",
         ]
 
-    # =========== Ports ===========
 
-    @cached_property
-    def special_ports(self) -> dict[str, Callable[[IconPort, IconModel], None]]:
-        """Implementations of the special ports bound to this handler, by port name"""
-        return {name: partial(method, self) for name, method in special_port_methods.items()}
+type OUTPUT_PATHS_T = list[tuple[GeneratedData, Path]]
 
-    def apply_port(self, port_name: str, model: IconModel) -> None:
-        port = IconPort.get(port_name, model)
-        if port.is_special:
-            self.special_ports[port_name](port, model)
-        else:
-            self.apply_link_and_namelist(port, model)
 
-    def apply_link_and_namelist(self, port: IconPort, model: IconModel) -> None:
-        if len(model.inputs[port.port_name]) != 1:
-            msg = f"port {port.port_name} accepts one and only one data object"
+@dataclass(frozen=True)
+class IconPortHandler:
+    """Applies one port of an ICON model in a run directory
+
+    The base class applies regular ports from their declaration. Special ports are
+    implemented by subclasses setting `special_port`, which registers them.
+    """
+
+    registered_handlers: ClassVar[dict[str, type[IconPortHandler]]] = {}
+    special_port: ClassVar[IconPort | None] = None  # Set by subclasses implementing a special port
+
+    port: IconPort
+    model: IconModel
+    rundir: Path
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        if (port := cls.special_port) is None:
+            return  # Intermediate class, implements no port of its own
+        if not port.is_special:
+            msg = f"port {port.port_name} is not special, it is applied from its declaration"
             raise ValueError(msg)
-        data = model.inputs[port.port_name][0]
-        rundir = self.get_rundir()
+        if port.port_name in IconPortHandler.registered_handlers:
+            msg = f"special port {port.port_name} already implemented"
+            raise ValueError(msg)
+        IconPortHandler.registered_handlers[port.port_name] = cls
+
+    @staticmethod
+    def get(port_name: str, model: IconModel, rundir: Path) -> IconPortHandler:
+        """Handler of port `port_name`, checked to be supported and valid for `model`"""
+        port = IconPort.get(port_name, model)
+        if not port.is_special:
+            return IconPortHandler(port, model, rundir)
+        if (handler_class := IconPortHandler.registered_handlers.get(port_name)) is None:
+            msg = f"special port {port_name} not implemented in the standalone engine"
+            raise NotImplementedError(msg)
+        return handler_class(port, model, rundir)
+
+    def apply(self, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:
+        """Apply the port and return the paths of the output data it resolves
+
+        `input_paths`: resolved paths of the port input data, by data label
+
+        Regular ports link their input data in the run directory and point the namelist to it.
+        """
+        if len(data_list := self.model.inputs[self.port.port_name]) != 1:
+            msg = f"port {self.port.port_name} accepts one and only one data object"
+            raise ValueError(msg)
+        data = data_list[0]
+        path = input_paths[data.label]
+        section, parameter, target_link_name = self.port.section, self.port.parameter, self.port.target_link_name
         # Adapt namelist and link
-        if port.section is not None and port.parameter is not None:
+        if section is not None and parameter is not None:
             if isinstance(data, GeneratedData):
-                target_link_name = port.target_link_name if port.target_link_name else self.get_data_path(data).name
-                if port.section not in model.namelist:
-                    model.namelist[port.section] = {}
-                model.namelist[port.section][port.parameter] = f"./{target_link_name}"
-                if not (origin := rundir / target_link_name).is_symlink():
-                    origin.symlink_to(self.get_data_path(data))
+                link_name = target_link_name if target_link_name else path.name
+                if section not in self.model.namelist:
+                    self.model.namelist[section] = {}
+                self.model.namelist[section][parameter] = f"./{link_name}"
+                if not (link := self.rundir / link_name).is_symlink():
+                    link.symlink_to(path)
             else:
-                model.namelist[port.section][port.parameter] = str(self.get_data_path(data))
+                self.model.namelist[section][parameter] = str(path)
         # Only link
-        elif port.target_link_name is not None:
-            (rundir / port.target_link_name).symlink_to(self.get_data_path(data))
+        elif target_link_name is not None:
+            (self.rundir / target_link_name).symlink_to(path)
         else:
             msg = "wrong combination of section, parameter and target_link_name"
             raise ValueError(msg)
+        return []
 
-    # =========== Special ports ===========
 
-    @staticmethod
-    def restart_data(port: IconPort, model: IconModel, data_list: Sequence[Data]) -> Data | None:
-        """The single data node of a restart port, if any, after checking the restart mode of `model`"""
-        if (restart_write_mode := model.namelist["io_nml"].get("restart_write_mode")) != "joint procs multifile":
+# =========== Special ports ===========
+
+
+class RestartPortHandler(IconPortHandler):
+    def get_restart_data[D: Data](self, data_list: Sequence[D]) -> D | None:
+        """The single data node of the port, if any, after checking the restart mode of the model"""
+        restart_write_mode = self.model.namelist["io_nml"].get("restart_write_mode")
+        if restart_write_mode != "joint procs multifile":
             msg = f"Only supported restart_write_mode is 'joint procs multifile', got {restart_write_mode!r}"
             raise ValueError(msg)
         # Ignore empty restart port or possible when conditions
         if not data_list:
             return None
         if len(data_list) > 1:
-            msg = f"port '{port.port_name}' only accepts a single data object"
+            msg = f"port '{self.port.port_name}' only accepts a single data object"
             raise ValueError(msg)
         return data_list[0]
 
-    @special_port(core_icon_ports.restart_in_port)
-    def apply_restart_in_port(self, port: IconPort, model: IconModel) -> None:
-        if (data := self.restart_data(port, model, model.inputs[port.port_name])) is not None:
-            (self.get_rundir() / f"multifile_restart_{model.name}.mfr").symlink_to(self.get_data_path(data))
+    @property
+    def restart_path(self) -> Path:
+        return self.rundir / f"multifile_restart_{self.model.name}.mfr"
 
-    @special_port(core_icon_ports.restart_out_port)
-    def apply_restart_out_port(self, port: IconPort, model: IconModel) -> None:
-        if (data := self.restart_data(port, model, model.outputs[port.port_name])) is not None:
-            self.set_data_path(data, self.get_rundir() / f"multifile_restart_{model.name}.mfr")
 
-    @special_port(core_icon_ports.output_streams_port)
-    def apply_output_streams_port(self, port: IconPort, model: IconModel) -> None:
+class RestartInPortHandler(RestartPortHandler):
+    special_port = core_icon_ports.restart_in_port
+
+    def apply(self, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:
+        if (data := self.get_restart_data(self.model.inputs[self.port.port_name])) is not None:
+            self.restart_path.symlink_to(input_paths[data.label])
+        return []
+
+
+class RestartOutPortHandler(RestartPortHandler):
+    special_port = core_icon_ports.restart_out_port
+
+    def apply(self, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:  # noqa: ARG002
+        if (data := self.get_restart_data(self.model.outputs[self.port.port_name])) is None:
+            return []
+        return [(data, self.restart_path)]
+
+
+class OutputStreamsPortHandler(IconPortHandler):
+    special_port = core_icon_ports.output_streams_port
+
+    def apply(self, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:  # noqa: ARG002
+        model = self.model
+        output_data = model.outputs[self.port.port_name]
         nml_streams = [*model.namelist.iter_nml("output_nml")]
-        if (n_nml := len(nml_streams)) != (n_yaml := len(model.outputs[port.port_name])):
+        if (n_nml := len(nml_streams)) != (n_yaml := len(output_data)):
             msg = f"task {model.task_label}, model {model.name}: number of output streams speficied in namelist ({n_nml}) differs from number of streams specified in the workflow config ({n_yaml})"
             raise ValueError(msg)
-        for k, (nml_stream, output_data) in enumerate(zip(nml_streams, model.outputs[port.port_name], strict=False)):
+        paths: OUTPUT_PATHS_T = []
+        for k, (nml_stream, data) in enumerate(zip(nml_streams, output_data, strict=False)):
             filename_format = nml_stream.get("filename_format", "<output_filename>_XXX_YYY")
             output_filename = nml_stream.get("output_filename", "")
             # for type checkers
@@ -195,12 +240,17 @@ class IconHandler(PluginHandler):
             if stream_dir == Path("."):
                 msg = f"task {model.task_label}, model {model.name}: output stream number {k} specifies an output stream directly in the run directory. Please specify a subdirectory using the 'filename_format' and 'output_filename' parameters (see ICON documentation)"
                 raise ValueError(msg)
-            self.set_data_path(output_data, stream_dir if stream_dir.is_absolute() else self.get_rundir() / stream_dir)
-            self.get_data_path(output_data).mkdir(parents=True, exist_ok=True)
+            path = stream_dir if stream_dir.is_absolute() else self.rundir / stream_dir
+            path.mkdir(parents=True, exist_ok=True)
+            paths.append((data, path))
+        return paths
 
-    @special_port(core_icon_ports.finish_status_port)
-    def apply_finish_status_port(self, port: IconPort, model: IconModel) -> None:
-        if len(model.outputs[port.port_name]) != 1:
-            msg = f"port {port.port_name} accepts one and only one data object"
+
+class FinishStatusPortHandler(IconPortHandler):
+    special_port = core_icon_ports.finish_status_port
+
+    def apply(self, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:  # noqa: ARG002
+        if len(output_data := self.model.outputs[self.port.port_name]) != 1:
+            msg = f"port {self.port.port_name} accepts one and only one data object"
             raise ValueError(msg)
-        self.set_data_path(model.outputs[port.port_name][0], self.get_rundir() / f"finish_{model.name}.status")
+        return [(output_data[0], self.rundir / f"finish_{self.model.name}.status")]
