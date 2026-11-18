@@ -1,4 +1,4 @@
-"""Status visualization of a running standalone workflow (`sirocco stviz`).
+"""State visualization of a running standalone workflow (`sirocco stviz`).
 
 Builds a generic `VizGraph` restricted to the cycles around the current front,
 with display statuses and front ranks taken from the engine:
