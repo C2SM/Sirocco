@@ -46,7 +46,9 @@ dependencies = [
 ]
 license = {file = "LICENSE"}
 
-[project.optional-dependencies]
+[dependency-groups]
+# Not published on PyPI, which rejects direct references: the AiiDA engine requires a
+# development install, see `docs/usage/aiida.md`
 aiida = [
   "aiida-core==2.7.3",
   # pinned to my branch with the temporary fix
@@ -135,10 +137,11 @@ allow-direct-references = true  # editable installs
 [tool.hatch.envs.default]
 installer = "uv"
 python = "3.12"
+dependency-groups = ["aiida"]
 
 [tool.hatch.envs.hatch-test]
 installer = "uv"
-features = ["aiida"]  # install aiida extra dependencies
+dependency-groups = ["aiida"]
 extra-dependencies = [
   "ipdb",
   "pytest-cov",
@@ -172,7 +175,7 @@ serve = [
 
 [tool.hatch.envs.types]
 python = "3.12"
-features = ["aiida"]  # install aiida extra dependencies
+dependency-groups = ["aiida"]
 extra-dependencies = [
   "mypy>=1.0.0",
   "pytest",
