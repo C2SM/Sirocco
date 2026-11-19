@@ -36,11 +36,12 @@ def state_vizgraph(engine: StandaloneEngine) -> VizGraph:
 
     # Everything is inactive, except front tasks and their data
     statuses: dict[str, VIZ_STATUS_T] = dict.fromkeys(chain(tasks, data), "inactive")
-    for task in engine.front[0]:
+    first_generation, *next_generations = engine.front
+    for task in first_generation:
         statuses[task.label] = "active"
         for data_node in chain(task.output_data_nodes(), task.input_data_nodes()):
             statuses[data_node.label] = "active"
-    for task in chain(*engine.front[1:]):
+    for task in chain(*next_generations):
         statuses[task.label] = "waiting"
         for data_node in chain(task.output_data_nodes(), task.input_data_nodes()):
             if statuses.get(data_node.label) == "inactive":
@@ -52,5 +53,5 @@ def state_vizgraph(engine: StandaloneEngine) -> VizGraph:
         data=data.values(),
         cycles=cycles.values(),
         statuses=statuses,
-        ranks={label: engine.state[task].rank for label, task in tasks.items()},
+        ranks={label: engine.front.rank(task) for label, task in tasks.items()},
     )
