@@ -5,7 +5,8 @@ the graph, built once per sirocco command from the config. The engine adds
 what only the standalone orchestration needs:
 
 - the state table (job id and front rank per task, see `state.py`),
-- the task handlers (see `plugin_handlers/`) and the data paths they resolve,
+- the task handlers (see `plugin_handlers/`) and the data paths they resolve
+  (`TaskHandlerTable` and `DataPathTable` below),
 - the propagating front and the completed / cool-down task lists,
 - the scheduler, the lock and the state file,
 - the special `SiroccoContinueTask`.
@@ -30,6 +31,7 @@ from typing import TYPE_CHECKING, Any, Literal, Self, assert_never
 from ruamel.yaml import YAML
 from termcolor import colored
 
+from sirocco.core.graph_items import AvailableData, GeneratedData
 from sirocco.core.workflow import Workflow
 from sirocco.engines.standalone.plugin_handlers import PluginHandler, SiroccoContinueTask
 from sirocco.engines.standalone.scheduler import DEPENDENCY_TYPE_T, STDOUTERR_MODE_T, Scheduler
@@ -40,7 +42,7 @@ from sirocco.parsing.yaml_data_models import ConfigSiroccoTask, ConfigWorkflow
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from sirocco.core import Task
+    from sirocco.core import Data, Task
 
 
 class WorkflowStatus(enum.Enum):
@@ -81,17 +83,69 @@ class StatusPoint:
                 assert_never(status)
 
 
-class HandlerTable:
+class TaskHandlerTable:
     """Handler of each task, keyed by the task label and created on first access"""
 
     def __init__(self, engine: StandaloneEngine) -> None:
         self.engine = engine
-        self._handlers: dict[str, PluginHandler] = {}
+        self._task_handlers: dict[str, PluginHandler] = {}
 
     def __getitem__(self, task: Task) -> PluginHandler:
-        if (handler := self._handlers.get(task.label)) is None:
-            handler = self._handlers[task.label] = PluginHandler.handler_class(task)(task, self.engine)
-        return handler
+        if (task_handler := self._task_handlers.get(task.label)) is None:
+            task_handler = self._task_handlers[task.label] = PluginHandler.handler_class(task)(task, self.engine)
+        return task_handler
+
+
+class DataPathTable:
+    """Resolved path of each data node, keyed by the data label
+
+    Paths follow from the config only, so they are recomputed by every sirocco command
+    and never stored in the state file.
+
+    Generated data paths are resolved on demand: asking for the path of an output that is
+    not known yet asks the handler of its origin task to resolve all of its outputs (see
+    `PluginHandler.resolve_output_paths`), so that callers never need to care about the
+    order in which tasks are processed.
+    """
+
+    def __init__(self, task_handlers: TaskHandlerTable) -> None:
+        self.task_handlers = task_handlers
+        self._paths: dict[str, Path] = {}
+
+    def __getitem__(self, data: Data) -> Path:
+        if data.label not in self._paths:
+            self._resolve(data)
+            if data.label not in self._paths:
+                msg = f"path of data {data.label} could not be resolved"
+                raise ValueError(msg)
+        return self._paths[data.label]
+
+    def __setitem__(self, data: Data, path: Path) -> None:
+        """Set the resolved path of a data node
+
+        Setting it again is allowed, e.g. ICON output ports are applied both when resolving
+        output paths and when preparing the task, but only to the same path: a conflicting
+        resolution would otherwise silently override the path already used elsewhere.
+        """
+        if not path.is_absolute():
+            msg = "resolved path must be absolute"
+            raise ValueError(msg)
+        if (current := self._paths.get(data.label)) is not None and current != path:
+            msg = f"data {data.label}: resolved to {path} but already resolved to {current}"
+            raise ValueError(msg)
+        self._paths[data.label] = path
+
+    def _resolve(self, data: Data) -> None:
+        match data:
+            case AvailableData():
+                self[data] = data.path
+            case GeneratedData() if data.path is not None and data.path.is_absolute():
+                self[data] = data.path
+            case GeneratedData():
+                self.task_handlers[data.origin_task].resolve_output_paths()
+            case _:
+                msg = f"standalone engine: cannot resolve the path of {type(data).__name__}"
+                raise NotImplementedError(msg)
 
 
 class StandaloneEngine:
@@ -108,8 +162,8 @@ class StandaloneEngine:
         self.scheduler = scheduler
         self.front_depth: int = workflow.front_depth
         self.state = StateTable(default_rank=self.front_depth)
-        self.data_paths: dict[str, Path] = {}  # Resolved data paths, by data label
-        self.handlers = HandlerTable(self)
+        self.task_handlers = TaskHandlerTable(self)
+        self.data_paths = DataPathTable(self.task_handlers)
         self.front: list[list[Task]] = [[] for _ in range(self.front_depth)]
         self.completed_tasks: list[Task] = []
         self.cool_down_tasks: list[Task] = []
@@ -196,7 +250,7 @@ class StandaloneEngine:
     ) -> None:
         parent_ids = [self.jobid(parent) for parent in task.parents if self.rank(parent) >= 0]
         self.state[task].jobid = self.scheduler.submit(
-            self.handlers[task],
+            self.task_handlers[task],
             parent_ids=parent_ids,
             env=self.base_env,
             stdouterr_mode=stdouterr_mode,
