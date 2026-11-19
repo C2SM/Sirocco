@@ -39,15 +39,14 @@ class IconPort:
         return self.section is None and self.parameter is None and self.target_link_name is None
 
     @classmethod
-    def get(cls: type[Self], port_name: str, model: IconModel) -> Self:
-        """Port `port_name`, checked to be supported and valid for `model`"""
+    def check(cls, port_name: str, model: IconModel) -> None:
+        """Check that port `port_name` is supported and valid for `model`"""
         if (port := cls.registered_ports.get(port_name)) is None:
-            msg = f"IconTask {model.task_label}, model {model.name}: unsopported input port {port_name}"
+            msg = f"IconTask {model.task_label}, model {model.name}: unsupported input port {port_name}"
             raise KeyError(msg)
         if model.model_type not in port.valid_model_types:
             msg = f"port {port_name} not valid for model {model.name} of type {model.model_type}"
             raise ValueError(msg)
-        return port
 
 
 # TODO: Check port names with regards to:
