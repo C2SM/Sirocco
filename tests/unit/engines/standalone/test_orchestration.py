@@ -68,9 +68,9 @@ class FakeCluster:
         self.trace.append(line.replace(str(self.rootdir), "<ROOTDIR>"))
 
 
-@dataclass(kw_only=True)
 class FakeScheduler(Scheduler):
-    name: ClassVar[str] = "fake"
+    """Not registered (no `name`), the tests put it in place of slurm"""
+
     cluster: ClassVar[FakeCluster]
 
     def header_lines(self, task_handler: PluginHandler, stdouterr_mode: STDOUTERR_MODE_T = "overwrite") -> list[str]:
@@ -162,7 +162,7 @@ class Simulation:
     def set_status(self, engine: StandaloneEngine, task: Task, status: TaskStatus) -> None:
         """Simulate the cluster changing the status of a submitted task"""
         self.cluster.record(f"# {task.label} -> {status.name}")
-        self.cluster.status[engine.jobid(task)] = status
+        self.cluster.status[engine.state[task].jobid] = status
 
 
 def run_scenario(sim: Simulation, scenario: Literal["complete", "fail"]) -> None:

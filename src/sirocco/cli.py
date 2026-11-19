@@ -235,9 +235,9 @@ def stviz(
 ):
     console.print(f"{CmdStatus.PLAY} Visualizing workflow state from: [cyan]{config_dir!s}[/cyan]")
     try:
-        eng = StandaloneEngine.from_config_path(config_dir)
-        eng.load_state()
-        viz_graph = state_vizgraph(eng)
+        engine = StandaloneEngine.from_config_path(config_dir)
+        engine.load_state()
+        viz_graph = state_vizgraph(engine)
         output_path = Path("./state.svg") if output_file is None else output_file
         viz_graph.draw(file_path=output_path)
         console.print(f"{CmdStatus.SUCCESS} State visualization saved to: [cyan]{output_path.resolve()}[/cyan]")
@@ -260,26 +260,26 @@ def start(
         ),
     ] = False,
 ):
-    eng = StandaloneEngine.from_config_path(config_dir)
+    engine = StandaloneEngine.from_config_path(config_dir)
     if cleanup:
         # Do it here oterwise the first few lines disappear from the log
-        (eng.config_rootdir / SiroccoContinueTask.STDOUTERR_FILENAME).unlink(missing_ok=True)
-    tee_console = log_console(eng)
+        (engine.config_rootdir / SiroccoContinueTask.STDOUTERR_FILENAME).unlink(missing_ok=True)
+    tee_console = log_console(engine)
     tee_console.print(add_now())
     if cleanup:
-        tee_console.print(f"{CmdStatus.PLAY} Cleaning up workflow at {eng.config_rootdir} ...")
-        if (run_root := eng.run_root).exists():
+        tee_console.print(f"{CmdStatus.PLAY} Cleaning up workflow at {engine.config_rootdir} ...")
+        if (run_root := engine.run_root).exists():
             shutil.rmtree(run_root)
-        (eng.config_rootdir / SiroccoContinueTask.SUBMIT_FILENAME).unlink(missing_ok=True)
-    if (eng.run_root).exists():
+        (engine.config_rootdir / SiroccoContinueTask.SUBMIT_FILENAME).unlink(missing_ok=True)
+    if (engine.run_root).exists():
         msg = "Workflow already exists, cannot start. Use --cleanup to clean up before starting."
         raise ValueError(msg)
-    tee_console.print(f"{CmdStatus.PLAY} Starting workflow at {eng.config_rootdir} ...")
+    tee_console.print(f"{CmdStatus.PLAY} Starting workflow at {engine.config_rootdir} ...")
     try:
-        eng.start()
-        if eng.status == WorkflowStatus.CONTINUE:
+        engine.start()
+        if engine.status == WorkflowStatus.CONTINUE:
             tee_console.print(f"{CmdStatus.SUCCESS}  Workflow started successfully.")
-        elif eng.status == WorkflowStatus.FAILED:
+        elif engine.status == WorkflowStatus.FAILED:
             tee_console.print(f"{CmdStatus.FAIL}  Workflow start failed")
     except Exception as e:
         tee_console.print(f"{CmdStatus.FAIL} Workflow start failed: {e}")
@@ -291,17 +291,17 @@ def start(
 def restart(
     config_dir: CONFIG_DIR_ARG_T = Path("."),
 ):
-    eng = StandaloneEngine.from_config_path(config_dir)
-    tee_console = log_console(eng)
+    engine = StandaloneEngine.from_config_path(config_dir)
+    tee_console = log_console(engine)
     tee_console.print(add_now())
-    tee_console.print(f"{CmdStatus.PLAY} Restarting workflow at {eng.config_rootdir} ...")
+    tee_console.print(f"{CmdStatus.PLAY} Restarting workflow at {engine.config_rootdir} ...")
     try:
-        eng.restart()
-        if eng.status == WorkflowStatus.CONTINUE:
+        engine.restart()
+        if engine.status == WorkflowStatus.CONTINUE:
             tee_console.print(f"{CmdStatus.SUCCESS}  Workflow restarted successfully.")
-        elif eng.status == WorkflowStatus.COMPLETED:
+        elif engine.status == WorkflowStatus.COMPLETED:
             tee_console.print(f"{CmdStatus.SUCCESS}  WORKFLOW COMPLETED")
-        elif eng.status == WorkflowStatus.RESTART_FAILED:
+        elif engine.status == WorkflowStatus.RESTART_FAILED:
             tee_console.print(f"{CmdStatus.FAIL}  Workflow restart failed")
     except Exception as e:
         tee_console.print(f"{CmdStatus.FAIL}  Workflow restart failed: {e}")
@@ -321,17 +321,17 @@ def stop(
         ),
     ] = False,
 ):
-    eng = StandaloneEngine.from_config_path(config_dir)
-    tee_console = log_console(eng)
+    engine = StandaloneEngine.from_config_path(config_dir)
+    tee_console = log_console(engine)
     tee_console.print(add_now())
-    msg = f"{CmdStatus.PLAY} Stopping workflow at {eng.config_rootdir}"
+    msg = f"{CmdStatus.PLAY} Stopping workflow at {engine.config_rootdir}"
     if cool_down:
         msg += " in cool down mode"
     msg += " ..."
     tee_console.print(msg)
     try:
-        eng.stop(mode="cool-down" if cool_down else "cancel")
-        if eng.status == WorkflowStatus.STOPPED:
+        engine.stop(mode="cool-down" if cool_down else "cancel")
+        if engine.status == WorkflowStatus.STOPPED:
             tee_console.print(f"{CmdStatus.SUCCESS}  Workflow stopped successfully.")
         else:
             tee_console.print(f"{CmdStatus.FAIL}  Workflow stop failed")
@@ -358,15 +358,15 @@ def continue_wf(
     if not from_wf:
         msg = "Do not use interactively, the continue command is reserved for internal use"
         raise ValueError(msg)
-    eng = StandaloneEngine.from_config_path(config_dir)
+    engine = StandaloneEngine.from_config_path(config_dir)
     std_console.print(f"{CmdStatus.PLAY} Continue workflow ...")
     try:
-        eng.continue_wf()
-        if eng.status == WorkflowStatus.CONTINUE:
+        engine.continue_wf()
+        if engine.status == WorkflowStatus.CONTINUE:
             std_console.print(f"{CmdStatus.SUCCESS}  Workflow continuation submitted successfully.")
-        elif eng.status == WorkflowStatus.COMPLETED:
+        elif engine.status == WorkflowStatus.COMPLETED:
             std_console.print(f"{CmdStatus.SUCCESS}  Workflow completed!")
-        elif eng.status == WorkflowStatus.FAILED:
+        elif engine.status == WorkflowStatus.FAILED:
             std_console.print(f"{CmdStatus.FAIL}  Workflow failed")
     except Exception as e:
         std_console.print(f"{CmdStatus.FAIL}  Workflow continuation failed: {e}")

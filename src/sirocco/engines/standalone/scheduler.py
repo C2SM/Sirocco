@@ -9,8 +9,7 @@ from __future__ import annotations
 
 import subprocess
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar, Literal, Self, assert_never
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, assert_never
 
 from sirocco.engines.standalone.state import NO_ID, TaskStatus
 
@@ -27,17 +26,18 @@ type DEPENDENCY_TYPE_T = Literal["ALL_COMPLETED", "ANY", "NONE"]
 class SchedulerCommandError(RuntimeError): ...
 
 
-@dataclass(kw_only=True)
 class Scheduler(ABC):
     scheduler_classes: ClassVar[dict[str, type[Self]]] = {}
-    name: ClassVar[str]
+    name: ClassVar[str | None] = None  # Set by subclasses implementing a scheduler, name used in the config
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
-        if cls.name in Scheduler.scheduler_classes:
-            msg = f"Scheduler {cls.name} already set"
+        if (name := cls.name) is None:
+            return  # Intermediate or test class, registers no scheduler of its own
+        if name in Scheduler.scheduler_classes:
+            msg = f"Scheduler {name} already set"
             raise ValueError(msg)
-        Scheduler.scheduler_classes[cls.name] = cls
+        Scheduler.scheduler_classes[name] = cls
 
     def submit(
         self,
@@ -123,9 +123,8 @@ class Scheduler(ABC):
             raise SchedulerCommandError(msg) from e
 
 
-@dataclass(kw_only=True)
 class Slurm(Scheduler):
-    name: ClassVar[str] = "slurm"
+    name = "slurm"
 
     def header_lines(
         self,
