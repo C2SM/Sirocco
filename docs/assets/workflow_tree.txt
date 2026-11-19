@@ -1,0 +1,77 @@
+example_config
+├── run
+│   ├── clean up__date_2026-01-01T00-00-00
+│   │   ├── cleanup.py
+│   │   ├── run_script.1039632.o
+│   │   └── run_script.sh
+│   ├── clean up__date_2026-05-01T00-00-00
+│   │   ├── cleanup.py
+│   │   ├── run_script.1039639.o
+│   │   └── run_script.sh
+│   ├── model__date_2026-01-01T00-00-00
+│   │   ├── restart
+│   │   ├── stream_1
+│   │   ├── stream_2
+│   │   ├── icon.py
+│   │   ├── run_script.1039617.o
+│   │   └── run_script.sh
+│   ├── model__date_2026-03-01T00-00-00
+│   │   ├── restart
+│   │   ├── stream_1
+│   │   ├── stream_2
+│   │   ├── icon.py
+│   │   ├── run_script.1039621.o
+│   │   └── run_script.sh
+│   ├── model__date_2026-05-01T00-00-00
+│   │   ├── restart
+│   │   ├── stream_1
+│   │   ├── stream_2
+│   │   ├── icon.py
+│   │   ├── run_script.1039628.o
+│   │   └── run_script.sh
+│   ├── model__date_2026-07-01T00-00-00
+│   │   ├── restart
+│   │   ├── stream_1
+│   │   ├── stream_2
+│   │   ├── icon.py
+│   │   ├── run_script.1039631.o
+│   │   └── run_script.sh
+│   ├── post proc__date_2026-01-01T00-00-00
+│   │   ├── processed_output
+│   │   ├── postproc.sh
+│   │   ├── run_script.1039630.o
+│   │   └── run_script.sh
+│   ├── post proc__date_2026-05-01T00-00-00
+│   │   ├── processed_output
+│   │   ├── postproc.sh
+│   │   ├── run_script.1039637.o
+│   │   └── run_script.sh
+│   ├── pre proc__date_2026-01-01T00-00-00
+│   │   ├── processed_data
+│   │   ├── preproc.sh
+│   │   ├── run_script.1039615.o
+│   │   └── run_script.sh
+│   ├── pre proc__date_2026-03-01T00-00-00
+│   │   ├── processed_data
+│   │   ├── preproc.sh
+│   │   ├── run_script.1039616.o
+│   │   └── run_script.sh
+│   ├── pre proc__date_2026-05-01T00-00-00
+│   │   ├── processed_data
+│   │   ├── preproc.sh
+│   │   ├── run_script.1039620.o
+│   │   └── run_script.sh
+│   ├── pre proc__date_2026-07-01T00-00-00
+│   │   ├── processed_data
+│   │   ├── preproc.sh
+│   │   ├── run_script.1039629.o
+│   │   └── run_script.sh
+│   └── state.yaml
+├── scripts
+│   ├── cleanup.py
+│   ├── icon.py
+│   ├── postproc.sh
+│   └── preproc.sh
+├── .sirocco_continue.sh
+├── sirocco.log
+└── sirocco.yaml

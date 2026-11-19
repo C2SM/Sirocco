@@ -78,6 +78,16 @@ The standalone engine executes workflows in place, _inside their [configuration 
 ```
 [Coordinates](glossary.md#coordinates) of a task are either its date, in which case `<coordinatex_name>` is `"date"` and `<coordinatex_value>` is the date formatted as `"YYYY-MM-DDThh-mm-ss"` or a [parameter](configuration/parameters.md), in which case `"<coordinatex_name>"` and `<coordinatex_value>` are the parameter name and value. The date, if any, comes first, followed by the parameters in alphabetical order.
 
+Each task run directory contains the files copied from the configuration directory (like the [shell task `src`](plugins/shell.md#src)), the generated submission script `run_script.sh`, the task standard output and error `run_script.<jobid>.o`, and the outputs declared with a relative path. The workflow state is stored in `run/state.yaml`, while the [continuation task](glossary.md#continuation-task) submission script `.sirocco_continue.sh` and the [workflow log](usage/standalone.md#example-workflow-log) `sirocco.log` are written in the configuration directory.
+
+``` { .text .scroll-y title="Folder hierarchy" }
+--8<-- "assets/workflow_tree.txt"
+```
+
+/// caption
+Configuration directory of [the configuration example](configuration/cycles.md#example) after the workflow completed (output data shown as directories).
+///
+
 ### `bash` shebang and base environment
 
 Sirocco tasks are all submitted as _bash tasks_ with the `#!/bin/bash -l` shebang. Their base environment, i.e. before any modification by the task itself, is exactly the same as from a fresh `bash` login (for instance through `ssh`). This means that environment variables set after login to the interactive session will be ignored. Any environment variable relevant for workflow tasks must be explicitly specified at adequate places in the configuration.
