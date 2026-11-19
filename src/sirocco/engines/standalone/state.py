@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import enum
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from sirocco.core.graph_items import Task
@@ -47,11 +47,3 @@ class StateTable:
         if (state := self._states.get(task.label)) is None:
             state = self._states[task.label] = TaskState(rank=self.default_rank)
         return state
-
-    def to_yaml(self, task: Task) -> dict[str, dict[str, Any]]:
-        return {
-            task.name: {
-                "coordinates": {k: v.isoformat() if k == "date" else v for k, v in task.coordinates.items()},
-                "jobid": self[task].jobid,
-            }
-        }

@@ -334,17 +334,23 @@ class StandaloneEngine:
         self.lock_file.unlink()
 
     def dump_state(self) -> None:
+        """Write the front, the completed and cool-down tasks and their job ids to the state file
+
+        Workflows are continued across Sirocco versions through this file, so its format is
+        guarded by `test_state_file_format`.
+        """
         YAML().dump(
             {
                 "sirocco_jobid": self.jobid(self.sirocco_continue_task),
-                "completed_tasks": [self.state.to_yaml(task) for task in self.completed_tasks],
-                "cool_down_tasks": [self.state.to_yaml(task) for task in self.cool_down_tasks],
-                "front": [[self.state.to_yaml(task) for task in generation] for generation in self.front],
+                "completed_tasks": [self.task_to_yaml_state(task) for task in self.completed_tasks],
+                "cool_down_tasks": [self.task_to_yaml_state(task) for task in self.cool_down_tasks],
+                "front": [[self.task_to_yaml_state(task) for task in generation] for generation in self.front],
             },
             self.state_file,
         )
 
     def load_state(self) -> None:
+        """Restore the front, the completed and cool-down tasks and their job ids and ranks"""
         yaml_state = YAML().load(self.state_file)
         self.state[self.sirocco_continue_task].jobid = yaml_state["sirocco_jobid"]
         self.completed_tasks = [self.task_from_yaml_state(yaml_task, -1) for yaml_task in yaml_state["completed_tasks"]]
@@ -352,7 +358,17 @@ class StandaloneEngine:
         for k, yaml_generation in enumerate(yaml_state["front"]):
             self.front[k] = [self.task_from_yaml_state(yaml_task, k) for yaml_task in yaml_generation]
 
+    def task_to_yaml_state(self, task: Task) -> dict[str, dict[str, Any]]:
+        """Task entry of the state file: the task identity (name and coordinates) and its job id"""
+        return {
+            task.name: {
+                "coordinates": {k: v.isoformat() if k == "date" else v for k, v in task.coordinates.items()},
+                "jobid": self.jobid(task),
+            }
+        }
+
     def task_from_yaml_state(self, yaml_task: dict[str, dict[str, Any]], rank: int) -> Task:
+        """Graph task of a state file entry, its job id restored and its rank set to `rank`"""
         name, yaml_specs = next(iter(yaml_task.items()))
         coordinates = {k: datetime.fromisoformat(v) if k == "date" else v for k, v in yaml_specs["coordinates"].items()}
         task = self.workflow.tasks[name, coordinates]
