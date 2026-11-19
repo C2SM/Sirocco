@@ -300,14 +300,14 @@ class StandaloneEngine:
         self.unlock()
 
     def restart(self, log_type: Literal["std", "tee"] = "tee") -> None:
-        self.load_state()
         self.logger = self.get_logger(log_type)
-        if self.jobids[self.sirocco_continue_task] != NO_ID:
-            self.logger.error("Workflow ongoing, cannot restart")
-            self.status = WorkflowStatus.RESTART_FAILED
-            return
         if not self.run_root.exists():
             self.logger.error("Workflow did not start, cannot restart")
+            self.status = WorkflowStatus.RESTART_FAILED
+            return
+        self.load_state()
+        if self.jobids[self.sirocco_continue_task] != NO_ID:
+            self.logger.error("Workflow ongoing, cannot restart")
             self.status = WorkflowStatus.RESTART_FAILED
             return
         self.restart_front()
@@ -320,10 +320,10 @@ class StandaloneEngine:
         mode: Literal["cancel", "cool-down"],
         log_type: Literal["std", "tee"] = "tee",
     ) -> None:
-        self.load_state()
         if not self.run_root.exists():
             msg = "Workflow did not start, cannot stop"
             raise ValueError(msg)
+        self.load_state()
         self.logger = self.get_logger(log_type)
         if not self.locked:
             self.lock()

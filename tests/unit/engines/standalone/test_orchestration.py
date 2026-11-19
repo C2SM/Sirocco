@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING, ClassVar, Literal
 import pytest
 from ruamel.yaml import YAML
 
-from sirocco.engines.standalone import StandaloneEngine
+from sirocco.engines.standalone import StandaloneEngine, WorkflowStatus
 from sirocco.engines.standalone.scheduler import DEPENDENCY_TYPE_T, STDOUTERR_MODE_T, Scheduler
 from sirocco.engines.standalone.state import TaskStatus
 from sirocco.parsing.yaml_data_models import ConfigWorkflow
@@ -235,3 +235,16 @@ def test_state_file_format(tmp_path, test_rootdir, monkeypatch, pytestconfig):
     engine = sim.command("start")
     reference = test_rootdir / "tests/cases/partial-dates/data/standalone_state_after_start.yaml"
     check_reference(engine.state_file.read_text(), reference, pytestconfig)
+
+
+def test_restart_before_start(tmp_path, test_rootdir, monkeypatch, caplog):
+    engine = simulation("partial-dates", tmp_path, test_rootdir, monkeypatch).engine()
+    engine.restart(log_type="std")
+    assert engine.status == WorkflowStatus.RESTART_FAILED
+    assert "Workflow did not start, cannot restart" in caplog.text
+
+
+def test_stop_before_start(tmp_path, test_rootdir, monkeypatch):
+    engine = simulation("partial-dates", tmp_path, test_rootdir, monkeypatch).engine()
+    with pytest.raises(ValueError, match="Workflow did not start, cannot stop"):
+        engine.stop(mode="cancel", log_type="std")
