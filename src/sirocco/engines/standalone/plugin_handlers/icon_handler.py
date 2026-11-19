@@ -2,7 +2,7 @@
 
 What a port means for ICON (valid model types, namelist parameter, link name) is
 declared in core by `IconPort`. Applying it is engine specific and done by
-`IconPortHandler`, for one port of one model in one run directory:
+`IconPortHandler`, for one port, given a model and a run directory:
 
 - input ports: link the input data in the run directory and point the namelist to it,
   from the input data paths resolved beforehand by `IconHandler`,
@@ -11,7 +11,8 @@ declared in core by `IconPort`. Applying it is engine specific and done by
 
 `IconPortHandler` mirrors `IconPort`: it applies regular ports generically from their
 declaration, and each special port (see `IconPort.is_special`) is implemented by a
-subclass setting `special_port`, which registers it.
+subclass registered with `@special_port_handler(<core port>)`. One handler per port is
+created at import time and stored in `port_handlers`.
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ import shutil
 from dataclasses import dataclass
 from itertools import chain
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from sirocco.core.graph_items import GeneratedData
 from sirocco.core.tasks.icon_task import IconTask, launch
@@ -30,7 +31,7 @@ from sirocco.core.tasks.icon_task.ports import IconPort
 from sirocco.engines.standalone.plugin_handlers.plugin_handler import PluginHandler
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Callable, Mapping, Sequence
 
     from sirocco.core.graph_items import Data
     from sirocco.core.tasks.icon_task.models import IconModel
@@ -88,8 +89,11 @@ class IconHandler(PluginHandler):
 
     def apply_port(self, port_name: str, model: IconModel) -> None:
         """Apply port `port_name` of `model` and set the paths of the output data it resolves"""
+        # NOTE: keep check as explicit step here before refactoring ports and checking at parsing time
+        IconPort.check(port_name, model)
+        port_handler = port_handlers[port_name]
         input_paths = {data.label: self.get_data_path(data) for data in model.inputs.get(port_name, [])}
-        for data, path in IconPortHandler.get(port_name, model, self.get_rundir()).apply(input_paths):
+        for data, path in port_handler(model, self.get_rundir(), input_paths):
             self.set_data_path(data, path)
 
     def get_runscript_lines(self) -> list[str]:
@@ -108,50 +112,22 @@ type OUTPUT_PATHS_T = list[tuple[GeneratedData, Path]]
 
 @dataclass(frozen=True)
 class IconPortHandler:
-    """Applies one port of an ICON model in a run directory
+    """Applies one ICON port
 
     The base class applies regular ports from their declaration. Special ports are
-    implemented by subclasses setting `special_port`, which registers them.
+    implemented by subclasses registered with `@special_port_handler(<core port>)`.
     """
 
-    registered_handlers: ClassVar[dict[str, type[IconPortHandler]]] = {}
-    special_port: ClassVar[IconPort | None] = None  # Set by subclasses implementing a special port
-
     port: IconPort
-    model: IconModel
-    rundir: Path
 
-    def __init_subclass__(cls, **kwargs: Any) -> None:
-        super().__init_subclass__(**kwargs)
-        if (port := cls.special_port) is None:
-            return  # Intermediate class, implements no port of its own
-        if not port.is_special:
-            msg = f"port {port.port_name} is not special, it is applied from its declaration"
-            raise ValueError(msg)
-        if port.port_name in IconPortHandler.registered_handlers:
-            msg = f"special port {port.port_name} already implemented"
-            raise ValueError(msg)
-        IconPortHandler.registered_handlers[port.port_name] = cls
-
-    @staticmethod
-    def get(port_name: str, model: IconModel, rundir: Path) -> IconPortHandler:
-        """Handler of port `port_name`, checked to be supported and valid for `model`"""
-        port = IconPort.get(port_name, model)
-        if not port.is_special:
-            return IconPortHandler(port, model, rundir)
-        if (handler_class := IconPortHandler.registered_handlers.get(port_name)) is None:
-            msg = f"special port {port_name} not implemented in the standalone engine"
-            raise NotImplementedError(msg)
-        return handler_class(port, model, rundir)
-
-    def apply(self, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:
-        """Apply the port and return the paths of the output data it resolves
+    def __call__(self, model: IconModel, rundir: Path, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:
+        """Apply the port of `model` in `rundir` and return the paths of the output data it resolves
 
         `input_paths`: resolved paths of the port input data, by data label
 
         Regular ports link their input data in the run directory and point the namelist to it.
         """
-        if len(data_list := self.model.inputs[self.port.port_name]) != 1:
+        if len(data_list := model.inputs[self.port.port_name]) != 1:
             msg = f"port {self.port.port_name} accepts one and only one data object"
             raise ValueError(msg)
         data = data_list[0]
@@ -161,30 +137,51 @@ class IconPortHandler:
         if section is not None and parameter is not None:
             if isinstance(data, GeneratedData):
                 link_name = target_link_name if target_link_name else path.name
-                if section not in self.model.namelist:
-                    self.model.namelist[section] = {}
-                self.model.namelist[section][parameter] = f"./{link_name}"
+                if section not in model.namelist:
+                    model.namelist[section] = {}
+                model.namelist[section][parameter] = f"./{link_name}"
                 # NOTE: the piece of data could be linked by different ports, hence the check.
-                if not (link := self.rundir / link_name).is_symlink():
+                if not (link := rundir / link_name).is_symlink():
                     link.symlink_to(path)
             else:
-                self.model.namelist[section][parameter] = str(path)
+                model.namelist[section][parameter] = str(path)
         # Only link
         elif target_link_name is not None:
-            (self.rundir / target_link_name).symlink_to(path)
+            (rundir / target_link_name).symlink_to(path)
         else:
             msg = "wrong combination of section, parameter and target_link_name"
             raise ValueError(msg)
         return []
 
 
+# Handlers of all the ICON ports, by port name: special ports are registered below by
+# `@special_port_handler`, regular ones are then added from their declaration.
+port_handlers: dict[str, IconPortHandler] = {}
+
+
+def special_port_handler[H: type[IconPortHandler]](port: IconPort) -> Callable[[H], H]:
+    """Register the decorated `IconPortHandler` subclass as the implementation of the special `port`"""
+
+    def register(cls: H) -> H:
+        if not port.is_special:
+            msg = f"port {port.port_name} is not special, it is applied from its declaration"
+            raise ValueError(msg)
+        if port.port_name in port_handlers:
+            msg = f"special port {port.port_name} already implemented"
+            raise ValueError(msg)
+        port_handlers[port.port_name] = cls(port)
+        return cls
+
+    return register
+
+
 # =========== Special ports ===========
 
 
 class RestartPortHandler(IconPortHandler):
-    def get_restart_data[D: Data](self, data_list: Sequence[D]) -> D | None:
-        """The single data node of the port, if any, after checking the restart mode of the model"""
-        restart_write_mode = self.model.namelist["io_nml"].get("restart_write_mode")
+    def get_restart_data[D: Data](self, model: IconModel, data_list: Sequence[D]) -> D | None:
+        """The single data node of the port, if any, after checking the restart mode of `model`"""
+        restart_write_mode = model.namelist["io_nml"].get("restart_write_mode")
         if restart_write_mode != "joint procs multifile":
             msg = f"Only supported restart_write_mode is 'joint procs multifile', got {restart_write_mode!r}"
             raise ValueError(msg)
@@ -196,34 +193,30 @@ class RestartPortHandler(IconPortHandler):
             raise ValueError(msg)
         return data_list[0]
 
-    @property
-    def restart_path(self) -> Path:
-        return self.rundir / f"multifile_restart_{self.model.name}.mfr"
+    @staticmethod
+    def restart_path(model: IconModel, rundir: Path) -> Path:
+        return rundir / f"multifile_restart_{model.name}.mfr"
 
 
+@special_port_handler(core_icon_ports.restart_in_port)
 class RestartInPortHandler(RestartPortHandler):
-    special_port = core_icon_ports.restart_in_port
-
-    def apply(self, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:
-        if (data := self.get_restart_data(self.model.inputs[self.port.port_name])) is not None:
-            self.restart_path.symlink_to(input_paths[data.label])
+    def __call__(self, model: IconModel, rundir: Path, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:
+        if (data := self.get_restart_data(model, model.inputs[self.port.port_name])) is not None:
+            self.restart_path(model, rundir).symlink_to(input_paths[data.label])
         return []
 
 
+@special_port_handler(core_icon_ports.restart_out_port)
 class RestartOutPortHandler(RestartPortHandler):
-    special_port = core_icon_ports.restart_out_port
-
-    def apply(self, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:  # noqa: ARG002
-        if (data := self.get_restart_data(self.model.outputs[self.port.port_name])) is None:
+    def __call__(self, model: IconModel, rundir: Path, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:  # noqa: ARG002
+        if (data := self.get_restart_data(model, model.outputs[self.port.port_name])) is None:
             return []
-        return [(data, self.restart_path)]
+        return [(data, self.restart_path(model, rundir))]
 
 
+@special_port_handler(core_icon_ports.output_streams_port)
 class OutputStreamsPortHandler(IconPortHandler):
-    special_port = core_icon_ports.output_streams_port
-
-    def apply(self, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:  # noqa: ARG002
-        model = self.model
+    def __call__(self, model: IconModel, rundir: Path, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:  # noqa: ARG002
         output_data = model.outputs[self.port.port_name]
         nml_streams = [*model.namelist.iter_nml("output_nml")]
         if (n_nml := len(nml_streams)) != (n_yaml := len(output_data)):
@@ -241,17 +234,35 @@ class OutputStreamsPortHandler(IconPortHandler):
             if stream_dir == Path("."):
                 msg = f"task {model.task_label}, model {model.name}: output stream number {k} specifies an output stream directly in the run directory. Please specify a subdirectory using the 'filename_format' and 'output_filename' parameters (see ICON documentation)"
                 raise ValueError(msg)
-            path = stream_dir if stream_dir.is_absolute() else self.rundir / stream_dir
+            path = stream_dir if stream_dir.is_absolute() else rundir / stream_dir
             path.mkdir(parents=True, exist_ok=True)
             paths.append((data, path))
         return paths
 
 
+@special_port_handler(core_icon_ports.finish_status_port)
 class FinishStatusPortHandler(IconPortHandler):
-    special_port = core_icon_ports.finish_status_port
-
-    def apply(self, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:  # noqa: ARG002
-        if len(output_data := self.model.outputs[self.port.port_name]) != 1:
+    def __call__(self, model: IconModel, rundir: Path, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:  # noqa: ARG002
+        if len(output_data := model.outputs[self.port.port_name]) != 1:
             msg = f"port {self.port.port_name} accepts one and only one data object"
             raise ValueError(msg)
-        return [(output_data[0], self.rundir / f"finish_{self.model.name}.status")]
+        return [(output_data[0], rundir / f"finish_{model.name}.status")]
+
+
+# =========== Regular ports ===========
+
+
+def _complete_port_handlers() -> None:
+    """Add the regular port handlers and check every special port is implemented
+
+    All ICON ports are declared in core by the time this module is imported.
+    """
+    for port in IconPort.registered_ports.values():
+        if not port.is_special:
+            port_handlers[port.port_name] = IconPortHandler(port)
+        elif port.port_name not in port_handlers:
+            msg = f"special port {port.port_name} not implemented in the standalone engine"
+            raise NotImplementedError(msg)
+
+
+_complete_port_handlers()
