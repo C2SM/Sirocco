@@ -179,7 +179,6 @@ class StandaloneEngine:
             parents=[],
             **config_kwargs,
         )
-        self.state[self.sirocco_continue_task].rank = 0
 
     @classmethod
     def from_config_workflow(cls, config_workflow: ConfigWorkflow) -> Self:
@@ -209,14 +208,6 @@ class StandaloneEngine:
     @classmethod
     def from_config_path(cls, config_path: str | Path, template_context: dict[str, Any] | None = None) -> Self:
         return cls.from_config_workflow(ConfigWorkflow.from_config_path(config_path, template_context=template_context))
-
-    # =========== State shortcuts ===========
-
-    def jobid(self, task: Task) -> str:
-        return self.state[task].jobid
-
-    def rank(self, task: Task) -> int:
-        return self.state[task].rank
 
     # =========== Scheduler interface ===========
 
@@ -248,7 +239,7 @@ class StandaloneEngine:
         stdouterr_mode: STDOUTERR_MODE_T = "overwrite",
         dependency_type: DEPENDENCY_TYPE_T = "ALL_COMPLETED",
     ) -> None:
-        parent_ids = [self.jobid(parent) for parent in task.parents if self.rank(parent) >= 0]
+        parent_ids = [self.state[parent].jobid for parent in task.parents if self.state[parent].rank >= 0]
         self.state[task].jobid = self.scheduler.submit(
             self.task_handlers[task],
             parent_ids=parent_ids,
@@ -258,10 +249,10 @@ class StandaloneEngine:
         )
 
     def get_status(self, task: Task) -> TaskStatus:
-        return self.scheduler.get_status(task, self.jobid(task))
+        return self.scheduler.get_status(task, self.state[task].jobid)
 
     def cancel(self, task: Task) -> None:
-        self.scheduler.cancel(task, self.jobid(task))
+        self.scheduler.cancel(task, self.state[task].jobid)
 
     # =========== Paths ===========
 
@@ -312,7 +303,7 @@ class StandaloneEngine:
     def restart(self, log_type: Literal["std", "tee"] = "tee") -> None:
         self.load_state()
         self.logger = self.get_logger(log_type)
-        if self.jobid(self.sirocco_continue_task) != NO_ID:
+        if self.state[self.sirocco_continue_task].jobid != NO_ID:
             self.logger.error("Workflow ongoing, cannot restart")
             self.status = WorkflowStatus.RESTART_FAILED
             return
@@ -341,7 +332,7 @@ class StandaloneEngine:
             self.logger.info("Workflow continuaiton ongoing, please retry")
             self.status = WorkflowStatus.CONTINUE
             return
-        if self.jobid(self.sirocco_continue_task) == NO_ID:
+        if self.state[self.sirocco_continue_task].jobid == NO_ID:
             self.logger.error("Workflow not running, no need to stop")
             self.unlock()
             return
@@ -378,8 +369,8 @@ class StandaloneEngine:
 
     def log_task(self, task: Task, action: str, status: Literal["COMPLETED", "FRONT", "FAILED"] = "FRONT") -> None:
         """Log what happens to a task, with a point colored after `status` (and the task rank in the front)"""
-        point = StatusPoint.from_status(status, self.rank(task) if status == "FRONT" else None)
-        self.logger.info(f"{point} {task.label} ({self.jobid(task)}) {action}")  # noqa: G004
+        point = StatusPoint.from_status(status, self.state[task].rank if status == "FRONT" else None)
+        self.logger.info(f"{point} {task.label} ({self.state[task].jobid}) {action}")  # noqa: G004
 
     def lock(self) -> None:
         self.lock_file.touch()
@@ -395,7 +386,7 @@ class StandaloneEngine:
         """
         YAML().dump(
             {
-                "sirocco_jobid": self.jobid(self.sirocco_continue_task),
+                "sirocco_jobid": self.state[self.sirocco_continue_task].jobid,
                 "completed_tasks": [self.task_to_yaml_state(task) for task in self.completed_tasks],
                 "cool_down_tasks": [self.task_to_yaml_state(task) for task in self.cool_down_tasks],
                 "front": [[self.task_to_yaml_state(task) for task in generation] for generation in self.front],
@@ -417,7 +408,7 @@ class StandaloneEngine:
         return {
             task.name: {
                 "coordinates": {k: v.isoformat() if k == "date" else v for k, v in task.coordinates.items()},
-                "jobid": self.jobid(task),
+                "jobid": self.state[task].jobid,
             }
         }
 
@@ -436,7 +427,7 @@ class StandaloneEngine:
         Ranks are -1 for completed tasks, `k` for tasks in generation `k` of the front and
         `front_depth` for tasks not submitted yet.
         """
-        return max(self.rank(parent) for parent in task.parents) + 1
+        return max(self.state[parent].rank for parent in task.parents) + 1
 
     def add_to_front(self, task: Task, rank: int) -> None:
         """Submit `task` and add it to generation `rank` of the front"""
@@ -449,7 +440,7 @@ class StandaloneEngine:
         """Add to generation `rank` the children of `parents` that belong there and are not submitted yet"""
         for parent in parents:
             for child in parent.children:
-                if self.rank(child) == self.front_depth and self.generation_after_parents(child) == rank:
+                if self.state[child].rank == self.front_depth and self.generation_after_parents(child) == rank:
                     self.add_to_front(child, rank)
 
     def init_front(self) -> None:
@@ -468,7 +459,7 @@ class StandaloneEngine:
             for task in generation:
                 # Do not resubmit tasks in cool down mode
                 if (
-                    self.rank(task) == 0
+                    self.state[task].rank == 0
                     and task in self.cool_down_tasks
                     and self.get_status(task) in (TaskStatus.COMPLETED, TaskStatus.RUNNING, TaskStatus.WAITING)
                 ):
@@ -477,7 +468,7 @@ class StandaloneEngine:
                 else:
                     self.cancel(task)
                     self.submit(task)
-                    self.log_task(task, f"SUBMITTED to rank {self.rank(task)}")
+                    self.log_task(task, f"SUBMITTED to rank {self.state[task].rank}")
 
     def propagate_front(self) -> None:
         """Propagate front of submitted tasks and submit new ones"""
@@ -519,7 +510,7 @@ class StandaloneEngine:
         for generation in self.front:
             for task in generation:
                 if (
-                    self.rank(task) == 0
+                    self.state[task].rank == 0
                     and mode == "cool-down"
                     and self.get_status(task) in (TaskStatus.COMPLETED, TaskStatus.RUNNING)
                 ):

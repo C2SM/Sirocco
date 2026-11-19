@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 class PluginHandler(ABC):
     """Standalone engine behaviour for one task"""
 
-    handler_classes: ClassVar[dict[type[Any], type[PluginHandler]]] = {}
+    handler_classes: ClassVar[dict[type[Task], type[PluginHandler]]] = {}
     task_type: ClassVar[type[Task] | None] = None  # Set by subclasses handling a task type
 
     # Submission settings

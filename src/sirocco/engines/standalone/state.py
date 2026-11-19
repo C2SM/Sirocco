@@ -5,9 +5,8 @@ from the config and knows nothing about job ids or front ranks. The engine
 keeps that information in a side table keyed by the task label, which is
 unique per task (name + coordinates).
 
-Only tasks the engine has touched get an entry with a job id. Untouched tasks
-simply report the default state (no job id, rank = front_depth), so no
-engine-side copy of the graph is ever built.
+An entry is created on first access to a task, with the default state (no job
+id, rank = front_depth), so no engine-side copy of the graph is ever built.
 """
 
 from __future__ import annotations
@@ -33,8 +32,8 @@ class TaskStatus(enum.Enum):
 
 @dataclass
 class TaskState:
+    rank: int
     jobid: str = NO_ID
-    rank: int = 0
 
 
 class StateTable:

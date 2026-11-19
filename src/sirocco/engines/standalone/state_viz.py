@@ -52,5 +52,5 @@ def state_vizgraph(engine: StandaloneEngine) -> VizGraph:
         data=data.values(),
         cycles=cycles.values(),
         statuses=statuses,
-        ranks={label: engine.rank(task) for label, task in tasks.items()},
+        ranks={label: engine.state[task].rank for label, task in tasks.items()},
     )
