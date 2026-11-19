@@ -162,7 +162,7 @@ class Simulation:
     def set_status(self, engine: StandaloneEngine, task: Task, status: TaskStatus) -> None:
         """Simulate the cluster changing the status of a submitted task"""
         self.cluster.record(f"# {task.label} -> {status.name}")
-        self.cluster.status[engine.state[task].jobid] = status
+        self.cluster.status[engine.jobids[task]] = status
 
 
 def run_scenario(sim: Simulation, scenario: Literal["complete", "fail"]) -> None:

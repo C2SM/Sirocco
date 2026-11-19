@@ -4,10 +4,10 @@
 the graph, built once per sirocco command from the config. The engine adds
 what only the standalone orchestration needs:
 
-- the state table (job id and front rank per task, see `state.py`),
+- the job id of each task and the propagating front (see `state.py`),
 - the task handlers (see `plugin_handlers/`) and the data paths they resolve
   (`TaskHandlerTable` and `DataPathTable` below),
-- the propagating front and the completed / cool-down task lists,
+- the cool-down task list,
 - the scheduler, the lock and the state file,
 - the special `SiroccoContinueTask`.
 
@@ -35,7 +35,7 @@ from sirocco.core.graph_items import AvailableData, GeneratedData
 from sirocco.core.workflow import Workflow
 from sirocco.engines.standalone.plugin_handlers import PluginHandler, SiroccoContinueTask
 from sirocco.engines.standalone.scheduler import DEPENDENCY_TYPE_T, STDOUTERR_MODE_T, Scheduler
-from sirocco.engines.standalone.state import NO_ID, StateTable, TaskStatus
+from sirocco.engines.standalone.state import NO_ID, Front, JobIdTable, TaskStatus
 from sirocco.parsing.cycling import OneOffPoint
 from sirocco.parsing.yaml_data_models import ConfigSiroccoTask, ConfigWorkflow
 
@@ -161,11 +161,10 @@ class StandaloneEngine:
         self.workflow = workflow
         self.scheduler = scheduler
         self.front_depth: int = workflow.front_depth
-        self.state = StateTable(default_rank=self.front_depth)
+        self.jobids = JobIdTable()
+        self.front = Front(self.front_depth)
         self.task_handlers = TaskHandlerTable(self)
         self.data_paths = DataPathTable(self.task_handlers)
-        self.front: list[list[Task]] = [[] for _ in range(self.front_depth)]
-        self.completed_tasks: list[Task] = []
         self.cool_down_tasks: list[Task] = []
         self.status: WorkflowStatus = WorkflowStatus.INIT
         self.logger: logging.Logger = logging.getLogger(__name__)  # set by each command
@@ -239,8 +238,8 @@ class StandaloneEngine:
         stdouterr_mode: STDOUTERR_MODE_T = "overwrite",
         dependency_type: DEPENDENCY_TYPE_T = "ALL_COMPLETED",
     ) -> None:
-        parent_ids = [self.state[parent].jobid for parent in task.parents if self.state[parent].rank >= 0]
-        self.state[task].jobid = self.scheduler.submit(
+        parent_ids = [self.jobids[parent] for parent in task.parents if self.front.rank(parent) >= 0]
+        self.jobids[task] = self.scheduler.submit(
             self.task_handlers[task],
             parent_ids=parent_ids,
             env=self.base_env,
@@ -249,10 +248,10 @@ class StandaloneEngine:
         )
 
     def get_status(self, task: Task) -> TaskStatus:
-        return self.scheduler.get_status(task, self.state[task].jobid)
+        return self.scheduler.get_status(task, self.jobids[task])
 
     def cancel(self, task: Task) -> None:
-        self.scheduler.cancel(task, self.state[task].jobid)
+        self.scheduler.cancel(task, self.jobids[task])
 
     # =========== Paths ===========
 
@@ -303,7 +302,7 @@ class StandaloneEngine:
     def restart(self, log_type: Literal["std", "tee"] = "tee") -> None:
         self.load_state()
         self.logger = self.get_logger(log_type)
-        if self.state[self.sirocco_continue_task].jobid != NO_ID:
+        if self.jobids[self.sirocco_continue_task] != NO_ID:
             self.logger.error("Workflow ongoing, cannot restart")
             self.status = WorkflowStatus.RESTART_FAILED
             return
@@ -332,14 +331,14 @@ class StandaloneEngine:
             self.logger.info("Workflow continuaiton ongoing, please retry")
             self.status = WorkflowStatus.CONTINUE
             return
-        if self.state[self.sirocco_continue_task].jobid == NO_ID:
+        if self.jobids[self.sirocco_continue_task] == NO_ID:
             self.logger.error("Workflow not running, no need to stop")
             self.unlock()
             return
         self.cancel(self.sirocco_continue_task)
         self.cancel_all_tasks(mode=mode)
         self.status = WorkflowStatus.STOPPED
-        self.state[self.sirocco_continue_task].jobid = NO_ID
+        self.jobids[self.sirocco_continue_task] = NO_ID
         self.dump_state()
         self.unlock()
 
@@ -369,8 +368,8 @@ class StandaloneEngine:
 
     def log_task(self, task: Task, action: str, status: Literal["COMPLETED", "FRONT", "FAILED"] = "FRONT") -> None:
         """Log what happens to a task, with a point colored after `status` (and the task rank in the front)"""
-        point = StatusPoint.from_status(status, self.state[task].rank if status == "FRONT" else None)
-        self.logger.info(f"{point} {task.label} ({self.state[task].jobid}) {action}")  # noqa: G004
+        point = StatusPoint.from_status(status, self.front.rank(task) if status == "FRONT" else None)
+        self.logger.info(f"{point} {task.label} ({self.jobids[task]}) {action}")  # noqa: G004
 
     def lock(self) -> None:
         self.lock_file.touch()
@@ -386,8 +385,8 @@ class StandaloneEngine:
         """
         YAML().dump(
             {
-                "sirocco_jobid": self.state[self.sirocco_continue_task].jobid,
-                "completed_tasks": [self.task_to_yaml_state(task) for task in self.completed_tasks],
+                "sirocco_jobid": self.jobids[self.sirocco_continue_task],
+                "completed_tasks": [self.task_to_yaml_state(task) for task in self.front.completed],
                 "cool_down_tasks": [self.task_to_yaml_state(task) for task in self.cool_down_tasks],
                 "front": [[self.task_to_yaml_state(task) for task in generation] for generation in self.front],
             },
@@ -395,52 +394,46 @@ class StandaloneEngine:
         )
 
     def load_state(self) -> None:
-        """Restore the front, the completed and cool-down tasks and their job ids and ranks"""
+        """Restore the front, the completed and cool-down tasks and their job ids"""
         yaml_state = YAML().load(self.state_file)
-        self.state[self.sirocco_continue_task].jobid = yaml_state["sirocco_jobid"]
-        self.completed_tasks = [self.task_from_yaml_state(yaml_task, -1) for yaml_task in yaml_state["completed_tasks"]]
-        self.cool_down_tasks = [self.task_from_yaml_state(yaml_task, 0) for yaml_task in yaml_state["cool_down_tasks"]]
+        self.jobids[self.sirocco_continue_task] = yaml_state["sirocco_jobid"]
+        self.front = Front(self.front_depth)
+        for yaml_task in yaml_state["completed_tasks"]:
+            self.front.add(self.task_from_yaml_state(yaml_task), -1)
         for k, yaml_generation in enumerate(yaml_state["front"]):
-            self.front[k] = [self.task_from_yaml_state(yaml_task, k) for yaml_task in yaml_generation]
+            for yaml_task in yaml_generation:
+                self.front.add(self.task_from_yaml_state(yaml_task), k)
+        # Cool-down tasks are also listed in the front or among the completed tasks, which give their rank
+        self.cool_down_tasks = [self.task_from_yaml_state(yaml_task) for yaml_task in yaml_state["cool_down_tasks"]]
 
     def task_to_yaml_state(self, task: Task) -> dict[str, dict[str, Any]]:
         """Task entry of the state file: the task identity (name and coordinates) and its job id"""
         return {
             task.name: {
                 "coordinates": {k: v.isoformat() if k == "date" else v for k, v in task.coordinates.items()},
-                "jobid": self.state[task].jobid,
+                "jobid": self.jobids[task],
             }
         }
 
-    def task_from_yaml_state(self, yaml_task: dict[str, dict[str, Any]], rank: int) -> Task:
-        """Graph task of a state file entry, its job id restored and its rank set to `rank`"""
+    def task_from_yaml_state(self, yaml_task: dict[str, dict[str, Any]]) -> Task:
+        """Graph task of a state file entry, its job id restored"""
         name, yaml_specs = next(iter(yaml_task.items()))
         coordinates = {k: datetime.fromisoformat(v) if k == "date" else v for k, v in yaml_specs["coordinates"].items()}
         task = self.workflow.tasks[name, coordinates]
-        self.state[task].jobid = yaml_specs["jobid"]
-        self.state[task].rank = rank
+        self.jobids[task] = yaml_specs["jobid"]
         return task
-
-    def generation_after_parents(self, task: Task) -> int:
-        """Lowest front generation `task` can be in: the one after its least advanced parent
-
-        Ranks are -1 for completed tasks, `k` for tasks in generation `k` of the front and
-        `front_depth` for tasks not submitted yet.
-        """
-        return max(self.state[parent].rank for parent in task.parents) + 1
 
     def add_to_front(self, task: Task, rank: int) -> None:
         """Submit `task` and add it to generation `rank` of the front"""
-        self.state[task].rank = rank
+        self.front.add(task, rank)
         self.submit(task)
-        self.front[rank].append(task)
         self.log_task(task, f"SUBMITTED to rank {rank}")
 
     def extend_front(self, rank: int, parents: list[Task]) -> None:
         """Add to generation `rank` the children of `parents` that belong there and are not submitted yet"""
         for parent in parents:
             for child in parent.children:
-                if self.state[child].rank == self.front_depth and self.generation_after_parents(child) == rank:
+                if self.front.rank(child) == self.front_depth and self.front.generation_after_parents(child) == rank:
                     self.add_to_front(child, rank)
 
     def init_front(self) -> None:
@@ -459,7 +452,7 @@ class StandaloneEngine:
             for task in generation:
                 # Do not resubmit tasks in cool down mode
                 if (
-                    self.state[task].rank == 0
+                    self.front.rank(task) == 0
                     and task in self.cool_down_tasks
                     and self.get_status(task) in (TaskStatus.COMPLETED, TaskStatus.RUNNING, TaskStatus.WAITING)
                 ):
@@ -468,7 +461,7 @@ class StandaloneEngine:
                 else:
                     self.cancel(task)
                     self.submit(task)
-                    self.log_task(task, f"SUBMITTED to rank {self.state[task].rank}")
+                    self.log_task(task, f"SUBMITTED to rank {self.front.rank(task)}")
 
     def propagate_front(self) -> None:
         """Propagate front of submitted tasks and submit new ones"""
@@ -485,18 +478,14 @@ class StandaloneEngine:
             if status == TaskStatus.COMPLETED:
                 newly_completed.append(task)
         for task in newly_completed:
-            self.state[task].rank = -1
-            self.front[0].remove(task)
-            self.completed_tasks.append(task)
+            self.front.complete(task)
             self.log_task(task, "COMPLETED", status="COMPLETED")
 
         # Promote tasks of the next generations by one generation once their parents allow it
         for k in range(1, self.front_depth):
-            to_promote = [task for task in self.front[k] if self.generation_after_parents(task) == k - 1]
+            to_promote = [task for task in self.front[k] if self.front.generation_after_parents(task) == k - 1]
             for task in to_promote:
-                self.state[task].rank = k - 1
-                self.front[k].remove(task)
-                self.front[k - 1].append(task)
+                self.front.promote(task)
                 self.log_task(task, f"PROMOTED from rank {k} to {k - 1}")
 
         # Add new tasks to the last generation of the front, from the generation before it.
@@ -510,7 +499,7 @@ class StandaloneEngine:
         for generation in self.front:
             for task in generation:
                 if (
-                    self.state[task].rank == 0
+                    self.front.rank(task) == 0
                     and mode == "cool-down"
                     and self.get_status(task) in (TaskStatus.COMPLETED, TaskStatus.RUNNING)
                 ):
@@ -524,11 +513,11 @@ class StandaloneEngine:
         """Submit next Sirocco task"""
 
         if self.status == WorkflowStatus.FAILED:
-            self.state[self.sirocco_continue_task].jobid = NO_ID
+            self.jobids[self.sirocco_continue_task] = NO_ID
         elif self.front[0]:
             self.sirocco_continue_task.parents = self.front[0]
             self.submit(self.sirocco_continue_task, stdouterr_mode="append", dependency_type="ANY")
             self.status = WorkflowStatus.CONTINUE
         else:
-            self.state[self.sirocco_continue_task].jobid = NO_ID
+            self.jobids[self.sirocco_continue_task] = NO_ID
             self.status = WorkflowStatus.COMPLETED
