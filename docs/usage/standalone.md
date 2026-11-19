@@ -68,7 +68,7 @@ Generate a graphical representation similar to `visualize` focusing on the [task
 
 ### :material-play-pause: Controlling
 
-Sirocco has the 3 following self-explanatory commands to control the workflow. Each of them, as well as the [continuation tasks](../orchestration.md#standalone-engine), logs information to `sirocco.log` (see [below](#example-workflow-log)) located in the configuration directory. By default Sirocco uses [ANSI escape codes](https://en.wikipedia.org/wiki/ANSI_escape_code) for coloring, which can be disabled with `--no-ansi` as a global option coming before the actual command like `sirocco --no-ansi <command> <args>`.
+Sirocco has the 3 following self-explanatory commands to control the workflow. Each of them, as well as the [continuation tasks](../orchestration.md#standalone-engine), logs information to `sirocco.log` (see [below](#example-run)) located in the configuration directory. By default Sirocco uses [ANSI escape codes](https://en.wikipedia.org/wiki/ANSI_escape_code) for coloring, which can be disabled with `--no-ansi` as a global option coming before the actual command like `sirocco --no-ansi <command> <args>`.
 
 #### `start`
 
@@ -86,16 +86,24 @@ Stop the workflow, which means cancel all front tasks. Use `--cool-down` to let 
 
 Restart a stopped workflow, even if it was stopped in cool-down mode. Rank $0$ tasks will be picked up if not already completed.
 
-#### Example workflow log
+#### Example run
 
-The log below was produced by running [the configuration example](../configuration/cycles.md#example) with the default front depth of 2. The resulting folder hierarchy is shown in [the orchestration section](../orchestration.md#workflow-folder-hierarchy).
+The workflow log and folder hierarchy below were produced by running [the configuration example](../configuration/cycles.md#example) with the default front depth of 2. The workflow was started, stopped in cool-down mode, restarted and then left to run to completion. See [Workflow folder hierarchy](../orchestration.md#workflow-folder-hierarchy) for how the run directories are organized.
 
 ``` { .ansi .scroll-y title="sirocco.log" }
 --8<-- "assets/sirocco.log"
 ```
 
 /// caption
-Log of a workflow that was started, stopped in cool-down mode, restarted and then left to run to completion.
+Workflow log.
+///
+
+``` { .text .scroll-y title="Folder hierarchy" }
+--8<-- "assets/workflow_tree.txt"
+```
+
+/// caption
+Configuration directory after the workflow completed.
 ///
 
 #### Troubleshooting

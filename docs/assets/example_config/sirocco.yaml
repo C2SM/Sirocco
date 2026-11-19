@@ -76,8 +76,8 @@ tasks:
       command: "./preproc.sh --in  {PORT::raw_input} --out {PORT::processed}"
   - model:
       plugin: shell
-      src: scripts/icon.py
-      command: "python icon.py [--restart {PORT::restart_in}] [--init {PORT::init}]"
+      src: scripts/model.py
+      command: "python model.py [--restart {PORT::restart_in}] [--init {PORT::init}]"
   - post proc:
       plugin: shell
       src: scripts/postproc.sh
