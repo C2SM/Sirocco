@@ -360,6 +360,14 @@ class StandaloneEngine:
         self.state[task].rank = rank
         return task
 
+    def generation_after_parents(self, task: Task) -> int:
+        """Lowest front generation `task` can be in: the one after its least advanced parent
+
+        Ranks are -1 for completed tasks, `k` for tasks in generation `k` of the front and
+        `front_depth` for tasks not submitted yet.
+        """
+        return max(self.rank(parent) for parent in task.parents) + 1
+
     def add_to_front(self, task: Task, rank: int) -> None:
         """Submit `task` and add it to generation `rank` of the front"""
         self.state[task].rank = rank
@@ -367,19 +375,21 @@ class StandaloneEngine:
         self.front[rank].append(task)
         self.log_task(task, f"SUBMITTED to rank {rank}")
 
+    def extend_front(self, rank: int, parents: list[Task]) -> None:
+        """Add to generation `rank` the children of `parents` that belong there and are not submitted yet"""
+        for parent in parents:
+            for child in parent.children:
+                if self.rank(child) == self.front_depth and self.generation_after_parents(child) == rank:
+                    self.add_to_front(child, rank)
+
     def init_front(self) -> None:
         """Populate front and submit corresponding tasks"""
 
         for task in self.workflow.tasks:
             if not task.parents:
                 self.add_to_front(task, 0)
-        for k in range(self.front_depth - 1):
-            for task in self.front[k]:
-                for child in task.children:
-                    if (max(self.rank(parent) for parent in child.parents) == k) and (
-                        self.rank(child) == self.front_depth
-                    ):
-                        self.add_to_front(child, k + 1)
+        for k in range(1, self.front_depth):
+            self.extend_front(k, self.front[k - 1])
 
     def restart_front(self) -> None:
         """Submit all tasks currently in the front"""
@@ -403,7 +413,7 @@ class StandaloneEngine:
         """Propagate front of submitted tasks and submit new ones"""
 
         # Handle first generation of the front
-        to_promote: list[Task] = []
+        newly_completed: list[Task] = []
         for task in self.front[0]:
             if (status := self.get_status(task)) == TaskStatus.FAILED:
                 self.log_task(task, "FAILED", status="FAILED")
@@ -412,31 +422,26 @@ class StandaloneEngine:
                 self.status = WorkflowStatus.FAILED
                 return
             if status == TaskStatus.COMPLETED:
-                to_promote.append(task)
-        for task in to_promote:
+                newly_completed.append(task)
+        for task in newly_completed:
             self.state[task].rank = -1
             self.front[0].remove(task)
             self.completed_tasks.append(task)
             self.log_task(task, "COMPLETED", status="COMPLETED")
 
-        # Update front rank of tasks currently in the front after the first generation
+        # Promote tasks of the next generations by one generation once their parents allow it
         for k in range(1, self.front_depth):
-            to_promote = [task for task in self.front[k] if max(self.rank(parent) for parent in task.parents) == k - 2]
+            to_promote = [task for task in self.front[k] if self.generation_after_parents(task) == k - 1]
             for task in to_promote:
                 self.state[task].rank = k - 1
                 self.front[k].remove(task)
                 self.front[k - 1].append(task)
                 self.log_task(task, f"PROMOTED from rank {k} to {k - 1}")
 
-        # Add new tasks to the last generation of the front
-        before_last_generation = to_promote if self.front_depth == 1 else self.front[-2]
-        for task in before_last_generation:
-            for child in task.children:
-                if (
-                    self.rank(child) == self.front_depth
-                    and max(self.rank(parent) for parent in child.parents) == self.front_depth - 2
-                ):
-                    self.add_to_front(child, self.front_depth - 1)
+        # Add new tasks to the last generation of the front, from the generation before it.
+        # With a front of depth 1, that generation is the one of the tasks that just completed.
+        last = self.front_depth - 1
+        self.extend_front(last, newly_completed if last == 0 else self.front[last - 1])
 
     def cancel_all_tasks(self, mode: Literal["cancel", "cool-down"]) -> None:
         """Cancel all workflow tasks except cool-down tasks"""

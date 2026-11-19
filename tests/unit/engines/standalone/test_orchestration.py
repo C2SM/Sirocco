@@ -12,6 +12,9 @@ recorded in a trace and compared to a reference file:
 - the run script of each submission (only when it changed since the last submission of
   the same task, to keep the reference readable).
 
+The cases cover front depths 3 (`parameters`), 2 (`partial-dates`) and, by overriding
+the config, 1 (`partial-dates` again), each depth propagating the front differently.
+
 A separate test guards the format of the state file itself, on which continuing a
 workflow across Sirocco versions relies.
 
@@ -31,6 +34,7 @@ from ruamel.yaml import YAML
 from sirocco.engines.standalone import StandaloneEngine
 from sirocco.engines.standalone.scheduler import DEPENDENCY_TYPE_T, STDOUTERR_MODE_T, Scheduler
 from sirocco.engines.standalone.state import TaskStatus
+from sirocco.parsing.yaml_data_models import ConfigWorkflow
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -38,7 +42,12 @@ if TYPE_CHECKING:
     from sirocco.core import Task
     from sirocco.engines.standalone.plugin_handlers import PluginHandler
 
-ORCHESTRATION_CASES = ["parameters", "partial-dates"]
+# Cases with the front depth to use instead of the one of the config, if any
+ORCHESTRATION_CASES: list[tuple[str, int | None]] = [
+    ("parameters", None),
+    ("partial-dates", None),
+    ("partial-dates", 1),
+]
 MAX_STEPS = 60  # Safety net, cases complete well before
 # Steps at which events are injected, early enough for all cases to still be running
 FAIL_STEP = 1
@@ -114,13 +123,17 @@ def compact_state(state_file: Path) -> str:
 
 
 class Simulation:
-    def __init__(self, config_dir: Path, cluster: FakeCluster) -> None:
+    def __init__(self, config_dir: Path, cluster: FakeCluster, front_depth: int | None = None) -> None:
         self.config_dir = config_dir
         self.cluster = cluster
+        self.front_depth = front_depth
 
     def engine(self) -> StandaloneEngine:
         """Fresh engine, as built by each sirocco command"""
-        return StandaloneEngine.from_config_path(self.config_dir)
+        config = ConfigWorkflow.from_config_path(self.config_dir)
+        if self.front_depth is not None:
+            config = config.model_copy(update={"front_depth": self.front_depth})
+        return StandaloneEngine.from_config_workflow(config)
 
     def command(self, name: Literal["start", "continue", "stop", "restart"]) -> StandaloneEngine:
         self.cluster.record(f"\n=== sirocco {name}")
@@ -172,7 +185,13 @@ def run_scenario(sim: Simulation, scenario: Literal["complete", "fail"]) -> None
     pytest.fail(f"workflow not completed after {MAX_STEPS} steps")
 
 
-def simulation(case: str, tmp_path: Path, test_rootdir: Path, monkeypatch: pytest.MonkeyPatch) -> Simulation:
+def simulation(
+    case: str,
+    tmp_path: Path,
+    test_rootdir: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    front_depth: int | None = None,
+) -> Simulation:
     """Simulation of `case`, copied to `tmp_path`, against a fresh fake cluster"""
     config_dir = tmp_path / "config"
     shutil.copytree(test_rootdir / f"tests/cases/{case}/config", config_dir)
@@ -181,7 +200,7 @@ def simulation(case: str, tmp_path: Path, test_rootdir: Path, monkeypatch: pytes
     monkeypatch.setitem(Scheduler.scheduler_classes, "slurm", FakeScheduler)
     # Avoid spawning a login shell, the fake scheduler doesn't use the environment
     monkeypatch.setattr(StandaloneEngine, "base_env", {"SIROCCO_TEST": "1"})
-    return Simulation(config_dir, cluster)
+    return Simulation(config_dir, cluster, front_depth)
 
 
 def check_reference(text: str, reference: Path, pytestconfig: pytest.Config) -> None:
@@ -195,12 +214,13 @@ def check_reference(text: str, reference: Path, pytestconfig: pytest.Config) -> 
 
 
 @pytest.mark.parametrize("scenario", ["complete", "fail"])
-@pytest.mark.parametrize("case", ORCHESTRATION_CASES)
-def test_orchestration(case, scenario, tmp_path, test_rootdir, monkeypatch, pytestconfig):
-    sim = simulation(case, tmp_path, test_rootdir, monkeypatch)
+@pytest.mark.parametrize(("case", "front_depth"), ORCHESTRATION_CASES)
+def test_orchestration(case, front_depth, scenario, tmp_path, test_rootdir, monkeypatch, pytestconfig):
+    sim = simulation(case, tmp_path, test_rootdir, monkeypatch, front_depth)
     run_scenario(sim, scenario)
     trace = "\n".join(sim.cluster.trace).lstrip() + "\n"
-    check_reference(trace, test_rootdir / f"tests/cases/{case}/data/standalone_{scenario}.txt", pytestconfig)
+    suffix = "" if front_depth is None else f"_front_depth_{front_depth}"
+    check_reference(trace, test_rootdir / f"tests/cases/{case}/data/standalone_{scenario}{suffix}.txt", pytestconfig)
 
 
 def test_state_file_format(tmp_path, test_rootdir, monkeypatch, pytestconfig):
