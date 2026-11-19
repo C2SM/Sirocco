@@ -41,7 +41,7 @@ class Scheduler(ABC):
 
     def submit(
         self,
-        handler: PluginHandler,
+        task_handler: PluginHandler,
         parent_ids: list[str],
         env: dict[str, str],
         stdouterr_mode: STDOUTERR_MODE_T = "overwrite",
@@ -50,18 +50,18 @@ class Scheduler(ABC):
         """Submit a task from environment `env` and return its job id"""
 
         # Prepare for submission (create or wipe the run directory, link/copy necessary files/dirs, ...)
-        handler.prepare_rundir()
-        self.generate_run_script(handler, stdouterr_mode=stdouterr_mode)
-        return self.submit_to_scheduler(handler, parent_ids=parent_ids, env=env, dependency_type=dependency_type)
+        task_handler.prepare_rundir()
+        self.generate_run_script(task_handler, stdouterr_mode=stdouterr_mode)
+        return self.submit_to_scheduler(task_handler, parent_ids=parent_ids, env=env, dependency_type=dependency_type)
 
-    def generate_run_script(self, handler: PluginHandler, stdouterr_mode: STDOUTERR_MODE_T) -> None:
-        task = handler.task
+    def generate_run_script(self, task_handler: PluginHandler, stdouterr_mode: STDOUTERR_MODE_T) -> None:
+        task = task_handler.task
 
         # Shebang
         script_lines: list[str] = ["#!/bin/bash -l", ""]
 
         # Scheduler header
-        script_lines.extend(self.header_lines(handler, stdouterr_mode=stdouterr_mode))
+        script_lines.extend(self.header_lines(task_handler, stdouterr_mode=stdouterr_mode))
 
         # Some MPI environment variables for potential usage by the user provided script
         script_lines.append("")
@@ -74,24 +74,24 @@ class Scheduler(ABC):
 
         # Sirocco context
         script_lines.append("")
-        script_lines.extend(handler.get_sirocco_environment_lines())
+        script_lines.extend(task_handler.get_sirocco_environment_lines())
 
         # Linked input
-        script_lines.extend(handler.get_link_lines())
+        script_lines.extend(task_handler.get_link_lines())
 
         # Task runscript "content"
         script_lines.append("")
-        script_lines.extend(handler.get_runscript_lines())
+        script_lines.extend(task_handler.get_runscript_lines())
 
         # Write to runscript file
-        script_path = handler.get_runscript_path()
+        script_path = task_handler.get_runscript_path()
         script_path.write_text("\n".join(script_lines))
         script_path.chmod(0o755)
 
     @abstractmethod
     def header_lines(
         self,
-        handler: PluginHandler,
+        task_handler: PluginHandler,
         stdouterr_mode: STDOUTERR_MODE_T = "overwrite",
     ) -> list[str]:
         pass
@@ -99,7 +99,7 @@ class Scheduler(ABC):
     @abstractmethod
     def submit_to_scheduler(
         self,
-        handler: PluginHandler,
+        task_handler: PluginHandler,
         parent_ids: list[str],
         env: dict[str, str],
         dependency_type: DEPENDENCY_TYPE_T = "ALL_COMPLETED",
@@ -129,13 +129,13 @@ class Slurm(Scheduler):
 
     def header_lines(
         self,
-        handler: PluginHandler,
+        task_handler: PluginHandler,
         stdouterr_mode: STDOUTERR_MODE_T = "overwrite",
     ) -> list[str]:
-        task = handler.task
+        task = task_handler.task
         header: list[str] = [
-            f"#SBATCH --output={handler.stdouterr_filename}",
-            f"#SBATCH --error={handler.stdouterr_filename}",
+            f"#SBATCH --output={task_handler.stdouterr_filename}",
+            f"#SBATCH --error={task_handler.stdouterr_filename}",
             f"#SBATCH --job-name={task.label}",
         ]
         if account := task.account:
@@ -152,7 +152,7 @@ class Slurm(Scheduler):
             header.append(f"#SBATCH --gres-flags={gres_flags}")
         if gres := task.gres:
             header.append(f"#SBATCH --gres={gres}")
-        if task.computer in UENV_MACHINES and handler.scheduler_uenv:
+        if task.computer in UENV_MACHINES and task_handler.scheduler_uenv:
             if uenv := task.uenv:
                 header.append(f"#SBATCH --uenv={uenv}")
             if view := task.view:
@@ -163,12 +163,12 @@ class Slurm(Scheduler):
 
     def submit_to_scheduler(
         self,
-        handler: PluginHandler,
+        task_handler: PluginHandler,
         parent_ids: list[str],
         env: dict[str, str],
         dependency_type: DEPENDENCY_TYPE_T = "ALL_COMPLETED",
     ) -> str:
-        task = handler.task
+        task = task_handler.task
         submit_cmd: list[str] = ["sbatch", "--parsable"]
         if parent_ids:
             match dependency_type:
@@ -180,12 +180,12 @@ class Slurm(Scheduler):
                     pass
                 case _:
                     assert_never(dependency_type)
-        submit_cmd.append(handler.submit_filename)
+        submit_cmd.append(task_handler.submit_filename)
 
         if not env:
             msg = f"{task.label}: submission environment is empty"
             raise ValueError(msg)
-        result = self.run_command(submit_cmd, cwd=handler.get_rundir(), env=env)
+        result = self.run_command(submit_cmd, cwd=task_handler.get_rundir(), env=env)
         return result.stdout.strip()
 
     def cancel(self, task: Task, jobid: str):

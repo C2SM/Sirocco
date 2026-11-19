@@ -73,22 +73,24 @@ class FakeScheduler(Scheduler):
     name: ClassVar[str] = "fake"
     cluster: ClassVar[FakeCluster]
 
-    def header_lines(self, handler: PluginHandler, stdouterr_mode: STDOUTERR_MODE_T = "overwrite") -> list[str]:
-        return [f"#FAKE --job-name={handler.task.label} --output={handler.stdouterr_filename} --mode={stdouterr_mode}"]
+    def header_lines(self, task_handler: PluginHandler, stdouterr_mode: STDOUTERR_MODE_T = "overwrite") -> list[str]:
+        return [
+            f"#FAKE --job-name={task_handler.task.label} --output={task_handler.stdouterr_filename} --mode={stdouterr_mode}"
+        ]
 
     def submit_to_scheduler(
         self,
-        handler: PluginHandler,
+        task_handler: PluginHandler,
         parent_ids: list[str],
         env: dict[str, str],  # noqa: ARG002
         dependency_type: DEPENDENCY_TYPE_T = "ALL_COMPLETED",
     ) -> str:
-        task = handler.task
+        task = task_handler.task
         jobid = str(self.cluster.next_jobid)
         self.cluster.next_jobid += 1
         self.cluster.status[jobid] = TaskStatus.WAITING
         self.cluster.record(f"submit {task.label} ({jobid}) after {parent_ids} [{dependency_type}]")
-        script = handler.get_runscript_path().read_text()
+        script = task_handler.get_runscript_path().read_text()
         if self.cluster.scripts.get(task.label) != script:
             self.cluster.scripts[task.label] = script
             self.cluster.record(f"--- run script {task.label}\n{script}\n---")

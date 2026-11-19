@@ -11,8 +11,8 @@ declared in core by `IconPort`. Applying it is engine specific and done by
 
 `IconPortHandler` mirrors `IconPort`: it applies regular ports generically from their
 declaration, and each special port (see `IconPort.is_special`) is implemented by a
-subclass registered with `@special_port_handler(<core port>)`. One handler per port is
-created at import time and stored in `port_handlers`.
+subclass setting `special_port`, which registers it. One handler per port is created at
+import time and stored in `IconPortHandler.registered_handlers`.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ import shutil
 from dataclasses import dataclass
 from itertools import chain
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from sirocco.core.graph_items import GeneratedData
 from sirocco.core.tasks.icon_task import IconTask, launch
@@ -31,7 +31,7 @@ from sirocco.core.tasks.icon_task.ports import IconPort
 from sirocco.engines.standalone.plugin_handlers.plugin_handler import PluginHandler
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping, Sequence
+    from collections.abc import Mapping, Sequence
 
     from sirocco.core.graph_items import Data
     from sirocco.core.tasks.icon_task.models import IconModel
@@ -91,14 +91,14 @@ class IconHandler(PluginHandler):
         """Apply port `port_name` of `model` and set the paths of the output data it resolves"""
         # NOTE: keep check as explicit step here before refactoring ports and checking at parsing time
         IconPort.check(port_name, model)
-        port_handler = port_handlers[port_name]
-        input_paths = {data.label: self.get_data_path(data) for data in model.inputs.get(port_name, [])}
+        port_handler = IconPortHandler.registered_handlers[port_name]
+        input_paths = {data.label: self.engine.data_paths[data] for data in model.inputs.get(port_name, [])}
         for data, path in port_handler(model, self.get_rundir(), input_paths):
-            self.set_data_path(data, path)
+            self.engine.data_paths[data] = path
 
     def get_runscript_lines(self) -> list[str]:
         squash_mounts = [
-            (self.get_data_path(image), mount) for image, mount in self.task.get_squash_mounts(self.get_rundir())
+            (self.engine.data_paths[image], mount) for image, mount in self.task.get_squash_mounts(self.get_rundir())
         ]
         env = launch.runtime_environment(self.task, squash_mounts)
         return [
@@ -115,10 +115,27 @@ class IconPortHandler:
     """Applies one ICON port
 
     The base class applies regular ports from their declaration. Special ports are
-    implemented by subclasses registered with `@special_port_handler(<core port>)`.
+    implemented by subclasses setting `special_port`, which registers them.
     """
 
+    # Handlers of all the ICON ports, by port name: special ports are registered by their
+    # subclass, regular ones are then added from their declaration (see `_complete_port_handlers`)
+    registered_handlers: ClassVar[dict[str, IconPortHandler]] = {}
+    special_port: ClassVar[IconPort | None] = None  # Set by subclasses implementing a special port
+
     port: IconPort
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        if (port := cls.special_port) is None:
+            return  # Intermediate class, implements no port of its own
+        if not port.is_special:
+            msg = f"port {port.port_name} is not special, it is applied from its declaration"
+            raise ValueError(msg)
+        if port.port_name in IconPortHandler.registered_handlers:
+            msg = f"special port {port.port_name} already implemented"
+            raise ValueError(msg)
+        IconPortHandler.registered_handlers[port.port_name] = cls(port)
 
     def __call__(self, model: IconModel, rundir: Path, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:
         """Apply the port of `model` in `rundir` and return the paths of the output data it resolves
@@ -154,27 +171,6 @@ class IconPortHandler:
         return []
 
 
-# Handlers of all the ICON ports, by port name: special ports are registered below by
-# `@special_port_handler`, regular ones are then added from their declaration.
-port_handlers: dict[str, IconPortHandler] = {}
-
-
-def special_port_handler[H: type[IconPortHandler]](port: IconPort) -> Callable[[H], H]:
-    """Register the decorated `IconPortHandler` subclass as the implementation of the special `port`"""
-
-    def register(cls: H) -> H:
-        if not port.is_special:
-            msg = f"port {port.port_name} is not special, it is applied from its declaration"
-            raise ValueError(msg)
-        if port.port_name in port_handlers:
-            msg = f"special port {port.port_name} already implemented"
-            raise ValueError(msg)
-        port_handlers[port.port_name] = cls(port)
-        return cls
-
-    return register
-
-
 # =========== Special ports ===========
 
 
@@ -198,24 +194,27 @@ class RestartPortHandler(IconPortHandler):
         return rundir / f"multifile_restart_{model.name}.mfr"
 
 
-@special_port_handler(core_icon_ports.restart_in_port)
 class RestartInPortHandler(RestartPortHandler):
+    special_port = core_icon_ports.restart_in_port
+
     def __call__(self, model: IconModel, rundir: Path, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:
         if (data := self.get_restart_data(model, model.inputs[self.port.port_name])) is not None:
             self.restart_path(model, rundir).symlink_to(input_paths[data.label])
         return []
 
 
-@special_port_handler(core_icon_ports.restart_out_port)
 class RestartOutPortHandler(RestartPortHandler):
+    special_port = core_icon_ports.restart_out_port
+
     def __call__(self, model: IconModel, rundir: Path, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:  # noqa: ARG002
         if (data := self.get_restart_data(model, model.outputs[self.port.port_name])) is None:
             return []
         return [(data, self.restart_path(model, rundir))]
 
 
-@special_port_handler(core_icon_ports.output_streams_port)
 class OutputStreamsPortHandler(IconPortHandler):
+    special_port = core_icon_ports.output_streams_port
+
     def __call__(self, model: IconModel, rundir: Path, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:  # noqa: ARG002
         output_data = model.outputs[self.port.port_name]
         nml_streams = [*model.namelist.iter_nml("output_nml")]
@@ -240,8 +239,9 @@ class OutputStreamsPortHandler(IconPortHandler):
         return paths
 
 
-@special_port_handler(core_icon_ports.finish_status_port)
 class FinishStatusPortHandler(IconPortHandler):
+    special_port = core_icon_ports.finish_status_port
+
     def __call__(self, model: IconModel, rundir: Path, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:  # noqa: ARG002
         if len(output_data := model.outputs[self.port.port_name]) != 1:
             msg = f"port {self.port.port_name} accepts one and only one data object"
@@ -276,8 +276,8 @@ def _complete_port_handlers() -> None:
     """
     for port in IconPort.registered_ports.values():
         if not port.is_special:
-            port_handlers[port.port_name] = IconPortHandler(port)
-        elif port.port_name not in port_handlers:
+            IconPortHandler.registered_handlers[port.port_name] = IconPortHandler(port)
+        elif port.port_name not in IconPortHandler.registered_handlers:
             msg = f"special port {port.port_name} not implemented in the standalone engine"
             raise NotImplementedError(msg)
 

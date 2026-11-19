@@ -6,15 +6,9 @@ the task type it handles with `task_type`, which registers it at class creation.
 built-in handlers are the other modules of this package, imported by
 `sirocco.engines.standalone`.
 
-Handlers are created per task, on first access to `StandaloneEngine.handlers[task]`. The
-engine also holds what all of them share: the run root and the resolved data paths. Paths
-follow from the config only, so they are recomputed by every sirocco command and never
-stored in the state file.
-
-Generated data paths are resolved on demand: asking for the path of an output that is
-not known yet asks the handler of its origin task to resolve all of its outputs (see
-`PluginHandler.resolve_output_paths`), so that callers never need to care about the
-order in which tasks are processed.
+Handlers are created per task, on first access to `StandaloneEngine.task_handlers[task]`. The
+engine also holds what all of them share: the run root and the resolved data paths
+(`StandaloneEngine.data_paths[data]`).
 """
 
 from __future__ import annotations
@@ -23,13 +17,12 @@ import shutil
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from sirocco.core.graph_items import AvailableData, GeneratedData
 from sirocco.parsing import cycling
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from sirocco.core.graph_items import Data, Task
+    from sirocco.core.graph_items import Task
     from sirocco.engines.standalone.engine import StandaloneEngine
 
 
@@ -70,7 +63,7 @@ class PluginHandler(ABC):
 
     @abstractmethod
     def resolve_output_paths(self) -> None:
-        """Set the paths of all the task outputs with `set_data_path`"""
+        """Set the paths of all the task outputs in `engine.data_paths`"""
 
     @abstractmethod
     def prepare_rundir_content(self) -> None:
@@ -88,42 +81,6 @@ class PluginHandler(ABC):
 
     def get_runscript_path(self) -> Path:
         return self.get_rundir() / self.submit_filename
-
-    def get_data_path(self, data: Data) -> Path:
-        """Resolved path of a data node"""
-        if (path := self.engine.data_paths.get(data.label)) is None:
-            self.resolve_data_path(data)
-            if (path := self.engine.data_paths.get(data.label)) is None:
-                msg = f"path of data {data.label} could not be resolved"
-                raise ValueError(msg)
-        return path
-
-    def set_data_path(self, data: Data, path: Path) -> None:
-        """Set the resolved path of a data node
-
-        Setting it again is allowed, e.g. ICON output ports are applied both when resolving
-        output paths and when preparing the task, but only to the same path: a conflicting
-        resolution would otherwise silently override the path already used elsewhere.
-        """
-        if not path.is_absolute():
-            msg = "resolved path must be absolute"
-            raise ValueError(msg)
-        if (current := self.engine.data_paths.get(data.label)) is not None and current != path:
-            msg = f"data {data.label}: resolved to {path} but already resolved to {current}"
-            raise ValueError(msg)
-        self.engine.data_paths[data.label] = path
-
-    def resolve_data_path(self, data: Data) -> None:
-        match data:
-            case AvailableData():
-                self.set_data_path(data, data.path)
-            case GeneratedData() if data.path is not None and data.path.is_absolute():
-                self.set_data_path(data, data.path)
-            case GeneratedData():
-                self.engine.handlers[data.origin_task].resolve_output_paths()
-            case _:
-                msg = f"standalone engine: cannot resolve the path of {type(data).__name__}"
-                raise NotImplementedError(msg)
 
     # =========== Submission ===========
 
@@ -147,11 +104,11 @@ class PluginHandler(ABC):
         link_list: list[str] = []
         for component in self.task.components.values():
             if "link" in component.inputs:
-                link_list.extend([f"ln -s {self.get_data_path(data)} ." for data in component.inputs["link"]])
+                link_list.extend([f"ln -s {self.engine.data_paths[data]} ." for data in component.inputs["link"]])
             if "link_content" in component.inputs:
                 link_list.extend(
                     [
-                        f"for item in {self.get_data_path(data)}/*; do ln -s ${{item}} .; done"
+                        f"for item in {self.engine.data_paths[data]}/*; do ln -s ${{item}} .; done"
                         for data in component.inputs["link_content"]
                     ]
                 )
