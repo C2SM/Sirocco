@@ -349,9 +349,9 @@ def ocean_restart_init_handler_callable(port_name: str, model: IconModel) -> Non
     if len(data_list) > 1:
         msg = f"port '{port_name}' only accepts a single data object"
         raise ValueError(msg)
-    if "ocean_initialConditions_nml" not in model.namelist:
-        model.namelist["ocean_initialConditions_nml"] = {}
-    model.namelist["ocean_initialConditions_nml"]["initialize_fromRestart"] = True
+    if not model.namelist.get("ocean_initialConditions_nml", {}).get("initialize_fromRestart", False):
+        msg = f"task {model.task_label}, model {model.name}: port '{port_name}' requires 'initialize_fromRestart = .true.' in 'ocean_initialConditions_nml'"
+        raise ValueError(msg)
     (model.task_run_dir / f"multifile_restart_{model.name}.mfr").symlink_to(data_list[0].resolved_path)
 
 

@@ -4,5 +4,5 @@
  restart_write_mode = 'joint procs multifile'
 /
 &ocean_initialConditions_nml
- initialize_fromRestart = .false.
+ initialize_fromRestart = .true.
 /

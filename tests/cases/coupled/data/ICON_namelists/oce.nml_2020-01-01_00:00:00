@@ -9,5 +9,5 @@
 /
 
 &ocean_initialconditions_nml
-    initialize_fromrestart = .false.
+    initialize_fromrestart = .true.
 /
