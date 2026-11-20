@@ -51,21 +51,53 @@ class NamelistFile(models.ConfigNamelistFileSpec):
         return self
 
     def update_from_specs(self, specs: dict[str, Any]) -> None:
-        """Updates the internal namelist from the specs."""
+        """Updates the internal namelist from the specs.
+
+        A section name ending with an index between brackets, e.g. `output_nml[2]`,
+        targets a single occurrence of a potentially repeated section. The index
+        starts at 1, follows the order of the namelist file and can go past the last
+        occurrence in order to append new ones, as long as no index is skipped.
+        Without index, all the occurrences of the section are updated.
+
+        The result does not depend on the order of the specs: new occurrences are
+        appended first, then specs without index are applied and finally the indexed
+        ones, which thus take precedence."""
+
+        # NOTE: k is the 0-based index corresponding to the 1-based user index
+        indexed_specs: list[tuple[str, int, str, dict[str, Any]]] = []
+        global_specs: list[tuple[str, dict[str, Any]]] = []
         for section, params in specs.items():
             section_name, k = self.section_index(section)
+            if k is None:
+                global_specs.append((section_name, params))
+            else:
+                indexed_specs.append((section_name, k, section, params))
+        indexed_specs.sort(key=lambda spec: spec[1])
+
+        # Append new occurrences of indexed sections
+        for section_name, k, section, _ in indexed_specs:
+            n_occurrences = len([*self.iter_nml(section_name)])
+            if k < 0 or k > n_occurrences:
+                msg = (
+                    f"{self.name}: cannot update {section!r}, index must be between 1 and {n_occurrences + 1} "
+                    f"(number of {section_name!r} sections + 1). New sections cannot skip an index."
+                )
+                raise ValueError(msg)
+            if k == n_occurrences:
+                self.namelist.add_cogroup(section_name, f90nml.Namelist())
+
+        # Update all the occurrences of sections specified without index
+        for section_name, params in global_specs:
             # Create section if non-existent
             if section_name not in self.namelist:
                 # NOTE: f90nml will automatially create the corresponding nested f90nml.Namelist
-                #       objects, no need to explicitly use the f90nml.Namelist class constructor
-                self.namelist[section_name] = {} if k is None else [{}]
-            # Update namelist with user input
-            # NOTE: unlike FORTRAN convention, user index starts at 0 as in Python
-            if k == len(self.namelist[section_name]) + 1:
-                # Create additional section if required
-                self.namelist[section_name][k] = f90nml.Namelist()
-            nml_section = self.namelist[section_name] if k is None else self.namelist[section_name][k]
-            nml_section.update(params)
+                #       object, no need to explicitly use the f90nml.Namelist class constructor
+                self.namelist[section_name] = {}
+            self.namelist[section_name].update(params)
+
+        # Update single occurrences
+        for section_name, k, _, params in indexed_specs:
+            [*self.iter_nml(section_name)][k].update(params)
 
     def dump(self, path: Path) -> None:
         if path.is_file():

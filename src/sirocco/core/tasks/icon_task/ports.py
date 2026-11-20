@@ -42,6 +42,7 @@ class PortHandler:
                     if self.section not in model.namelist:
                         model.namelist[self.section] = {}
                     model.namelist[self.section][self.parameter] = f"./{target_link_name}"
+                    # NOTE: the piece of data could be linked by different ports, hence the check.
                     if not (origin := model.task_run_dir / target_link_name).is_symlink():
                         origin.symlink_to(data.resolved_path)
                 else:
