@@ -25,7 +25,6 @@ def test_shell_filenames_nodes_arguments(config_paths):
     from sirocco import core
 
     config_workflow = ConfigWorkflow.from_config_path(config_paths["dir"], template_context=config_paths["variables"])
-    print(config_paths["variables"])
 
     # Update the stop_date for both cycles to make the result shorter
     config_workflow.cycles[0].cycling.stop_date = datetime(2027, 1, 1, 0, 0, tzinfo=UTC)
@@ -61,23 +60,23 @@ def test_shell_filenames_nodes_arguments(config_paths):
         {"initial_conditions": "initial_conditions", "forcing": "forcing"},
         {"initial_conditions": "initial_conditions", "forcing": "forcing"},
         {
-            "icon_restart_foo_0___bar_3__0___date_2026__01__01__00__00__00": "restart",
+            "icon_restart_date_2026__01__01__00__00__00___bar_3__0___foo_0": "restart",
             "forcing": "forcing",
         },
         {
-            "icon_restart_foo_1___bar_3__0___date_2026__01__01__00__00__00": "restart",
+            "icon_restart_date_2026__01__01__00__00__00___bar_3__0___foo_1": "restart",
             "forcing": "forcing",
         },
         {
-            "icon_output_foo_0___bar_3__0___date_2026__01__01__00__00__00": "icon_output_foo_0___bar_3__0___date_2026__01__01__00__00__00",
-            "icon_output_foo_1___bar_3__0___date_2026__01__01__00__00__00": "icon_output_foo_1___bar_3__0___date_2026__01__01__00__00__00",
+            "icon_output_date_2026__01__01__00__00__00___bar_3__0___foo_0": "icon_output_date_2026__01__01__00__00__00___bar_3__0___foo_0",
+            "icon_output_date_2026__01__01__00__00__00___bar_3__0___foo_1": "icon_output_date_2026__01__01__00__00__00___bar_3__0___foo_1",
         },
         {
-            "icon_output_foo_0___bar_3__0___date_2026__07__01__00__00__00": "icon_output_foo_0___bar_3__0___date_2026__07__01__00__00__00",
-            "icon_output_foo_1___bar_3__0___date_2026__07__01__00__00__00": "icon_output_foo_1___bar_3__0___date_2026__07__01__00__00__00",
+            "icon_output_date_2026__07__01__00__00__00___bar_3__0___foo_0": "icon_output_date_2026__07__01__00__00__00___bar_3__0___foo_0",
+            "icon_output_date_2026__07__01__00__00__00___bar_3__0___foo_1": "icon_output_date_2026__07__01__00__00__00___bar_3__0___foo_1",
         },
-        {"analysis_foo_bar_3__0___date_2026__01__01__00__00__00": "analysis"},
-        {"analysis_foo_bar_3__0___date_2026__07__01__00__00__00": "analysis"},
+        {"analysis_foo_date_2026__01__01__00__00__00___bar_3__0": "analysis"},
+        {"analysis_foo_date_2026__07__01__00__00__00___bar_3__0": "analysis"},
         {
             "analysis_foo_bar_date_2026__01__01__00__00__00": "analysis_foo_bar_date_2026__01__01__00__00__00",
             "analysis_foo_bar_date_2026__07__01__00__00__00": "analysis_foo_bar_date_2026__07__01__00__00__00",
@@ -94,12 +93,12 @@ def test_shell_filenames_nodes_arguments(config_paths):
     expected_arguments_list = [
         f"--init {initial_conditions_path} --forcing {forcing_path}",
         f"--init {initial_conditions_path} --forcing {forcing_path}",
-        f"--restart {{icon_restart_foo_0___bar_3__0___date_2026__01__01__00__00__00}} --forcing {forcing_path}",
-        f"--restart {{icon_restart_foo_1___bar_3__0___date_2026__01__01__00__00__00}} --forcing {forcing_path}",
-        "{icon_output_foo_0___bar_3__0___date_2026__01__01__00__00__00} {icon_output_foo_1___bar_3__0___date_2026__01__01__00__00__00}",
-        "{icon_output_foo_0___bar_3__0___date_2026__07__01__00__00__00} {icon_output_foo_1___bar_3__0___date_2026__07__01__00__00__00}",
-        "{analysis_foo_bar_3__0___date_2026__01__01__00__00__00}",
-        "{analysis_foo_bar_3__0___date_2026__07__01__00__00__00}",
+        f"--restart {{icon_restart_date_2026__01__01__00__00__00___bar_3__0___foo_0}} --forcing {forcing_path}",
+        f"--restart {{icon_restart_date_2026__01__01__00__00__00___bar_3__0___foo_1}} --forcing {forcing_path}",
+        "{icon_output_date_2026__01__01__00__00__00___bar_3__0___foo_0} {icon_output_date_2026__01__01__00__00__00___bar_3__0___foo_1}",
+        "{icon_output_date_2026__07__01__00__00__00___bar_3__0___foo_0} {icon_output_date_2026__07__01__00__00__00___bar_3__0___foo_1}",
+        "{analysis_foo_date_2026__01__01__00__00__00___bar_3__0}",
+        "{analysis_foo_date_2026__07__01__00__00__00___bar_3__0}",
         "{analysis_foo_bar_date_2026__01__01__00__00__00} {analysis_foo_bar_date_2026__07__01__00__00__00}",
     ]
 
@@ -115,26 +114,26 @@ def test_shell_filenames_nodes_arguments(config_paths):
             "forcing",
         ],
         [
-            "icon_restart_foo_0___bar_3__0___date_2026__01__01__00__00__00",
+            "icon_restart_date_2026__01__01__00__00__00___bar_3__0___foo_0",
             "forcing",
         ],
         [
-            "icon_restart_foo_1___bar_3__0___date_2026__01__01__00__00__00",
+            "icon_restart_date_2026__01__01__00__00__00___bar_3__0___foo_1",
             "forcing",
         ],
         [
-            "icon_output_foo_0___bar_3__0___date_2026__01__01__00__00__00",
-            "icon_output_foo_1___bar_3__0___date_2026__01__01__00__00__00",
+            "icon_output_date_2026__01__01__00__00__00___bar_3__0___foo_0",
+            "icon_output_date_2026__01__01__00__00__00___bar_3__0___foo_1",
         ],
         [
-            "icon_output_foo_0___bar_3__0___date_2026__07__01__00__00__00",
-            "icon_output_foo_1___bar_3__0___date_2026__07__01__00__00__00",
+            "icon_output_date_2026__07__01__00__00__00___bar_3__0___foo_0",
+            "icon_output_date_2026__07__01__00__00__00___bar_3__0___foo_1",
         ],
         [
-            "analysis_foo_bar_3__0___date_2026__01__01__00__00__00",
+            "analysis_foo_date_2026__01__01__00__00__00___bar_3__0",
         ],
         [
-            "analysis_foo_bar_3__0___date_2026__07__01__00__00__00",
+            "analysis_foo_date_2026__07__01__00__00__00___bar_3__0",
         ],
         [
             "analysis_foo_bar_date_2026__01__01__00__00__00",

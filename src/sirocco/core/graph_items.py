@@ -174,7 +174,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
         for comp_name, comp in self.components.items():
             if set(comp.inputs.keys()).intersection(comp.outputs.keys()):
                 msg = f"task {self.name}"
-                if comp_name == ConfigCycleTask.__SINGLE_COMPONENT_NAME__:
+                if comp_name != ConfigCycleTask.__SINGLE_COMPONENT_NAME__:
                     msg += f", component {comp_name}"
                 msg += f": port names must be unique, even between inputs and outputs.\ninputs ports: {comp.inputs.keys()}\noutputs ports: {comp.outputs.keys()}"
                 raise ValueError(msg)

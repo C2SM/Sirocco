@@ -41,6 +41,7 @@ class PortHandler:
                     if self.section not in model.namelist:
                         model.namelist[self.section] = {}
                     model.namelist[self.section][self.parameter] = f"./{target_link_name}"
+                    # NOTE: the piece of data could be linked by different ports, hence the check.
                     if not (origin := model.task_run_dir / target_link_name).is_symlink():
                         origin.symlink_to(data.resolved_path)
                 else:
@@ -362,7 +363,7 @@ ocean_restart_init_handler = PortHandler(
 
 
 def restart_in_handler_callable(port_name: str, model: IconModel) -> None:
-    if restart_write_mode := model.namelist["io_nml"].get("restart_write_mode") != "joint procs multifile":
+    if (restart_write_mode := model.namelist["io_nml"].get("restart_write_mode")) != "joint procs multifile":
         msg = f"Only supported restart_write_mode is 'joint procs multifile', got {restart_write_mode}"
         raise ValueError(msg)
     # Ignore empty restart port or possible when conditions
@@ -380,11 +381,9 @@ restart_in_handler = PortHandler(
     custom_callable=restart_in_handler_callable,
 )
 
-# TODO: Rename restart ports to restart_in and restart_out
-
 
 def restart_out_handler_callable(port_name: str, model: IconModel) -> None:
-    if restart_write_mode := model.namelist["io_nml"].get("restart_write_mode") != "joint procs multifile":
+    if (restart_write_mode := model.namelist["io_nml"].get("restart_write_mode")) != "joint procs multifile":
         msg = f"Only supported restart_write_mode is 'joint procs multifile', got {restart_write_mode}"
         raise ValueError(msg)
     # Ignore empty restart port or possible when conditions
