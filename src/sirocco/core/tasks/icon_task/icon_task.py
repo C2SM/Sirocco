@@ -15,6 +15,7 @@ from sirocco.core.namelistfile import NamelistFile
 from sirocco.core.scheduler import UENV_MACHINES
 from sirocco.core.tasks.icon_task.models import IconModel, ModelType
 from sirocco.core.tasks.icon_task.ports import PortHandler, restart_in_handler
+from sirocco.core.tasks.icon_task.restart import restart_link_names, validate_restart
 from sirocco.core.tasks.icon_task.task_distribution import (
     RankInfo,
     allocate_tasks_from_weights,
@@ -67,6 +68,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
 
         # Allocate ranks
         self.allocate_ranks()
+        self.validate_restarts()
 
         # Validate wrapper script
         # TODO: Remove this once aiida-icon is synced with standalone
@@ -168,6 +170,9 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
 
                 # number of compute and IO nodes
                 # ------------------------------
+                if self.exe.separate_io and self.exe.procs_per_io_node <= 0:
+                    msg = f"{self.label}: procs_per_io_node must be positive when separate_io is True"
+                    raise ValueError(msg)
                 self.io_nodes = ceil(self.exe.tot_io_procs / self.exe.procs_per_io_node) if self.exe.separate_io else 0
                 if self.io_nodes >= self.nodes:
                     msg = f"{self.label}: number of IO nodes (got {self.io_nodes}) must be < total number of nodes ({self.nodes})"
@@ -234,6 +239,9 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
     def allocate_exe_ranks(
         self, min_rank: int, compute_procs: int, exe: yaml_data_models.ConfigIconExe, target: Literal["cpu", "gpu"]
     ) -> int:
+        if compute_procs < len(exe.procs):
+            msg = f"{self.label}: insufficient compute ranks for {target} models after reserving I/O processes"
+            raise ValueError(msg)
         compute_weights: dict[str, int] = {name: exe_proc.compute_weight for name, exe_proc in exe.procs.items()}
 
         for model_name, n_compute_procs in allocate_tasks_from_weights(compute_procs, compute_weights).items():
@@ -254,6 +262,28 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
             min_rank = max_rank + 1
 
         return min_rank
+
+    @staticmethod
+    def _validate_model_restart(model: IconModel) -> None:
+        """Validate one model's restart settings and the number of restart inputs and outputs."""
+        validate_restart(model.namelist.namelist)
+        names = restart_link_names(model.name, model.namelist.namelist)
+        for port, data in (
+            ("restart_in", model.inputs.get("restart_in", [])),
+            ("restart_out", model.outputs.get("restart_out", [])),
+        ):
+            if data and len(data) != len(names):
+                msg = f"port '{port}' requires {len(names)} data object(s), in order {names}"
+                raise ValueError(msg)
+
+    def validate_restarts(self) -> None:
+        """Validate restart settings and the number of restart inputs and outputs."""
+        for model in self.master_models.values():
+            try:
+                self._validate_model_restart(model)
+            except (TypeError, ValueError) as error:
+                msg = f"{self.label}, model {model.name}: {error}"
+                raise type(error)(msg) from error
 
     def update_icon_namelists_from_workflow(self) -> None:
         cycle_point = self.check_dates()
@@ -308,7 +338,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         # Check if all master models have the same restart status
         for model in self.master_models.values():
             if bool(model.inputs.get(restart_in_handler.port_name, False)) != restart_ref:
-                msg = f"{self.label}: All CON models must have the same restart status"
+                msg = f"{self.label}: All ICON models must have the same restart status"
                 raise ValueError(msg)
         return restart_ref
 

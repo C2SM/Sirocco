@@ -1,0 +1,46 @@
+start_date: &start_date '2026-01-01T00:00:00Z'
+stop_date: &stop_date '2026-01-03T00:00:00Z'
+scheduler: slurm
+cycles:
+  - daily:
+      cycling:
+        start_date: *start_date
+        stop_date: *stop_date
+        period: P1D
+      tasks:
+        - icon:
+            components:
+              atm:
+                inputs:
+                  restart_in:
+                    - restart:
+                        when:
+                          after: *start_date
+                        target_cycle:
+                          lag: -P1D
+                outputs:
+                  restart_out: [restart]
+tasks:
+  - icon:
+      plugin: icon
+      computer: santis
+      nodes: 2
+      procs_per_node: 4
+      sockets_per_node: 2
+      uenv: icon/test:latest
+      exe:
+        cpu:
+          # Only submission files are prepared; the executable is never run.
+          path: /bin/true
+          procs:
+            atm:
+              restart: {{ RESTART_PROCS }}
+      namelists:
+        - ./ICON/icon_master.namelist
+        - ./ICON/model.namelist:
+            io_nml:
+              restart_write_mode: '{{ RESTART_MODE }}'
+data:
+  available: []
+  generated:
+    - restart: {}
