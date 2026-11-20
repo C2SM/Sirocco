@@ -134,15 +134,21 @@ pymdownx.keys = {}
 pymdownx.magiclink = {}
 pymdownx.mark = {}
 pymdownx.smartsymbols = {}
-# pymdownx.snippets = {
-#   base_path = "includes",
-# }
+pymdownx.snippets = {
+  base_path = ["docs"],
+  check_paths = true,
+}
 pymdownx.superfences = {
   custom_fences = [
     {
       name = "mermaid",
       class = "mermaid",
       format = "pymdownx.superfences.fence_code_format",
+    },
+    {
+      name = "ansi",
+      class = "ansi",
+      format = "sirocco_ansi_fence.fence_ansi_format",
     },
   ],
 }

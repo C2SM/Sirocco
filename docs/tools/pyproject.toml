@@ -5,11 +5,14 @@ build-backend = "hatchling.build"
 [project]
 name = "sirocco-yaml-lexer"
 version = "0.0.1"
-description = "Custom YAML lexer for Sirocco configuration"
+description = "Custom YAML lexer for Sirocco configuration and ANSI fence for logs"
 dependencies = ["pygments"]
 
 [project.entry-points."pygments.lexers"]
 sirocco_yaml = "sirocco_yaml_lexer.lexer:SiroccoYamlLexer"
+
+[tool.hatch.build.targets.wheel]
+packages = ["sirocco_yaml_lexer", "sirocco_ansi_fence"]
 
 [tool.hatch.envs.default]
 installer = "uv"

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""usage: icon.py [-h] [--init [INIT]] [--restart [RESTART]] [--forcing [FORCING]] [namelist]
+"""usage: model.py [-h] [--init [INIT]] [--restart [RESTART]] [--forcing [FORCING]] [namelist]
 
 A script mocking parts of icon in a form of a shell script
 

@@ -117,3 +117,26 @@
     justify-content: center;
     text-align: center;
 }
+
+/* Captioned code blocks: full width and left aligned instead of the centered figure default */
+.md-typeset figure:has(> .highlight) {
+    width: 100%;
+}
+.md-typeset figure > .highlight {
+    text-align: left;
+}
+
+/* Code blocks with a maximum height and a vertical scroll bar */
+.md-typeset .scroll-y pre > code {
+    max-height: 30em;
+    overflow-y: auto;
+}
+
+/* The JetBrains Mono subsets served by Google Fonts lack the box drawing block, so browsers fall back to
+   another font whose glyphs leave gaps. Complete the family with a self-hosted subset of these glyphs. */
+@font-face {
+    font-family: "JetBrains Mono";
+    src: url("../assets/fonts/JetBrainsMono-BoxDrawing.woff2") format("woff2");
+    unicode-range: U+2500-257F;
+    font-display: fallback;
+}
