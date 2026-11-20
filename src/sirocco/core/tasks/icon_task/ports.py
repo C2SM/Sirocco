@@ -5,6 +5,7 @@ from typing import ClassVar, Self
 
 from sirocco.core.graph_items import GeneratedData
 from sirocco.core.tasks.icon_task.models import IconModel, ModelType
+from sirocco.core.tasks.icon_task.restart import restart_link_names, validate_restart
 
 
 @dataclass(kw_only=True)
@@ -255,16 +256,21 @@ ocean_inistate = PortHandler(
 
 
 def restart_in_handler_callable(port_name: str, model: IconModel) -> None:
-    if restart_write_mode := model.namelist["io_nml"].get("restart_write_mode") != "joint procs multifile":
-        msg = f"Only supported restart_write_mode is 'joint procs multifile', got {restart_write_mode}"
-        raise ValueError(msg)
     # Ignore empty restart port or possible when conditions
     if not (data_list := model.inputs[port_name]):
         return
-    if len(data_list) > 1:
-        msg = f"port '{port_name}' only accepts a single data object"
+    validate_restart(model.namelist.namelist)
+    names = restart_link_names(model.name, model.namelist.namelist)
+    if len(data_list) != len(names):
+        msg = f"{model.task_label}, model {model.name}: port '{port_name}' requires {len(names)} data object(s), in order {names}"
         raise ValueError(msg)
-    (model.task_run_dir / f"multifile_restart_{model.name}.mfr").symlink_to(data_list[0].resolved_path)
+    for name, data in zip(names, data_list, strict=True):
+        link = model.task_run_dir / name
+        # Submission preparation may be repeated. Never replace an existing
+        # output or a link ICON has advanced to a newer checkpoint.
+        if link.is_symlink() and link.readlink() == data.resolved_path:
+            continue
+        link.symlink_to(data.resolved_path)
 
 
 restart_in_handler = PortHandler(
@@ -273,20 +279,18 @@ restart_in_handler = PortHandler(
     custom_callable=restart_in_handler_callable,
 )
 
-# TODO: Rename restart ports to restart_in and restart_out
-
 
 def restart_out_handler_callable(port_name: str, model: IconModel) -> None:
-    if restart_write_mode := model.namelist["io_nml"].get("restart_write_mode") != "joint procs multifile":
-        msg = f"Only supported restart_write_mode is 'joint procs multifile', got {restart_write_mode}"
-        raise ValueError(msg)
     # Ignore empty restart port or possible when conditions
     if not (data_list := model.outputs[port_name]):
         return
-    if len(data_list) > 1:
-        msg = f"port '{port_name}' only accepts a single data object"
+    validate_restart(model.namelist.namelist)
+    names = restart_link_names(model.name, model.namelist.namelist)
+    if len(data_list) != len(names):
+        msg = f"{model.task_label}, model {model.name}: port '{port_name}' requires {len(names)} data object(s), in order {names}"
         raise ValueError(msg)
-    data_list[0].resolved_path = model.task_run_dir / f"multifile_restart_{model.name}.mfr"
+    for name, data in zip(names, data_list, strict=True):
+        data.resolved_path = model.task_run_dir / name
 
 
 restart_out_handler = PortHandler(

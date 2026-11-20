@@ -7,7 +7,16 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from io import StringIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, Self, TypeVar, overload
+from typing import (
+    TYPE_CHECKING,
+    Annotated,
+    Any,
+    ClassVar,
+    Literal,
+    Self,
+    TypeVar,
+    overload,
+)
 
 from jinja2 import Environment, StrictUndefined, meta, select_autoescape
 from pydantic import (
@@ -25,7 +34,12 @@ from ruamel.yaml import YAML
 
 from sirocco.parsing._utils import validate_walltime_format
 from sirocco.parsing.cycling import Cycling, DateCycling, OneOff
-from sirocco.parsing.target_cycle import LagList, NoTargetCycle, TargetCycle, TargetDateList
+from sirocco.parsing.target_cycle import (
+    LagList,
+    NoTargetCycle,
+    TargetCycle,
+    TargetDateList,
+)
 from sirocco.parsing.when import AnyWhen, AtDate, BeforeAfterDate, When
 
 if TYPE_CHECKING:
@@ -622,6 +636,11 @@ class ConfigIconExeProc:
     prefetch: int = 0
     restart: int = 0
     streams: int = 0
+
+    def __post_init__(self) -> None:
+        if self.restart < 0:
+            msg = "ICON process count 'restart' must be non-negative"
+            raise ValueError(msg)
 
     @property
     def tot_io_procs(self) -> int:
