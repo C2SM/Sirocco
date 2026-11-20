@@ -1,0 +1,5 @@
+&parallel_nml
+/
+&grid_nml
+ dynamics_grid_filename = 'set_by_sirocco'
+/

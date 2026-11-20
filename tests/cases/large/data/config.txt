@@ -58,9 +58,9 @@ cycles:
             components:
               atm:
                 inputs:
-                  grid:
+                  dynamics_grid_file:
                     - grid_file
-                  lbc:
+                  latbc:
                     - icon_input [date: 2025-01-01 00:00:00+00:00]
                   restart_in: []
                 outputs:
@@ -161,9 +161,9 @@ cycles:
             components:
               atm:
                 inputs:
-                  grid:
+                  dynamics_grid_file:
                     - grid_file
-                  lbc:
+                  latbc:
                     - icon_input [date: 2025-03-01 00:00:00+00:00]
                   restart_in:
                     - icon_restart [date: 2025-01-01 00:00:00+00:00]
@@ -267,9 +267,9 @@ cycles:
             components:
               atm:
                 inputs:
-                  grid:
+                  dynamics_grid_file:
                     - grid_file
-                  lbc:
+                  latbc:
                     - icon_input [date: 2025-05-01 00:00:00+00:00]
                   restart_in:
                     - icon_restart [date: 2025-03-01 00:00:00+00:00]
@@ -373,9 +373,9 @@ cycles:
             components:
               atm:
                 inputs:
-                  grid:
+                  dynamics_grid_file:
                     - grid_file
-                  lbc:
+                  latbc:
                     - icon_input [date: 2025-07-01 00:00:00+00:00]
                   restart_in:
                     - icon_restart [date: 2025-05-01 00:00:00+00:00]
@@ -479,9 +479,9 @@ cycles:
             components:
               atm:
                 inputs:
-                  grid:
+                  dynamics_grid_file:
                     - grid_file
-                  lbc:
+                  latbc:
                     - icon_input [date: 2025-09-01 00:00:00+00:00]
                   restart_in:
                     - icon_restart [date: 2025-07-01 00:00:00+00:00]
@@ -585,9 +585,9 @@ cycles:
             components:
               atm:
                 inputs:
-                  grid:
+                  dynamics_grid_file:
                     - grid_file
-                  lbc:
+                  latbc:
                     - icon_input [date: 2025-11-01 00:00:00+00:00]
                   restart_in:
                     - icon_restart [date: 2025-09-01 00:00:00+00:00]
@@ -691,9 +691,9 @@ cycles:
             components:
               atm:
                 inputs:
-                  grid:
+                  dynamics_grid_file:
                     - grid_file
-                  lbc:
+                  latbc:
                     - icon_input [date: 2026-01-01 00:00:00+00:00]
                   restart_in:
                     - icon_restart [date: 2025-11-01 00:00:00+00:00]
@@ -797,9 +797,9 @@ cycles:
             components:
               atm:
                 inputs:
-                  grid:
+                  dynamics_grid_file:
                     - grid_file
-                  lbc:
+                  latbc:
                     - icon_input [date: 2026-03-01 00:00:00+00:00]
                   restart_in:
                     - icon_restart [date: 2026-01-01 00:00:00+00:00]
@@ -903,9 +903,9 @@ cycles:
             components:
               atm:
                 inputs:
-                  grid:
+                  dynamics_grid_file:
                     - grid_file
-                  lbc:
+                  latbc:
                     - icon_input [date: 2026-05-01 00:00:00+00:00]
                   restart_in:
                     - icon_restart [date: 2026-03-01 00:00:00+00:00]
@@ -1009,9 +1009,9 @@ cycles:
             components:
               atm:
                 inputs:
-                  grid:
+                  dynamics_grid_file:
                     - grid_file
-                  lbc:
+                  latbc:
                     - icon_input [date: 2026-07-01 00:00:00+00:00]
                   restart_in:
                     - icon_restart [date: 2026-05-01 00:00:00+00:00]
@@ -1115,9 +1115,9 @@ cycles:
             components:
               atm:
                 inputs:
-                  grid:
+                  dynamics_grid_file:
                     - grid_file
-                  lbc:
+                  latbc:
                     - icon_input [date: 2026-09-01 00:00:00+00:00]
                   restart_in:
                     - icon_restart [date: 2026-07-01 00:00:00+00:00]
@@ -1221,9 +1221,9 @@ cycles:
             components:
               atm:
                 inputs:
-                  grid:
+                  dynamics_grid_file:
                     - grid_file
-                  lbc:
+                  latbc:
                     - icon_input [date: 2026-11-01 00:00:00+00:00]
                   restart_in:
                     - icon_restart [date: 2026-09-01 00:00:00+00:00]

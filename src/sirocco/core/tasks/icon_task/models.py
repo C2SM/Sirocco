@@ -1,6 +1,5 @@
 import enum
 from dataclasses import dataclass, field
-from pathlib import Path
 
 import f90nml
 
@@ -20,7 +19,6 @@ class IconModel:
     core_component: TaskComponent
     name: str
     is_master_model: bool
-    task_run_dir: Path
     task_label: str
     master_namelist_block: f90nml.Namelist
     namelist: NamelistFile

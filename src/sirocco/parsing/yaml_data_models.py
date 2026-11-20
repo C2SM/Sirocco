@@ -923,7 +923,6 @@ class ConfigWorkflow(BaseModel):
             >>> content = textwrap.dedent(
             ...     '''
             ...     name: minimal
-            ...     engine: standalone
             ...     scheduler: slurm
             ...     rootdir: /location/of/config
             ...     cycles:
@@ -951,7 +950,6 @@ class ConfigWorkflow(BaseModel):
 
             >>> wf = ConfigWorkflow(
             ...     name="minimal",
-            ...     engine="standalone",
             ...     scheduler="slurm",
             ...     rootdir=Path("/location/of/config"),
             ...     cycles=[ConfigCycle(minimal_cycle={"tasks": [ConfigCycleTask(task_a={})]})],
@@ -984,11 +982,8 @@ class ConfigWorkflow(BaseModel):
     _CONFIG_VAR_FILENAME: ClassVar[Literal["sirocco_vars.yaml"]] = "sirocco_vars.yaml"
 
     rootdir: Path
-    engine: Literal["standalone", "aiida"] = Field(
-        default="standalone",
-        description="Workflow execution engine to use.",
-    )
-    scheduler: Literal["slurm"] = "slurm"
+    # No default: only used by the standalone engine, which requires it
+    scheduler: Literal["slurm"] | None = None
     name: str
     cycles: Annotated[list[ConfigCycle], BeforeValidator(list_not_empty)]
     tasks: Annotated[list[ConfigTask], BeforeValidator(propagate_root_task_specs)]

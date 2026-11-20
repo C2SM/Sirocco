@@ -216,7 +216,8 @@ def serialize_workflow(
     if rootdir:
         serialized = serialized.replace(str(rootdir), "/TESTS_ROOTDIR")
 
-    config_paths["txt"].write_text(serialized)
+    # End with a newline, like files saved by editors, so that regenerated references give no spurious diff
+    config_paths["txt"].write_text(serialized.rstrip("\n") + "\n")
 
 
 def serialize_nml(config_paths: dict[str, pathlib.Path], workflow: workflow.Workflow) -> None:

@@ -1,0 +1,258 @@
+=== sirocco start
+submit icon__date_2026-01-01T00-00-00 (1001) after [] [ALL_COMPLETED]
+--- run script icon__date_2026-01-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=icon__date_2026-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2026-01-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2027-01-01T00:00:00+00:00
+
+true
+---
+submit icon__date_2027-01-01T00-00-00 (1002) after [] [ALL_COMPLETED]
+--- run script icon__date_2027-01-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=icon__date_2027-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2027-01-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2028-01-01T00:00:00+00:00
+
+true
+---
+submit Sirocco_continue (1003) after ['1001', '1002'] [ANY]
+--- run script Sirocco_continue
+#!/bin/bash -l
+
+#FAKE --job-name=Sirocco_continue --output=sirocco.log --mode=append
+
+export N_NODES=1
+
+
+sirocco continue --from_wf <ROOTDIR> || exit
+---
+status: CONTINUE
+--- state (continuation job 1003)
+front[0]:
+  icon[date=2026-01-01T00:00:00+00:00] (1001)
+  icon[date=2027-01-01T00:00:00+00:00] (1002)
+cool_down_tasks:
+completed_tasks:
+---
+# icon__date_2026-01-01T00-00-00 -> COMPLETED
+# icon__date_2027-01-01T00-00-00 -> COMPLETED
+
+=== sirocco continue
+submit waiter__date_2026-01-01T00-00-00 (1004) after [] [ALL_COMPLETED]
+--- run script waiter__date_2026-01-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=waiter__date_2026-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2026-01-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2026-07-01T00:00:00+00:00
+
+true
+---
+submit waiter__date_2026-07-01T00-00-00 (1005) after [] [ALL_COMPLETED]
+--- run script waiter__date_2026-07-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=waiter__date_2026-07-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2026-07-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2027-01-01T00:00:00+00:00
+
+true
+---
+submit biannual_postprocessing__date_2026-01-01T00-00-00 (1006) after [] [ALL_COMPLETED]
+--- run script biannual_postprocessing__date_2026-01-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=biannual_postprocessing__date_2026-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2026-01-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2026-07-01T00:00:00+00:00
+
+true
+---
+submit biannual_postprocessing__date_2026-07-01T00-00-00 (1007) after [] [ALL_COMPLETED]
+--- run script biannual_postprocessing__date_2026-07-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=biannual_postprocessing__date_2026-07-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2026-07-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2027-01-01T00:00:00+00:00
+
+true
+---
+submit waiter__date_2027-01-01T00-00-00 (1008) after [] [ALL_COMPLETED]
+--- run script waiter__date_2027-01-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=waiter__date_2027-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2027-01-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2027-07-01T00:00:00+00:00
+
+true
+---
+submit waiter__date_2027-07-01T00-00-00 (1009) after [] [ALL_COMPLETED]
+--- run script waiter__date_2027-07-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=waiter__date_2027-07-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2027-07-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2028-01-01T00:00:00+00:00
+
+true
+---
+submit biannual_postprocessing__date_2027-01-01T00-00-00 (1010) after [] [ALL_COMPLETED]
+--- run script biannual_postprocessing__date_2027-01-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=biannual_postprocessing__date_2027-01-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2027-01-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2027-07-01T00:00:00+00:00
+
+true
+---
+submit biannual_postprocessing__date_2027-07-01T00-00-00 (1011) after [] [ALL_COMPLETED]
+--- run script biannual_postprocessing__date_2027-07-01T00-00-00
+#!/bin/bash -l
+
+#FAKE --job-name=biannual_postprocessing__date_2027-07-01T00-00-00 --output=run_script.%j.o --mode=overwrite
+
+export N_NODES=1
+
+export SIROCCO_START_DATE=2027-07-01T00:00:00+00:00
+export SIROCCO_STOP_DATE=2028-01-01T00:00:00+00:00
+
+true
+---
+submit Sirocco_continue (1012) after ['1004', '1005', '1006', '1007', '1008', '1009', '1010', '1011'] [ANY]
+status: CONTINUE
+--- state (continuation job 1012)
+front[0]:
+  waiter[date=2026-01-01T00:00:00+00:00] (1004)
+  waiter[date=2026-07-01T00:00:00+00:00] (1005)
+  biannual_postprocessing[date=2026-01-01T00:00:00+00:00] (1006)
+  biannual_postprocessing[date=2026-07-01T00:00:00+00:00] (1007)
+  waiter[date=2027-01-01T00:00:00+00:00] (1008)
+  waiter[date=2027-07-01T00:00:00+00:00] (1009)
+  biannual_postprocessing[date=2027-01-01T00:00:00+00:00] (1010)
+  biannual_postprocessing[date=2027-07-01T00:00:00+00:00] (1011)
+cool_down_tasks:
+completed_tasks:
+  icon[date=2026-01-01T00:00:00+00:00] (1001)
+  icon[date=2027-01-01T00:00:00+00:00] (1002)
+---
+# waiter__date_2026-01-01T00-00-00 -> RUNNING
+
+=== sirocco stop
+cancel Sirocco_continue (1012)
+cancel waiter__date_2026-07-01T00-00-00 (1005)
+cancel biannual_postprocessing__date_2026-01-01T00-00-00 (1006)
+cancel biannual_postprocessing__date_2026-07-01T00-00-00 (1007)
+cancel waiter__date_2027-01-01T00-00-00 (1008)
+cancel waiter__date_2027-07-01T00-00-00 (1009)
+cancel biannual_postprocessing__date_2027-01-01T00-00-00 (1010)
+cancel biannual_postprocessing__date_2027-07-01T00-00-00 (1011)
+status: STOPPED
+--- state (continuation job _NO_ID_)
+front[0]:
+  waiter[date=2026-01-01T00:00:00+00:00] (1004)
+  waiter[date=2026-07-01T00:00:00+00:00] (1005)
+  biannual_postprocessing[date=2026-01-01T00:00:00+00:00] (1006)
+  biannual_postprocessing[date=2026-07-01T00:00:00+00:00] (1007)
+  waiter[date=2027-01-01T00:00:00+00:00] (1008)
+  waiter[date=2027-07-01T00:00:00+00:00] (1009)
+  biannual_postprocessing[date=2027-01-01T00:00:00+00:00] (1010)
+  biannual_postprocessing[date=2027-07-01T00:00:00+00:00] (1011)
+cool_down_tasks:
+  waiter[date=2026-01-01T00:00:00+00:00] (1004)
+completed_tasks:
+  icon[date=2026-01-01T00:00:00+00:00] (1001)
+  icon[date=2027-01-01T00:00:00+00:00] (1002)
+---
+
+=== sirocco restart
+cancel waiter__date_2026-07-01T00-00-00 (1005)
+submit waiter__date_2026-07-01T00-00-00 (1013) after [] [ALL_COMPLETED]
+cancel biannual_postprocessing__date_2026-01-01T00-00-00 (1006)
+submit biannual_postprocessing__date_2026-01-01T00-00-00 (1014) after [] [ALL_COMPLETED]
+cancel biannual_postprocessing__date_2026-07-01T00-00-00 (1007)
+submit biannual_postprocessing__date_2026-07-01T00-00-00 (1015) after [] [ALL_COMPLETED]
+cancel waiter__date_2027-01-01T00-00-00 (1008)
+submit waiter__date_2027-01-01T00-00-00 (1016) after [] [ALL_COMPLETED]
+cancel waiter__date_2027-07-01T00-00-00 (1009)
+submit waiter__date_2027-07-01T00-00-00 (1017) after [] [ALL_COMPLETED]
+cancel biannual_postprocessing__date_2027-01-01T00-00-00 (1010)
+submit biannual_postprocessing__date_2027-01-01T00-00-00 (1018) after [] [ALL_COMPLETED]
+cancel biannual_postprocessing__date_2027-07-01T00-00-00 (1011)
+submit biannual_postprocessing__date_2027-07-01T00-00-00 (1019) after [] [ALL_COMPLETED]
+submit Sirocco_continue (1020) after ['1004', '1013', '1014', '1015', '1016', '1017', '1018', '1019'] [ANY]
+status: CONTINUE
+--- state (continuation job 1020)
+front[0]:
+  waiter[date=2026-01-01T00:00:00+00:00] (1004)
+  waiter[date=2026-07-01T00:00:00+00:00] (1013)
+  biannual_postprocessing[date=2026-01-01T00:00:00+00:00] (1014)
+  biannual_postprocessing[date=2026-07-01T00:00:00+00:00] (1015)
+  waiter[date=2027-01-01T00:00:00+00:00] (1016)
+  waiter[date=2027-07-01T00:00:00+00:00] (1017)
+  biannual_postprocessing[date=2027-01-01T00:00:00+00:00] (1018)
+  biannual_postprocessing[date=2027-07-01T00:00:00+00:00] (1019)
+cool_down_tasks:
+completed_tasks:
+  icon[date=2026-01-01T00:00:00+00:00] (1001)
+  icon[date=2027-01-01T00:00:00+00:00] (1002)
+---
+# waiter__date_2026-01-01T00-00-00 -> COMPLETED
+# waiter__date_2026-07-01T00-00-00 -> COMPLETED
+# biannual_postprocessing__date_2026-01-01T00-00-00 -> COMPLETED
+# biannual_postprocessing__date_2026-07-01T00-00-00 -> COMPLETED
+# waiter__date_2027-01-01T00-00-00 -> COMPLETED
+# waiter__date_2027-07-01T00-00-00 -> COMPLETED
+# biannual_postprocessing__date_2027-01-01T00-00-00 -> COMPLETED
+# biannual_postprocessing__date_2027-07-01T00-00-00 -> COMPLETED
+
+=== sirocco continue
+status: COMPLETED
+--- state (continuation job _NO_ID_)
+front[0]:
+cool_down_tasks:
+completed_tasks:
+  icon[date=2026-01-01T00:00:00+00:00] (1001)
+  icon[date=2027-01-01T00:00:00+00:00] (1002)
+  waiter[date=2026-01-01T00:00:00+00:00] (1004)
+  waiter[date=2026-07-01T00:00:00+00:00] (1013)
+  biannual_postprocessing[date=2026-01-01T00:00:00+00:00] (1014)
+  biannual_postprocessing[date=2026-07-01T00:00:00+00:00] (1015)
+  waiter[date=2027-01-01T00:00:00+00:00] (1016)
+  waiter[date=2027-07-01T00:00:00+00:00] (1017)
+  biannual_postprocessing[date=2027-01-01T00:00:00+00:00] (1018)
+  biannual_postprocessing[date=2027-07-01T00:00:00+00:00] (1019)
+---
