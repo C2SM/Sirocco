@@ -1,0 +1,19 @@
+&master_nml
+    lrestart = .true.
+    read_restart_namelists = .true.
+/
+
+&master_time_control_nml
+    experimentstartdate = '2026-01-01T00:00:00Z'
+    experimentstopdate = '2026-01-03T00:00:00Z'
+    restarttimeintval = 'P1D'
+    checkpointtimeintval = 'P1D'
+/
+
+&master_model_nml
+    model_name = 'atm'
+    model_type = 1
+    model_namelist_filename = 'model.namelist'
+    model_min_rank = 0
+    model_max_rank = 7
+/

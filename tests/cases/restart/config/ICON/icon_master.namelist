@@ -1,0 +1,11 @@
+&master_nml
+ lrestart = .false.
+/
+&master_time_control_nml
+ experimentStartDate = '2026-01-01T00:00:00Z'
+/
+&master_model_nml
+ model_name = 'atm'
+ model_type = 1
+ model_namelist_filename = 'model.namelist'
+/
