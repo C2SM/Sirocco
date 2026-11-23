@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, TypeVar, cast
 
 from sirocco.parsing import cycling
-from sirocco.parsing.target_cycle import DateList, LagList, NoTargetCycle
+from sirocco.parsing.target_cycle import LagList, NoTargetCycle, TargetDateList
 from sirocco.parsing.yaml_data_models import (
     ConfigAvailableData,
     ConfigAvailableDataSpecs,
@@ -174,7 +174,7 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
         for comp_name, comp in self.components.items():
             if set(comp.inputs.keys()).intersection(comp.outputs.keys()):
                 msg = f"task {self.name}"
-                if comp_name == ConfigCycleTask.__SINGLE_COMPONENT_NAME__:
+                if comp_name != ConfigCycleTask.__SINGLE_COMPONENT_NAME__:
                     msg += f", component {comp_name}"
                 msg += f": port names must be unique, even between inputs and outputs.\ninputs ports: {comp.inputs.keys()}\noutputs ports: {comp.outputs.keys()}"
                 raise ValueError(msg)
@@ -385,10 +385,14 @@ class Array[GRAPH_ITEM_T: GraphItem]:
 
     def iter_from_cycle_spec(self, spec: TargetNodesBaseModel, ref_coordinates: dict) -> Iterator[GRAPH_ITEM_T]:
         # Check date references
-        if "date" not in self._dims and isinstance(spec.target_cycle, DateList | LagList):
+        if "date" not in self._dims and isinstance(spec.target_cycle, TargetDateList | LagList):
             msg = f"Array {self._name} has no date dimension, cannot be referenced by dates"
             raise ValueError(msg)
-        if "date" in self._dims and ref_coordinates.get("date") is None and not isinstance(spec.target_cycle, DateList):
+        if (
+            "date" in self._dims
+            and ref_coordinates.get("date") is None
+            and not isinstance(spec.target_cycle, TargetDateList)
+        ):
             msg = f"Array {self._name} has a date dimension, must be referenced by dates"
             raise ValueError(msg)
 
@@ -400,8 +404,9 @@ class Array[GRAPH_ITEM_T: GraphItem]:
             match spec.target_cycle:
                 case NoTargetCycle():
                     yield ref_coordinates["date"]
-                case DateList():
-                    yield from spec.target_cycle.dates
+                case TargetDateList():
+                    for date in spec.target_cycle.dates:
+                        yield date.resolve(ref_coordinates.get("date"))
                 case LagList():
                     for lag in spec.target_cycle.lags:
                         yield ref_coordinates["date"] + lag

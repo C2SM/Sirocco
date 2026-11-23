@@ -1,0 +1,48 @@
+start_date: &root_start_date '2026-01-01T00:00'
+stop_date: &root_stop_date '2028-01-01T00:00'
+scheduler: slurm
+cycles:
+  - yearly:
+      cycling:
+        start_date: *root_start_date
+        stop_date: *root_stop_date
+        period: P1Y
+      tasks:
+        - icon:
+            outputs:
+              output: [annual_icon]
+  - half_yearly:
+      cycling:
+        start_date: *root_start_date
+        stop_date: *root_stop_date
+        period: P6M
+      tasks:
+        - biannual_postprocessing:
+            inputs:
+              input:
+                - annual_icon:
+                    target_cycle:
+                      date: '%Y-01-01T00:00'
+        - waiter:
+            wait_on:
+              - icon:
+                  target_cycle:
+                    date: '%Y-01-01T00:00'
+tasks:
+  - icon:
+      plugin: shell
+      computer: localhost
+      command: 'true'
+  - biannual_postprocessing:
+      plugin: shell
+      computer: localhost
+      command: 'true'
+  - waiter:
+      plugin: shell
+      computer: localhost
+      command: 'true'
+data:
+  available: []
+  generated:
+    - annual_icon:
+        path: annual_icon
