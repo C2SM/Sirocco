@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import enum
+import json
 import logging
 import os
-import re
-import shlex
 import subprocess
+import sys
 from colorsys import hls_to_rgb
 from datetime import datetime
 from itertools import chain, product
@@ -94,7 +94,7 @@ class Workflow:
         config_sirocco_task: ConfigSiroccoTask | None = None,
     ) -> None:
         self.name: str = name
-        self._config_rootdir: Path = config_rootdir
+        self.config_rootdir: Path = config_rootdir
         self.scheduler = scheduler
         self.front_depth = front_depth
         self.front: list[list[Task]] = [[] for _ in range(self.front_depth)]
@@ -105,7 +105,7 @@ class Workflow:
         self.data: Store[Data] = Store()
         self.cycles: Store[Cycle] = Store()
         self.status: WorkflowStatus = WorkflowStatus.INIT
-        self.base_env: dict[str, str] = self.set_base_env()
+        self.base_env: dict[str, str] = self.set_bash_base_env()
 
         config_data_dict: dict[str, ConfigBaseData] = {
             data.name: data for data in chain(config_data.available, config_data.generated)
@@ -114,9 +114,11 @@ class Workflow:
 
         # Function to iterate over date and parameter combinations
         def iter_coordinates(cycle_point: CyclePoint, param_refs: list[str]) -> Iterator[dict]:
-            axes = {k: parameters[k] for k in param_refs}
-            if isinstance(cycle_point, DateCyclePoint):
-                axes["date"] = [cycle_point.chunk_start_date]
+            axes: dict[str, Any] = (
+                {"date": [cycle_point.chunk_start_date]} if isinstance(cycle_point, DateCyclePoint) else {}
+            )
+            axes.update({k: parameters[k] for k in sorted(param_refs)})
+
             yield from (dict(zip(axes.keys(), x, strict=False)) for x in product(*axes.values()))
 
         # 1 - create available data nodes
@@ -147,7 +149,7 @@ class Workflow:
                             raise TypeError(msg)
                         task = Task.from_config(
                             config=task_config,
-                            config_rootdir=self._config_rootdir,
+                            config_rootdir=self.config_rootdir,
                             cycle_point=cycle_point,
                             coordinates=coordinates,
                             datastore=self.data,
@@ -188,10 +190,6 @@ class Workflow:
             base_env=self.base_env,
             **config_kwargs,
         )
-
-    @property
-    def config_rootdir(self) -> Path:
-        return self._config_rootdir
 
     @property
     def rundir(self) -> Path:
@@ -457,43 +455,24 @@ class Workflow:
             self.status = WorkflowStatus.COMPLETED
 
     @staticmethod
-    def set_base_env() -> dict[str, str]:
-        """Set the base env from which to potentially submit tasks"""
+    def set_bash_base_env() -> dict[str, str]:
+        """Set the base env from which tasks are submitted"""
 
-        env_dict: dict[str, str] = {}
-
-        # Execute `env -i HOME=${HOME} USER=${USER} bash --login -c 'export -p'` from current process
+        current_python = sys.executable
         home = os.environ.get("HOME", "")
         user = os.environ.get("USER", "")
-        cmd = ["env", "-i", f"HOME={home}", f"USER={user}", "bash", "--login", "-c", "export -p"]
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        except subprocess.CalledProcessError as e:
-            msg = f"During set_base_env, command {cmd} failed with the following error:\n {e.stderr}"
-            raise RuntimeError(msg) from e
-
-        # Parse env into a dict
-        # Strip out "declare -xyz" or "export" from the beginning of the line
-        pattern = re.compile(r"^(declare -\S+|export)(?P<spec>.*)$")
-        for line in result.stdout.split("\n"):
-            spec = line.strip()
-            # Skip empty lines or comments
-            if not spec or spec.startswith("#"):
-                continue
-            if (m := pattern.match(spec)) is None:
-                msg = f"unrcognized pattern in the following line of the environment:\n{line}"
-                raise RuntimeError(msg)
-            spec = m.group("spec").strip()
-
-            # Use shlex to safely parse KEY="VALUE" considering internal quotes
-            try:
-                parsed = shlex.split(spec)
-                if parsed and "=" in parsed[0]:
-                    key, value = parsed[0].split("=", 1)
-                    env_dict[key] = value
-            except ValueError:
-                continue  # Skip malformed lines
-        return env_dict
+        cmd = [
+            "env",
+            "-i",
+            f"HOME={home}",
+            f"USER={user}",
+            "bash",
+            "--login",
+            "-c",
+            f"'{current_python}' -c 'import os, json; print(json.dumps(dict(os.environ)))'",
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        return json.loads(result.stdout)
 
     @classmethod
     def from_config_path(

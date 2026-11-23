@@ -11,7 +11,7 @@ from tests.unit import utils as test_utils
 @pytest.mark.usefixtures("config_case")
 @pytest.mark.parametrize(
     "config_case",
-    ["large"],
+    ["large", "coupled"],
 )
 def test_nml_mod(config_paths, tmp_path):
     """Test ICON namelist generation from IconTask."""

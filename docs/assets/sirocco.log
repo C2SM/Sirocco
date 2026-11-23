@@ -1,0 +1,112 @@
+                         ╭─────────────────────╮
+─────────────────────────┤ 2026-11-18 21:37:04 ├─────────────────────────
+                         ╰─────────────────────╯
+[38;2;255;159;64m⮞[0m Starting workflow at /scratch/user/example_config ...
+[INFO]  [38;2;102;163;255m●[0m pre proc__date_2026-01-01T00-00-00 (1039615) SUBMITTED to rank 0
+[INFO]  [38;2;102;163;255m●[0m pre proc__date_2026-03-01T00-00-00 (1039616) SUBMITTED to rank 0
+[INFO]  [38;2;34;122;255m●[0m model__date_2026-01-01T00-00-00 (1039617) SUBMITTED to rank 1
+[38;2;0;191;91m✔[0m  Workflow started successfully.
+                         ╭─────────────────────╮
+─────────────────────────┤ 2026-11-18 21:37:32 ├─────────────────────────
+                         ╰─────────────────────╯
+[38;2;255;159;64m⮞[0m Continue workflow ...
+[INFO]  [38;2;0;191;91m●[0m pre proc__date_2026-03-01T00-00-00 (1039616) COMPLETED
+[38;2;0;191;91m✔[0m  Workflow continuation submitted successfully.
+                         ╭─────────────────────╮
+─────────────────────────┤ 2026-11-18 21:37:41 ├─────────────────────────
+                         ╰─────────────────────╯
+[38;2;255;159;64m⮞[0m Continue workflow ...
+[INFO]  [38;2;0;191;91m●[0m pre proc__date_2026-01-01T00-00-00 (1039615) COMPLETED
+[INFO]  [38;2;102;163;255m●[0m model__date_2026-01-01T00-00-00 (1039617) PROMOTED from rank 1 to 0
+[INFO]  [38;2;34;122;255m●[0m pre proc__date_2026-05-01T00-00-00 (1039620) SUBMITTED to rank 1
+[INFO]  [38;2;34;122;255m●[0m model__date_2026-03-01T00-00-00 (1039621) SUBMITTED to rank 1
+[38;2;0;191;91m✔[0m  Workflow continuation submitted successfully.
+                         ╭─────────────────────╮
+─────────────────────────┤ 2026-11-18 21:38:54 ├─────────────────────────
+                         ╰─────────────────────╯
+[38;2;255;159;64m⮞[0m Continue workflow ...
+[INFO]  [38;2;0;191;91m●[0m model__date_2026-01-01T00-00-00 (1039617) COMPLETED
+[INFO]  [38;2;102;163;255m●[0m pre proc__date_2026-05-01T00-00-00 (1039620) PROMOTED from rank 1 to 0
+[INFO]  [38;2;102;163;255m●[0m model__date_2026-03-01T00-00-00 (1039621) PROMOTED from rank 1 to 0
+[INFO]  [38;2;34;122;255m●[0m model__date_2026-05-01T00-00-00 (1039623) SUBMITTED to rank 1
+[INFO]  [38;2;34;122;255m●[0m pre proc__date_2026-07-01T00-00-00 (1039624) SUBMITTED to rank 1
+[INFO]  [38;2;34;122;255m●[0m post proc__date_2026-01-01T00-00-00 (1039625) SUBMITTED to rank 1
+[38;2;0;191;91m✔[0m  Workflow continuation submitted successfully.
+                         ╭─────────────────────╮
+─────────────────────────┤ 2026-11-18 21:39:19 ├─────────────────────────
+                         ╰─────────────────────╯
+[38;2;255;159;64m⮞[0m Continue workflow ...
+[INFO]  [38;2;0;191;91m●[0m pre proc__date_2026-05-01T00-00-00 (1039620) COMPLETED
+[38;2;0;191;91m✔[0m  Workflow continuation submitted successfully.
+                         ╭─────────────────────╮
+─────────────────────────┤ 2026-11-18 21:39:34 ├─────────────────────────
+                         ╰─────────────────────╯
+[38;2;255;159;64m⮞[0m Stopping workflow at /scratch/user/example_config in cool down mode ...
+[INFO]  [38;2;102;163;255m●[0m model__date_2026-03-01T00-00-00 (1039621) COOLING DOWN
+[INFO]  [38;2;255;87;87m●[0m model__date_2026-05-01T00-00-00 (1039623) CANCELED
+[INFO]  [38;2;255;87;87m●[0m pre proc__date_2026-07-01T00-00-00 (1039624) CANCELED
+[INFO]  [38;2;255;87;87m●[0m post proc__date_2026-01-01T00-00-00 (1039625) CANCELED
+[38;2;0;191;91m✔[0m  Workflow stopped successfully.
+                         ╭─────────────────────╮
+─────────────────────────┤ 2026-11-18 21:40:24 ├─────────────────────────
+                         ╰─────────────────────╯
+[38;2;255;159;64m⮞[0m Restarting workflow at /scratch/user/example_config ...
+[INFO]  [38;2;102;163;255m●[0m model__date_2026-03-01T00-00-00 (1039621) CONTINUED as rank 0 from cool-down
+[INFO]  [38;2;34;122;255m●[0m model__date_2026-05-01T00-00-00 (1039628) SUBMITTED to rank 1
+[INFO]  [38;2;34;122;255m●[0m pre proc__date_2026-07-01T00-00-00 (1039629) SUBMITTED to rank 1
+[INFO]  [38;2;34;122;255m●[0m post proc__date_2026-01-01T00-00-00 (1039630) SUBMITTED to rank 1
+[INFO]  [38;2;0;191;91m●[0m model__date_2026-03-01T00-00-00 (1039621) COMPLETED
+[INFO]  [38;2;102;163;255m●[0m model__date_2026-05-01T00-00-00 (1039628) PROMOTED from rank 1 to 0
+[INFO]  [38;2;102;163;255m●[0m pre proc__date_2026-07-01T00-00-00 (1039629) PROMOTED from rank 1 to 0
+[INFO]  [38;2;102;163;255m●[0m post proc__date_2026-01-01T00-00-00 (1039630) PROMOTED from rank 1 to 0
+[INFO]  [38;2;34;122;255m●[0m model__date_2026-07-01T00-00-00 (1039631) SUBMITTED to rank 1
+[INFO]  [38;2;34;122;255m●[0m clean up__date_2026-01-01T00-00-00 (1039632) SUBMITTED to rank 1
+[38;2;0;191;91m✔[0m  Workflow restarted successfully.
+                         ╭─────────────────────╮
+─────────────────────────┤ 2026-11-18 21:40:55 ├─────────────────────────
+                         ╰─────────────────────╯
+[38;2;255;159;64m⮞[0m Continue workflow ...
+[INFO]  [38;2;0;191;91m●[0m pre proc__date_2026-07-01T00-00-00 (1039629) COMPLETED
+[38;2;0;191;91m✔[0m  Workflow continuation submitted successfully.
+                         ╭─────────────────────╮
+─────────────────────────┤ 2026-11-18 21:41:03 ├─────────────────────────
+                         ╰─────────────────────╯
+[38;2;255;159;64m⮞[0m Continue workflow ...
+[INFO]  [38;2;0;191;91m●[0m post proc__date_2026-01-01T00-00-00 (1039630) COMPLETED
+[INFO]  [38;2;102;163;255m●[0m clean up__date_2026-01-01T00-00-00 (1039632) PROMOTED from rank 1 to 0
+[38;2;0;191;91m✔[0m  Workflow continuation submitted successfully.
+                         ╭─────────────────────╮
+─────────────────────────┤ 2026-11-18 21:41:11 ├─────────────────────────
+                         ╰─────────────────────╯
+[38;2;255;159;64m⮞[0m Continue workflow ...
+[INFO]  [38;2;0;191;91m●[0m clean up__date_2026-01-01T00-00-00 (1039632) COMPLETED
+[38;2;0;191;91m✔[0m  Workflow continuation submitted successfully.
+                         ╭─────────────────────╮
+─────────────────────────┤ 2026-11-18 21:41:37 ├─────────────────────────
+                         ╰─────────────────────╯
+[38;2;255;159;64m⮞[0m Continue workflow ...
+[INFO]  [38;2;0;191;91m●[0m model__date_2026-05-01T00-00-00 (1039628) COMPLETED
+[INFO]  [38;2;102;163;255m●[0m model__date_2026-07-01T00-00-00 (1039631) PROMOTED from rank 1 to 0
+[INFO]  [38;2;34;122;255m●[0m post proc__date_2026-05-01T00-00-00 (1039637) SUBMITTED to rank 1
+[38;2;0;191;91m✔[0m  Workflow continuation submitted successfully.
+                         ╭─────────────────────╮
+─────────────────────────┤ 2026-11-18 21:42:56 ├─────────────────────────
+                         ╰─────────────────────╯
+[38;2;255;159;64m⮞[0m Continue workflow ...
+[INFO]  [38;2;0;191;91m●[0m model__date_2026-07-01T00-00-00 (1039631) COMPLETED
+[INFO]  [38;2;102;163;255m●[0m post proc__date_2026-05-01T00-00-00 (1039637) PROMOTED from rank 1 to 0
+[INFO]  [38;2;34;122;255m●[0m clean up__date_2026-05-01T00-00-00 (1039639) SUBMITTED to rank 1
+[38;2;0;191;91m✔[0m  Workflow continuation submitted successfully.
+                         ╭─────────────────────╮
+─────────────────────────┤ 2026-11-18 21:43:29 ├─────────────────────────
+                         ╰─────────────────────╯
+[38;2;255;159;64m⮞[0m Continue workflow ...
+[INFO]  [38;2;0;191;91m●[0m post proc__date_2026-05-01T00-00-00 (1039637) COMPLETED
+[INFO]  [38;2;102;163;255m●[0m clean up__date_2026-05-01T00-00-00 (1039639) PROMOTED from rank 1 to 0
+[38;2;0;191;91m✔[0m  Workflow continuation submitted successfully.
+                         ╭─────────────────────╮
+─────────────────────────┤ 2026-11-18 21:43:46 ├─────────────────────────
+                         ╰─────────────────────╯
+[38;2;255;159;64m⮞[0m Continue workflow ...
+[INFO]  [38;2;0;191;91m●[0m clean up__date_2026-05-01T00-00-00 (1039639) COMPLETED
+[38;2;0;191;91m✔[0m  Workflow completed!
