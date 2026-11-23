@@ -33,8 +33,7 @@ from sirocco.engines.standalone.plugin_handlers.plugin_handler import PluginHand
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
-    from sirocco.core.graph_items import Data
-    from sirocco.core.tasks.icon_task.models import IconModel
+    from sirocco import core
 
 
 class IconHandler(PluginHandler[IconTask]):
@@ -84,7 +83,7 @@ class IconHandler(PluginHandler[IconTask]):
         if self.task.target == "hybrid":
             (rundir / launch.MULTI_PROG_CONFIG).write_text(launch.multi_prog_content(self.task))
 
-    def apply_port(self, port_name: str, model: IconModel) -> None:
+    def apply_port(self, port_name: str, model: core.IconModel) -> None:
         """Apply port `port_name` of `model` and set the paths of the output data it resolves"""
         # NOTE: keep check as explicit step here before refactoring ports and checking at parsing time
         IconPort.check(port_name, model)
@@ -134,7 +133,7 @@ class IconPortHandler:
             raise ValueError(msg)
         IconPortHandler.registered_handlers[port.port_name] = cls(port)
 
-    def __call__(self, model: IconModel, rundir: Path, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:
+    def __call__(self, model: core.IconModel, rundir: Path, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:
         """Apply the port of `model` in `rundir` and return the paths of the output data it resolves
 
         `input_paths`: resolved paths of the port input data, by data label
@@ -172,7 +171,7 @@ class IconPortHandler:
 
 
 class RestartPortHandler(IconPortHandler):
-    def get_restart_data[D: Data](self, model: IconModel, data_list: Sequence[D]) -> D | None:
+    def get_restart_data[D: core.Data](self, model: core.IconModel, data_list: Sequence[D]) -> D | None:
         """The single data node of the port, if any, after checking the restart mode of `model`"""
         restart_write_mode = model.namelist["io_nml"].get("restart_write_mode")
         if restart_write_mode != "joint procs multifile":
@@ -187,14 +186,14 @@ class RestartPortHandler(IconPortHandler):
         return data_list[0]
 
     @staticmethod
-    def restart_path(model: IconModel, rundir: Path) -> Path:
+    def restart_path(model: core.IconModel, rundir: Path) -> Path:
         return rundir / f"multifile_restart_{model.name}.mfr"
 
 
 class RestartInPortHandler(RestartPortHandler):
     special_port = core_icon_ports.restart_in_port
 
-    def __call__(self, model: IconModel, rundir: Path, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:
+    def __call__(self, model: core.IconModel, rundir: Path, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:
         if (data := self.get_restart_data(model, model.inputs[self.port.port_name])) is not None:
             self.restart_path(model, rundir).symlink_to(input_paths[data.label])
         return []
@@ -203,7 +202,7 @@ class RestartInPortHandler(RestartPortHandler):
 class RestartOutPortHandler(RestartPortHandler):
     special_port = core_icon_ports.restart_out_port
 
-    def __call__(self, model: IconModel, rundir: Path, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:  # noqa: ARG002
+    def __call__(self, model: core.IconModel, rundir: Path, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:  # noqa: ARG002
         if (data := self.get_restart_data(model, model.outputs[self.port.port_name])) is None:
             return []
         return [(data, self.restart_path(model, rundir))]
@@ -212,7 +211,7 @@ class RestartOutPortHandler(RestartPortHandler):
 class OutputStreamsPortHandler(IconPortHandler):
     special_port = core_icon_ports.output_streams_port
 
-    def __call__(self, model: IconModel, rundir: Path, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:  # noqa: ARG002
+    def __call__(self, model: core.IconModel, rundir: Path, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:  # noqa: ARG002
         output_data = model.outputs[self.port.port_name]
         nml_streams = [*model.namelist.iter_nml("output_nml")]
         if (n_nml := len(nml_streams)) != (n_yaml := len(output_data)):
@@ -239,7 +238,7 @@ class OutputStreamsPortHandler(IconPortHandler):
 class FinishStatusPortHandler(IconPortHandler):
     special_port = core_icon_ports.finish_status_port
 
-    def __call__(self, model: IconModel, rundir: Path, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:  # noqa: ARG002
+    def __call__(self, model: core.IconModel, rundir: Path, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:  # noqa: ARG002
         if len(output_data := model.outputs[self.port.port_name]) != 1:
             msg = f"port {self.port.port_name} accepts one and only one data object"
             raise ValueError(msg)

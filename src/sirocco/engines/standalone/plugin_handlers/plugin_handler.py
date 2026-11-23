@@ -21,7 +21,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar, TypeVar, get_args, get_origin
 
-from sirocco.core.graph_items import Task
+from sirocco import core
 from sirocco.parsing import cycling
 
 if TYPE_CHECKING:
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 
 @dataclass(kw_only=True)
-class PluginHandler[T: Task](ABC):
+class PluginHandler[T: core.Task](ABC):
     """Standalone engine behaviour for one task of type `T`"""
 
     handler_classes: ClassVar[dict[str, type[PluginHandler[Any]]]] = {}
@@ -53,7 +53,7 @@ class PluginHandler[T: Task](ABC):
         )
         if task_class is None or isinstance(task_class, TypeVar):
             return  # Task class not given here (inherited from a parent handler, or left generic): nothing to register
-        if not (isinstance(task_class, type) and issubclass(task_class, Task)):
+        if not (isinstance(task_class, type) and issubclass(task_class, core.Task)):
             msg = f"{cls.__name__}: `PluginHandler` must be parametrized with a `Task` subclass, got {task_class!r}"
             raise TypeError(msg)
         plugin = task_class.plugin
@@ -63,7 +63,7 @@ class PluginHandler[T: Task](ABC):
         PluginHandler.handler_classes[plugin] = cls
 
     @staticmethod
-    def from_core_task(task: Task, engine: StandaloneEngine) -> PluginHandler[Any]:
+    def from_core_task(task: core.Task, engine: StandaloneEngine) -> PluginHandler[Any]:
         """Handler of `task`, of the class registered for its plugin"""
         if (handler_class := PluginHandler.handler_classes.get(task.plugin)) is None:
             msg = f"standalone engine: no handler for plugin {task.plugin!r}"

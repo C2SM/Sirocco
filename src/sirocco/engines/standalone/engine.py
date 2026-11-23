@@ -42,7 +42,7 @@ from sirocco.parsing.yaml_data_models import ConfigSiroccoTask, ConfigWorkflow
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from sirocco.core import Data, Task
+    from sirocco import core
 
 
 class WorkflowStatus(enum.Enum):
@@ -90,7 +90,7 @@ class TaskHandlerTable:
         self.engine = engine
         self._task_handlers: dict[str, PluginHandler] = {}
 
-    def __getitem__(self, task: Task) -> PluginHandler:
+    def __getitem__(self, task: core.Task) -> PluginHandler:
         if (task_handler := self._task_handlers.get(task.label)) is None:
             task_handler = self._task_handlers[task.label] = PluginHandler.from_core_task(task, self.engine)
         return task_handler
@@ -112,7 +112,7 @@ class DataPathTable:
         self.task_handlers = task_handlers
         self._paths: dict[str, Path] = {}
 
-    def __getitem__(self, data: Data) -> Path:
+    def __getitem__(self, data: core.Data) -> Path:
         if data.label not in self._paths:
             self._resolve(data)
             if data.label not in self._paths:
@@ -120,7 +120,7 @@ class DataPathTable:
                 raise ValueError(msg)
         return self._paths[data.label]
 
-    def __setitem__(self, data: Data, path: Path) -> None:
+    def __setitem__(self, data: core.Data, path: Path) -> None:
         """Set the resolved path of a data node
 
         Setting it again is allowed, e.g. ICON output ports are applied both when resolving
@@ -135,7 +135,7 @@ class DataPathTable:
             raise ValueError(msg)
         self._paths[data.label] = path
 
-    def _resolve(self, data: Data) -> None:
+    def _resolve(self, data: core.Data) -> None:
         match data:
             case AvailableData():
                 self[data] = data.path
@@ -165,7 +165,7 @@ class StandaloneEngine:
         self.front = Front(self.front_depth)
         self.task_handlers = TaskHandlerTable(self)
         self.data_paths = DataPathTable(self.task_handlers)
-        self.cool_down_tasks: list[Task] = []
+        self.cool_down_tasks: list[core.Task] = []
         self.status: WorkflowStatus = WorkflowStatus.INIT
         self.logger: logging.Logger = logging.getLogger(__name__)  # set by each command
 
@@ -234,7 +234,7 @@ class StandaloneEngine:
 
     def submit(
         self,
-        task: Task,
+        task: core.Task,
         stdouterr_mode: STDOUTERR_MODE_T = "overwrite",
         dependency_type: DEPENDENCY_TYPE_T = "ALL_COMPLETED",
     ) -> None:
@@ -247,10 +247,10 @@ class StandaloneEngine:
             dependency_type=dependency_type,
         )
 
-    def get_status(self, task: Task) -> TaskStatus:
+    def get_status(self, task: core.Task) -> TaskStatus:
         return self.scheduler.get_status(task, self.jobids[task])
 
-    def cancel(self, task: Task) -> None:
+    def cancel(self, task: core.Task) -> None:
         self.scheduler.cancel(task, self.jobids[task])
 
     # =========== Paths ===========
@@ -366,7 +366,7 @@ class StandaloneEngine:
 
         return logger
 
-    def log_task(self, task: Task, action: str, status: Literal["COMPLETED", "FRONT", "FAILED"] = "FRONT") -> None:
+    def log_task(self, task: core.Task, action: str, status: Literal["COMPLETED", "FRONT", "FAILED"] = "FRONT") -> None:
         """Log what happens to a task, with a point colored after `status` (and the task rank in the front)"""
         point = StatusPoint.from_status(status, self.front.rank(task) if status == "FRONT" else None)
         self.logger.info(f"{point} {task.label} ({self.jobids[task]}) {action}")  # noqa: G004
@@ -406,7 +406,7 @@ class StandaloneEngine:
         # Cool-down tasks are also listed in the front or among the completed tasks, which give their rank
         self.cool_down_tasks = [self.task_from_yaml_state(yaml_task) for yaml_task in yaml_state["cool_down_tasks"]]
 
-    def task_to_yaml_state(self, task: Task) -> dict[str, dict[str, Any]]:
+    def task_to_yaml_state(self, task: core.Task) -> dict[str, dict[str, Any]]:
         """Task entry of the state file: the task identity (name and coordinates) and its job id"""
         return {
             task.name: {
@@ -415,7 +415,7 @@ class StandaloneEngine:
             }
         }
 
-    def task_from_yaml_state(self, yaml_task: dict[str, dict[str, Any]]) -> Task:
+    def task_from_yaml_state(self, yaml_task: dict[str, dict[str, Any]]) -> core.Task:
         """Graph task of a state file entry, its job id restored"""
         name, yaml_specs = next(iter(yaml_task.items()))
         coordinates = {k: datetime.fromisoformat(v) if k == "date" else v for k, v in yaml_specs["coordinates"].items()}
@@ -423,13 +423,13 @@ class StandaloneEngine:
         self.jobids[task] = yaml_specs["jobid"]
         return task
 
-    def add_to_front(self, task: Task, rank: int) -> None:
+    def add_to_front(self, task: core.Task, rank: int) -> None:
         """Submit `task` and add it to generation `rank` of the front"""
         self.front.add(task, rank)
         self.submit(task)
         self.log_task(task, f"SUBMITTED to rank {rank}")
 
-    def extend_front(self, rank: int, parents: list[Task]) -> None:
+    def extend_front(self, rank: int, parents: list[core.Task]) -> None:
         """Add to generation `rank` the children of `parents` that belong there and are not submitted yet"""
         for parent in parents:
             for child in parent.children:
@@ -467,7 +467,7 @@ class StandaloneEngine:
         """Propagate front of submitted tasks and submit new ones"""
 
         # Handle first generation of the front
-        newly_completed: list[Task] = []
+        newly_completed: list[core.Task] = []
         for task in self.front[0]:
             if (status := self.get_status(task)) == TaskStatus.FAILED:
                 self.log_task(task, "FAILED", status="FAILED")
