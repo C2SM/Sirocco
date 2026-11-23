@@ -48,7 +48,6 @@ class Scheduler(ABC):
         dependency_type: DEPENDENCY_TYPE_T = "ALL_COMPLETED",
     ) -> str:
         """Submit a task from environment `env` and return its job id"""
-
         # Prepare for submission (create or wipe the run directory, link/copy necessary files/dirs, ...)
         task_handler.prepare_rundir()
         self.generate_run_script(task_handler, stdouterr_mode=stdouterr_mode)
@@ -189,7 +188,6 @@ class Slurm(Scheduler):
 
     def cancel(self, task: Task, jobid: str):
         """Cancel a submitted task"""
-
         if jobid == NO_ID:
             msg = f"task {task.label} cannot be canceled as it does not have a jobid"
             raise ValueError(msg)
@@ -197,7 +195,6 @@ class Slurm(Scheduler):
 
     def get_status(self, task: Task, jobid: str) -> TaskStatus:
         """Infer task status using sacct"""
-
         result = self.run_command(
             [
                 "sacct",

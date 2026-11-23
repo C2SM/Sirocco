@@ -152,7 +152,6 @@ class StandaloneEngine:
         """Clean login environment from which all tasks are submitted
 
         Computed on first submission only, so that read-only commands (e.g. stviz) don't spawn a login shell."""
-
         current_python = sys.executable
         home = os.environ.get("HOME", "")
         user = os.environ.get("USER", "")
@@ -290,7 +289,6 @@ class StandaloneEngine:
 
         - either for stdout/stderr
         - or for both stdout/stderr and sirocco log file (like tee)"""
-
         log_formatter = logging.Formatter("[%(levelname)s]  %(message)s")
 
         console_handler = logging.StreamHandler()
@@ -379,7 +377,6 @@ class StandaloneEngine:
 
     def init_front(self) -> None:
         """Populate front and submit corresponding tasks"""
-
         for task in self.workflow.tasks:
             if not task.parents:
                 self.add_to_front(task, 0)
@@ -388,7 +385,6 @@ class StandaloneEngine:
 
     def restart_front(self) -> None:
         """Submit all tasks currently in the front"""
-
         for generation in self.front:
             for task in generation:
                 # Do not resubmit tasks in cool down mode
@@ -406,7 +402,6 @@ class StandaloneEngine:
 
     def propagate_front(self) -> None:
         """Propagate front of submitted tasks and submit new ones"""
-
         # Handle first generation of the front
         newly_completed: list[core.Task] = []
         for task in self.front[0]:
@@ -436,7 +431,6 @@ class StandaloneEngine:
 
     def cancel_all_tasks(self, mode: Literal["cancel", "cool-down"]) -> None:
         """Cancel all workflow tasks except cool-down tasks"""
-
         for generation in self.front:
             for task in generation:
                 if (
@@ -452,7 +446,6 @@ class StandaloneEngine:
 
     def auto_submit(self) -> None:
         """Submit next Sirocco task"""
-
         if self.status == WorkflowStatus.FAILED:
             self.jobids[self.sirocco_continue_task] = NO_ID
         elif self.front[0]:
