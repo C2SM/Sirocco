@@ -138,7 +138,7 @@ def minimal_invert_task_io_config() -> models.ConfigWorkflow:
 
 
 # configs that are tested for parsing
-ALL_CONFIG_CASES = ["small-shell", "parameters", "large", "partial-dates"]
+ALL_CONFIG_CASES = ["small-shell", "parameters", "large", "partial-dates", "coupled"]
 
 
 @pytest.fixture(params=ALL_CONFIG_CASES)
