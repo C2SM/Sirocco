@@ -21,8 +21,27 @@ def test_no_handler():
 def test_duplicate_registration():
     with pytest.raises(ValueError, match="already registered"):
 
-        class OtherShellHandler(ShellHandler):
-            task_type = ShellTask
+        class OtherShellHandler(PluginHandler[ShellTask]):
+            pass
+
+
+def test_invalid_parametrization():
+    with pytest.raises(TypeError, match="must be parametrized with a `Task` subclass"):
+
+        class ForwardRefHandler(PluginHandler["ShellTask"]):
+            pass
+
+
+def test_no_registration_without_task_class():
+    registered = dict(PluginHandler.handler_classes)
+
+    class DerivedShellHandler(ShellHandler):
+        pass
+
+    class GenericHandler[T: Task](PluginHandler[T]):
+        pass
+
+    assert PluginHandler.handler_classes == registered
 
 
 def test_sirocco_task_runs_from_config_dir(tmp_path, test_rootdir):

@@ -8,10 +8,7 @@ from sirocco.core.tasks.shell_task import ShellTask
 from sirocco.engines.standalone.plugin_handlers.plugin_handler import PluginHandler
 
 
-class ShellHandler(PluginHandler):
-    task_type = ShellTask
-    task: ShellTask
-
+class ShellHandler(PluginHandler[ShellTask]):
     def resolve_output_paths(self) -> None:
         for data in self.task.output_data_nodes():
             if data.path is None:

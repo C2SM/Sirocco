@@ -37,10 +37,7 @@ if TYPE_CHECKING:
     from sirocco.core.tasks.icon_task.models import IconModel
 
 
-class IconHandler(PluginHandler):
-    task_type = IconTask
-    task: IconTask
-
+class IconHandler(PluginHandler[IconTask]):
     # The uenv is not set by the scheduler but passed to the runtime scripts (ICON_UENV),
     # together with the mount points of the squashed images
     scheduler_uenv: ClassVar[bool] = False

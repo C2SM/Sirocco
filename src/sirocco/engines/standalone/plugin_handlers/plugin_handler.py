@@ -1,8 +1,10 @@
 """Task handlers: what the standalone engine does with each kind of task.
 
 A `PluginHandler` subclass implements the plugin specific parts (abstract methods) and
-may override the generic ones (normal methods and class variables). Each subclass sets
-the task type it handles with `task_type`, which registers it at class creation. The
+may override the generic ones (normal methods and class variables). A subclass
+parametrizes `PluginHandler` with the task class it handles, e.g.
+`ShellHandler(PluginHandler[ShellTask])`, which types its `task` attribute and registers it
+at class creation for the plugin of that task class. The
 built-in handlers are the other modules of this package, imported by
 `sirocco.engines.standalone`.
 
@@ -14,23 +16,25 @@ engine also holds what all of them share: the run root and the resolved data pat
 from __future__ import annotations
 
 import shutil
+import types
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, ClassVar
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, ClassVar, TypeVar, get_args, get_origin
 
+from sirocco.core.graph_items import Task
 from sirocco.parsing import cycling
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from sirocco.core.graph_items import Task
     from sirocco.engines.standalone.engine import StandaloneEngine
 
 
-class PluginHandler(ABC):
-    """Standalone engine behaviour for one task"""
+@dataclass(kw_only=True)
+class PluginHandler[T: Task](ABC):
+    """Standalone engine behaviour for one task of type `T`"""
 
-    handler_classes: ClassVar[dict[type[Task], type[PluginHandler]]] = {}
-    task_type: ClassVar[type[Task] | None] = None  # Set by subclasses handling a task type
+    handler_classes: ClassVar[dict[str, type[PluginHandler[Any]]]] = {}
 
     # Submission settings
     submit_filename: ClassVar[str] = "run_script.sh"
@@ -38,26 +42,33 @@ class PluginHandler(ABC):
     clean_up_rundir: ClassVar[bool] = True  # Wipe the run directory before preparing it
     scheduler_uenv: ClassVar[bool] = True  # Let the scheduler start the job in the task uenv and view
 
+    task: T
+    engine: StandaloneEngine
+
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
-        if (task_type := cls.task_type) is None:
-            return  # Intermediate or test class, handles no task type of its own
-        if task_type in PluginHandler.handler_classes:
-            msg = f"standalone engine: handler for {task_type.__name__} already registered"
+        task_class = next(
+            (get_args(base)[0] for base in types.get_original_bases(cls) if get_origin(base) is PluginHandler),
+            None,
+        )
+        if task_class is None or isinstance(task_class, TypeVar):
+            return  # Task class not given here (inherited from a parent handler, or left generic): nothing to register
+        if not (isinstance(task_class, type) and issubclass(task_class, Task)):
+            msg = f"{cls.__name__}: `PluginHandler` must be parametrized with a `Task` subclass, got {task_class!r}"
+            raise TypeError(msg)
+        plugin = task_class.plugin
+        if plugin in PluginHandler.handler_classes:
+            msg = f"standalone engine: handler for plugin {plugin!r} already registered"
             raise ValueError(msg)
-        PluginHandler.handler_classes[task_type] = cls
+        PluginHandler.handler_classes[plugin] = cls
 
     @staticmethod
-    def handler_class(task: Task) -> type[PluginHandler]:
-        """Handler class registered for the type of `task`"""
-        if (handler_class := PluginHandler.handler_classes.get(type(task))) is None:
+    def handler_class(task: Task) -> type[PluginHandler[Any]]:
+        """Handler class registered for the plugin of `task`"""
+        if (handler_class := PluginHandler.handler_classes.get(task.plugin)) is None:
             msg = f"standalone engine: no handler for plugin {task.plugin!r}"
             raise NotImplementedError(msg)
         return handler_class
-
-    def __init__(self, task: Task, engine: StandaloneEngine) -> None:
-        self.task = task
-        self.engine = engine
 
     # =========== Plugin specific ===========
 

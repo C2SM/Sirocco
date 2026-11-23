@@ -38,10 +38,7 @@ class SiroccoContinueTask(models.ConfigSiroccoTaskSpecs, Task):
         self.label = "Sirocco_continue"
 
 
-class SiroccoTaskHandler(PluginHandler):
-    task_type = SiroccoContinueTask
-    task: SiroccoContinueTask
-
+class SiroccoTaskHandler(PluginHandler[SiroccoContinueTask]):
     submit_filename = SiroccoContinueTask.SUBMIT_FILENAME
     stdouterr_filename = SiroccoContinueTask.STDOUTERR_FILENAME
     clean_up_rundir = False  # The run directory is the config directory, never wipe it
