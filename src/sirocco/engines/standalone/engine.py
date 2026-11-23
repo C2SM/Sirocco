@@ -35,7 +35,7 @@ from termcolor import colored
 from sirocco.core.workflow import Workflow
 from sirocco.engines.standalone.plugin_handlers import SiroccoContinueTask
 from sirocco.engines.standalone.scheduler import DEPENDENCY_TYPE_T, STDOUTERR_MODE_T, Scheduler
-from sirocco.engines.standalone.state import NO_ID, Front, JobIdTable, TaskStatus
+from sirocco.engines.standalone.state import COMPLETED, NO_ID, Front, JobIdTable, TaskStatus
 from sirocco.engines.standalone.tables import DataPathTable, TaskHandlerTable
 from sirocco.parsing.cycling import OneOffPoint
 from sirocco.parsing.yaml_data_models import ConfigSiroccoTask, ConfigWorkflow
@@ -340,10 +340,10 @@ class StandaloneEngine:
         self.jobids[self.sirocco_continue_task] = yaml_state["sirocco_jobid"]
         self.front = Front(depth=self.front_depth)
         for yaml_task in yaml_state["completed_tasks"]:
-            self.front.add(self.task_from_yaml_state(yaml_task), -1)
+            self.front.promote(self.task_from_yaml_state(yaml_task), COMPLETED)
         for k, yaml_generation in enumerate(yaml_state["front"]):
             for yaml_task in yaml_generation:
-                self.front.add(self.task_from_yaml_state(yaml_task), k)
+                self.front.promote(self.task_from_yaml_state(yaml_task), k)
         # Cool-down tasks are also listed in the front or among the completed tasks, which give their rank
         self.cool_down_tasks = [self.task_from_yaml_state(yaml_task) for yaml_task in yaml_state["cool_down_tasks"]]
 
@@ -366,7 +366,7 @@ class StandaloneEngine:
 
     def add_to_front(self, task: core.Task, rank: int) -> None:
         """Submit `task` and add it to generation `rank` of the front"""
-        self.front.add(task, rank)
+        self.front.promote(task, rank)
         self.submit(task)
         self.log_task(task, f"SUBMITTED to rank {rank}")
 
@@ -419,14 +419,14 @@ class StandaloneEngine:
             if status == TaskStatus.COMPLETED:
                 newly_completed.append(task)
         for task in newly_completed:
-            self.front.complete(task)
+            self.front.promote(task, COMPLETED)
             self.log_task(task, "COMPLETED", status="COMPLETED")
 
         # Promote tasks of the next generations by one generation once their parents allow it
         for k in range(1, self.front_depth):
             to_promote = [task for task in self.front[k] if self.front.generation_after_parents(task) == k - 1]
             for task in to_promote:
-                self.front.promote(task)
+                self.front.promote(task, k - 1)
                 self.log_task(task, f"PROMOTED from rank {k} to {k - 1}")
 
         # Add new tasks to the last generation of the front, from the generation before it.

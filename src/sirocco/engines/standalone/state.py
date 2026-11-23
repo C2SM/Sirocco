@@ -25,6 +25,8 @@ if TYPE_CHECKING:
     from sirocco.core.graph_items import Task
 
 NO_ID = "_NO_ID_"
+COMPLETED = -1
+"""Rank of the tasks the front already left behind"""
 
 
 class TaskStatus(enum.Enum):
@@ -56,8 +58,8 @@ class Front:
     `front[k]` is generation `k`: generation 0 holds the running or queued tasks, the next
     ones the tasks submitted ahead of time (see the orchestration documentation).
 
-    The rank of a task follows from where it is: `k` in generation `k`, -1 once completed
-    and `depth` while not submitted yet. Tasks only move through the methods below, so the
+    The rank of a task follows from where it is: `k` in generation `k`, `COMPLETED` (-1) once
+    completed and `depth` while not submitted yet. Tasks only move through `promote`, so the
     rank of a task and its place in the front always agree.
     """
 
@@ -82,21 +84,17 @@ class Front:
         """Lowest front generation `task` can be in: the one after its least advanced parent"""
         return max(self.rank(parent) for parent in task.parents) + 1
 
-    def add(self, task: Task, rank: int) -> None:
-        """Add `task` to generation `rank`, or to the completed tasks if `rank` is -1"""
-        if rank == -1:
-            self.completed.append(task)
-        else:
-            self._generations[rank].append(task)
+    def promote(self, task: Task, rank: int) -> None:
+        """Move `task` to generation `rank`, or to the completed tasks if `rank` is `COMPLETED`
+
+        A task not submitted yet has rank `depth`, so submitting it is a promotion too. The
+        rank of a task only ever decreases.
+        """
+        current = self.rank(task)
+        if not COMPLETED <= rank < current:
+            msg = f"cannot promote {task.label} from rank {current} to rank {rank}"
+            raise ValueError(msg)
+        if current < self.depth:
+            self._generations[current].remove(task)
+        (self.completed if rank == COMPLETED else self._generations[rank]).append(task)
         self._ranks[task.label] = rank
-
-    def promote(self, task: Task) -> None:
-        """Move `task` from its generation `k` to generation `k - 1`"""
-        rank = self.rank(task)
-        self._generations[rank].remove(task)
-        self.add(task, rank - 1)
-
-    def complete(self, task: Task) -> None:
-        """Move `task` from generation 0 to the completed tasks"""
-        self._generations[0].remove(task)
-        self.add(task, -1)
