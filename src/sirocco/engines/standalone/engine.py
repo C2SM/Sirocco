@@ -92,9 +92,7 @@ class TaskHandlerTable:
 
     def __getitem__(self, task: Task) -> PluginHandler:
         if (task_handler := self._task_handlers.get(task.label)) is None:
-            task_handler = self._task_handlers[task.label] = PluginHandler.handler_class(task)(
-                task=task, engine=self.engine
-            )
+            task_handler = self._task_handlers[task.label] = PluginHandler.from_core_task(task, self.engine)
         return task_handler
 
 

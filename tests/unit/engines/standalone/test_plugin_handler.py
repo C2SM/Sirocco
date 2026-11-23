@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 def test_no_handler():
     task = cast("Task", SimpleNamespace(plugin="unknown"))
     with pytest.raises(NotImplementedError, match="no handler for plugin 'unknown'"):
-        PluginHandler.handler_class(task)
+        PluginHandler.from_core_task(task, cast("StandaloneEngine", None))
 
 
 def test_duplicate_registration():

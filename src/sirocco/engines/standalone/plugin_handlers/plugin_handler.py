@@ -63,12 +63,12 @@ class PluginHandler[T: Task](ABC):
         PluginHandler.handler_classes[plugin] = cls
 
     @staticmethod
-    def handler_class(task: Task) -> type[PluginHandler[Any]]:
-        """Handler class registered for the plugin of `task`"""
+    def from_core_task(task: Task, engine: StandaloneEngine) -> PluginHandler[Any]:
+        """Handler of `task`, of the class registered for its plugin"""
         if (handler_class := PluginHandler.handler_classes.get(task.plugin)) is None:
             msg = f"standalone engine: no handler for plugin {task.plugin!r}"
             raise NotImplementedError(msg)
-        return handler_class
+        return handler_class(task=task, engine=engine)
 
     # =========== Plugin specific ===========
 
