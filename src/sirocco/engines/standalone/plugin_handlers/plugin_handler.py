@@ -46,7 +46,10 @@ class PluginHandler[T: core.Task](ABC):
     engine: StandaloneEngine
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
+        """Register handler in `handler_classes`"""
+
         super().__init_subclass__(**kwargs)
+        # Introspection to access the base class
         task_class = next(
             (get_args(base)[0] for base in types.get_original_bases(cls) if get_origin(base) is PluginHandler),
             None,
