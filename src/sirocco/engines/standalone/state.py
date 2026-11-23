@@ -16,6 +16,7 @@ engine-side copy of the graph is ever built.
 from __future__ import annotations
 
 import enum
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -35,11 +36,11 @@ class TaskStatus(enum.Enum):
     FAILED = 3
 
 
+@dataclass(kw_only=True)
 class JobIdTable:
     """Job id of each task, keyed by the task label, `NO_ID` if not submitted"""
 
-    def __init__(self) -> None:
-        self._jobids: dict[str, str] = {}
+    _jobids: dict[str, str] = field(default_factory=dict, init=False)
 
     def __getitem__(self, task: Task) -> str:
         return self._jobids.get(task.label, NO_ID)
@@ -48,6 +49,7 @@ class JobIdTable:
         self._jobids[task.label] = jobid
 
 
+@dataclass(kw_only=True)
 class Front:
     """Generations of the propagating front and the tasks it already left behind
 
@@ -59,11 +61,13 @@ class Front:
     rank of a task and its place in the front always agree.
     """
 
-    def __init__(self, depth: int) -> None:
-        self.depth = depth
-        self.completed: list[Task] = []
-        self._generations: list[list[Task]] = [[] for _ in range(depth)]
-        self._ranks: dict[str, int] = {}
+    depth: int
+    completed: list[Task] = field(default_factory=list, init=False)
+    _generations: list[list[Task]] = field(init=False)
+    _ranks: dict[str, int] = field(default_factory=dict, init=False)
+
+    def __post_init__(self) -> None:
+        self._generations = [[] for _ in range(self.depth)]
 
     def __getitem__(self, rank: int) -> list[Task]:
         return self._generations[rank]

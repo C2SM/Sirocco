@@ -1,4 +1,5 @@
 import shutil
+from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, cast
 
@@ -10,12 +11,13 @@ from sirocco.engines.standalone.plugin_handlers import PluginHandler, ShellHandl
 
 if TYPE_CHECKING:
     from sirocco.core.graph_items import Task
+    from sirocco.engines.standalone.tables import DataPathTable
 
 
 def test_no_handler():
     task = cast("Task", SimpleNamespace(plugin="unknown"))
     with pytest.raises(NotImplementedError, match="no handler for plugin 'unknown'"):
-        PluginHandler.from_core_task(task, cast("StandaloneEngine", None))
+        PluginHandler.from_core_task(task, run_root=Path("run"), data_paths=cast("DataPathTable", None))
 
 
 def test_duplicate_registration():

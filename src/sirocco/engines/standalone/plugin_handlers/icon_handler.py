@@ -88,13 +88,13 @@ class IconHandler(PluginHandler[IconTask]):
         # NOTE: keep check as explicit step here before refactoring ports and checking at parsing time
         IconPort.check(port_name, model)
         port_handler = IconPortHandler.registered_handlers[port_name]
-        input_paths = {data.label: self.engine.data_paths[data] for data in model.inputs.get(port_name, [])}
+        input_paths = {data.label: self.data_paths[data] for data in model.inputs.get(port_name, [])}
         for data, path in port_handler(model, self.get_rundir(), input_paths):
-            self.engine.data_paths[data] = path
+            self.data_paths[data] = path
 
     def get_runscript_lines(self) -> list[str]:
         squash_mounts = [
-            (self.engine.data_paths[image], mount) for image, mount in self.task.get_squash_mounts(self.get_rundir())
+            (self.data_paths[image], mount) for image, mount in self.task.get_squash_mounts(self.get_rundir())
         ]
         env = launch.runtime_environment(self.task, squash_mounts)
         return [
@@ -106,7 +106,7 @@ class IconHandler(PluginHandler[IconTask]):
 type OUTPUT_PATHS_T = list[tuple[GeneratedData, Path]]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class IconPortHandler:
     """Applies one ICON port
 
@@ -131,7 +131,7 @@ class IconPortHandler:
         if port.port_name in IconPortHandler.registered_handlers:
             msg = f"special port {port.port_name} already implemented"
             raise ValueError(msg)
-        IconPortHandler.registered_handlers[port.port_name] = cls(port)
+        IconPortHandler.registered_handlers[port.port_name] = cls(port=port)
 
     def __call__(self, model: core.IconModel, rundir: Path, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:
         """Apply the port of `model` in `rundir` and return the paths of the output data it resolves
@@ -272,7 +272,7 @@ def _complete_port_handlers() -> None:
     """
     for port in IconPort.registered_ports.values():
         if not port.is_special:
-            IconPortHandler.registered_handlers[port.port_name] = IconPortHandler(port)
+            IconPortHandler.registered_handlers[port.port_name] = IconPortHandler(port=port)
         elif port.port_name not in IconPortHandler.registered_handlers:
             msg = f"special port {port.port_name} not implemented in the standalone engine"
             raise NotImplementedError(msg)

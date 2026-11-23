@@ -8,9 +8,8 @@ at class creation for the plugin of that task class. The
 built-in handlers are the other modules of this package, imported by
 `sirocco.engines.standalone`.
 
-Handlers are created per task, on first access to `StandaloneEngine.task_handlers[task]`. The
-engine also holds what all of them share: the run root and the resolved data paths
-(`StandaloneEngine.data_paths[data]`).
+Handlers are created per task, on first access to `StandaloneEngine.task_handlers[task]`,
+and get what all of them share: the run root and the resolved data paths (`DataPathTable`).
 """
 
 from __future__ import annotations
@@ -18,7 +17,7 @@ from __future__ import annotations
 import shutil
 import types
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, ClassVar, TypeVar, get_args, get_origin
 
 from sirocco import core
@@ -27,7 +26,7 @@ from sirocco.parsing import cycling
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from sirocco.engines.standalone.engine import StandaloneEngine
+    from sirocco.engines.standalone.tables import DataPathTable
 
 
 @dataclass(kw_only=True)
@@ -43,7 +42,8 @@ class PluginHandler[T: core.Task](ABC):
     scheduler_uenv: ClassVar[bool] = True  # Let the scheduler start the job in the task uenv and view
 
     task: T
-    engine: StandaloneEngine
+    run_root: Path  # Root of all task run directories
+    data_paths: DataPathTable = field(repr=False)
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         """Register handler in `handler_classes`"""
@@ -66,18 +66,18 @@ class PluginHandler[T: core.Task](ABC):
         PluginHandler.handler_classes[plugin] = cls
 
     @staticmethod
-    def from_core_task(task: core.Task, engine: StandaloneEngine) -> PluginHandler[Any]:
+    def from_core_task(task: core.Task, *, run_root: Path, data_paths: DataPathTable) -> PluginHandler[Any]:
         """Handler of `task`, of the class registered for its plugin"""
         if (handler_class := PluginHandler.handler_classes.get(task.plugin)) is None:
             msg = f"standalone engine: no handler for plugin {task.plugin!r}"
             raise NotImplementedError(msg)
-        return handler_class(task=task, engine=engine)
+        return handler_class(task=task, run_root=run_root, data_paths=data_paths)
 
     # =========== Plugin specific ===========
 
     @abstractmethod
     def resolve_output_paths(self) -> None:
-        """Set the paths of all the task outputs in `engine.data_paths`"""
+        """Set the paths of all the task outputs in `data_paths`"""
 
     @abstractmethod
     def prepare_rundir_content(self) -> None:
@@ -91,7 +91,7 @@ class PluginHandler[T: core.Task](ABC):
 
     def get_rundir(self) -> Path:
         """Directory in which the task runs"""
-        return (self.engine.run_root / self.task.label).resolve()
+        return (self.run_root / self.task.label).resolve()
 
     def get_runscript_path(self) -> Path:
         return self.get_rundir() / self.submit_filename
@@ -118,11 +118,11 @@ class PluginHandler[T: core.Task](ABC):
         link_list: list[str] = []
         for component in self.task.components.values():
             if "link" in component.inputs:
-                link_list.extend([f"ln -s {self.engine.data_paths[data]} ." for data in component.inputs["link"]])
+                link_list.extend([f"ln -s {self.data_paths[data]} ." for data in component.inputs["link"]])
             if "link_content" in component.inputs:
                 link_list.extend(
                     [
-                        f"for item in {self.engine.data_paths[data]}/*; do ln -s ${{item}} .; done"
+                        f"for item in {self.data_paths[data]}/*; do ln -s ${{item}} .; done"
                         for data in component.inputs["link_content"]
                     ]
                 )

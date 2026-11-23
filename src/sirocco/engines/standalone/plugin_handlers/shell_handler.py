@@ -14,7 +14,7 @@ class ShellHandler(PluginHandler[core.ShellTask]):
             if data.path is None:
                 msg = "shell task output data must specify a path"
                 raise ValueError(msg)
-            self.engine.data_paths[data] = data.path if data.path.is_absolute() else self.get_rundir() / data.path
+            self.data_paths[data] = data.path if data.path.is_absolute() else self.get_rundir() / data.path
 
     def prepare_rundir_content(self) -> None:
         if (src := self.task.src) is not None:
@@ -27,7 +27,7 @@ class ShellHandler(PluginHandler[core.ShellTask]):
         return [
             self.task.resolve_ports(
                 {
-                    port: [str(self.engine.data_paths[data]) for data in input_data]
+                    port: [str(self.data_paths[data]) for data in input_data]
                     for port, input_data in (self.task.outputs | self.task.inputs).items()
                 }
             )

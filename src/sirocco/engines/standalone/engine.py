@@ -6,7 +6,7 @@ what only the standalone orchestration needs:
 
 - the job id of each task and the propagating front (see `state.py`),
 - the task handlers (see `plugin_handlers/`) and the data paths they resolve
-  (`TaskHandlerTable` and `DataPathTable` below),
+  (see `tables.py`),
 - the cool-down task list,
 - the scheduler, the lock and the state file,
 - the special `SiroccoContinueTask`.
@@ -24,18 +24,19 @@ import os
 import subprocess
 import sys
 from colorsys import hls_to_rgb
+from dataclasses import dataclass, field
 from datetime import datetime
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Literal, Self, assert_never
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, assert_never
 
 from ruamel.yaml import YAML
 from termcolor import colored
 
-from sirocco.core.graph_items import AvailableData, GeneratedData
 from sirocco.core.workflow import Workflow
-from sirocco.engines.standalone.plugin_handlers import PluginHandler, SiroccoContinueTask
+from sirocco.engines.standalone.plugin_handlers import SiroccoContinueTask
 from sirocco.engines.standalone.scheduler import DEPENDENCY_TYPE_T, STDOUTERR_MODE_T, Scheduler
 from sirocco.engines.standalone.state import NO_ID, Front, JobIdTable, TaskStatus
+from sirocco.engines.standalone.tables import DataPathTable, TaskHandlerTable
 from sirocco.parsing.cycling import OneOffPoint
 from sirocco.parsing.yaml_data_models import ConfigSiroccoTask, ConfigWorkflow
 
@@ -83,101 +84,31 @@ class StatusPoint:
                 assert_never(status)
 
 
-class TaskHandlerTable:
-    """Handler of each task, keyed by the task label and created on first access"""
-
-    def __init__(self, engine: StandaloneEngine) -> None:
-        self.engine = engine
-        self._task_handlers: dict[str, PluginHandler] = {}
-
-    def __getitem__(self, task: core.Task) -> PluginHandler:
-        if (task_handler := self._task_handlers.get(task.label)) is None:
-            task_handler = self._task_handlers[task.label] = PluginHandler.from_core_task(task, self.engine)
-        return task_handler
-
-
-class DataPathTable:
-    """Resolved path of each data node, keyed by the data label
-
-    Paths follow from the config only, so they are recomputed by every sirocco command
-    and never stored in the state file.
-
-    Generated data paths are resolved on demand: asking for the path of an output that is
-    not known yet asks the handler of its origin task to resolve all of its outputs (see
-    `PluginHandler.resolve_output_paths`), so that callers never need to care about the
-    order in which tasks are processed.
-    """
-
-    def __init__(self, task_handlers: TaskHandlerTable) -> None:
-        self.task_handlers = task_handlers
-        self._paths: dict[str, Path] = {}
-
-    def __getitem__(self, data: core.Data) -> Path:
-        if data.label not in self._paths:
-            self._resolve(data)
-            if data.label not in self._paths:
-                msg = f"path of data {data.label} could not be resolved"
-                raise ValueError(msg)
-        return self._paths[data.label]
-
-    def __setitem__(self, data: core.Data, path: Path) -> None:
-        """Set the resolved path of a data node
-
-        Setting it again is allowed, e.g. ICON output ports are applied both when resolving
-        output paths and when preparing the task, but only to the same path: a conflicting
-        resolution would otherwise silently override the path already used elsewhere.
-        """
-        if not path.is_absolute():
-            msg = "resolved path must be absolute"
-            raise ValueError(msg)
-        if (current := self._paths.get(data.label)) is not None and current != path:
-            msg = f"data {data.label}: resolved to {path} but already resolved to {current}"
-            raise ValueError(msg)
-        self._paths[data.label] = path
-
-    def _resolve(self, data: core.Data) -> None:
-        match data:
-            case AvailableData():
-                self[data] = data.path
-            case GeneratedData() if data.path is not None and data.path.is_absolute():
-                self[data] = data.path
-            case GeneratedData():
-                self.task_handlers[data.origin_task].resolve_output_paths()
-            case _:
-                msg = f"standalone engine: cannot resolve the path of {type(data).__name__}"
-                raise NotImplementedError(msg)
-
-
+@dataclass(kw_only=True)
 class StandaloneEngine:
-    STATE_FILE_NAME: str = "state.yaml"
-    RUN_ROOT_NAME: str = "run"
+    STATE_FILE_NAME: ClassVar[str] = "state.yaml"
+    RUN_ROOT_NAME: ClassVar[str] = "run"
 
-    def __init__(
-        self,
-        workflow: Workflow,
-        scheduler: Scheduler,
-        config_sirocco_task: ConfigSiroccoTask,
-    ) -> None:
-        self.workflow = workflow
-        self.scheduler = scheduler
-        self.front_depth: int = workflow.front_depth
-        self.jobids = JobIdTable()
-        self.front = Front(self.front_depth)
-        self.task_handlers = TaskHandlerTable(self)
-        self.data_paths = DataPathTable(self.task_handlers)
-        self.cool_down_tasks: list[core.Task] = []
-        self.status: WorkflowStatus = WorkflowStatus.INIT
-        self.logger: logging.Logger = logging.getLogger(__name__)  # set by each command
+    workflow: Workflow = field(repr=False)
+    scheduler: Scheduler
+    sirocco_continue_task: SiroccoContinueTask = field(repr=False)
 
-        config_kwargs = dict(config_sirocco_task)
-        config_kwargs.pop("parameters", None)
-        self.sirocco_continue_task = SiroccoContinueTask(
-            coordinates={},
-            cycle_point=OneOffPoint(),
-            config_rootdir=workflow.config_rootdir,
-            parents=[],
-            **config_kwargs,
+    jobids: JobIdTable = field(default_factory=JobIdTable, init=False)
+    front: Front = field(init=False)
+    task_handlers: TaskHandlerTable = field(init=False, repr=False)
+    data_paths: DataPathTable = field(init=False, repr=False)
+    cool_down_tasks: list[core.Task] = field(default_factory=list, init=False)
+    status: WorkflowStatus = field(default=WorkflowStatus.INIT, init=False)
+    logger: logging.Logger = field(
+        default_factory=lambda: logging.getLogger(__name__), init=False, repr=False
+    )  # set by each command
+
+    def __post_init__(self) -> None:
+        self.front = Front(depth=self.front_depth)
+        self.data_paths = DataPathTable(
+            resolve_task_outputs=lambda task: self.task_handlers[task].resolve_output_paths()
         )
+        self.task_handlers = TaskHandlerTable(run_root=self.run_root, data_paths=self.data_paths)
 
     @classmethod
     def from_config_workflow(cls, config_workflow: ConfigWorkflow) -> Self:
@@ -198,11 +129,17 @@ class StandaloneEngine:
         if (scheduler_cls := Scheduler.scheduler_classes.get(config_workflow.scheduler)) is None:
             msg = f"Scheduler {config_workflow.scheduler!r} is not supported by the standalone engine."
             raise ValueError(msg)
-        return cls(
-            workflow=Workflow.from_config_workflow(config_workflow),
-            scheduler=scheduler_cls(),
-            config_sirocco_task=config_sirocco_task,
+        workflow = Workflow.from_config_workflow(config_workflow)
+        config_kwargs = dict(config_sirocco_task)
+        config_kwargs.pop("parameters", None)
+        sirocco_continue_task = SiroccoContinueTask(
+            coordinates={},
+            cycle_point=OneOffPoint(),
+            config_rootdir=workflow.config_rootdir,
+            parents=[],
+            **config_kwargs,
         )
+        return cls(workflow=workflow, scheduler=scheduler_cls(), sirocco_continue_task=sirocco_continue_task)
 
     @classmethod
     def from_config_path(cls, config_path: str | Path, template_context: dict[str, Any] | None = None) -> Self:
@@ -254,6 +191,10 @@ class StandaloneEngine:
         self.scheduler.cancel(task, self.jobids[task])
 
     # =========== Paths ===========
+
+    @property
+    def front_depth(self) -> int:
+        return self.workflow.front_depth
 
     @property
     def config_rootdir(self) -> Path:
@@ -397,7 +338,7 @@ class StandaloneEngine:
         """Restore the front, the completed and cool-down tasks and their job ids"""
         yaml_state = YAML().load(self.state_file)
         self.jobids[self.sirocco_continue_task] = yaml_state["sirocco_jobid"]
-        self.front = Front(self.front_depth)
+        self.front = Front(depth=self.front_depth)
         for yaml_task in yaml_state["completed_tasks"]:
             self.front.add(self.task_from_yaml_state(yaml_task), -1)
         for k, yaml_generation in enumerate(yaml_state["front"]):
