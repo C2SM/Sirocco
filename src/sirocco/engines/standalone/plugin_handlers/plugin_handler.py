@@ -4,9 +4,10 @@ A `PluginHandler` subclass implements the plugin specific parts (abstract method
 may override the generic ones (normal methods and class variables). A subclass
 parametrizes `PluginHandler` with the task class it handles, e.g.
 `ShellHandler(PluginHandler[ShellTask])`, which types its `task` attribute and registers it
-at class creation for the plugin of that task class. The
-built-in handlers are the other modules of this package, imported by
-`sirocco.engines.standalone`.
+at class creation for the plugin of that task class. Parametrizing a generic subclass of
+`PluginHandler` works the same, e.g. `MyHandler(MyGenericHandler[MyTask])`, so that several
+handlers can share their implementation. The built-in handlers are the other modules of
+this package, imported by `sirocco.engines.standalone`.
 
 Handlers are created per task, on first access to `StandaloneEngine.task_handlers[task]`,
 and get what all of them share: the run root and the resolved data paths (`DataPathTable`).
@@ -48,9 +49,13 @@ class PluginHandler[T: core.Task](ABC):
     def __init_subclass__(cls, **kwargs: Any) -> None:
         """Register handler in `handler_classes`"""
         super().__init_subclass__(**kwargs)
-        # Introspection to access the base class
+        # Introspection to access the task class, given to `PluginHandler` or to a generic subclass of it
         task_class = next(
-            (get_args(base)[0] for base in types.get_original_bases(cls) if get_origin(base) is PluginHandler),
+            (
+                get_args(base)[0]
+                for base in types.get_original_bases(cls)
+                if isinstance(origin := get_origin(base), type) and issubclass(origin, PluginHandler)
+            ),
             None,
         )
         if task_class is None or isinstance(task_class, TypeVar):

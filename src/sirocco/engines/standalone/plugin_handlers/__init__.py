@@ -9,6 +9,23 @@ from its own package.
 from .icon_handler import IconHandler
 from .plugin_handler import PluginHandler
 from .shell_handler import ShellHandler
-from .sirocco_task_handler import SiroccoContinueTask, SiroccoTaskHandler
+from .sirocco_task_handler import (
+    SiroccoContinueTask,
+    SiroccoContinueTaskHandler,
+    SiroccoStartTask,
+    SiroccoStartTaskHandler,
+    SiroccoTask,
+    SiroccoTaskHandler,
+)
 
-__all__ = ["IconHandler", "PluginHandler", "ShellHandler", "SiroccoContinueTask", "SiroccoTaskHandler"]
+__all__ = [
+    "IconHandler",
+    "PluginHandler",
+    "ShellHandler",
+    "SiroccoContinueTask",
+    "SiroccoContinueTaskHandler",
+    "SiroccoStartTask",
+    "SiroccoStartTaskHandler",
+    "SiroccoTask",
+    "SiroccoTaskHandler",
+]

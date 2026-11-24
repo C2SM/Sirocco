@@ -1,10 +1,11 @@
 import shutil
 from pathlib import Path
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, ClassVar, cast
 
 import pytest
 
+from sirocco.core.graph_items import Task as CoreTask
 from sirocco.core.tasks.shell_task import ShellTask
 from sirocco.engines.standalone import StandaloneEngine
 from sirocco.engines.standalone.plugin_handlers import PluginHandler, ShellHandler, SiroccoTaskHandler
@@ -44,6 +45,25 @@ def test_no_registration_without_task_class():
         pass
 
     assert PluginHandler.handler_classes == registered
+
+
+def test_registration_through_generic_handler():
+    """A handler parametrizing a generic subclass of `PluginHandler` registers for that task class"""
+
+    class GenericPluginTask(ShellTask):
+        plugin: ClassVar[str] = "generic_handler_test"
+
+    class GenericHandler[T: Task](PluginHandler[T]):
+        pass
+
+    class ConcreteHandler(GenericHandler[GenericPluginTask]):
+        pass
+
+    try:
+        assert PluginHandler.handler_classes["generic_handler_test"] is ConcreteHandler
+    finally:
+        PluginHandler.handler_classes.pop("generic_handler_test", None)
+        CoreTask.plugin_classes.pop("generic_handler_test", None)
 
 
 def test_sirocco_task_runs_from_config_dir(tmp_path, test_rootdir):

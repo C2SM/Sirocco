@@ -14,6 +14,8 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, assert_never
 from sirocco.engines.standalone.state import NO_ID, TaskStatus
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from sirocco.core.graph_items import Task
     from sirocco.engines.standalone.plugin_handlers import PluginHandler
 
@@ -53,7 +55,10 @@ class Scheduler(ABC):
         self.generate_run_script(task_handler, stdouterr_mode=stdouterr_mode)
         return self.submit_to_scheduler(task_handler, parent_ids=parent_ids, env=env, dependency_type=dependency_type)
 
-    def generate_run_script(self, task_handler: PluginHandler, stdouterr_mode: STDOUTERR_MODE_T) -> None:
+    def generate_run_script(
+        self, task_handler: PluginHandler, stdouterr_mode: STDOUTERR_MODE_T, script_path: Path | None = None
+    ) -> None:
+        """Write the run script of the task, to its run directory unless `script_path` is given"""
         task = task_handler.task
 
         # Shebang
@@ -83,7 +88,8 @@ class Scheduler(ABC):
         script_lines.extend(task_handler.get_runscript_lines())
 
         # Write to runscript file
-        script_path = task_handler.get_runscript_path()
+        if script_path is None:
+            script_path = task_handler.get_runscript_path()
         script_path.write_text("\n".join(script_lines))
         script_path.chmod(0o755)
 
