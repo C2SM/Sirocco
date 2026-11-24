@@ -245,11 +245,12 @@ class FinishStatusPortHandler(IconPortHandler):
         return [(output_data[0], rundir / f"finish_{model.name}.status")]
 
 
-@special_port_handler(core_icon_ports.ocean_restart_init_port)
 class OceanRestartInitPortHandler(RestartPortHandler):
     """Initialize the ocean state from a restart file without making the whole task a restart run"""
 
-    def __call__(self, model: IconModel, rundir: Path, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:
+    special_port = core_icon_ports.ocean_restart_init_port
+
+    def __call__(self, model: core.IconModel, rundir: Path, input_paths: Mapping[str, Path]) -> OUTPUT_PATHS_T:
         if not (data_list := model.inputs[self.port.port_name]):
             return []
         if len(data_list) > 1:

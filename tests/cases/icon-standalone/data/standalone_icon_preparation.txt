@@ -23,7 +23,6 @@ icon_cpu -> <TESTS_ROOTDIR>/tests/cases/icon-standalone/config/ICON/bin/icon
 --- icon_master.namelist (changes to the source namelist)
 master_model_nml.model_max_rank: 65535 -> 3
 master_nml.read_restart_namelists: True -> False
-master_time_control_nml.checkpointtimeintval: 'PT1M' -> 'P2M'
 master_time_control_nml.experimentstopdate: '2000-01-01T00:02:00Z' -> '2025-03-01T00:00:00Z'
 master_time_control_nml.restarttimeintval: 'PT1M' -> 'P2M'
 ---
@@ -83,7 +82,6 @@ icon_cpu -> <TESTS_ROOTDIR>/tests/cases/icon-standalone/config/ICON/bin/icon
 --- icon_master.namelist (changes to the source namelist)
 master_model_nml.model_max_rank: 65535 -> 3
 master_nml.lrestart: False -> True
-master_time_control_nml.checkpointtimeintval: 'PT1M' -> 'P2M'
 master_time_control_nml.experimentstopdate: '2000-01-01T00:02:00Z' -> '2025-05-01T00:00:00Z'
 master_time_control_nml.restarttimeintval: 'PT1M' -> 'P2M'
 ---
@@ -157,7 +155,6 @@ icon_gpu -> <TESTS_ROOTDIR>/tests/cases/icon-standalone/config/ICON/bin/icon
 master_model_nml.model_max_rank: 65535 -> 7
 master_model_nml.model_min_rank: 0 -> 4
 master_nml.read_restart_namelists: True -> False
-master_time_control_nml.checkpointtimeintval: 'PT1M' -> 'P2M'
 master_time_control_nml.experimentstopdate: '2000-01-01T00:02:00Z' -> '2025-03-01T00:00:00Z'
 master_time_control_nml.restarttimeintval: 'PT1M' -> 'P2M'
 ---
