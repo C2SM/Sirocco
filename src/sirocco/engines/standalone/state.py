@@ -59,8 +59,8 @@ class Front:
     ones the tasks submitted ahead of time (see the orchestration documentation).
 
     The rank of a task follows from where it is: `k` in generation `k`, `COMPLETED` (-1) once
-    completed and `depth` while not submitted yet. Tasks only move through `promote`, so the
-    rank of a task and its place in the front always agree.
+    completed and `depth` while not submitted yet. Tasks enter the front through `place` and
+    only move through `promote`, so the rank of a task and its place in the front always agree.
     """
 
     depth: int
@@ -84,17 +84,25 @@ class Front:
         """Lowest front generation `task` can be in: the one after its least advanced parent"""
         return max(self.rank(parent) for parent in task.parents) + 1
 
-    def promote(self, task: Task, rank: int) -> None:
-        """Move `task` to generation `rank`, or to the completed tasks if `rank` is `COMPLETED`
-
-        A task not submitted yet has rank `depth`, so submitting it is a promotion too. The
-        rank of a task only ever decreases.
-        """
-        current = self.rank(task)
-        if not COMPLETED <= rank < current:
-            msg = f"cannot promote {task.label} from rank {current} to rank {rank}"
+    def place(self, task: Task, rank: int) -> None:
+        """Put `task`, not in the front yet, in generation `rank` or among the completed tasks if `rank` is `COMPLETED`"""
+        if (current_rank := self.rank(task)) != self.depth:
+            msg = f"cannot place {task.label}: already at rank {current_rank}"
             raise ValueError(msg)
-        if current < self.depth:
-            self._generations[current].remove(task)
+        if not COMPLETED <= rank < self.depth:
+            msg = f"cannot place {task.label} at rank {rank}"
+            raise ValueError(msg)
+        self._append(task, rank)
+
+    def promote(self, task: Task) -> None:
+        """Move `task` one generation down, or to the completed tasks from generation 0."""
+        current_rank = self.rank(task)
+        if not COMPLETED < current_rank < self.depth:
+            msg = f"cannot promote {task.label} from rank {current_rank}"
+            raise ValueError(msg)
+        self._generations[current_rank].remove(task)
+        self._append(task, current_rank - 1)
+
+    def _append(self, task: Task, rank: int) -> None:
         (self.completed if rank == COMPLETED else self._generations[rank]).append(task)
         self._ranks[task.label] = rank
