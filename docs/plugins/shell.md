@@ -117,6 +117,15 @@ or
 
 depending on whether `port_name_2` links data or not.
 
+## Context File
+
+When using the standalone engine, Sirocco creates a `sirocco_context.yaml` file in each shell task's run directory before submitting the job.  This file describes the shell task's resolved inputs, outputs and [`wait_on`](../configuration/cycles.md#wait_on) dependencies. It provides resolved paths and coordinates, which allows task scripts to identify which dates and parameter values their inputs belong to. This complements the `{PORT::XXX}` placeholders in the command line. The file contains:
+
+- `task`: the task name, coordinates, and run directory.
+- `inputs`: input ports mapped to lists of data objects, each containing its name, resolved path, and coordinates.
+- `outputs`: output ports mapped to lists of data objects, each containing its name and resolved path. Output coordinates are ommited because they match task.coordinates.
+- `wait_on`: task dependencies, each containing its name, coordinates, and run directory. Dependencies implied by inputs are not included here.
+
 ## Exported variables
 
 Before invoking the task `command` in the submitted run script, some environment variables are exported to provide context information or propagate information provided in the configuration file.
@@ -126,6 +135,6 @@ Before invoking the task `command` in the submitted run script, some environment
 - `PROCS_PER_NODE`: if provided, [number of requested MPI processes per node](../configuration/tasks.md#procs_per_node)
 - `CORES_PER_PROC`: if provided, [number of requested cores per MPI process](../configuration/tasks.md#cores_per_proc)
 
-!!! failure "Parameter values not exported yet"
+!!! warning "Parameter values not exported yet"
 
-    The values of the [parameters](../configuration/parameters.md) of a task instance are not exported yet, so that tasks cannot adapt their behavior to them for now.
+    The values of the [parameters](../configuration/parameters.md) of a task instance are not exported as environment variables, instead they are available in the context file under `task.coordinates`.
