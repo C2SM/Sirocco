@@ -9,26 +9,31 @@ import stat
 import tarfile
 import tempfile
 from pathlib import Path, PurePosixPath
-from typing import Literal, Self
+from typing import TYPE_CHECKING, Literal, Self
 
 from firecrest import ClientCredentialsAuth
 from firecrest.v2 import Firecrest
 from pydantic import BaseModel, ConfigDict, SecretStr
 from ruamel.yaml import YAML
 
-from sirocco.engines.standalone import SiroccoContinueTask, StandaloneEngine
+from sirocco.engines.standalone import SiroccoContinueTask, SiroccoStartTask, SiroccoTask, StandaloneEngine
+from sirocco.engines.standalone.plugin_handlers import PluginHandler
+from sirocco.engines.standalone.tables import DataPathTable
 from sirocco.parsing import ConfigWorkflow
+
+if TYPE_CHECKING:
+    from sirocco.engines.standalone.scheduler import Scheduler
 
 LOGGER = logging.getLogger(__name__)
 
 
-def split_config_dir(config_dir: Path | str) -> tuple[str | None, str]:
+def split_config_dir(config_dir: str) -> tuple[str | None, str]:
     """Extract potential pattern "machine:" from config_dir"""
 
     split_pattern = re.compile(r"((?P<machine>\w+):)?(?P<path>.*)")
     # NOTE: mostly for type checking, should never happen
     msg = "incorrect config dir specification"
-    if (m := split_pattern.match(str(config_dir))) is None:
+    if (m := split_pattern.match(config_dir)) is None:
         raise ValueError(msg)
     if m.group("path") is None:
         raise ValueError(msg)
@@ -119,9 +124,10 @@ class LocalConfig(BaseModel):
 GENERATED_CONFIG_DIR_ITEMS = (
     StandaloneEngine.RUN_ROOT_NAME,
     ConfigWorkflow._CONFIG_RESOLVED_FILENAME,
-    SiroccoContinueTask.STDOUTERR_FILENAME,
+    SiroccoTask.STDOUTERR_FILENAME,
+    SiroccoTask.LOCK_FILE_NAME,
     SiroccoContinueTask.SUBMIT_FILENAME,
-    SiroccoContinueTask.LOCK_FILE_NAME,
+    SiroccoStartTask.SUBMIT_FILENAME,
 )
 PUSH_ARCHIVE_NAME = ".sirocco_push.tar.gz"
 
@@ -163,3 +169,24 @@ def push_config_dir(config_rootdir: Path, machine: str, remote_config_rootdir: s
     remote_archive_path = str(PurePosixPath(remote_config_rootdir) / PUSH_ARCHIVE_NAME)
     client.extract(machine, remote_archive_path, remote_config_rootdir, compression="gzip")
     client.rm(machine, remote_archive_path)
+
+
+def submit_sirocco_task(
+    sirocco_task: SiroccoTask, scheduler: Scheduler, machine: str, remote_config_rootdir: Path
+) -> None:
+    """Generate the run script of `sirocco_task` locally and submit it on the remote machine"""
+    # NOTE: Sirocco tasks have no data, the run root and data paths are only there to build the handler
+    task_handler = PluginHandler.from_core_task(
+        sirocco_task,
+        run_root=remote_config_rootdir / StandaloneEngine.RUN_ROOT_NAME,
+        data_paths=DataPathTable(resolve_task_outputs=lambda _: None),
+    )
+    client = firecrest_client(machine)
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        local_runscript_path = Path(tmp_dir) / task_handler.submit_filename
+        scheduler.generate_run_script(task_handler, stdouterr_mode="append", script_path=local_runscript_path)
+        client.submit(
+            system_name=machine,
+            working_dir=str(remote_config_rootdir),
+            script_local_path=str(local_runscript_path),
+        )

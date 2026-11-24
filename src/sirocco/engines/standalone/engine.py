@@ -37,7 +37,6 @@ from sirocco.engines.standalone.plugin_handlers import SiroccoContinueTask
 from sirocco.engines.standalone.scheduler import DEPENDENCY_TYPE_T, STDOUTERR_MODE_T, Scheduler
 from sirocco.engines.standalone.state import COMPLETED, NO_ID, Front, JobIdTable, TaskStatus
 from sirocco.engines.standalone.tables import DataPathTable, TaskHandlerTable
-from sirocco.parsing.cycling import OneOffPoint
 from sirocco.parsing.yaml_data_models import ConfigSiroccoTask, ConfigWorkflow
 
 if TYPE_CHECKING:
@@ -130,14 +129,8 @@ class StandaloneEngine:
             msg = f"Scheduler {config_workflow.scheduler!r} is not supported by the standalone engine."
             raise ValueError(msg)
         workflow = Workflow.from_config_workflow(config_workflow)
-        config_kwargs = dict(config_sirocco_task)
-        config_kwargs.pop("parameters", None)
-        sirocco_continue_task = SiroccoContinueTask(
-            coordinates={},
-            cycle_point=OneOffPoint(),
-            config_rootdir=workflow.config_rootdir,
-            parents=[],
-            **config_kwargs,
+        sirocco_continue_task = SiroccoContinueTask.from_config_sirocco_task(
+            config_sirocco_task=config_sirocco_task, config_rootdir=workflow.config_rootdir
         )
         return cls(workflow=workflow, scheduler=scheduler_cls(), sirocco_continue_task=sirocco_continue_task)
 
