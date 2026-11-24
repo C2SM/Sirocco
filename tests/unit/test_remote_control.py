@@ -57,10 +57,11 @@ def test_pack_unpack_config_dir_excludes_generated_items(tmp_path):
     for name in remote_control.GENERATED_CONFIG_DIR_ITEMS:
         (config_rootdir / name).touch()
     archive_path = tmp_path / "config.tar.gz"
-    remote_control.pack_config_dir(config_rootdir, archive_path)
+    remote_control.pack_local_dir(config_rootdir, archive_path, exclude=remote_control.GENERATED_CONFIG_DIR_ITEMS)
 
     unpacked_rootdir = tmp_path / "unpacked"
-    remote_control.unpack_config_dir(archive_path, unpacked_rootdir)
+    remote_control.unpack_local_archive(archive_path, unpacked_rootdir)
 
+    # The archive holds the config dir itself, not only its content
     unpacked_items = sorted(path.relative_to(unpacked_rootdir).as_posix() for path in unpacked_rootdir.rglob("*"))
-    assert unpacked_items == ["scripts", "scripts/task.sh", "sirocco.yaml"]
+    assert unpacked_items == ["config", "config/scripts", "config/scripts/task.sh", "config/sirocco.yaml"]
