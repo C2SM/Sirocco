@@ -16,7 +16,7 @@ from firecrest.v2 import Firecrest
 from pydantic import BaseModel, ConfigDict, SecretStr
 from ruamel.yaml import YAML
 
-from sirocco.core import SiroccoContinueTask, Task
+from sirocco.engines.standalone import SiroccoContinueTask, StandaloneEngine
 from sirocco.parsing import ConfigWorkflow
 
 LOGGER = logging.getLogger(__name__)
@@ -117,7 +117,7 @@ class LocalConfig(BaseModel):
 
 # NOTE: generated items are not pushed so that the state of a remote workflow cannot be overwritten
 GENERATED_CONFIG_DIR_ITEMS = (
-    Task.RUN_ROOT,
+    StandaloneEngine.RUN_ROOT_NAME,
     ConfigWorkflow._CONFIG_RESOLVED_FILENAME,
     SiroccoContinueTask.STDOUTERR_FILENAME,
     SiroccoContinueTask.SUBMIT_FILENAME,
