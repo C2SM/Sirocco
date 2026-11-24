@@ -9,17 +9,19 @@ import stat
 import tarfile
 import tempfile
 from pathlib import Path, PurePosixPath
-from typing import Literal, Self
-from collections.abc import Collection
+from typing import TYPE_CHECKING, Literal, Self
 
 from firecrest import ClientCredentialsAuth
-from firecrest.v2 import Firecrest
 from firecrest.FirecrestException import UnexpectedStatusException
+from firecrest.v2 import Firecrest
 from pydantic import BaseModel, ConfigDict, SecretStr
 from ruamel.yaml import YAML
 
 from sirocco.engines.standalone import SiroccoContinueTask, StandaloneEngine
 from sirocco.parsing import ConfigWorkflow
+
+if TYPE_CHECKING:
+    from collections.abc import Collection
 
 LOGGER = logging.getLogger(__name__)
 
@@ -55,9 +57,7 @@ def create_firecrest_client(machine: str) -> Firecrest:
     machine_config = local_config.remote(machine)
 
     client_credentials = ClientCredentialsAuth(
-        machine_config.consumer_key,
-        machine_config.consumer_secret.get_secret_value(),
-        machine_config.token_uri
+        machine_config.consumer_key, machine_config.consumer_secret.get_secret_value(), machine_config.token_uri
     )
 
     return Firecrest(firecrest_url=machine_config.firecrest_url, authorization=client_credentials)
@@ -71,7 +71,9 @@ def upload_config_to_remote(machine: str, local_config_dir: Path | str, remote_t
 
     account = _get_project_account(sirocco_config, str(sirocco_config_path))
 
-    upload_dir_to_remote(machine, local_config_dir, remote_target_path, exclude=GENERATED_CONFIG_DIR_ITEMS, account=account)
+    upload_dir_to_remote(
+        machine, local_config_dir, remote_target_path, exclude=GENERATED_CONFIG_DIR_ITEMS, account=account
+    )
 
 
 def download_config_from_remote(machine: str, remote_config_dir: str, local_target_path: Path | str) -> None:
@@ -85,7 +87,8 @@ def download_config_from_remote(machine: str, remote_config_dir: str, local_targ
 
     # Stop if the lock file exists in the run directory on the remote machine
     if SiroccoContinueTask.LOCK_FILE_NAME in remote_run_dir_content_names:
-        raise RuntimeError(f"a process is currently handling the Sirocco workflow, cannot download config directory: {remote_config_dir}. Please retry later.")
+        msg = f"a process is currently handling the Sirocco workflow, cannot download config directory: {remote_config_dir}. Please retry later."
+        raise RuntimeError(msg)
 
     sirocco_config_path = str(PurePosixPath(remote_config_dir, ConfigWorkflow.CONFIG_FILENAME))
     sirocco_config_str = client.view(machine, sirocco_config_path)
@@ -93,7 +96,14 @@ def download_config_from_remote(machine: str, remote_config_dir: str, local_targ
 
     account = _get_project_account(sirocco_config, f"{machine}:{sirocco_config_path}")
 
-    download_dir_from_remote(machine, remote_config_dir, local_target_path, exclude=(StandaloneEngine.RUN_ROOT_NAME,), account=account, client=client)
+    download_dir_from_remote(
+        machine,
+        remote_config_dir,
+        local_target_path,
+        exclude=(StandaloneEngine.RUN_ROOT_NAME,),
+        account=account,
+        client=client,
+    )
 
     remote_state_file = str(PurePosixPath(remote_run_dir, StandaloneEngine.STATE_FILE_NAME))
     if StandaloneEngine.STATE_FILE_NAME in remote_run_dir_content_names:
@@ -108,13 +118,13 @@ def download_config_from_remote(machine: str, remote_config_dir: str, local_targ
         LOGGER.warning(msg)
 
 
-def upload_dir_to_remote( 
+def upload_dir_to_remote(
     machine: str,
     local_dir: Path | str,
     remote_target_path: str,
     exclude: Collection[str] = (),
     account: str | None = None,
-    client: Firecrest | None = None
+    client: Firecrest | None = None,
 ) -> None:
     """Upload a local directory to a remote machine"""
 
@@ -122,7 +132,7 @@ def upload_dir_to_remote(
         client = create_firecrest_client(machine)
 
     try:
-        if not (client.file_type(machine, remote_target_path) == "directory"):
+        if client.file_type(machine, remote_target_path) != "directory":
             msg = f"target path for upload is not a directory: {remote_target_path}."
             raise NotADirectoryError(msg)
     except UnexpectedStatusException as error:
@@ -151,7 +161,7 @@ def download_dir_from_remote(
     local_target_path: Path | str,
     exclude: Collection[str] = (),
     account: str | None = None,
-    client: Firecrest | None = None
+    client: Firecrest | None = None,
 ) -> None:
     """Download a remote directory to the local machine"""
 
@@ -159,7 +169,7 @@ def download_dir_from_remote(
         client = create_firecrest_client(machine)
 
     if not Path(local_target_path).is_dir():
-        msg = f"target path for download is not a directory: {str(local_target_path)}."
+        msg = f"target path for download is not a directory: {local_target_path}."
         raise NotADirectoryError(msg)
 
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -176,7 +186,9 @@ def download_dir_from_remote(
                     element_path = str(PurePosixPath(remote_dir, element["name"]))
 
                     if element["type"] == "d":
-                        _download_full_dir_from_remote(machine, element_path, tmp_dir, local_dir, client, account=account)
+                        _download_full_dir_from_remote(
+                            machine, element_path, tmp_dir, local_dir, client, account=account
+                        )
                     else:
                         local_file = Path(local_dir, element["name"])
                         client.download(machine, element_path, local_file, account=account)
@@ -185,7 +197,7 @@ def download_dir_from_remote(
 def _download_full_dir_from_remote(
     machine: str,
     remote_dir: str,
-    tmp_dir: Path | str, 
+    tmp_dir: Path | str,
     local_target_path: Path | str,
     client: Firecrest,
     account: str | None = None,
@@ -234,7 +246,8 @@ def unpack_local_archive(local_archive_path: Path | str, local_target_path: Path
     with tarfile.open(local_archive_path, "r:gz") as archive:
         # NOTE: the "tar" filter refuses members outside local_target_path but keeps symlinks to absolute paths,
         #       which config dirs may contain
-        archive.extractall(local_target_path, filter="tar") # TODO: check that this actually unpacks in a new local_target_path/config_dir (it depends how Firecrest compress works)
+        # TODO: check that this actually unpacks in a new local_target_path/config_dir (it depends how Firecrest compress works)
+        archive.extractall(local_target_path, filter="tar")
 
 
 class ConfigFirecrestRemote(BaseModel):
