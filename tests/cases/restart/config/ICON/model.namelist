@@ -1,0 +1,11 @@
+&parallel_nml
+/
+&grid_nml
+ dynamics_grid_filename = 'grid.nc'
+/
+&run_nml
+ restart_filename = 'custom_<mtype>_<rsttime>.nc'
+/
+&io_nml
+ restart_write_mode = 'sync'
+/

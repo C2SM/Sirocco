@@ -1,0 +1,66 @@
+cycles:
+  - daily [date: 2026-01-01 00:00:00+00:00]:
+      tasks:
+        - icon [date: 2026-01-01 00:00:00+00:00]:
+            plugin: 'icon'
+            computer: 'santis'
+            uenv: 'icon/test:latest'
+            nodes: 2
+            procs_per_node: 4
+            gpus_per_node: 2
+            sockets_per_node: 2
+            cycle_point: [2026-01-01 00:00:00+00:00 -- 2026-01-02 00:00:00+00:00]
+            components:
+              atm:
+                inputs:
+                  restart_in: []
+                outputs:
+                  restart_out:
+                    - restart [date: 2026-01-01 00:00:00+00:00]
+            exe:
+              cpu:
+                path: /bin/true
+                procs:
+                  atm:
+                    compute_weight: 1
+                    prefetch: 0
+                    restart: 0
+                    streams: 0
+              procs_per_io_node: 0
+              separate_io: False
+            namelists:
+              - icon_master.namelist
+              - model.namelist
+  - daily [date: 2026-01-02 00:00:00+00:00]:
+      tasks:
+        - icon [date: 2026-01-02 00:00:00+00:00]:
+            plugin: 'icon'
+            computer: 'santis'
+            uenv: 'icon/test:latest'
+            nodes: 2
+            procs_per_node: 4
+            gpus_per_node: 2
+            sockets_per_node: 2
+            cycle_point: [2026-01-02 00:00:00+00:00 -- 2026-01-03 00:00:00+00:00]
+            components:
+              atm:
+                inputs:
+                  restart_in:
+                    - restart [date: 2026-01-01 00:00:00+00:00]
+                outputs:
+                  restart_out:
+                    - restart [date: 2026-01-02 00:00:00+00:00]
+            exe:
+              cpu:
+                path: /bin/true
+                procs:
+                  atm:
+                    compute_weight: 1
+                    prefetch: 0
+                    restart: 0
+                    streams: 0
+              procs_per_io_node: 0
+              separate_io: False
+            namelists:
+              - icon_master.namelist
+              - model.namelist

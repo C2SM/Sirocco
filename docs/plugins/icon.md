@@ -75,8 +75,8 @@ This list regularly gets extended as use cases start to cover more ICON features
 <br>
 **actions**:
 
-- Check `io_nml:restart_write_mode` for supported options, so far only `"joint procs multifile"`.
-- Link the associated data as `multifile_restart_{model.name}.mfr` in the task run directory.
+- Validate `io_nml:restart_write_mode`: `"sync"`, `"async"`, `"joint procs multifile"`, or `"dedicated procs multifile"`. A blank mode selects `"sync"` with zero restart writers and `"async"` otherwise.
+- Link the associated data as `multifile_restart_{model.name}.mfr` for multifile modes, or `restart_{model.name}_DOM01.nc`, etc. for single-file modes.
 
 #### `dynamics_grid_file`
 
@@ -427,7 +427,8 @@ This list regularly gets extended as use cases start to cover more ICON features
 <br>
 **actions**:
 
-- Check `io_nml:restart_write_mode` for supported options, so far only `"joint procs multifile"`.
+- Validate the same restart modes and data counts as [`restart_in`](#restart_in).
+- Resolve the generated data paths to `multifile_restart_{model.name}.mfr` for multifile modes, or `restart_{model.name}_DOM01.nc`, etc. for single-file modes.
 
 #### `output_streams`
 
