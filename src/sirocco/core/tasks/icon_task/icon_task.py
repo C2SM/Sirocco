@@ -170,9 +170,6 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
 
                 # number of compute and IO nodes
                 # ------------------------------
-                if self.exe.separate_io and self.exe.procs_per_io_node <= 0:
-                    msg = f"{self.label}: procs_per_io_node must be positive when separate_io is True"
-                    raise ValueError(msg)
                 self.io_nodes = ceil(self.exe.tot_io_procs / self.exe.procs_per_io_node) if self.exe.separate_io else 0
                 if self.io_nodes >= self.nodes:
                     msg = f"{self.label}: number of IO nodes (got {self.io_nodes}) must be < total number of nodes ({self.nodes})"
@@ -240,7 +237,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         self, min_rank: int, compute_procs: int, exe: yaml_data_models.ConfigIconExe, target: Literal["cpu", "gpu"]
     ) -> int:
         if compute_procs < len(exe.procs):
-            msg = f"{self.label}: insufficient compute ranks for {target} models after reserving I/O processes"
+            msg = f"{self.label}: insufficient compute procs for {target} models after reserving I/O processes"
             raise ValueError(msg)
         compute_weights: dict[str, int] = {name: exe_proc.compute_weight for name, exe_proc in exe.procs.items()}
 
@@ -266,8 +263,9 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
     @staticmethod
     def _validate_model_restart(model: IconModel) -> None:
         """Validate one model's restart settings and the number of restart inputs and outputs."""
-        validate_restart(model.namelist.namelist)
-        names = restart_link_names(model.name, model.namelist.namelist)
+        writers = model.num_restart_procs
+        validate_restart(model.namelist.namelist, writers)
+        names = restart_link_names(model.name, model.namelist.namelist, writers)
         for port, data in (
             ("restart_in", model.inputs.get("restart_in", [])),
             ("restart_out", model.outputs.get("restart_out", [])),

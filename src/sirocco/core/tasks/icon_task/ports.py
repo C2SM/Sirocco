@@ -367,8 +367,9 @@ def restart_in_handler_callable(port_name: str, model: IconModel) -> None:
     # Ignore empty restart port or possible when conditions
     if not (data_list := model.inputs[port_name]):
         return
-    validate_restart(model.namelist.namelist)
-    names = restart_link_names(model.name, model.namelist.namelist)
+    writers = model.num_restart_procs
+    validate_restart(model.namelist.namelist, writers)
+    names = restart_link_names(model.name, model.namelist.namelist, writers)
     if len(data_list) != len(names):
         msg = f"{model.task_label}, model {model.name}: port '{port_name}' requires {len(names)} data object(s), in order {names}"
         raise ValueError(msg)
@@ -392,8 +393,9 @@ def restart_out_handler_callable(port_name: str, model: IconModel) -> None:
     # Ignore empty restart port or possible when conditions
     if not (data_list := model.outputs[port_name]):
         return
-    validate_restart(model.namelist.namelist)
-    names = restart_link_names(model.name, model.namelist.namelist)
+    writers = model.num_restart_procs
+    validate_restart(model.namelist.namelist, writers)
+    names = restart_link_names(model.name, model.namelist.namelist, writers)
     if len(data_list) != len(names):
         msg = f"{model.task_label}, model {model.name}: port '{port_name}' requires {len(names)} data object(s), in order {names}"
         raise ValueError(msg)

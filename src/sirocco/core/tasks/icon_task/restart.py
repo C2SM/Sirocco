@@ -1,13 +1,14 @@
 """ICON restart modes and the stable links used for checkpoints."""
 
-from collections.abc import Mapping
-from typing import Any, Literal, cast
+from typing import Literal, cast
 
-RestartMode = Literal["sync", "async", "joint procs multifile", "dedicated procs multifile"]
+import f90nml
+
+RESTART_MODE_T = Literal["sync", "async", "joint procs multifile", "dedicated procs multifile"]
 RESTART_MODES = ("sync", "async", "joint procs multifile", "dedicated procs multifile")
 
 
-def restart_mode(namelist: Mapping[str, Any]) -> RestartMode:
+def restart_mode(namelist: f90nml.Namelist, writers: int) -> RESTART_MODE_T:
     """Resolve ICON's blank mode using the allocated writer count."""
     mode = namelist.get("io_nml", {}).get("restart_write_mode", "")
     if not isinstance(mode, str):
@@ -15,22 +16,22 @@ def restart_mode(namelist: Mapping[str, Any]) -> RestartMode:
         raise TypeError(msg)
     mode = mode.strip()
     if not mode:
-        return "async" if namelist.get("parallel_nml", {}).get("num_restart_procs", 0) else "sync"
+        return "async" if writers > 0 else "sync"
     if mode not in RESTART_MODES:
-        msg = f"Unsupported restart_write_mode {mode!r}m, expected one of {RESTART_MODES} or a blank string"
+        msg = f"Unsupported restart_write_mode {mode!r}, expected one of {RESTART_MODES} or a blank string"
         raise ValueError(msg)
-    return cast("RestartMode", mode)
+    return cast("RESTART_MODE_T", mode)
 
 
-def restart_domain_ids(namelist: Mapping[str, Any]) -> list[int]:
+def restart_domain_ids(namelist: f90nml.Namelist) -> list[int]:
     """Identify simulated domains from the dynamics-grid array (excluding domain 0)."""
     grid = namelist.get("grid_nml", {})
     filenames = grid.get("dynamics_grid_filename")
     if filenames is None:
         return [1]
     if not isinstance(filenames, list):
-        filenames = [filenames]
-    lower_bounds = getattr(grid, "start_index", {}).get("dynamics_grid_filename", [1])
+        return [1]
+    lower_bounds = grid.start_index.get("dynamics_grid_filename", [1])
     first = lower_bounds[0]
     if first is None:
         first = 1
@@ -41,21 +42,19 @@ def restart_domain_ids(namelist: Mapping[str, Any]) -> list[int]:
     return domains
 
 
-def restart_link_names(model_name: str, namelist: Mapping[str, Any]) -> list[str]:
+def restart_link_names(model_name: str, namelist: f90nml.Namelist, writers: int) -> list[str]:
     """Return restart links in ascending domain order, or one multifile link."""
-    if "multifile" in restart_mode(namelist):
+    if "multifile" in restart_mode(namelist, writers):
         return [f"multifile_restart_{model_name}.mfr"]
     return [f"restart_{model_name}_DOM{domain:02d}.nc" for domain in restart_domain_ids(namelist)]
 
 
-def validate_restart(namelist: Mapping[str, Any]) -> None:
+def validate_restart(namelist: f90nml.Namelist, writers: int) -> None:
     """Validate restart parameters and writer resources."""
-    parallel = namelist.get("parallel_nml", {})
-    writers = parallel.get("num_restart_procs", 0)
     if isinstance(writers, bool) or not isinstance(writers, int) or writers < 0:
         msg = "num_restart_procs must be a non-negative integer"
         raise ValueError(msg)
-    mode = restart_mode(namelist)
+    mode = restart_mode(namelist, writers)
     if mode in ("async", "dedicated procs multifile") and writers == 0:
         msg = f"restart_write_mode={mode!r} requires exe cpu/gpu procs.<model>.restart > 0"
         raise ValueError(msg)
