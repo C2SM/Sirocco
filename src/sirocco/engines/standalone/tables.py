@@ -4,10 +4,9 @@
 - `DataPathTable`: the resolved path of each data node.
 
 The two depend on each other: handlers write and read resolved paths, and resolving the
-path of a generated data node asks the handler of its origin task. The handler table gets
-the data path table and hands it to each handler it creates, while the data path table only
-gets a callback to reach the handlers (see `DataPathTable.resolve_task_outputs`). Both are
-created and owned by the engine.
+path of a generated data node asks the handler of its origin task. Both are created and
+owned by the engine: the handler table gets the data path table at creation and hands it to
+each handler it creates, and the engine then sets `DataPathTable.task_handlers`.
 """
 
 from __future__ import annotations
@@ -19,7 +18,6 @@ from sirocco.core.graph_items import AvailableData, GeneratedData
 from sirocco.engines.standalone.plugin_handlers import PluginHandler
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
     from pathlib import Path
 
     from sirocco import core
@@ -54,12 +52,8 @@ class DataPathTable:
     order in which tasks are processed.
     """
 
-    # Resolves (sets) the paths of all the outputs of a task. A callback rather than the
-    # `TaskHandlerTable` itself, which needs this table at creation: handlers get it as soon
-    # as they are created, whereas this table only needs the handlers later on, when
-    # resolving a path. The callback only looks the handler up when called, so both tables
-    # are complete from their creation, without one referencing the other both ways.
-    resolve_task_outputs: Callable[[core.Task], None] = field(repr=False)
+    # Set by the engine once the handler table, which needs this one at creation, exists
+    task_handlers: TaskHandlerTable = field(init=False, repr=False)
     _paths: dict[str, Path] = field(default_factory=dict, init=False)
 
     def __getitem__(self, data: core.Data) -> Path:
@@ -92,7 +86,7 @@ class DataPathTable:
             case GeneratedData() if data.path is not None and data.path.is_absolute():
                 self[data] = data.path
             case GeneratedData():
-                self.resolve_task_outputs(data.origin_task)
+                self.task_handlers[data.origin_task].resolve_output_paths()
             case _:
                 msg = f"standalone engine: cannot resolve the path of {type(data).__name__}"
                 raise NotImplementedError(msg)

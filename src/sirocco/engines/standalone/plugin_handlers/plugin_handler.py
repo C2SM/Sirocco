@@ -4,9 +4,11 @@ A `PluginHandler` subclass implements the plugin specific parts (abstract method
 may override the generic ones (normal methods and class variables). A subclass
 parametrizes `PluginHandler` with the task class it handles, e.g.
 `ShellHandler(PluginHandler[ShellTask])`, which types its `task` attribute and registers it
-at class creation for the plugin of that task class. The
-built-in handlers are the other modules of this package, imported by
-`sirocco.engines.standalone`.
+at class creation for the plugin of that task class. The task class is a type parameter
+rather than a narrowed `task: ShellTask` annotation in the subclass, which type checkers
+reject as an unsafe override of a mutable attribute, and the same parameter serves both
+typing and registration. The built-in handlers are the other modules of this package,
+imported by `sirocco.engines.standalone`.
 
 Handlers are created per task, on first access to `StandaloneEngine.task_handlers[task]`,
 and get what all of them share: the run root and the resolved data paths (`DataPathTable`).
@@ -48,11 +50,13 @@ class PluginHandler[T: core.Task](ABC):
     def __init_subclass__(cls, **kwargs: Any) -> None:
         """Register handler in `handler_classes`"""
         super().__init_subclass__(**kwargs)
-        # Introspection to access the base class
-        task_class = next(
-            (get_args(base)[0] for base in types.get_original_bases(cls) if get_origin(base) is PluginHandler),
-            None,
-        )
+        # Introspection to access the task class, looked up in a `PluginHandler[...]` base only. A handler
+        # parametrizing a generic subclass instead, e.g. `MyHandler(MyGenericHandler[MyTask])`, is therefore not
+        # registered: nothing needs it yet. It would be needed to reuse an existing handler for a derived task
+        # with `task` typed accordingly, which requires that handler to be generic. To support it, also accept
+        # bases whose origin is a subclass of `PluginHandler`: `issubclass(get_origin(base), PluginHandler)`.
+        plugin_handler_bases = [base for base in types.get_original_bases(cls) if get_origin(base) is PluginHandler]
+        task_class = get_args(plugin_handler_bases[0])[0] if plugin_handler_bases else None
         if task_class is None or isinstance(task_class, TypeVar):
             return  # Task class not given here (inherited from a parent handler, or left generic): nothing to register
         if not (isinstance(task_class, type) and issubclass(task_class, core.Task)):

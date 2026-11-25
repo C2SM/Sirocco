@@ -105,10 +105,9 @@ class StandaloneEngine:
 
     def __post_init__(self) -> None:
         self.front = Front(depth=self.front_depth)
-        self.data_paths = DataPathTable(
-            resolve_task_outputs=lambda task: self.task_handlers[task].resolve_output_paths()
-        )
+        self.data_paths = DataPathTable()
         self.task_handlers = TaskHandlerTable(run_root=self.run_root, data_paths=self.data_paths)
+        self.data_paths.task_handlers = self.task_handlers
 
     @classmethod
     def from_config_workflow(cls, config_workflow: ConfigWorkflow) -> Self:
