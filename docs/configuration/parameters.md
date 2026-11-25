@@ -9,7 +9,7 @@ Parameterized workflows are supported by Sirocco, typically for ensemble or sens
 
 !!! warning "Accessing parameters values"
 
-    For shell tasks, parameter values are available through the `sirocco_context.yaml` file under `task.coordinates`. See [Shell task context file](../plugins/shell.md#context-file).
+    For shell tasks, parameter values are available through the `sirocco_context.yaml` file under `task.coordinates`. See [Shell task context file](../plugins/shell.md#context-file). For ICON tasks, this is still not available (e.g. to set namelist parameters), but support is planned.
 
 ## Overview
 

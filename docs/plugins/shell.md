@@ -119,12 +119,48 @@ depending on whether `port_name_2` links data or not.
 
 ## Context File
 
-When using the standalone engine, Sirocco creates a `sirocco_context.yaml` file in each shell task's run directory before submitting the job.  This file describes the shell task's resolved inputs, outputs and [`wait_on`](../configuration/cycles.md#wait_on) dependencies. It provides resolved paths and coordinates, which allows task scripts to identify which dates and parameter values their inputs belong to. This complements the `{PORT::XXX}` placeholders in the command line. The file contains:
+When using the standalone engine, Sirocco creates a `sirocco_context.yaml` file in each shell task's run directory before submitting the job.  This file describes the shell task's resolved inputs, outputs and [`wait_on`](../configuration/cycles.md#wait_on) dependencies. The file contains:
 
 - `task`: the task name, coordinates, and run directory.
 - `inputs`: input ports mapped to lists of data objects, each containing its name, resolved path, and coordinates.
-- `outputs`: output ports mapped to lists of data objects, each containing its name and resolved path. Output coordinates are ommited because they match task.coordinates.
+- `outputs`: output ports mapped to lists of data objects, each containing its name and resolved path. Output coordinates are omited because they match `task.coordinates`.
 - `wait_on`: task dependencies, each containing its name, coordinates, and run directory. Dependencies implied by inputs are not included here.
+
+This complements the `{PORT::XXX}` placeholders in the command line. THe following example corresponds to the task `statistics foo` from the [parameterized workflow](../configuration/parameters.md#example-of-a-parameterized-workflow):
+
+```sirocco-yaml title="sirocco_context.yaml"
+task:
+  name: statistics foo
+  coordinates:
+    date: '2026-01-01T00:00:00+00:00'
+    bar: 1.5
+  run_dir: /workflow/run/statistics-foo-bar1.5
+inputs:
+  in:
+    - name: processed
+      path: /workflow/run/post-proc-foo0-bar1.5/processed_output
+      coordinates:
+        date: '2026-01-01T00:00:00+00:00'
+        bar: 1.5
+        foo: 0
+    - name: processed
+      path: /workflow/run/post-proc-foo1-bar1.5/processed_output
+      coordinates:
+        date: '2026-01-01T00:00:00+00:00'
+        bar: 1.5
+        foo: 1
+    - name: processed
+      path: /workflow/run/post-proc-foo2-bar1.5/processed_output
+      coordinates:
+        date: '2026-01-01T00:00:00+00:00'
+        bar: 1.5
+        foo: 2
+outputs:
+  out:
+    - name: stat foo
+      path: /workflow/run/statistics-foo-bar1.5/stat_foo
+wait_on: []
+```
 
 ## Exported variables
 
@@ -137,4 +173,4 @@ Before invoking the task `command` in the submitted run script, some environment
 
 !!! warning "Parameter values not exported yet"
 
-    The values of the [parameters](../configuration/parameters.md) of a task instance are not exported as environment variables, instead they are available in the context file under `task.coordinates`.
+    The values of the [parameters](../configuration/parameters.md) of a task instance are not exported as environment variables for now, instead they are available in the context file under `task.coordinates`.
