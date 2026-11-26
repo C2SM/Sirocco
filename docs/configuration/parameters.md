@@ -7,9 +7,9 @@ icon: lucide/variable
 
 Parameterized workflows are supported by Sirocco, typically for ensemble or sensitivity experiments. Since Sirocco includes data nodes in the workflow graph, parameters apply to both task and data instances. As each configuration section is documented in its own place, the parameter related specifications are spread across several of them. This page gathers them and shows how they are assembled in a [complete example](#example-of-a-parameterized-workflow).
 
-!!! failure "Parameters not yet fully functional"
+!!! warning "Accessing parameters values"
 
-    Even though workflows with parameterized tasks and pieces of data can be generated, the parameter values are not yet exposed to the tasks themselves.
+    For shell tasks, parameter values are available through the `sirocco_context.yaml` file under `task.coordinates`. See [Shell task context file](../plugins/shell.md#context-file). For ICON tasks, this is still not available (e.g. to set namelist parameters), but support is planned.
 
 ## Overview
 

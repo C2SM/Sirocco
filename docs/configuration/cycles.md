@@ -364,10 +364,6 @@ parameters:
 
 See [Parameters](parameters.md) for the complete set of rules and an [annotated example](parameters.md#example-of-a-parameterized-workflow).
 
-!!! failure "Parameters not yet fully functional"
-
-    Even though workflows with parameterized tasks and pieces of data can be generated, the parameter values are not yet exposed to the tasks themselves.
-
 <!-- Local Variables: -->
 <!-- jinx-local-words: "composable" -->
 <!-- End: -->
