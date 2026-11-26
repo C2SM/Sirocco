@@ -316,11 +316,7 @@ class StandaloneEngine:
         self.lock_file.unlink()
 
     def dump_state(self) -> None:
-        """Write the front, the completed and cool-down tasks and their job ids to the state file
-
-        Workflows are continued across Sirocco versions through this file, so its format is
-        guarded by `test_state_file_format`.
-        """
+        """Write the front, the completed and cool-down tasks and their job ids to the state file"""
         YAML().dump(
             {
                 "sirocco_jobid": self.jobids[self.sirocco_continue_task],

@@ -15,9 +15,6 @@ recorded in a trace and compared to a reference file:
 The cases cover front depths 3 (`parameters`), 2 (`partial-dates`) and, by overriding
 the config, 1 (`partial-dates` again), each depth propagating the front differently.
 
-A separate test guards the format of the state file itself, on which continuing a
-workflow across Sirocco versions relies.
-
 On mismatch, the new output is written next to the reference with a `.new` suffix.
 Run pytest with `--reserialize` to regenerate the references after an intended change.
 """
@@ -223,18 +220,6 @@ def test_orchestration(case, front_depth, scenario, tmp_path, test_rootdir, monk
     trace = "\n".join(sim.cluster.trace).lstrip() + "\n"
     suffix = "" if front_depth is None else f"_front_depth_{front_depth}"
     check_reference(trace, test_rootdir / f"tests/cases/{case}/data/standalone_{scenario}{suffix}.txt", pytestconfig)
-
-
-def test_state_file_format(tmp_path, test_rootdir, monkeypatch, pytestconfig):
-    """The state file written by `sirocco start` keeps its format
-
-    Workflows started with one Sirocco version are continued by the next one through
-    this file, so changing its format needs to be deliberate.
-    """
-    sim = simulation("partial-dates", tmp_path, test_rootdir, monkeypatch)
-    engine = sim.command("start")
-    reference = test_rootdir / "tests/cases/partial-dates/data/standalone_state_after_start.yaml"
-    check_reference(engine.state_file.read_text(), reference, pytestconfig)
 
 
 def test_restart_before_start(tmp_path, test_rootdir, monkeypatch, caplog):

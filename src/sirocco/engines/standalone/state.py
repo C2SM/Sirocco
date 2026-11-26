@@ -7,7 +7,7 @@ coordinates):
 
 - `JobIdTable`: the job id of each submitted task,
 - `Front`: which tasks are in which generation of the front and which are
-  completed, from which the rank of each task follows.
+  completed, and so the rank of each task.
 
 Neither holds an entry for tasks the engine has not submitted yet, so no
 engine-side copy of the graph is ever built.
@@ -58,9 +58,10 @@ class Front:
     `front[k]` is generation `k`: generation 0 holds the running or queued tasks, the next
     ones the tasks submitted ahead of time (see the orchestration documentation).
 
-    The rank of a task follows from where it is: `k` in generation `k`, `COMPLETED` (-1) once
-    completed and `depth` while not submitted yet. Tasks enter the front through `place` and
-    only move through `promote`, so the rank of a task and its place in the front always agree.
+    The rank of a task is the generation it is in: `k` in generation `k`, `COMPLETED` (-1) once
+    completed and `depth` while not submitted yet. It is recorded only when the task is added
+    to a list (`_append`). Tasks enter the front through `place` and only move through
+    `promote`, so the rank of a task and its place in the front always agree.
     """
 
     depth: int
