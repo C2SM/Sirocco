@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import enum
 from colorsys import hsv_to_rgb
-from itertools import chain
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Self
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 
 from lxml import etree
 from pygraphviz import AGraph
@@ -14,7 +13,8 @@ from sirocco import core
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from sirocco.core.graph_items import GRAPH_ITEM_T, VIZ_STATUS_T
+
+type VIZ_STATUS_T = Literal["undefined", "active", "waiting", "inactive"]
 
 
 def hsv_to_hex(h: float, s: float, v: float) -> str:
@@ -107,30 +107,30 @@ class NodeFace(enum.Enum):
     TASK_INACTIVE = __TASK | node_colors(Hue.TASK.value, status="inactive")
 
     @classmethod
-    def from_node(cls, node: core.GraphItem) -> NodeFace:
+    def from_node(cls, node: core.GraphItem, status: VIZ_STATUS_T = "undefined") -> NodeFace:
         match node:
             case core.Task():
-                if node.viz_status == "active":
+                if status == "active":
                     return cls.TASK_ACTIVE
-                if node.viz_status == "waiting":
+                if status == "waiting":
                     return cls.TASK
-                if node.viz_status == "inactive":
+                if status == "inactive":
                     return cls.TASK_INACTIVE
                 return cls.TASK
             case core.AvailableData():
-                if node.viz_status == "active":
+                if status == "active":
                     return cls.DATA_AV_ACTIVE
-                if node.viz_status == "waiting":
+                if status == "waiting":
                     return cls.DATA_AV
-                if node.viz_status == "inactive":
+                if status == "inactive":
                     return cls.DATA_AV_INACTIVE
                 return cls.DATA_AV
             case core.GeneratedData():
-                if node.viz_status == "active":
+                if status == "active":
                     return cls.DATA_GEN_ACTIVE
-                if node.viz_status == "waiting":
+                if status == "waiting":
                     return cls.DATA_GEN
-                if node.viz_status == "inactive":
+                if status == "inactive":
                     return cls.DATA_GEN_INACTIVE
                 return cls.DATA_GEN
             case core.Cycle():
@@ -149,8 +149,13 @@ class VizGraph:
         tasks: Iterable[core.Task],
         data: Iterable[core.Data],
         cycles: Iterable[core.Cycle],
+        statuses: dict[str, VIZ_STATUS_T] | None = None,
+        ranks: dict[str, int] | None = None,
     ) -> None:
         self.name = name
+        # Optional display status and rank per node label, e.g. when visualizing a running workflow
+        self.statuses: dict[str, VIZ_STATUS_T] = statuses or {}
+        self.ranks: dict[str, int] = ranks or {}
         # self.agraph = AGraph(name=name, fontname="Fira Sans", newrank=True)
         self.agraph = AGraph(name=name, fontname="Adwaita Sans", newrank=True, bgcolor="transparent")
         for data_node in data:
@@ -158,7 +163,7 @@ class VizGraph:
                 data_node,
                 tooltip=self.tooltip(data_node),
                 label=data_node.name,
-                **NodeFace.from_node(data_node).value,
+                **NodeFace.from_node(data_node, self.status(data_node)).value,
             )
 
         for task in tasks:
@@ -166,7 +171,7 @@ class VizGraph:
                 task,
                 tooltip=self.tooltip(task),
                 label=task.name,
-                **NodeFace.from_node(task).value,
+                **NodeFace.from_node(task, self.status(task)).value,
             )
 
         # NOTE: For some reason, clusters need to have a unique name that starts with 'cluster'
@@ -181,7 +186,7 @@ class VizGraph:
                         data_node,
                         task,
                         tooltip=None,
-                        **EdgeFace.from_status(task.viz_status).value,
+                        **EdgeFace.from_status(self.status(task)).value,
                     )
                 for data_node in task.output_data_nodes():
                     if isinstance(data_node, core.GeneratedData):
@@ -190,14 +195,14 @@ class VizGraph:
                         task,
                         data_node,
                         tooltip=None,
-                        **EdgeFace.from_status(task.viz_status).value,
+                        **EdgeFace.from_status(self.status(task)).value,
                     )
                 for wait_task in task.wait_on:
                     self.agraph.add_edge(
                         wait_task,
                         task,
                         tooltip=None,
-                        **EdgeFace.from_status(task.viz_status, wait=True).value,
+                        **EdgeFace.from_status(self.status(task), wait=True).value,
                     )
             self.agraph.add_subgraph(
                 cluster_nodes,
@@ -209,12 +214,14 @@ class VizGraph:
             )
             k += 1
 
-    @staticmethod
-    def tooltip(node: core.GraphItem) -> str:
+    def status(self, node: core.GraphItem) -> VIZ_STATUS_T:
+        return self.statuses.get(node.label, "undefined")
+
+    def tooltip(self, node: core.GraphItem) -> str:
         tt: list[str] = [node.name]
         tt.extend(f"  {k}: {v}" for k, v in node.coordinates.items())
-        if isinstance(node, core.Task) and node.viz_status != "undefined":
-            tt.append(f"  rank: {node.rank}")
+        if isinstance(node, core.Task) and self.status(node) != "undefined" and node.label in self.ranks:
+            tt.append(f"  rank: {self.ranks[node.label]}")
         return "\n".join(tt)
 
     def draw(self, file_path: Path | None = None, **kwargs):
@@ -267,46 +274,3 @@ class VizGraph:
             VizGraph instance
         """
         return cls.from_core_workflow(core.Workflow.from_config_path(config_path, template_context=template_context))
-
-    @staticmethod
-    def add_to_unique_list(item: GRAPH_ITEM_T, item_list: list[GRAPH_ITEM_T], labels: list[str]) -> None:
-        if item.label not in labels:
-            labels.append(item.label)
-            item_list.append(item)
-            # default to inactive status
-            if isinstance(item, core.Data | core.Task):
-                item.viz_status = "inactive"
-
-    @classmethod
-    def from_status_workflow(cls, workflow: core.Workflow) -> Self:
-        cycles: list[core.Cycle] = []
-        tasks: list[core.Task] = []
-        data: list[core.Data] = []
-        cycle_labels: list[str] = []
-        task_labels: list[str] = []
-        data_labels: list[str] = []
-
-        # Identify cycles
-        for task in chain(*(workflow.front[:])):
-            cls.add_to_unique_list(task.cycle, cycles, cycle_labels)
-
-        # Identify tasks and data nodes
-        for task in chain(*(cycle.tasks for cycle in cycles)):
-            cls.add_to_unique_list(task, tasks, task_labels)
-            for data_node in chain(task.input_data_nodes(), task.output_data_nodes()):
-                cls.add_to_unique_list(data_node, data, data_labels)
-            for wait_task in task.wait_on:
-                cls.add_to_unique_list(wait_task, tasks, task_labels)
-
-        # Set status for front tasks and data
-        for task in workflow.front[0]:
-            task.viz_status = "active"
-            for data_node in chain(task.output_data_nodes(), task.input_data_nodes()):
-                data_node.viz_status = "active"
-        for task in chain(*(workflow.front[1:])):
-            task.viz_status = "waiting"
-            for data_node in chain(task.output_data_nodes(), task.input_data_nodes()):
-                if data_node.viz_status == "inactive":
-                    data_node.viz_status = "waiting"
-
-        return cls(name=workflow.name, tasks=tasks, data=data, cycles=cycles)

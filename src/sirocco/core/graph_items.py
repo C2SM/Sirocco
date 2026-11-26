@@ -4,10 +4,8 @@ import enum
 from dataclasses import dataclass, field
 from datetime import datetime
 from itertools import chain, product
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Self, TypeVar, cast
 
-from sirocco.parsing import cycling
 from sirocco.parsing.target_cycle import LagList, NoTargetCycle, TargetDateList
 from sirocco.parsing.yaml_data_models import (
     ConfigAvailableData,
@@ -20,6 +18,7 @@ from sirocco.parsing.yaml_data_models import (
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+    from pathlib import Path
 
     from sirocco.parsing.cycling import CyclePoint
     from sirocco.parsing.yaml_data_models import (
@@ -37,16 +36,6 @@ class MpiCmdPlaceholder(enum.Enum):
     MPI_TOTAL_PROCS = "MPI_TOTAL_PROCS"
 
 
-class TaskStatus(enum.Enum):
-    WAITING = 0
-    RUNNING = 1
-    COMPLETED = 2
-    FAILED = 3
-
-
-type VIZ_STATUS_T = Literal["undefined", "active", "waiting", "inactive"]
-
-
 @dataclass(kw_only=True)
 class GraphItem:
     """base class for Data Tasks and Cycles"""
@@ -56,7 +45,6 @@ class GraphItem:
     name: str
     coordinates: dict
     label: str = field(init=False, repr=False)
-    viz_status: VIZ_STATUS_T = field(default="undefined", repr=False)
 
     def __post_init__(self) -> None:
         self.label = self.name
@@ -73,8 +61,6 @@ class GraphItem:
 
 GRAPH_ITEM_T = TypeVar("GRAPH_ITEM_T", bound=GraphItem)
 
-_UNRESOLVED_PATH_ = Path("_UNRESOLVED_PATH_")
-
 
 @dataclass(kw_only=True)
 class Data(ConfigBaseDataSpecs, GraphItem):
@@ -82,7 +68,6 @@ class Data(ConfigBaseDataSpecs, GraphItem):
 
     color: ClassVar[str] = field(default="light_blue", repr=False)
     downstream_tasks: list[Task] = field(default_factory=list, repr=False)
-    _resolved_path: Path = _UNRESOLVED_PATH_
 
     @classmethod
     def from_config(cls, config: ConfigBaseData, coordinates: dict) -> AvailableData | GeneratedData:
@@ -91,17 +76,6 @@ class Data(ConfigBaseDataSpecs, GraphItem):
         del config_kwargs["parameters"]
         return data_class(coordinates=coordinates, **config_kwargs)
 
-    @property
-    def resolved_path(self) -> Path:
-        return self._resolved_path
-
-    @resolved_path.setter
-    def resolved_path(self, path: Path):
-        if not path.is_absolute():
-            msg = "resolved path must be absolute"
-            raise ValueError(msg)
-        self._resolved_path = path
-
 
 @dataclass(kw_only=True)
 class AvailableData(Data, ConfigAvailableDataSpecs):
@@ -109,29 +83,14 @@ class AvailableData(Data, ConfigAvailableDataSpecs):
 
     def __post_init__(self) -> None:
         Data.__post_init__(self)
-        self.resolved_path = self.path
+        if not self.path.is_absolute():
+            msg = f"available data {self.name}: path must be absolute, got {self.path}"
+            raise ValueError(msg)
 
 
 @dataclass(kw_only=True)
 class GeneratedData(Data, ConfigGeneratedDataSpecs):
     origin_task: Task = field(init=False, repr=False)
-
-    def __post_init__(self) -> None:
-        Data.__post_init__(self)
-        if isinstance(self.path, Path) and self.path.is_absolute():
-            self.resolved_path = self.path
-
-    @Data.resolved_path.getter  # type: ignore[attr-defined]
-    def resolved_path(self) -> Path:
-        """Make sure generated data path is resolved before returning it"""
-
-        # NOTE: The call to resolve_output_data_paths() has been placed here
-        #       in order to reduce algorithm complexity. There is no requirement
-        #       for the parts using Data.resolved_path to ensure it has indeed
-        #       been resolved.
-        if self._resolved_path is _UNRESOLVED_PATH_:
-            self.origin_task.resolve_output_data_paths()
-        return self._resolved_path
 
 
 @dataclass(kw_only=True)
@@ -148,18 +107,10 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
 
     plugin_classes: ClassVar[dict[str, type[Self]]] = field(default={}, repr=False)
     color: ClassVar[str] = field(default="light_red", repr=False)
-    SUBMIT_FILENAME: ClassVar[str] = field(default="run_script.sh", repr=False)
-    STDOUTERR_FILENAME: ClassVar[str] = field(default="run_script.%j.o", repr=False)
-    CLEAN_UP_BEFORE_SUBMIT: ClassVar[bool] = field(default=True, repr=False)  # Clean up directory when submitting
-    RUN_ROOT: ClassVar[Literal["run"]] = "run"
 
     config_rootdir: Path
-    run_dir: Path = field(init=False, repr=False)
-    jobid: str = field(default="_NO_ID_", repr=False)
-    rank: int = field(init=False, repr=False)
     cycle_point: CyclePoint
     cycle: Cycle = field(init=False, repr=False)
-    base_env: dict[str, str] = field(default_factory=dict, repr=False)
 
     components: dict[str, TaskComponent] = field(default_factory=dict)
     wait_on: list[Task] = field(default_factory=list)
@@ -178,7 +129,6 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
                     msg += f", component {comp_name}"
                 msg += f": port names must be unique, even between inputs and outputs.\ninputs ports: {comp.inputs.keys()}\noutputs ports: {comp.outputs.keys()}"
                 raise ValueError(msg)
-        self.run_dir = (self.config_rootdir / self.RUN_ROOT / self.label).resolve()
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -215,7 +165,6 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
         coordinates: dict[str, Any],
         datastore: Store,
         graph_spec: ConfigCycleTask,
-        base_env: dict[str, str],
     ) -> Task:
         if (plugin_cls := Task.plugin_classes.get(type(config).plugin, None)) is None:
             msg = f"Plugin {type(config).plugin!r} is not supported."
@@ -241,7 +190,6 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
                 )
                 for comp_name, conf_comp in graph_spec.components.items()
             },
-            base_env=base_env,
         )
 
         # Store for actual linking in link_wait_on_tasks() once all tasks are created
@@ -287,45 +235,6 @@ class Task(ConfigBaseTaskSpecs, GraphItem):
         self.children = unique_item_list(
             chain(self.waiters, *chain(data_out.downstream_tasks for data_out in self.output_data_nodes()))
         )
-
-    def sirocco_environemnt(self) -> list[str]:
-        # TODO: Add parameters
-        env_list: list[str] = []
-        if isinstance(self.cycle_point, cycling.DateCyclePoint):
-            env_list.append(f"export SIROCCO_START_DATE={self.cycle_point.chunk_start_date.isoformat()}")
-            env_list.append(f"export SIROCCO_STOP_DATE={self.cycle_point.chunk_stop_date.isoformat()}")
-        return env_list
-
-    def add_links(self) -> list[str]:
-        link_list: list[str] = []
-        for component in self.components.values():
-            if "link" in component.inputs:
-                link_list.extend([f"ln -s {data.resolved_path} ." for data in component.inputs["link"]])
-            if "link_content" in component.inputs:
-                link_list.extend(
-                    [
-                        f"for item in {data.resolved_path}/*; do ln -s ${{item}} .; done"
-                        for data in component.inputs["link_content"]
-                    ]
-                )
-        return link_list
-
-    def to_yaml_state(self) -> dict[str, dict[str, Any]]:
-        return {
-            self.name: {
-                "coordinates": {k: v.isoformat() if k == "date" else v for k, v in self.coordinates.items()},
-                "jobid": self.jobid,
-            }
-        }
-
-    def runscript_lines(self) -> list[str]:
-        raise NotImplementedError
-
-    def resolve_output_data_paths(self) -> None:
-        raise NotImplementedError
-
-    def prepare_for_submission(self) -> None:
-        raise NotImplementedError
 
 
 @dataclass(kw_only=True)

@@ -1,5 +1,5 @@
 # Project specific / generated files
-tests/cases/*/data/*.new.txt
+tests/cases/*/data/*.new.*
 tests/cases/*/svg/*
 !tests/cases/*/svg/.gitkeep
 

@@ -1,20 +1,16 @@
 from __future__ import annotations
 
 import logging
-import shlex
-import shutil
 from dataclasses import dataclass, field
 from datetime import timedelta
 from itertools import chain
 from math import ceil
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 
 from sirocco.core.graph_items import Task
 from sirocco.core.namelistfile import NamelistFile
-from sirocco.core.scheduler import UENV_MACHINES
 from sirocco.core.tasks.icon_task.models import IconModel, ModelType
-from sirocco.core.tasks.icon_task.ports import PortHandler, restart_in_handler
+from sirocco.core.tasks.icon_task.ports import restart_in_port
 from sirocco.core.tasks.icon_task.task_distribution import (
     RankInfo,
     allocate_tasks_from_weights,
@@ -27,9 +23,11 @@ from sirocco.parsing.cycling import DateCyclePoint
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from pathlib import Path
 
     import f90nml
 
+    from sirocco.core.graph_items import Data
     from sirocco.parsing.cycling import CyclePoint
 
 LOGGER = logging.getLogger(__name__)
@@ -37,10 +35,8 @@ LOGGER = logging.getLogger(__name__)
 
 @dataclass(kw_only=True)
 class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
-    SUPPORTED_MACHINES: ClassVar[list[str]] = field(default=["santis"], repr=False)
     _MASTER_NAMELIST_NAME: ClassVar[str] = field(default="icon_master.namelist", repr=False)
     _MODEL_NML_KEYS: ClassVar[list[str]] = field(default=["master_model_nml", "jsb_model_nml"], repr=False)
-    _MAIN: ClassVar[str] = field(default="main.sh", repr=False)
 
     namelists: list[NamelistFile]
     master_namelist: NamelistFile = field(init=False, repr=False)
@@ -50,8 +46,6 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
     io_nodes: int = field(init=False, repr=False)
     n_procs: int = field(init=False, repr=False)
     ranks_info: dict[int, RankInfo] = field(init=False, repr=False, default_factory=dict)
-    icon_uenv: str | None = None
-    icon_view: str | None = None
 
     def is_coupled(self) -> bool:
         return len(self.master_models) > 1
@@ -146,7 +140,6 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                     is_master_model=is_master[comp_name],
                     core_component=component,
                     task_label=self.label,
-                    task_run_dir=self.run_dir,
                     master_namelist_block=master_namelist_model_nml_blocks[comp_name],
                     namelist=model_namelists[comp_name],
                     model_type=ModelType(model_types[comp_name]),
@@ -319,10 +312,10 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
     def is_restart(self) -> bool:
         """Check if the icon task starts from restart file(s)."""
         # Get restart status of first master model
-        restart_ref = bool(next(iter(self.master_models.values())).inputs.get(restart_in_handler.port_name, False))
+        restart_ref = bool(next(iter(self.master_models.values())).inputs.get(restart_in_port.port_name, False))
         # Check if all master models have the same restart status
         for model in self.master_models.values():
-            if bool(model.inputs.get(restart_in_handler.port_name, False)) != restart_ref:
+            if bool(model.inputs.get(restart_in_port.port_name, False)) != restart_ref:
                 msg = f"{self.label}: All CON models must have the same restart status"
                 raise ValueError(msg)
         return restart_ref
@@ -331,27 +324,6 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         return ",".join(
             f"{self.master_models[name].min_rank}-{self.master_models[name].max_rank}" for name in exe.model_names()
         )
-
-    def generate_multi_prog_config(self) -> None:
-        match self.computer:
-            case "santis":
-                multi_prog_lines: list[str] = []
-                if self.exe.gpu:
-                    multi_prog_lines.append(
-                        f"{self.get_exe_ranks_str(self.exe.gpu)} ./santis_icon_wrapper.sh ./icon_gpu"
-                    )
-                if self.exe.cpu:
-                    multi_prog_lines.append(
-                        f"{self.get_exe_ranks_str(self.exe.cpu)} ./santis_icon_wrapper.sh ./icon_cpu"
-                    )
-                if self.exe.hiopy:
-                    multi_prog_lines.append(
-                        f"{self.exe.hiopy.min_rank}-{self.exe.hiopy.max_rank} ./santis_hiopy_wrapper.sh"
-                    )
-                (self.run_dir / "multi-prog.conf").write_text("\n".join(multi_prog_lines))
-            case _:
-                msg = f"{self.label}: generate_multi_prog_config not implemented for machine {self.computer}"
-                raise NotImplementedError(msg)
 
     def get_exe_compute_rank_bounds(self, exe: yaml_data_models.ConfigIconExe) -> Iterable[tuple[int, int]]:
         return (
@@ -366,7 +338,7 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
         )
 
     def distribute_ranks(self) -> None:
-        """Compute task distribution and dump to template file with placeholder node names"""
+        """Compute the node and numa node of each rank in `ranks_info`"""
 
         match self.computer:
             case "santis":
@@ -416,17 +388,6 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                         msg = f"{self.label}: rank {k} has unitialized node_id and/or numa_node"
                         raise ValueError(msg)
 
-                # Write annotated hostfile
-                nid_length = len(str(self.nodes - 1))
-                (self.run_dir / "hostfile-sirocco").write_text(
-                    "\n".join(
-                        "sirocco_nid{node_id:0{nid_length}} {numa_node} {pe_type} {target} {model}".format(
-                            **self.ranks_info[k], nid_length=nid_length
-                        )
-                        for k in range(self.n_procs)
-                    )
-                )
-
             case _:
                 msg = f"{self.label}: distribute_ranks not implemented for machine {self.computer}"
                 raise NotImplementedError(msg)
@@ -458,73 +419,10 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                 filename += "_" + suffix
             namelist.dump(directory / filename)
 
-    def prepare_for_submission(self) -> None:
-        """Generate or copy any file required at runtime to task run_dir"""
+    def get_squash_mounts(self, directory: Path) -> list[tuple[Data, Path]]:
+        """Get squashed images and their mount points, relative ones being taken from `directory`"""
 
-        # Check supported machine
-        if self.computer not in self.SUPPORTED_MACHINES:
-            msg = f"{self.label}: machine {self.computer} not suportted for icon task. Supported machines are {self.SUPPORTED_MACHINES}"
-            raise ValueError(msg)
-
-        # Handle uenv and squashed images
-        # - reset self.uenv and self.view to None so that they doesn't get taken into account by the scheduler
-        # - store them in self.icon_uenv and self.icon_view to expose them with `export ICON_UENV=XYZ` in the run script
-        # - append squashed images paths and mount points to icon_uenv
-        if self.computer in UENV_MACHINES:
-            if self.uenv is None:
-                msg = f"{self.label}: uenv is required for ICON tasks on {self.computer}"
-                raise ValueError(msg)
-            uenv_list = [self.uenv]
-            uenv_list.extend((f"{squash}:{mount}" for squash, mount in self.get_squash_paths()))
-            self.icon_uenv = ",".join(uenv_list)
-            self.icon_view = self.view
-        self.uenv = None
-        self.view = None
-
-        # Link ICON binaries
-        if self.exe.cpu is not None:
-            (self.run_dir / "icon_cpu").symlink_to(self.exe.cpu.path)
-        if self.exe.gpu is not None:
-            (self.run_dir / "icon_gpu").symlink_to(self.exe.gpu.path)
-
-        # Take input/output ports specifications into account:
-        # - adapt namelist parameters
-        # - resolve data path
-        # - link data
-        for model in self.models.values():
-            for port in chain(model.inputs, model.outputs):
-                PortHandler.handle(port, model)
-
-        # Dump ICON config files
-        self.dump_namelists(directory=self.run_dir, filename_mode="raw")
-        if self.is_coupled() and self.yac_coupling is not None:
-            shutil.copy(self.config_rootdir / self.yac_coupling, self.run_dir / self.yac_coupling.name)
-
-        # Copy required runtime files
-        if self.runtime is None:
-            runtime_dir = Path(__file__).parent / "runtime" / self.computer
-            if not runtime_dir.exists():
-                msg = f"{self.label}: runtime not defined for computer {self.computer}"
-                raise ValueError(msg)
-        else:
-            runtime_dir = self.config_rootdir / self.runtime
-            if not runtime_dir.is_dir():
-                msg = f"{self.label}: 'runtime' directory not found at {runtime_dir}"
-                raise ValueError(msg)
-            if not (runtime_dir / self._MAIN).is_file():
-                msg = f"{self.label}: {self._MAIN} not found in runtime at {runtime_dir}"
-                raise ValueError(msg)
-        shutil.copytree(runtime_dir, self.run_dir, dirs_exist_ok=True)
-
-        # Hostfile and multi-prog config file
-        self.distribute_ranks()
-        if self.target == "hybrid":
-            self.generate_multi_prog_config()
-
-    def get_squash_paths(self) -> list[tuple[Path, Path]]:
-        """Get squashed images paths and mount points"""
-
-        squash_paths: list[tuple[Path, Path]] = []
+        squash_mounts: list[tuple[Data, Path]] = []
         if (master_comp := self.components.get("master")) is not None and (
             squash_data := master_comp.inputs.get("squash")
         ) is not None:
@@ -535,32 +433,8 @@ class IconTask(yaml_data_models.ConfigIconTaskSpecs, Task):
                 msg = f"{self.label}: number of squashed images ({n}) differs from the number of mount points ({m})"
                 raise ValueError(msg)
             for image, mount in zip(squash_data, self.squash_mount, strict=False):
-                mount_point = mount if mount.is_absolute() else self.run_dir / mount
-                mount_point.mkdir(parents=True, exist_ok=True)
-                squash_paths.append((image.resolved_path, mount_point))
-        return squash_paths
-
-    def runscript_lines(self) -> list[str]:
-        lines: list[str] = []
-        # Total number of tasks
-        if self.icon_uenv is not None:
-            lines.append(f"export ICON_UENV={shlex.quote(self.icon_uenv)}")
-            if self.icon_view is not None:
-                lines.append(f"export ICON_VIEW={self.icon_view}")
-        lines.append(f"export N_PROCS={self.n_procs}")
-        lines.append(f"export SIROCCO_TARGET={self.target}")
-        if self.exe.gpu:
-            if self.exe.gpu.icon4py_venv:
-                lines.append(f"export ICON4PY_VENV={self.exe.gpu.icon4py_venv}")
-            if self.exe.gpu.gt4py_build_cache_dir:
-                lines.append(f"export GT4PY_BUILD_CACHE_DIR={self.exe.gpu.gt4py_build_cache_dir}")
-        lines.append(f"source ./{self._MAIN}")
-        return lines
-
-    def resolve_output_data_paths(self) -> None:
-        for model in self.models.values():
-            for port in model.outputs:
-                PortHandler.handle(port, model)
+                squash_mounts.append((image, mount if mount.is_absolute() else directory / mount))
+        return squash_mounts
 
     @classmethod
     def build_from_config(
