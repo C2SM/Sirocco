@@ -248,29 +248,7 @@ Left to remote control: request result files, the `--request-id` option, conditi
 - Each submission costs two flushed journal writes. The lock is also held while the config is parsed.
 - The scheduler interface grows (see above), and `cancel()` must be idempotent.
 
-## Implementation steps
-
-Each step keeps the tests green:
-
-1. **Lock and transactions**: lock with holder record and liveness, `SIROCCO_JOBID` and `exec` in Sirocco job scripts, waiting and outcomes, atomic commit with the state header and the cluster check, all commands as transactions with preconditions checked under the lock, `stop` on the state file alone, fencing of `continue`. Fixes the races and the silent stops.
-2. **Journal and rollback**: journal, in-process rollback, cool-down keeping what started, signal handling, scheduler commands in their own session with a timeout, idempotent `cancel()`.
-3. **Recovery**: lock takeover, `sirocco recover`, `restart --recover`, `stop` cancelling kept tasks, `find_jobs()` for Slurm.
-
-Tests, besides the orchestration traces, which also show lock and journal events:
-
-- two processes racing for the lock, two retries sharing a transaction id, two recoveries racing for a stale lock: one wins;
-- a scheduler failing at the n-th submission: the rollback cancels the earlier ones;
-- a submission call timing out: its intent stays unresolved until `find_jobs()` settles it;
-- a command killed (SIGKILL) at the n-th submission, then `recover`: same trace as the in-process rollback;
-- a crash between commit and journal deletion, also for `start --cleanup`: `recover` only cleans up;
-- a continuation job not named in the committed state: no-op;
-- `stop`, `recover` and `start --cleanup` after tasks were renamed in the config;
-- a recovery long after a crash, with deeper tasks running or completed meanwhile: they are kept;
-- SIGTERM during a transaction: the rollback runs.
-
 ## Open points
 
 - Resubmitting the continuation after transient scheduler errors, with a retry budget, or recovering from the continuation job when it finds a stale lock whose holder is provably dead, if workflows turn out to stop often for such reasons.
-- Telling the user that a workflow stopped after a failure, e.g. by a non-zero exit of the continuation job so that the scheduler sends its failure mail.
-- A `status` command showing the workflow status, the lock holder and whether recovery is needed. Remote control needs it too.
 - Default wait timeouts and grace period.
