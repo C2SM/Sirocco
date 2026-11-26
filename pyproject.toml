@@ -43,6 +43,7 @@ dependencies = [
   "coverage~=7.0",
   "isodate~=0.7",
   "dotenv~=0.9",
+  "pyfirecrest~=3.10",
 ]
 license = {file = "LICENSE"}
 
