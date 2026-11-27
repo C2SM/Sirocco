@@ -1,8 +1,9 @@
 """Simulate standalone orchestration against a fake job scheduler.
 
-Each sirocco command (start, continue, stop, restart) is run as in production: a fresh
-`StandaloneEngine` is built from the config for every command, the only memory between
-commands being the state file and the fake scheduler. Everything the engine does is
+Each sirocco command (start, continue, stop, restart) is run as in production: in a
+transaction holding the workflow lock, with a fresh `StandaloneEngine` built from the config
+for every command, the only memory between commands being the state file and the fake
+scheduler. `continue` runs as the continuation job named in the state. Everything the engine does is
 recorded in a trace and compared to a reference file:
 
 - every submission (job id, parent job ids, dependency type, stdout/stderr mode),
@@ -28,8 +29,23 @@ from typing import TYPE_CHECKING, ClassVar, Literal
 import pytest
 from ruamel.yaml import YAML
 
-from sirocco.engines.standalone import StandaloneEngine, WorkflowStatus
-from sirocco.engines.standalone.scheduler import DEPENDENCY_TYPE_T, STDOUTERR_MODE_T, Scheduler
+from sirocco.engines.standalone import (
+    CommandOutcome,
+    Outcome,
+    StandaloneEngine,
+    Transaction,
+    WorkflowState,
+    WorkflowStatus,
+    clean_up,
+    stop,
+)
+from sirocco.engines.standalone.scheduler import (
+    DEPENDENCY_TYPE_T,
+    JOBID_ENV_VAR,
+    STDOUTERR_MODE_T,
+    Scheduler,
+    UnknownJobError,
+)
 from sirocco.engines.standalone.state import TaskStatus
 from sirocco.parsing.yaml_data_models import ConfigWorkflow
 
@@ -57,6 +73,7 @@ class FakeCluster:
 
     rootdir: Path
     status: dict[str, TaskStatus] = field(default_factory=dict)
+    labels: dict[str, str] = field(default_factory=dict)  # task label of each job id
     trace: list[str] = field(default_factory=list)
     scripts: dict[str, str] = field(default_factory=dict)
     next_jobid: int = 1001
@@ -66,9 +83,10 @@ class FakeCluster:
 
 
 class FakeScheduler(Scheduler):
-    """Not registered (no `name`), the tests put it in place of slurm"""
+    """Not registered (no `name` at class creation), the tests put it in place of slurm"""
 
-    cluster: ClassVar[FakeCluster]
+    jobid_variable = "FAKE_JOB_ID"
+    fake_cluster: ClassVar[FakeCluster]
 
     def header_lines(self, task_handler: PluginHandler, stdouterr_mode: STDOUTERR_MODE_T = "overwrite") -> list[str]:
         return [
@@ -83,22 +101,25 @@ class FakeScheduler(Scheduler):
         dependency_type: DEPENDENCY_TYPE_T = "ALL_COMPLETED",
     ) -> str:
         task = task_handler.task
-        jobid = str(self.cluster.next_jobid)
-        self.cluster.next_jobid += 1
-        self.cluster.status[jobid] = TaskStatus.WAITING
-        self.cluster.record(f"submit {task.label} ({jobid}) after {parent_ids} [{dependency_type}]")
+        jobid = str(self.fake_cluster.next_jobid)
+        self.fake_cluster.next_jobid += 1
+        self.fake_cluster.status[jobid] = TaskStatus.WAITING
+        self.fake_cluster.labels[jobid] = task.label
+        self.fake_cluster.record(f"submit {task.label} ({jobid}) after {parent_ids} [{dependency_type}]")
         script = task_handler.get_runscript_path().read_text()
-        if self.cluster.scripts.get(task.label) != script:
-            self.cluster.scripts[task.label] = script
-            self.cluster.record(f"--- run script {task.label}\n{script}\n---")
+        if self.fake_cluster.scripts.get(task.label) != script:
+            self.fake_cluster.scripts[task.label] = script
+            self.fake_cluster.record(f"--- run script {task.label}\n{script}\n---")
         return jobid
 
-    def get_status(self, task: Task, jobid: str) -> TaskStatus:  # noqa: ARG002
-        return self.cluster.status[jobid]
+    def get_status(self, jobid: str) -> TaskStatus:
+        if jobid not in self.fake_cluster.status:
+            raise UnknownJobError(jobid)
+        return self.fake_cluster.status[jobid]
 
-    def cancel(self, task: Task, jobid: str) -> None:
-        self.cluster.record(f"cancel {task.label} ({jobid})")
-        self.cluster.status[jobid] = TaskStatus.FAILED
+    def cancel(self, jobid: str) -> None:
+        self.fake_cluster.record(f"cancel {self.fake_cluster.labels[jobid]} ({jobid})")
+        self.fake_cluster.status[jobid] = TaskStatus.FAILED
 
 
 def compact_state(state_file: Path) -> str:
@@ -110,7 +131,7 @@ def compact_state(state_file: Path) -> str:
         coordinates = ", ".join(f"{key}={value}" for key, value in spec["coordinates"].items())
         return f"  {name}[{coordinates}] ({spec['jobid']})" if coordinates else f"  {name} ({spec['jobid']})"
 
-    lines = [f"--- state (continuation job {state['sirocco_jobid']})"]
+    lines = [f"--- state revision {state['revision']}, {state['status']} (continuation job {state['sirocco_jobid']})"]
     for k, generation in enumerate(state["front"]):
         lines.append(f"front[{k}]:")
         lines.extend(task(entry) for entry in generation)
@@ -122,9 +143,16 @@ def compact_state(state_file: Path) -> str:
 
 
 class Simulation:
-    def __init__(self, config_dir: Path, cluster: FakeCluster, front_depth: int | None = None) -> None:
+    def __init__(
+        self,
+        config_dir: Path,
+        cluster: FakeCluster,
+        monkeypatch: pytest.MonkeyPatch,
+        front_depth: int | None = None,
+    ) -> None:
         self.config_dir = config_dir
         self.cluster = cluster
+        self.monkeypatch = monkeypatch
         self.front_depth = front_depth
 
     def engine(self) -> StandaloneEngine:
@@ -134,26 +162,38 @@ class Simulation:
             config = config.model_copy(update={"front_depth": self.front_depth})
         return StandaloneEngine.from_config_workflow(config)
 
-    def command(self, name: Literal["start", "continue", "stop", "restart"]) -> StandaloneEngine:
+    @property
+    def run_root(self) -> Path:
+        return self.config_dir / StandaloneEngine.RUN_ROOT_NAME
+
+    def run(self, name: Literal["start", "continue", "stop", "restart"]) -> WorkflowState:
+        """Run command `name` in a transaction, `continue` as the continuation job of the state"""
+        if name == "continue" and (state := WorkflowState.read(self.run_root / StandaloneEngine.STATE_FILE_NAME)):
+            self.monkeypatch.setenv(JOBID_ENV_VAR, state.sirocco_jobid)
+        with Transaction.begin(self.run_root, name, wait=0) as transaction:
+            match name:
+                case "start":
+                    return self.engine().start(transaction, log_type="std")
+                case "continue":
+                    return self.engine().continue_wf(transaction, log_type="std")
+                case "stop":
+                    return stop(transaction, mode="cool-down", log_type="std")
+                case "restart":
+                    return self.engine().restart(transaction, log_type="std")
+
+    def command(self, name: Literal["start", "continue", "stop", "restart"]) -> WorkflowStatus:
         self.cluster.record(f"\n=== sirocco {name}")
-        engine = self.engine()
-        match name:
-            case "start":
-                engine.start(log_type="std")
-            case "continue":
-                engine.continue_wf(log_type="std")
-            case "stop":
-                engine.stop(mode="cool-down", log_type="std")
-            case "restart":
-                engine.restart(log_type="std")
-        self.cluster.record(f"status: {engine.status.name}")
-        self.cluster.record(compact_state(engine.state_file))
-        return engine
+        state = self.run(name)
+        self.cluster.record(f"status: {state.status.name}")
+        self.cluster.record(compact_state(self.run_root / StandaloneEngine.STATE_FILE_NAME))
+        return state.status
 
     def loaded_engine(self) -> StandaloneEngine:
         """Engine with the current state loaded, to inspect the front"""
         engine = self.engine()
-        engine.load_state()
+        state = WorkflowState.read(engine.state_file)
+        assert state is not None
+        engine.load_state(state)
         return engine
 
     def set_status(self, engine: StandaloneEngine, task: Task, status: TaskStatus) -> None:
@@ -195,11 +235,12 @@ def simulation(
     config_dir = tmp_path / "config"
     shutil.copytree(test_rootdir / f"tests/cases/{case}/config", config_dir)
     cluster = FakeCluster(rootdir=config_dir)
-    monkeypatch.setattr(FakeScheduler, "cluster", cluster, raising=False)
+    monkeypatch.setattr(FakeScheduler, "fake_cluster", cluster, raising=False)
     monkeypatch.setitem(Scheduler.scheduler_classes, "slurm", FakeScheduler)
+    monkeypatch.setattr(FakeScheduler, "name", "slurm")
     # Avoid spawning a login shell, the fake scheduler doesn't use the environment
     monkeypatch.setattr(StandaloneEngine, "base_env", {"SIROCCO_TEST": "1"})
-    return Simulation(config_dir, cluster, front_depth)
+    return Simulation(config_dir, cluster, monkeypatch, front_depth)
 
 
 def check_reference(text: str, reference: Path, pytestconfig: pytest.Config) -> None:
@@ -222,14 +263,72 @@ def test_orchestration(case, front_depth, scenario, tmp_path, test_rootdir, monk
     check_reference(trace, test_rootdir / f"tests/cases/{case}/data/standalone_{scenario}{suffix}.txt", pytestconfig)
 
 
-def test_restart_before_start(tmp_path, test_rootdir, monkeypatch, caplog):
-    engine = simulation("partial-dates", tmp_path, test_rootdir, monkeypatch).engine()
-    engine.restart(log_type="std")
-    assert engine.status == WorkflowStatus.RESTART_FAILED
-    assert "Workflow did not start, cannot restart" in caplog.text
+@pytest.mark.parametrize(
+    ("command", "message"),
+    [
+        ("restart", "Workflow did not start, cannot restart"),
+        ("stop", "Workflow did not start, cannot stop"),
+        ("continue", "Workflow did not start, cannot continue"),
+    ],
+)
+def test_command_before_start(command, message, tmp_path, test_rootdir, monkeypatch):
+    sim = simulation("partial-dates", tmp_path, test_rootdir, monkeypatch)
+    with pytest.raises(CommandOutcome, match=message) as outcome:
+        sim.run(command)
+    assert outcome.value.outcome == Outcome.REFUSED
 
 
-def test_stop_before_start(tmp_path, test_rootdir, monkeypatch):
-    engine = simulation("partial-dates", tmp_path, test_rootdir, monkeypatch).engine()
-    with pytest.raises(ValueError, match="Workflow did not start, cannot stop"):
-        engine.stop(mode="cancel", log_type="std")
+def test_continue_fencing(tmp_path, test_rootdir, monkeypatch):
+    """Only the continuation job named in the committed state continues the workflow"""
+    sim = simulation("partial-dates", tmp_path, test_rootdir, monkeypatch)
+    started = sim.run("start")
+    with Transaction.begin(sim.run_root, "continue", wait=0) as transaction:
+        with pytest.raises(CommandOutcome, match="only runs in the continuation job") as outcome:
+            sim.engine().continue_wf(transaction, log_type="std")
+        assert outcome.value.outcome == Outcome.REFUSED
+        monkeypatch.setenv(JOBID_ENV_VAR, "orphan")
+        with pytest.raises(CommandOutcome, match="Continuation job orphan superseded") as outcome:
+            sim.engine().continue_wf(transaction, log_type="std")
+        assert outcome.value.outcome == Outcome.NO_OP
+    assert WorkflowState.read(sim.run_root / StandaloneEngine.STATE_FILE_NAME) == started
+    assert sim.run("continue").revision == started.revision + 1
+
+
+def test_start_twice(tmp_path, test_rootdir, monkeypatch):
+    sim = simulation("partial-dates", tmp_path, test_rootdir, monkeypatch)
+    sim.run("start")
+    with pytest.raises(CommandOutcome, match="Workflow already exists") as outcome:
+        sim.run("start")
+    assert outcome.value.outcome == Outcome.REFUSED
+
+
+def test_clean_up_running(tmp_path, test_rootdir, monkeypatch):
+    sim = simulation("partial-dates", tmp_path, test_rootdir, monkeypatch)
+    sim.run("start")
+    with (
+        pytest.raises(CommandOutcome, match="stop it before") as outcome,
+        Transaction.begin(sim.run_root, "start --cleanup", wait=0) as transaction,
+    ):
+        clean_up(transaction)
+    assert outcome.value.outcome == Outcome.REFUSED
+
+
+def test_renamed_task(tmp_path, test_rootdir, monkeypatch):
+    """Stop and cleanup work on the state file alone, restart needs the state to match the config"""
+    sim = simulation("partial-dates", tmp_path, test_rootdir, monkeypatch)
+    state = sim.run("start")
+    state.front[0][0].name = "renamed"  # As if the task was renamed in the config since
+    state.write(sim.run_root / StandaloneEngine.STATE_FILE_NAME)
+    assert sim.run("stop").status == WorkflowStatus.STOPPED
+    with pytest.raises(
+        CommandOutcome, match="names task renamed__date_2026-01-01T00-00-00, which the config"
+    ) as outcome:
+        sim.run("restart")
+    assert outcome.value.outcome == Outcome.REFUSED
+    (sim.run_root / "leftover").mkdir()
+    with Transaction.begin(sim.run_root, "start --cleanup", wait=0) as transaction:
+        clean_up(transaction)
+        restarted = sim.engine().start(transaction, log_type="std")
+    assert restarted.revision == 1
+    assert restarted.run != state.run
+    assert not (sim.run_root / "leftover").exists()

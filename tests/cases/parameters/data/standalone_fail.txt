@@ -124,11 +124,13 @@ submit Sirocco_continue (1010) after ['1001', '1002'] [ANY]
 
 export N_NODES=1
 
+export SIROCCO_SCHEDULER=slurm
+export SIROCCO_JOBID=${FAKE_JOB_ID}
 
-sirocco continue --from_wf <ROOTDIR> || exit
+exec sirocco continue --from_wf <ROOTDIR>
 ---
-status: CONTINUE
---- state (continuation job 1010)
+status: RUNNING
+--- state revision 1, RUNNING (continuation job 1010)
 front[0]:
   icon[date=2026-01-01T00:00:00+00:00, bar=3.0, foo=0] (1001)
   icon[date=2026-01-01T00:00:00+00:00, bar=3.0, foo=1] (1002)
@@ -201,8 +203,8 @@ export SIROCCO_STOP_DATE=2028-01-01T00:00:00+00:00
 python icon.py --restart <ROOTDIR>/run/icon__date_2027-01-01T00-00-00__bar_3.0__foo_1/restart  --forcing /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
 ---
 submit Sirocco_continue (1015) after ['1003', '1004', '1005'] [ANY]
-status: CONTINUE
---- state (continuation job 1015)
+status: RUNNING
+--- state revision 2, RUNNING (continuation job 1015)
 front[0]:
   statistics_foo[date=2026-01-01T00:00:00+00:00, bar=3.0] (1003)
   icon[date=2026-07-01T00:00:00+00:00, bar=3.0, foo=0] (1004)
@@ -237,7 +239,7 @@ cancel statistics_foo__date_2027-01-01T00-00-00__bar_3.0 (1012)
 cancel icon__date_2027-07-01T00-00-00__bar_3.0__foo_0 (1013)
 cancel icon__date_2027-07-01T00-00-00__bar_3.0__foo_1 (1014)
 status: FAILED
---- state (continuation job _NO_ID_)
+--- state revision 3, FAILED (continuation job _NO_ID_)
 front[0]:
   statistics_foo[date=2026-01-01T00:00:00+00:00, bar=3.0] (1003)
   icon[date=2026-07-01T00:00:00+00:00, bar=3.0, foo=0] (1004)
