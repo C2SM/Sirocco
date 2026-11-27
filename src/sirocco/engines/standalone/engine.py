@@ -94,13 +94,18 @@ class StatusPoint:
 
 
 def get_logger(log_type: LOG_TYPE_T, config_rootdir: Path) -> logging.Logger:
-    """Get a logger, set up on first use
+    """Get the logger of a command, configured anew at each call
 
     - either for stdout/stderr
-    - or for both stdout/stderr and sirocco log file (like tee)"""
+    - or for both stdout/stderr and sirocco log file (like tee)
+
+    Call it once per command and pass the logger down: the handlers of a previous call, maybe for another
+    `config_rootdir`, are removed.
+    """
     logger = logging.getLogger(log_type)
-    if logger.handlers:
-        return logger
+    for handler in list(logger.handlers):
+        logger.removeHandler(handler)
+        handler.close()
     log_formatter = logging.Formatter("[%(levelname)s]  %(message)s")
 
     console_handler = logging.StreamHandler()
@@ -246,8 +251,8 @@ class StandaloneEngine:
 
     # =========== Methods to control the workflow, each in a transaction ===========
 
-    def start(self, transaction: Transaction, log_type: LOG_TYPE_T = "tee") -> WorkflowState:
-        self.logger = get_logger(log_type, self.config_rootdir)
+    def start(self, transaction: Transaction, logger: logging.Logger) -> WorkflowState:
+        self.logger = logger
         if transaction.state is not None:
             msg = "Workflow already exists, cannot start. Use --cleanup to clean up before starting."
             raise CommandOutcome(Outcome.REFUSED, msg)
@@ -255,13 +260,13 @@ class StandaloneEngine:
         self.auto_submit()
         return transaction.commit(self.workflow_state())
 
-    def continue_wf(self, transaction: Transaction, log_type: LOG_TYPE_T = "std") -> WorkflowState:
+    def continue_wf(self, transaction: Transaction, logger: logging.Logger) -> WorkflowState:
         """Continue the workflow, from its continuation job only
 
         The continuation job only acts if the committed state names it: a continuation job of a stopped workflow,
         or submitted by a command that failed before committing, is a no-op.
         """  # NOTE: cannot use "continue"
-        self.logger = get_logger(log_type, self.config_rootdir)
+        self.logger = logger
         if (state := transaction.state) is None:
             raise CommandOutcome(Outcome.REFUSED, "Workflow did not start, cannot continue")
         if (jobid := Scheduler.current_jobid()) is None:
@@ -277,8 +282,8 @@ class StandaloneEngine:
         self.auto_submit()
         return transaction.commit(self.workflow_state())
 
-    def restart(self, transaction: Transaction, log_type: LOG_TYPE_T = "tee") -> WorkflowState:
-        self.logger = get_logger(log_type, self.config_rootdir)
+    def restart(self, transaction: Transaction, logger: logging.Logger) -> WorkflowState:
+        self.logger = logger
         if (state := transaction.state) is None:
             raise CommandOutcome(Outcome.REFUSED, "Workflow did not start, cannot restart")
         if state.status == WorkflowStatus.RUNNING:
@@ -446,13 +451,12 @@ def state_scheduler(state: WorkflowState, config_rootdir: Path) -> Scheduler:
     return scheduler_class(name)()
 
 
-def stop(transaction: Transaction, mode: STOP_MODE_T, log_type: LOG_TYPE_T = "tee") -> WorkflowState:
+def stop(transaction: Transaction, mode: STOP_MODE_T, logger: logging.Logger) -> WorkflowState:
     """Stop the workflow: cancel its continuation job and its front tasks
 
     In cool-down mode, rank 0 tasks that run or completed are kept. Works on the state file alone.
     """
     config_rootdir = transaction.run_root.parent
-    logger = get_logger(log_type, config_rootdir)
     if (state := transaction.state) is None:
         raise CommandOutcome(Outcome.REFUSED, "Workflow did not start, cannot stop")
     if state.sirocco_jobid == NO_ID:

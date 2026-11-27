@@ -319,7 +319,9 @@ def start(
             if cleanup:
                 out.print(f"{CmdStatus.PLAY} Cleaned up workflow at {config_rootdir}")
             out.print(f"{CmdStatus.PLAY} Starting workflow at {config_rootdir} ...")
-            state = StandaloneEngine.from_config_path(config_rootdir).start(transaction)
+            state = StandaloneEngine.from_config_path(config_rootdir).start(
+                transaction, get_logger("tee", config_rootdir)
+            )
     except CommandOutcome as outcome:
         end_command(out, outcome)
     except Exception as e:
@@ -341,14 +343,15 @@ def restart(
     tee_console = log_console(config_rootdir)
     tee_console.print(add_now())
     tee_console.print(f"{CmdStatus.PLAY} Restarting workflow at {config_rootdir} ...")
+    logger = get_logger("tee", config_rootdir)
     try:
         with Transaction.begin(
             config_rootdir / StandaloneEngine.RUN_ROOT_NAME,
             "restart",
             wait=wait,
-            logger=get_logger("tee", config_rootdir),
+            logger=logger,
         ) as transaction:
-            state = StandaloneEngine.from_config_path(config_rootdir).restart(transaction)
+            state = StandaloneEngine.from_config_path(config_rootdir).restart(transaction, logger)
     except CommandOutcome as outcome:
         end_command(tee_console, outcome)
     except Exception as e:
@@ -383,14 +386,15 @@ def stop(
         msg += " in cool down mode"
     msg += " ..."
     tee_console.print(msg)
+    logger = get_logger("tee", config_rootdir)
     try:
         with Transaction.begin(
             config_rootdir / StandaloneEngine.RUN_ROOT_NAME,
             "stop --cool-down" if cool_down else "stop",
             wait=wait,
-            logger=get_logger("tee", config_rootdir),
+            logger=logger,
         ) as transaction:
-            stop_workflow(transaction, mode="cool-down" if cool_down else "cancel")
+            stop_workflow(transaction, mode="cool-down" if cool_down else "cancel", logger=logger)
     except CommandOutcome as outcome:
         end_command(tee_console, outcome)
     except Exception as e:
@@ -419,14 +423,15 @@ def continue_wf(
         raise ValueError(msg)
     config_rootdir = config_dir.resolve()
     std_console.print(f"{CmdStatus.PLAY} Continue workflow ...")
+    logger = get_logger("std", config_rootdir)
     try:
         with Transaction.begin(
             config_rootdir / StandaloneEngine.RUN_ROOT_NAME,
             "continue",
             wait=wait,
-            logger=get_logger("std", config_rootdir),
+            logger=logger,
         ) as transaction:
-            state = StandaloneEngine.from_config_path(config_rootdir).continue_wf(transaction)
+            state = StandaloneEngine.from_config_path(config_rootdir).continue_wf(transaction, logger)
     except CommandOutcome as outcome:
         end_command(std_console, outcome)
     except Exception as e:

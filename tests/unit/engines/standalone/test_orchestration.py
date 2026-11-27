@@ -22,6 +22,7 @@ Run pytest with `--reserialize` to regenerate the references after an intended c
 
 from __future__ import annotations
 
+import logging
 import shutil
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar, Literal
@@ -54,6 +55,8 @@ if TYPE_CHECKING:
 
     from sirocco.core import Task
     from sirocco.engines.standalone.plugin_handlers import PluginHandler
+
+LOGGER = logging.getLogger(__name__)
 
 # Cases with the front depth to use instead of the one of the config, if any
 ORCHESTRATION_CASES: list[tuple[str, int | None]] = [
@@ -173,13 +176,13 @@ class Simulation:
         with Transaction.begin(self.run_root, name, wait=0) as transaction:
             match name:
                 case "start":
-                    return self.engine().start(transaction, log_type="std")
+                    return self.engine().start(transaction, logger=LOGGER)
                 case "continue":
-                    return self.engine().continue_wf(transaction, log_type="std")
+                    return self.engine().continue_wf(transaction, logger=LOGGER)
                 case "stop":
-                    return stop(transaction, mode="cool-down", log_type="std")
+                    return stop(transaction, mode="cool-down", logger=LOGGER)
                 case "restart":
-                    return self.engine().restart(transaction, log_type="std")
+                    return self.engine().restart(transaction, logger=LOGGER)
 
     def command(self, name: Literal["start", "continue", "stop", "restart"]) -> WorkflowStatus:
         self.cluster.record(f"\n=== sirocco {name}")
@@ -284,11 +287,11 @@ def test_continue_fencing(tmp_path, test_rootdir, monkeypatch):
     started = sim.run("start")
     with Transaction.begin(sim.run_root, "continue", wait=0) as transaction:
         with pytest.raises(CommandOutcome, match="only runs in the continuation job") as outcome:
-            sim.engine().continue_wf(transaction, log_type="std")
+            sim.engine().continue_wf(transaction, logger=LOGGER)
         assert outcome.value.outcome == Outcome.REFUSED
         monkeypatch.setenv(JOBID_ENV_VAR, "orphan")
         with pytest.raises(CommandOutcome, match="Continuation job orphan superseded") as outcome:
-            sim.engine().continue_wf(transaction, log_type="std")
+            sim.engine().continue_wf(transaction, logger=LOGGER)
         assert outcome.value.outcome == Outcome.NO_OP
     assert WorkflowState.read(sim.run_root / StandaloneEngine.STATE_FILE_NAME) == started
     assert sim.run("continue").revision == started.revision + 1
@@ -328,7 +331,7 @@ def test_renamed_task(tmp_path, test_rootdir, monkeypatch):
     (sim.run_root / "leftover").mkdir()
     with Transaction.begin(sim.run_root, "start --cleanup", wait=0) as transaction:
         clean_up(transaction)
-        restarted = sim.engine().start(transaction, log_type="std")
+        restarted = sim.engine().start(transaction, logger=LOGGER)
     assert restarted.revision == 1
     assert restarted.run != state.run
     assert not (sim.run_root / "leftover").exists()
