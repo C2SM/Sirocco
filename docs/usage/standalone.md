@@ -70,9 +70,19 @@ Generate a graphical representation similar to `visualize` focusing on the [task
 
 Sirocco has the 3 following self-explanatory commands to control the workflow. Each of them, as well as the [continuation tasks](../orchestration.md#standalone-engine), logs information to `sirocco.log` (see [below](#example-run)) located in the configuration directory. By default Sirocco uses [ANSI escape codes](https://en.wikipedia.org/wiki/ANSI_escape_code) for coloring, which can be disabled with `--no-ansi` as a global option coming before the actual command like `sirocco --no-ansi <command> <args>`.
 
+Commands changing the workflow, including the continuation tasks, hold a lock on it (`run/.sirocco/lock`), so that they never act on the workflow at the same time. A command waits while another one holds the lock, up to `--wait` seconds (60 by default), then gives up. Commands also refuse to run on another cluster than the one running the workflow, as job ids only mean something to their own scheduler. Each command ends with an exit code telling how it ended:
+
+| Exit code | Outcome |
+|---|---|
+| 0 | done, or nothing to do (e.g. stopping a stopped workflow) |
+| 1 | failed |
+| 3 | refused (e.g. restarting a running workflow) |
+| 4 | busy: another command still holds the lock |
+| 5 | the lock was left by a command that no longer runs: make sure none of the jobs it may have submitted is left, then remove the lock |
+
 #### `start`
 
-Start the workflow. Use `--cleanup` to force a fresh start from an existing workflow and wipe the `run` directory.
+Start the workflow. Use `--cleanup` to force a fresh start from an existing workflow and wipe the `run` directory. The cleanup is refused while the workflow runs, or while tasks kept by a cool-down stop still run.
 
 #### `stop`
 

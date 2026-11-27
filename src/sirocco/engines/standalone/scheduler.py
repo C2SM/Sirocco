@@ -1,20 +1,26 @@
 """Job scheduler interface of the standalone engine.
 
 The scheduler is stateless with respect to tasks: it receives job ids from the
-engine for parents, task to cancel or query and returns the new job id for
+engine for parents, jobs to cancel or query and returns the new job id for
 submitted tasks. Only the engine reads and writes the state table.
+
+The job scripts of Sirocco's own jobs (`sirocco continue`, later the remote control
+commands) export `SIROCCO_JOBID` and `SIROCCO_SCHEDULER`. Only processes started by
+these scripts count as running in a job (`Scheduler.current_jobid()`): a command typed
+in an interactive allocation inherits the allocation's job id, but other commands may
+share it and the allocation may end before the command.
 """
 
 from __future__ import annotations
 
+import os
 import subprocess
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, assert_never
 
-from sirocco.engines.standalone.state import NO_ID, TaskStatus
+from sirocco.engines.standalone.state import TaskStatus
 
 if TYPE_CHECKING:
-    from sirocco.core.graph_items import Task
     from sirocco.engines.standalone.plugin_handlers import PluginHandler
 
 UENV_MACHINES: list[str] = ["santis"]
@@ -23,12 +29,21 @@ type STDOUTERR_MODE_T = Literal["overwrite", "append"]
 type DEPENDENCY_TYPE_T = Literal["ALL_COMPLETED", "ANY", "NONE"]
 
 
+JOBID_ENV_VAR = "SIROCCO_JOBID"
+SCHEDULER_ENV_VAR = "SIROCCO_SCHEDULER"
+
+
 class SchedulerCommandError(RuntimeError): ...
+
+
+class UnknownJobError(SchedulerCommandError):
+    """The scheduler doesn't know the job (anymore)"""
 
 
 class Scheduler(ABC):
     scheduler_classes: ClassVar[dict[str, type[Self]]] = {}
     name: ClassVar[str | None] = None  # Set by subclasses implementing a scheduler, name used in the config
+    jobid_variable: ClassVar[str]  # Environment variable holding the job id in a job
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -73,6 +88,8 @@ class Scheduler(ABC):
 
         # Sirocco context
         script_lines.append("")
+        if task_handler.sirocco_job:
+            script_lines.extend(self.sirocco_job_lines())
         script_lines.extend(task_handler.get_sirocco_environment_lines())
 
         # Linked input
@@ -86,6 +103,24 @@ class Scheduler(ABC):
         script_path = task_handler.get_runscript_path()
         script_path.write_text("\n".join(script_lines))
         script_path.chmod(0o755)
+
+    def sirocco_job_lines(self) -> list[str]:
+        """Lines exporting the variables that make a process started by the script a Sirocco job"""
+        return [f"export {SCHEDULER_ENV_VAR}={self.name}", f"export {JOBID_ENV_VAR}=${{{self.jobid_variable}}}"]
+
+    @staticmethod
+    def current_jobid() -> str | None:
+        """Job id of the current process if started by a Sirocco job script, `None` otherwise"""
+        return os.environ.get(JOBID_ENV_VAR)
+
+    @staticmethod
+    def current_scheduler() -> str | None:
+        """Name of the scheduler running the current process if started by a Sirocco job script"""
+        return os.environ.get(SCHEDULER_ENV_VAR)
+
+    def cluster(self) -> str | None:
+        """Name of the cluster of the scheduler, `None` if the scheduler can't tell"""
+        return None
 
     @abstractmethod
     def header_lines(
@@ -106,11 +141,11 @@ class Scheduler(ABC):
         pass
 
     @abstractmethod
-    def get_status(self, task: Task, jobid: str) -> TaskStatus:
-        pass
+    def get_status(self, jobid: str) -> TaskStatus:
+        """Status of job `jobid`, raises `UnknownJobError` if the scheduler doesn't know it"""
 
     @abstractmethod
-    def cancel(self, task: Task, jobid: str) -> None:
+    def cancel(self, jobid: str) -> None:
         pass
 
     @staticmethod
@@ -124,6 +159,20 @@ class Scheduler(ABC):
 
 class Slurm(Scheduler):
     name = "slurm"
+    jobid_variable = "SLURM_JOB_ID"
+
+    def cluster(self) -> str | None:
+        if (cluster := os.environ.get("SLURM_CLUSTER_NAME")) is not None:
+            return cluster
+        try:
+            config = self.run_command(["scontrol", "show", "config"]).stdout
+        except (SchedulerCommandError, OSError):
+            return None
+        for line in config.splitlines():
+            key, _, value = line.partition("=")
+            if key.strip() == "ClusterName":
+                return value.strip()
+        return None
 
     def header_lines(
         self,
@@ -186,14 +235,10 @@ class Slurm(Scheduler):
         result = self.run_command(submit_cmd, cwd=task_handler.get_rundir(), env=env)
         return result.stdout.strip()
 
-    def cancel(self, task: Task, jobid: str):
-        """Cancel a submitted task"""
-        if jobid == NO_ID:
-            msg = f"task {task.label} cannot be canceled as it does not have a jobid"
-            raise ValueError(msg)
+    def cancel(self, jobid: str) -> None:
         self.run_command(["scancel", jobid])
 
-    def get_status(self, task: Task, jobid: str) -> TaskStatus:
+    def get_status(self, jobid: str) -> TaskStatus:
         """Infer task status using sacct"""
         result = self.run_command(
             [
@@ -208,6 +253,9 @@ class Slurm(Scheduler):
             ]
         )
         status_str = result.stdout.strip()
+        if not status_str:
+            msg = f"job {jobid} unknown to slurm"
+            raise UnknownJobError(msg)
         # NOTE: For a complete list of SLURM state codes, see
         #       https://slurm.schedmd.com/job_state_codes.html
         match status_str:
@@ -220,6 +268,6 @@ class Slurm(Scheduler):
             case s if s.startswith(("FAILED", "NODE_FAIL", "OUT_OF_MEMORY", "TIMEOUT", "CANCELLED")):
                 status = TaskStatus.FAILED
             case _:
-                msg = f"unexpected status reported for task {task.label}: {status_str}"
+                msg = f"unexpected status reported for job {jobid}: {status_str}"
                 raise ValueError(msg)
         return status

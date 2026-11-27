@@ -33,11 +33,13 @@ submit Sirocco_continue (1003) after ['1001', '1002'] [ANY]
 
 export N_NODES=1
 
+export SIROCCO_SCHEDULER=slurm
+export SIROCCO_JOBID=${FAKE_JOB_ID}
 
-sirocco continue --from_wf <ROOTDIR> || exit
+exec sirocco continue --from_wf <ROOTDIR>
 ---
-status: CONTINUE
---- state (continuation job 1003)
+status: RUNNING
+--- state revision 1, RUNNING (continuation job 1003)
 front[0]:
   icon[date=2026-01-01T00:00:00+00:00] (1001)
   icon[date=2027-01-01T00:00:00+00:00] (1002)
@@ -153,8 +155,8 @@ export SIROCCO_STOP_DATE=2028-01-01T00:00:00+00:00
 true
 ---
 submit Sirocco_continue (1012) after ['1004', '1005', '1006', '1007', '1008', '1009', '1010', '1011'] [ANY]
-status: CONTINUE
---- state (continuation job 1012)
+status: RUNNING
+--- state revision 2, RUNNING (continuation job 1012)
 front[0]:
   waiter[date=2026-01-01T00:00:00+00:00] (1004)
   waiter[date=2026-07-01T00:00:00+00:00] (1005)
@@ -181,7 +183,7 @@ cancel waiter__date_2027-07-01T00-00-00 (1009)
 cancel biannual_postprocessing__date_2027-01-01T00-00-00 (1010)
 cancel biannual_postprocessing__date_2027-07-01T00-00-00 (1011)
 status: FAILED
---- state (continuation job _NO_ID_)
+--- state revision 3, FAILED (continuation job _NO_ID_)
 front[0]:
   waiter[date=2026-01-01T00:00:00+00:00] (1004)
   waiter[date=2026-07-01T00:00:00+00:00] (1005)

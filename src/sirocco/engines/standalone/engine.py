@@ -8,35 +8,49 @@ what only the standalone orchestration needs:
 - the task handlers (see `plugin_handlers/`) and the data paths they resolve
   (see `tables.py`),
 - the cool-down task list,
-- the scheduler, the lock and the state file,
-- the special `SiroccoContinueTask`.
+- the scheduler and the special `SiroccoContinueTask`.
 
 The front holds references to the graph's own `core.Task` objects, so no
 engine-side copy of the graph exists.
+
+Each command runs in a transaction (see `transaction.py`), which holds the lock and
+commits the state. The commands that move the front forward (`start`, `continue`,
+`restart`) are engine methods, as they need the graph. `stop` and the cleanup of
+`start --cleanup` are functions working on the state file alone, so that they work
+even when the config is broken or no longer matches the state.
 """
 
 from __future__ import annotations
 
-import enum
 import json
 import logging
 import os
+import shutil
 import subprocess
 import sys
 from colorsys import hls_to_rgb
-from dataclasses import dataclass, field
-from datetime import datetime
+from dataclasses import dataclass, field, replace
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, assert_never
 
-from ruamel.yaml import YAML
 from termcolor import colored
 
 from sirocco.core.workflow import Workflow
 from sirocco.engines.standalone.plugin_handlers import SiroccoContinueTask
-from sirocco.engines.standalone.scheduler import DEPENDENCY_TYPE_T, STDOUTERR_MODE_T, Scheduler
-from sirocco.engines.standalone.state import COMPLETED, NO_ID, Front, JobIdTable, TaskStatus
+from sirocco.engines.standalone.scheduler import DEPENDENCY_TYPE_T, STDOUTERR_MODE_T, Scheduler, UnknownJobError
+from sirocco.engines.standalone.state import (
+    COMPLETED,
+    NO_ID,
+    STATE_FILE_NAME,
+    Front,
+    JobIdTable,
+    StateEntry,
+    TaskStatus,
+    WorkflowState,
+    WorkflowStatus,
+)
 from sirocco.engines.standalone.tables import DataPathTable, TaskHandlerTable
+from sirocco.engines.standalone.transaction import CONTROL_DIR_NAME, CommandOutcome, Outcome
 from sirocco.parsing.cycling import OneOffPoint
 from sirocco.parsing.yaml_data_models import ConfigSiroccoTask, ConfigWorkflow
 
@@ -44,16 +58,11 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from sirocco import core
+    from sirocco.engines.standalone.transaction import Transaction
 
-
-class WorkflowStatus(enum.Enum):
-    INIT = 0
-    CONTINUE = 1
-    COMPLETED = 2
-    FAILED = 3
-    STOPPED = 4
-    STOPPING = 5
-    RESTART_FAILED = 6
+type LOG_TYPE_T = Literal["std", "tee"]
+type STOP_MODE_T = Literal["cancel", "cool-down"]
+type POINT_STATUS_T = Literal["COMPLETED", "FRONT", "FAILED"]
 
 
 class StatusPoint:
@@ -63,7 +72,7 @@ class StatusPoint:
     COLOR_FAILED = (255, 87, 87)
 
     @classmethod
-    def from_status(cls, status: Literal["COMPLETED", "FRONT", "FAILED"], rank: int | None = None) -> str:
+    def from_status(cls, status: POINT_STATUS_T, rank: int | None = None) -> str:
         # We generate the colored point in this classmethod and not as class variables otherwise
         # they are defined at import time so that termcolor wiould not take into account the controlling
         # environment variables FORCE_COLOR and NO_COLOR
@@ -84,9 +93,44 @@ class StatusPoint:
                 assert_never(status)
 
 
+def get_logger(log_type: LOG_TYPE_T, config_rootdir: Path) -> logging.Logger:
+    """Get the logger of a command, configured anew at each call
+
+    - either for stdout/stderr
+    - or for both stdout/stderr and sirocco log file (like tee)
+
+    Call it once per command and pass the logger down: the handlers of a previous call, maybe for another
+    `config_rootdir`, are removed.
+    """
+    logger = logging.getLogger(log_type)
+    for handler in list(logger.handlers):
+        logger.removeHandler(handler)
+        handler.close()
+    log_formatter = logging.Formatter("[%(levelname)s]  %(message)s")
+
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(log_formatter)
+
+    logger.setLevel(logging.INFO)
+    logger.addHandler(console_handler)
+
+    if log_type == "tee":
+        file_handler = logging.FileHandler(config_rootdir / SiroccoContinueTask.STDOUTERR_FILENAME)
+        file_handler.setFormatter(log_formatter)
+        logger.addHandler(file_handler)
+
+    return logger
+
+
+def task_line(label: str, jobid: str, action: str, status: POINT_STATUS_T, rank: int) -> str:
+    """Log line of what happens to a task, with a point colored after `status` (and `rank` in the front)"""
+    point = StatusPoint.from_status(status, rank if status == "FRONT" else None)
+    return f"{point} {label} ({jobid}) {action}"
+
+
 @dataclass(kw_only=True)
 class StandaloneEngine:
-    STATE_FILE_NAME: ClassVar[str] = "state.yaml"
+    STATE_FILE_NAME: ClassVar[str] = STATE_FILE_NAME
     RUN_ROOT_NAME: ClassVar[str] = "run"
 
     workflow: Workflow = field(repr=False)
@@ -98,7 +142,7 @@ class StandaloneEngine:
     task_handlers: TaskHandlerTable = field(init=False, repr=False)
     data_paths: DataPathTable = field(init=False, repr=False)
     cool_down_tasks: list[core.Task] = field(default_factory=list, init=False)
-    status: WorkflowStatus = field(default=WorkflowStatus.INIT, init=False)
+    status: WorkflowStatus = field(default=WorkflowStatus.RUNNING, init=False)
     logger: logging.Logger = field(
         default_factory=lambda: logging.getLogger(__name__), init=False, repr=False
     )  # set by each command
@@ -122,12 +166,7 @@ class StandaloneEngine:
                 " workflow config. It configures the job that resubmits sirocco (computer, account, walltime, venv, ...)."
             )
             raise ValueError(msg)
-        if config_workflow.scheduler is None:
-            msg = "The standalone engine requires the scheduler to be specified in the workflow config, e.g. `scheduler: slurm`."
-            raise ValueError(msg)
-        if (scheduler_cls := Scheduler.scheduler_classes.get(config_workflow.scheduler)) is None:
-            msg = f"Scheduler {config_workflow.scheduler!r} is not supported by the standalone engine."
-            raise ValueError(msg)
+        scheduler = scheduler_class(config_workflow.scheduler)()
         workflow = Workflow.from_config_workflow(config_workflow)
         config_kwargs = dict(config_sirocco_task)
         config_kwargs.pop("parameters", None)
@@ -138,7 +177,7 @@ class StandaloneEngine:
             parents=[],
             **config_kwargs,
         )
-        return cls(workflow=workflow, scheduler=scheduler_cls(), sirocco_continue_task=sirocco_continue_task)
+        return cls(workflow=workflow, scheduler=scheduler, sirocco_continue_task=sirocco_continue_task)
 
     @classmethod
     def from_config_path(cls, config_path: str | Path, template_context: dict[str, Any] | None = None) -> Self:
@@ -183,10 +222,13 @@ class StandaloneEngine:
         )
 
     def get_status(self, task: core.Task) -> TaskStatus:
-        return self.scheduler.get_status(task, self.jobids[task])
+        return self.scheduler.get_status(self.jobids[task])
 
     def cancel(self, task: core.Task) -> None:
-        self.scheduler.cancel(task, self.jobids[task])
+        if (jobid := self.jobids[task]) == NO_ID:
+            msg = f"task {task.label} cannot be canceled as it does not have a jobid"
+            raise ValueError(msg)
+        self.scheduler.cancel(jobid)
 
     # =========== Paths ===========
 
@@ -207,154 +249,100 @@ class StandaloneEngine:
     def state_file(self) -> Path:
         return self.run_root / self.STATE_FILE_NAME
 
-    @property
-    def lock_file(self) -> Path:
-        return self.run_root / SiroccoContinueTask.LOCK_FILE_NAME
+    # =========== Methods to control the workflow, each in a transaction ===========
 
-    @property
-    def locked(self) -> bool:
-        return self.lock_file.exists()
-
-    # =========== Methods to control the workflow ===========
-
-    def start(self, log_type: Literal["std", "tee"] = "tee") -> None:
-        self.logger = self.get_logger(log_type)
+    def start(self, transaction: Transaction, logger: logging.Logger) -> WorkflowState:
+        self.logger = logger
+        if transaction.state is not None:
+            msg = "Workflow already exists, cannot start. Use --cleanup to clean up before starting."
+            raise CommandOutcome(Outcome.REFUSED, msg)
         self.init_front()
         self.auto_submit()
-        self.dump_state()
+        return transaction.commit(self.workflow_state())
 
-    def continue_wf(self, log_type: Literal["std", "tee"] = "std") -> None:  # NOTE: cannot use "continue"
-        self.logger = self.get_logger(log_type)
-        if not self.locked:
-            self.lock()
-        else:
-            self.logger.info("Workflow getting stopped, not continuing")
-            self.status = WorkflowStatus.STOPPING
-            return
+    def continue_wf(self, transaction: Transaction, logger: logging.Logger) -> WorkflowState:
+        """Continue the workflow, from its continuation job only
 
-        self.load_state()
+        The continuation job only acts if the committed state names it: a continuation job of a stopped workflow,
+        or submitted by a command that failed before committing, is a no-op.
+        """  # NOTE: cannot use "continue"
+        self.logger = logger
+        if (state := transaction.state) is None:
+            raise CommandOutcome(Outcome.REFUSED, "Workflow did not start, cannot continue")
+        if (jobid := Scheduler.current_jobid()) is None:
+            msg = "`sirocco continue` only runs in the continuation job of the workflow"
+            raise CommandOutcome(Outcome.REFUSED, msg)
+        if state.sirocco_jobid != jobid:
+            msg = f"Continuation job {jobid} superseded, the workflow is {state.status.name.lower()}"
+            if state.sirocco_jobid != NO_ID:
+                msg += f" with continuation job {state.sirocco_jobid}"
+            raise CommandOutcome(Outcome.NO_OP, msg)
+        self.load_state(state)
         self.propagate_front()
         self.auto_submit()
-        self.dump_state()
-        self.unlock()
+        return transaction.commit(self.workflow_state())
 
-    def restart(self, log_type: Literal["std", "tee"] = "tee") -> None:
-        self.logger = self.get_logger(log_type)
-        if not self.run_root.exists():
-            self.logger.error("Workflow did not start, cannot restart")
-            self.status = WorkflowStatus.RESTART_FAILED
-            return
-        self.load_state()
-        if self.jobids[self.sirocco_continue_task] != NO_ID:
-            self.logger.error("Workflow ongoing, cannot restart")
-            self.status = WorkflowStatus.RESTART_FAILED
-            return
+    def restart(self, transaction: Transaction, logger: logging.Logger) -> WorkflowState:
+        self.logger = logger
+        if (state := transaction.state) is None:
+            raise CommandOutcome(Outcome.REFUSED, "Workflow did not start, cannot restart")
+        if state.status == WorkflowStatus.RUNNING:
+            raise CommandOutcome(Outcome.REFUSED, "Workflow ongoing, cannot restart")
+        self.load_state(state)
         self.restart_front()
         self.propagate_front()
         self.auto_submit()
-        self.dump_state()
-
-    def stop(
-        self,
-        mode: Literal["cancel", "cool-down"],
-        log_type: Literal["std", "tee"] = "tee",
-    ) -> None:
-        if not self.run_root.exists():
-            msg = "Workflow did not start, cannot stop"
-            raise ValueError(msg)
-        self.load_state()
-        self.logger = self.get_logger(log_type)
-        if not self.locked:
-            self.lock()
-        else:
-            self.logger.info("Workflow continuaiton ongoing, please retry")
-            self.status = WorkflowStatus.CONTINUE
-            return
-        if self.jobids[self.sirocco_continue_task] == NO_ID:
-            self.logger.error("Workflow not running, no need to stop")
-            self.unlock()
-            return
-        self.cancel(self.sirocco_continue_task)
-        self.cancel_all_tasks(mode=mode)
-        self.status = WorkflowStatus.STOPPED
-        self.jobids[self.sirocco_continue_task] = NO_ID
-        self.dump_state()
-        self.unlock()
+        return transaction.commit(self.workflow_state())
 
     # =========== Helper methods for workflow control ===========
 
-    def get_logger(self, log_type: Literal["std", "tee"]) -> logging.Logger:
-        """Get a logger
-
-        - either for stdout/stderr
-        - or for both stdout/stderr and sirocco log file (like tee)"""
-        log_formatter = logging.Formatter("[%(levelname)s]  %(message)s")
-
-        console_handler = logging.StreamHandler()
-        console_handler.setFormatter(log_formatter)
-
-        logger = logging.getLogger(log_type)
-        logger.setLevel(logging.INFO)
-        logger.addHandler(console_handler)
-
-        if log_type == "tee":
-            file_handler = logging.FileHandler(self.config_rootdir / SiroccoContinueTask.STDOUTERR_FILENAME)
-            file_handler.setFormatter(log_formatter)
-            logger.addHandler(file_handler)
-
-        return logger
-
-    def log_task(self, task: core.Task, action: str, status: Literal["COMPLETED", "FRONT", "FAILED"] = "FRONT") -> None:
+    def log_task(self, task: core.Task, action: str, status: POINT_STATUS_T = "FRONT") -> None:
         """Log what happens to a task, with a point colored after `status` (and the task rank in the front)"""
-        point = StatusPoint.from_status(status, self.front.rank(task) if status == "FRONT" else None)
-        self.logger.info(f"{point} {task.label} ({self.jobids[task]}) {action}")  # noqa: G004
+        self.logger.info(task_line(task.label, self.jobids[task], action, status, self.front.rank(task)))
 
-    def lock(self) -> None:
-        self.lock_file.touch()
+    def workflow_state(self) -> WorkflowState:
+        """State to commit: front, completed and cool-down tasks and their job ids
 
-    def unlock(self) -> None:
-        self.lock_file.unlink()
-
-    def dump_state(self) -> None:
-        """Write the front, the completed and cool-down tasks and their job ids to the state file"""
-        YAML().dump(
-            {
-                "sirocco_jobid": self.jobids[self.sirocco_continue_task],
-                "completed_tasks": [self.task_to_yaml_state(task) for task in self.front.completed],
-                "cool_down_tasks": [self.task_to_yaml_state(task) for task in self.cool_down_tasks],
-                "front": [[self.task_to_yaml_state(task) for task in generation] for generation in self.front],
-            },
-            self.state_file,
+        The transaction sets the run, revision and commit of the header.
+        """
+        return WorkflowState(
+            status=self.status,
+            scheduler=self.scheduler.name,
+            cluster=self.scheduler.cluster(),
+            sirocco_jobid=self.jobids[self.sirocco_continue_task],
+            completed_tasks=[self.state_entry(task) for task in self.front.completed],
+            cool_down_tasks=[self.state_entry(task) for task in self.cool_down_tasks],
+            front=[[self.state_entry(task) for task in generation] for generation in self.front],
         )
 
-    def load_state(self) -> None:
-        """Restore the front, the completed and cool-down tasks and their job ids"""
-        yaml_state = YAML().load(self.state_file)
-        self.jobids[self.sirocco_continue_task] = yaml_state["sirocco_jobid"]
+    def load_state(self, state: WorkflowState) -> None:
+        """Restore the front, the completed and cool-down tasks and their job ids from `state`"""
+        self.jobids[self.sirocco_continue_task] = state.sirocco_jobid
+        self.status = state.status
         self.front = Front(depth=self.front_depth)
-        for yaml_task in yaml_state["completed_tasks"]:
-            self.front.place(self.task_from_yaml_state(yaml_task), COMPLETED)
-        for k, yaml_generation in enumerate(yaml_state["front"]):
-            for yaml_task in yaml_generation:
-                self.front.place(self.task_from_yaml_state(yaml_task), k)
+        for entry in state.completed_tasks:
+            self.front.place(self.task_of(entry), COMPLETED)
+        for k, generation in enumerate(state.front):
+            for entry in generation:
+                self.front.place(self.task_of(entry), k)
         # Cool-down tasks are also listed in the front or among the completed tasks, which give their rank
-        self.cool_down_tasks = [self.task_from_yaml_state(yaml_task) for yaml_task in yaml_state["cool_down_tasks"]]
+        self.cool_down_tasks = [self.task_of(entry) for entry in state.cool_down_tasks]
 
-    def task_to_yaml_state(self, task: core.Task) -> dict[str, dict[str, Any]]:
-        """Task entry of the state file: the task identity (name and coordinates) and its job id"""
-        return {
-            task.name: {
-                "coordinates": {k: v.isoformat() if k == "date" else v for k, v in task.coordinates.items()},
-                "jobid": self.jobids[task],
-            }
-        }
+    def state_entry(self, task: core.Task) -> StateEntry:
+        """State file entry of `task`, with its job id"""
+        return StateEntry.from_task(task, self.jobids[task])
 
-    def task_from_yaml_state(self, yaml_task: dict[str, dict[str, Any]]) -> core.Task:
+    def task_of(self, entry: StateEntry) -> core.Task:
         """Graph task of a state file entry, its job id restored"""
-        name, yaml_specs = next(iter(yaml_task.items()))
-        coordinates = {k: datetime.fromisoformat(v) if k == "date" else v for k, v in yaml_specs["coordinates"].items()}
-        task = self.workflow.tasks[name, coordinates]
-        self.jobids[task] = yaml_specs["jobid"]
+        try:
+            task = self.workflow.tasks[entry.name, entry.graph_coordinates]
+        except (KeyError, ValueError) as e:
+            msg = (
+                f"The workflow state names task {entry.label}, which the config doesn't define anymore."
+                " Start the workflow again with --cleanup."
+            )
+            raise CommandOutcome(Outcome.REFUSED, msg) from e
+        self.jobids[task] = entry.jobid
         return task
 
     def add_to_front(self, task: core.Task, rank: int) -> None:
@@ -402,7 +390,7 @@ class StandaloneEngine:
         for task in self.front[0]:
             if (status := self.get_status(task)) == TaskStatus.FAILED:
                 self.log_task(task, "FAILED", status="FAILED")
-                self.cancel_all_tasks(mode="cancel")
+                self.cancel_front()
                 self.logger.info(f"All workflow tasks canceled because {task.label} failed")  # noqa: G004
                 self.status = WorkflowStatus.FAILED
                 return
@@ -424,20 +412,12 @@ class StandaloneEngine:
         last = self.front_depth - 1
         self.extend_front(last, newly_completed if last == 0 else self.front[last - 1])
 
-    def cancel_all_tasks(self, mode: Literal["cancel", "cool-down"]) -> None:
-        """Cancel all workflow tasks except cool-down tasks"""
+    def cancel_front(self) -> None:
+        """Cancel all tasks of the front"""
         for generation in self.front:
             for task in generation:
-                if (
-                    self.front.rank(task) == 0
-                    and mode == "cool-down"
-                    and self.get_status(task) in (TaskStatus.COMPLETED, TaskStatus.RUNNING)
-                ):
-                    self.cool_down_tasks.append(task)
-                    self.log_task(task, "COOLING DOWN")
-                else:
-                    self.cancel(task)
-                    self.log_task(task, "CANCELED", status="FAILED")
+                self.cancel(task)
+                self.log_task(task, "CANCELED", status="FAILED")
 
     def auto_submit(self) -> None:
         """Submit next Sirocco task"""
@@ -446,7 +426,88 @@ class StandaloneEngine:
         elif self.front[0]:
             self.sirocco_continue_task.parents = self.front[0]
             self.submit(self.sirocco_continue_task, stdouterr_mode="append", dependency_type="ANY")
-            self.status = WorkflowStatus.CONTINUE
+            self.status = WorkflowStatus.RUNNING
         else:
             self.jobids[self.sirocco_continue_task] = NO_ID
             self.status = WorkflowStatus.COMPLETED
+
+
+# =========== Commands working on the state file alone ===========
+
+
+def scheduler_class(name: str | None) -> type[Scheduler]:
+    if name is None:
+        msg = "The standalone engine requires the scheduler to be specified in the workflow config, e.g. `scheduler: slurm`."
+        raise ValueError(msg)
+    if (scheduler_cls := Scheduler.scheduler_classes.get(name)) is None:
+        msg = f"Scheduler {name!r} is not supported by the standalone engine."
+        raise ValueError(msg)
+    return scheduler_cls
+
+
+def state_scheduler(state: WorkflowState, config_rootdir: Path) -> Scheduler:
+    """Scheduler holding the jobs of `state`, from the config for a state file without header"""
+    name = state.scheduler if state.scheduler is not None else ConfigWorkflow.from_config_path(config_rootdir).scheduler
+    return scheduler_class(name)()
+
+
+def stop(transaction: Transaction, mode: STOP_MODE_T, logger: logging.Logger) -> WorkflowState:
+    """Stop the workflow: cancel its continuation job and its front tasks
+
+    In cool-down mode, rank 0 tasks that run or completed are kept. Works on the state file alone.
+    """
+    config_rootdir = transaction.run_root.parent
+    if (state := transaction.state) is None:
+        raise CommandOutcome(Outcome.REFUSED, "Workflow did not start, cannot stop")
+    if state.sirocco_jobid == NO_ID:
+        raise CommandOutcome(Outcome.NO_OP, "Workflow not running, no need to stop")
+    scheduler = state_scheduler(state, config_rootdir)
+    scheduler.cancel(state.sirocco_jobid)
+    cool_down_tasks = list(state.cool_down_tasks)
+    for rank, generation in enumerate(state.front):
+        for entry in generation:
+            if (
+                rank == 0
+                and mode == "cool-down"
+                and scheduler.get_status(entry.jobid) in (TaskStatus.COMPLETED, TaskStatus.RUNNING)
+            ):
+                cool_down_tasks.append(entry)
+                logger.info(task_line(entry.label, entry.jobid, "COOLING DOWN", "FRONT", rank))
+            else:
+                scheduler.cancel(entry.jobid)
+                logger.info(task_line(entry.label, entry.jobid, "CANCELED", "FAILED", rank))
+    stopped = replace(
+        state, status=WorkflowStatus.STOPPED, reason=None, sirocco_jobid=NO_ID, cool_down_tasks=cool_down_tasks
+    )
+    return transaction.commit(stopped)
+
+
+def clean_up(transaction: Transaction) -> None:
+    """Delete the state and everything else the workflow generated, for `start --cleanup`
+
+    Refused while jobs of the workflow may run. Works on the state file alone.
+    """
+    config_rootdir = transaction.run_root.parent
+    if (state := transaction.state) is not None:
+        if state.status == WorkflowStatus.RUNNING:
+            raise CommandOutcome(Outcome.REFUSED, "Workflow running, stop it before cleaning it up")
+        scheduler = state_scheduler(state, config_rootdir)
+        for entry in state.cool_down_tasks:
+            try:
+                status = scheduler.get_status(entry.jobid)
+            except UnknownJobError:
+                continue
+            if status in (TaskStatus.WAITING, TaskStatus.RUNNING):
+                msg = f"Task {entry.label} (job {entry.jobid}) still runs since a cool-down stop, cannot clean up"
+                raise CommandOutcome(Outcome.REFUSED, msg)
+    # The state first: an interrupted cleanup leaves a workflow that didn't start
+    transaction.discard_state()
+    for item in transaction.run_root.iterdir():
+        if item.name == CONTROL_DIR_NAME:
+            continue
+        if item.is_dir() and not item.is_symlink():
+            shutil.rmtree(item)
+        else:
+            item.unlink()
+    (config_rootdir / SiroccoContinueTask.STDOUTERR_FILENAME).unlink(missing_ok=True)
+    (config_rootdir / SiroccoContinueTask.SUBMIT_FILENAME).unlink(missing_ok=True)

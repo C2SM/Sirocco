@@ -28,7 +28,6 @@ class SiroccoContinueTask(models.ConfigSiroccoTaskSpecs, Task):
     plugin: ClassVar[str] = "sirocco_continue"
     SUBMIT_FILENAME: ClassVar[str] = field(default=".sirocco_continue.sh", repr=False)
     STDOUTERR_FILENAME: ClassVar[str] = field(default="sirocco.log", repr=False)
-    LOCK_FILE_NAME: ClassVar[str] = field(default=".sirocco.lock", repr=False)
 
     name: str = "SIROCCO"
     computer: str = "dummy"
@@ -42,6 +41,7 @@ class SiroccoTaskHandler(PluginHandler[SiroccoContinueTask]):
     submit_filename = SiroccoContinueTask.SUBMIT_FILENAME
     stdouterr_filename = SiroccoContinueTask.STDOUTERR_FILENAME
     clean_up_rundir = False  # The run directory is the config directory, never wipe it
+    sirocco_job = True
 
     def get_rundir(self) -> Path:
         # Runs from the config directory, where it keeps its log
@@ -57,9 +57,10 @@ class SiroccoTaskHandler(PluginHandler[SiroccoContinueTask]):
         lines: list[str] = []
         if self.task.venv is not None:
             lines.append(f"source {self.task.venv}/bin/activate")
-        cmd: list[str] = ["sirocco"]
+        # `exec` so that the scheduler's signals reach sirocco, and sirocco and the job end together
+        cmd: list[str] = ["exec", "sirocco"]
         if os.environ.get("NO_COLOR") == "1":
             cmd.append("--no-ansi")
-        cmd.append(f"continue --from_wf {self.task.config_rootdir} || exit")
+        cmd.append(f"continue --from_wf {self.task.config_rootdir}")
         lines.append(" ".join(cmd))
         return lines

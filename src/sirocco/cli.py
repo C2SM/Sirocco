@@ -1,11 +1,10 @@
 import io
 import logging
 import os
-import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, NoReturn
 
 import typer
 
@@ -16,8 +15,18 @@ from rich.console import Console
 from rich.traceback import install as install_rich_traceback
 
 from sirocco import core, parsing, pretty_print, vizgraph
-from sirocco.engines.standalone import SiroccoContinueTask, StandaloneEngine, WorkflowStatus
-from sirocco.engines.standalone.engine import StatusPoint
+from sirocco.engines.standalone import (
+    CommandOutcome,
+    Outcome,
+    SiroccoContinueTask,
+    StandaloneEngine,
+    Transaction,
+    WorkflowState,
+    WorkflowStatus,
+    clean_up,
+)
+from sirocco.engines.standalone import stop as stop_workflow
+from sirocco.engines.standalone.engine import StatusPoint, get_logger
 from sirocco.engines.standalone.state_viz import state_vizgraph
 
 
@@ -50,13 +59,13 @@ class TeeStream(io.TextIOBase):
         super().close()
 
 
-def log_console(wf: core.Workflow | StandaloneEngine) -> Console:
+def log_console(config_rootdir: Path) -> Console:
     # Create file first, otherwise the first few lines are missing from the log
-    logfile = wf.config_rootdir / SiroccoContinueTask.STDOUTERR_FILENAME
+    logfile = config_rootdir / SiroccoContinueTask.STDOUTERR_FILENAME
     if not logfile.exists():
         logfile.touch()
     return Console(
-        file=TeeStream(wf.config_rootdir / SiroccoContinueTask.STDOUTERR_FILENAME),  # type: ignore
+        file=TeeStream(logfile),  # type: ignore
         force_terminal=True,
         color_system="truecolor",
         highlight=False,
@@ -209,6 +218,23 @@ def visualize(
 
 # --- CLI Standalone Commands ---
 
+# Each standalone command that changes the workflow runs as a transaction holding the workflow lock (see
+# `sirocco.engines.standalone.transaction`). Commands wait for the lock while another command holds it, and end
+# with an exit code telling their outcome apart (see `Outcome`).
+
+DEFAULT_WAIT = 60.0  # Seconds an interactive command waits for the lock
+CONTINUE_WAIT = (
+    1800.0  # Seconds the continuation job waits for the lock: giving up leaves the workflow without continuation
+)
+
+WAIT_OPTION_T = Annotated[
+    float,
+    typer.Option(
+        "--wait",
+        help="Seconds to wait while another sirocco command holds the workflow, before giving up.",
+    ),
+]
+
 
 def add_now(width: int = 25) -> str:
     rule = width * "─"
@@ -216,6 +242,18 @@ def add_now(width: int = 25) -> str:
     date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # noqa: DTZ005
     date_rule = (len(date_str) + 2) * "─"
     return "\n".join([f"{space}╭{date_rule}╮", f"{rule}┤ {date_str} ├{rule}", f"{space}╰{date_rule}╯"])
+
+
+def end_command(out: Console, outcome: CommandOutcome) -> NoReturn:
+    """End a command that didn't commit (no-op, refused, busy, ...) with the exit code of its outcome"""
+    icon = CmdStatus.SUCCESS if outcome.outcome.exit_code == 0 else CmdStatus.FAIL
+    out.print(f"{icon}  {outcome} ({outcome.outcome.value})")
+    raise typer.Exit(code=outcome.outcome.exit_code)
+
+
+def report_failure(out: Console, what: str, error: Exception) -> None:
+    out.print(f"{CmdStatus.FAIL}  {what} failed: {error}")
+    out.print_exception()
 
 
 @app.command(help="\\[Standalone] Visualize workflow state.")
@@ -236,7 +274,11 @@ def stviz(
     console.print(f"{CmdStatus.PLAY} Visualizing workflow state from: [cyan]{config_dir!s}[/cyan]")
     try:
         engine = StandaloneEngine.from_config_path(config_dir)
-        engine.load_state()
+        # Read-only: no lock needed, the state file is always complete
+        if (state := WorkflowState.read(engine.state_file)) is None:
+            msg = "Workflow did not start, no state to visualize"
+            raise ValueError(msg)  # noqa: TRY301
+        engine.load_state(state)
         viz_graph = state_vizgraph(engine)
         output_path = Path("./state.svg") if output_file is None else output_file
         viz_graph.draw(file_path=output_path)
@@ -259,54 +301,68 @@ def start(
             help="clean up before starting",
         ),
     ] = False,
+    wait: WAIT_OPTION_T = DEFAULT_WAIT,
 ):
-    engine = StandaloneEngine.from_config_path(config_dir)
-    if cleanup:
-        # Do it here oterwise the first few lines disappear from the log
-        (engine.config_rootdir / SiroccoContinueTask.STDOUTERR_FILENAME).unlink(missing_ok=True)
-    tee_console = log_console(engine)
-    tee_console.print(add_now())
-    if cleanup:
-        tee_console.print(f"{CmdStatus.PLAY} Cleaning up workflow at {engine.config_rootdir} ...")
-        if (run_root := engine.run_root).exists():
-            shutil.rmtree(run_root)
-        (engine.config_rootdir / SiroccoContinueTask.SUBMIT_FILENAME).unlink(missing_ok=True)
-    if (engine.run_root).exists():
-        msg = "Workflow already exists, cannot start. Use --cleanup to clean up before starting."
-        raise ValueError(msg)
-    tee_console.print(f"{CmdStatus.PLAY} Starting workflow at {engine.config_rootdir} ...")
+    config_rootdir = config_dir.resolve()
+    out = console  # Until the log is set up, which the cleanup deletes
     try:
-        engine.start()
-        if engine.status == WorkflowStatus.CONTINUE:
-            tee_console.print(f"{CmdStatus.SUCCESS}  Workflow started successfully.")
-        elif engine.status == WorkflowStatus.FAILED:
-            tee_console.print(f"{CmdStatus.FAIL}  Workflow start failed")
+        with Transaction.begin(
+            config_rootdir / StandaloneEngine.RUN_ROOT_NAME,
+            "start --cleanup" if cleanup else "start",
+            wait=wait,
+            logger=get_logger("std", config_rootdir),
+        ) as transaction:
+            if cleanup:
+                clean_up(transaction)
+            out = log_console(config_rootdir)
+            out.print(add_now())
+            if cleanup:
+                out.print(f"{CmdStatus.PLAY} Cleaned up workflow at {config_rootdir}")
+            out.print(f"{CmdStatus.PLAY} Starting workflow at {config_rootdir} ...")
+            state = StandaloneEngine.from_config_path(config_rootdir).start(
+                transaction, get_logger("tee", config_rootdir)
+            )
+    except CommandOutcome as outcome:
+        end_command(out, outcome)
     except Exception as e:
-        tee_console.print(f"{CmdStatus.FAIL} Workflow start failed: {e}")
-        tee_console.print_exception()
-        raise typer.Exit(code=1) from e
+        report_failure(out, "Workflow start", e)
+        raise typer.Exit(code=Outcome.ABORTED.exit_code) from e
+    if state.status == WorkflowStatus.FAILED:
+        out.print(f"{CmdStatus.FAIL}  Workflow start failed")
+    else:
+        out.print(f"{CmdStatus.SUCCESS}  Workflow started successfully.")
 
 
 @app.command(help="\\[Standalone] Restart a stopped workflow.")
 def restart(
     config_dir: CONFIG_DIR_ARG_T = Path("."),
+    *,
+    wait: WAIT_OPTION_T = DEFAULT_WAIT,
 ):
-    engine = StandaloneEngine.from_config_path(config_dir)
-    tee_console = log_console(engine)
+    config_rootdir = config_dir.resolve()
+    tee_console = log_console(config_rootdir)
     tee_console.print(add_now())
-    tee_console.print(f"{CmdStatus.PLAY} Restarting workflow at {engine.config_rootdir} ...")
+    tee_console.print(f"{CmdStatus.PLAY} Restarting workflow at {config_rootdir} ...")
+    logger = get_logger("tee", config_rootdir)
     try:
-        engine.restart()
-        if engine.status == WorkflowStatus.CONTINUE:
-            tee_console.print(f"{CmdStatus.SUCCESS}  Workflow restarted successfully.")
-        elif engine.status == WorkflowStatus.COMPLETED:
-            tee_console.print(f"{CmdStatus.SUCCESS}  WORKFLOW COMPLETED")
-        elif engine.status == WorkflowStatus.RESTART_FAILED:
-            tee_console.print(f"{CmdStatus.FAIL}  Workflow restart failed")
+        with Transaction.begin(
+            config_rootdir / StandaloneEngine.RUN_ROOT_NAME,
+            "restart",
+            wait=wait,
+            logger=logger,
+        ) as transaction:
+            state = StandaloneEngine.from_config_path(config_rootdir).restart(transaction, logger)
+    except CommandOutcome as outcome:
+        end_command(tee_console, outcome)
     except Exception as e:
-        tee_console.print(f"{CmdStatus.FAIL}  Workflow restart failed: {e}")
-        tee_console.print_exception()
-        raise typer.Exit(code=1) from e
+        report_failure(tee_console, "Workflow restart", e)
+        raise typer.Exit(code=Outcome.ABORTED.exit_code) from e
+    if state.status == WorkflowStatus.COMPLETED:
+        tee_console.print(f"{CmdStatus.SUCCESS}  WORKFLOW COMPLETED")
+    elif state.status == WorkflowStatus.FAILED:
+        tee_console.print(f"{CmdStatus.FAIL}  Workflow restart failed")
+    else:
+        tee_console.print(f"{CmdStatus.SUCCESS}  Workflow restarted successfully.")
 
 
 @app.command(help="\\[Standalone] Stop a workflow.")
@@ -320,25 +376,31 @@ def stop(
             help="Do not cancel currently running tasks",
         ),
     ] = False,
+    wait: WAIT_OPTION_T = DEFAULT_WAIT,
 ):
-    engine = StandaloneEngine.from_config_path(config_dir)
-    tee_console = log_console(engine)
+    config_rootdir = config_dir.resolve()
+    tee_console = log_console(config_rootdir)
     tee_console.print(add_now())
-    msg = f"{CmdStatus.PLAY} Stopping workflow at {engine.config_rootdir}"
+    msg = f"{CmdStatus.PLAY} Stopping workflow at {config_rootdir}"
     if cool_down:
         msg += " in cool down mode"
     msg += " ..."
     tee_console.print(msg)
+    logger = get_logger("tee", config_rootdir)
     try:
-        engine.stop(mode="cool-down" if cool_down else "cancel")
-        if engine.status == WorkflowStatus.STOPPED:
-            tee_console.print(f"{CmdStatus.SUCCESS}  Workflow stopped successfully.")
-        else:
-            tee_console.print(f"{CmdStatus.FAIL}  Workflow stop failed")
+        with Transaction.begin(
+            config_rootdir / StandaloneEngine.RUN_ROOT_NAME,
+            "stop --cool-down" if cool_down else "stop",
+            wait=wait,
+            logger=logger,
+        ) as transaction:
+            stop_workflow(transaction, mode="cool-down" if cool_down else "cancel", logger=logger)
+    except CommandOutcome as outcome:
+        end_command(tee_console, outcome)
     except Exception as e:
-        tee_console.print(f"{CmdStatus.FAIL}  Workflow stop failed: {e}")
-        tee_console.print_exception()
-        raise typer.Exit(code=1) from e
+        report_failure(tee_console, "Workflow stop", e)
+        raise typer.Exit(code=Outcome.ABORTED.exit_code) from e
+    tee_console.print(f"{CmdStatus.SUCCESS}  Workflow stopped successfully.")
 
 
 @app.command(name="continue", hidden=True)
@@ -352,26 +414,35 @@ def continue_wf(
             help="Specify command is executed from a running worflow (as opposed to interactively)",
         ),
     ] = False,
+    wait: WAIT_OPTION_T = CONTINUE_WAIT,
 ):
     std_console = Console(force_terminal=True, color_system="truecolor", highlight=False)
     std_console.print(add_now())
     if not from_wf:
         msg = "Do not use interactively, the continue command is reserved for internal use"
         raise ValueError(msg)
-    engine = StandaloneEngine.from_config_path(config_dir)
+    config_rootdir = config_dir.resolve()
     std_console.print(f"{CmdStatus.PLAY} Continue workflow ...")
+    logger = get_logger("std", config_rootdir)
     try:
-        engine.continue_wf()
-        if engine.status == WorkflowStatus.CONTINUE:
-            std_console.print(f"{CmdStatus.SUCCESS}  Workflow continuation submitted successfully.")
-        elif engine.status == WorkflowStatus.COMPLETED:
-            std_console.print(f"{CmdStatus.SUCCESS}  Workflow completed!")
-        elif engine.status == WorkflowStatus.FAILED:
-            std_console.print(f"{CmdStatus.FAIL}  Workflow failed")
+        with Transaction.begin(
+            config_rootdir / StandaloneEngine.RUN_ROOT_NAME,
+            "continue",
+            wait=wait,
+            logger=logger,
+        ) as transaction:
+            state = StandaloneEngine.from_config_path(config_rootdir).continue_wf(transaction, logger)
+    except CommandOutcome as outcome:
+        end_command(std_console, outcome)
     except Exception as e:
-        std_console.print(f"{CmdStatus.FAIL}  Workflow continuation failed: {e}")
-        std_console.print_exception()
-        raise typer.Exit(code=1) from e
+        report_failure(std_console, "Workflow continuation", e)
+        raise typer.Exit(code=Outcome.ABORTED.exit_code) from e
+    if state.status == WorkflowStatus.COMPLETED:
+        std_console.print(f"{CmdStatus.SUCCESS}  Workflow completed!")
+    elif state.status == WorkflowStatus.FAILED:
+        std_console.print(f"{CmdStatus.FAIL}  Workflow failed")
+    else:
+        std_console.print(f"{CmdStatus.SUCCESS}  Workflow continuation submitted successfully.")
 
 
 # --- CLI AiiDA Commands ---

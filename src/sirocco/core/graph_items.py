@@ -47,16 +47,21 @@ class GraphItem:
     label: str = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
-        self.label = self.name
-        if self.coordinates:
-            label_items: list[str] = []
-            for key, value in self.coordinates.items():
-                if isinstance(value, datetime):
-                    date_str = value.strftime("%Y-%m-%dT%H-%M-%S")
-                    label_items.append(f"{key}_{date_str}")
-                else:
-                    label_items.append(f"{key}_{value}".replace(" ", "_"))
-            self.label += "__" + "__".join(label_items)
+        self.label = self.make_label(self.name, self.coordinates)
+
+    @staticmethod
+    def make_label(name: str, coordinates: dict) -> str:
+        """Label of the graph item called `name` at `coordinates`, unique in the graph"""
+        if not coordinates:
+            return name
+        label_items: list[str] = []
+        for key, value in coordinates.items():
+            if isinstance(value, datetime):
+                date_str = value.strftime("%Y-%m-%dT%H-%M-%S")
+                label_items.append(f"{key}_{date_str}")
+            else:
+                label_items.append(f"{key}_{value}".replace(" ", "_"))
+        return name + "__" + "__".join(label_items)
 
 
 GRAPH_ITEM_T = TypeVar("GRAPH_ITEM_T", bound=GraphItem)

@@ -124,11 +124,13 @@ submit Sirocco_continue (1010) after ['1001', '1002'] [ANY]
 
 export N_NODES=1
 
+export SIROCCO_SCHEDULER=slurm
+export SIROCCO_JOBID=${FAKE_JOB_ID}
 
-sirocco continue --from_wf <ROOTDIR> || exit
+exec sirocco continue --from_wf <ROOTDIR>
 ---
-status: CONTINUE
---- state (continuation job 1010)
+status: RUNNING
+--- state revision 1, RUNNING (continuation job 1010)
 front[0]:
   icon[date=2026-01-01T00:00:00+00:00, bar=3.0, foo=0] (1001)
   icon[date=2026-01-01T00:00:00+00:00, bar=3.0, foo=1] (1002)
@@ -201,8 +203,8 @@ export SIROCCO_STOP_DATE=2028-01-01T00:00:00+00:00
 python icon.py --restart <ROOTDIR>/run/icon__date_2027-01-01T00-00-00__bar_3.0__foo_1/restart  --forcing /TESTS_ROOTDIR/tests/cases/parameters/config/data/forcing
 ---
 submit Sirocco_continue (1015) after ['1003', '1004', '1005'] [ANY]
-status: CONTINUE
---- state (continuation job 1015)
+status: RUNNING
+--- state revision 2, RUNNING (continuation job 1015)
 front[0]:
   statistics_foo[date=2026-01-01T00:00:00+00:00, bar=3.0] (1003)
   icon[date=2026-07-01T00:00:00+00:00, bar=3.0, foo=0] (1004)
@@ -237,7 +239,7 @@ cancel statistics_foo__date_2027-01-01T00-00-00__bar_3.0 (1012)
 cancel icon__date_2027-07-01T00-00-00__bar_3.0__foo_0 (1013)
 cancel icon__date_2027-07-01T00-00-00__bar_3.0__foo_1 (1014)
 status: STOPPED
---- state (continuation job _NO_ID_)
+--- state revision 3, STOPPED (continuation job _NO_ID_)
 front[0]:
   statistics_foo[date=2026-01-01T00:00:00+00:00, bar=3.0] (1003)
   icon[date=2026-07-01T00:00:00+00:00, bar=3.0, foo=0] (1004)
@@ -281,8 +283,8 @@ submit icon__date_2027-07-01T00-00-00__bar_3.0__foo_0 (1024) after ['1020'] [ALL
 cancel icon__date_2027-07-01T00-00-00__bar_3.0__foo_1 (1014)
 submit icon__date_2027-07-01T00-00-00__bar_3.0__foo_1 (1025) after ['1021'] [ALL_COMPLETED]
 submit Sirocco_continue (1026) after ['1003', '1016', '1017'] [ANY]
-status: CONTINUE
---- state (continuation job 1026)
+status: RUNNING
+--- state revision 4, RUNNING (continuation job 1026)
 front[0]:
   statistics_foo[date=2026-01-01T00:00:00+00:00, bar=3.0] (1003)
   icon[date=2026-07-01T00:00:00+00:00, bar=3.0, foo=0] (1016)
@@ -347,8 +349,8 @@ export SIROCCO_STOP_DATE=2028-01-01T00:00:00+00:00
 python statistics.py <ROOTDIR>/run/icon__date_2027-07-01T00-00-00__bar_3.0__foo_0/icon_output <ROOTDIR>/run/icon__date_2027-07-01T00-00-00__bar_3.0__foo_1/icon_output
 ---
 submit Sirocco_continue (1030) after ['1018', '1019', '1020', '1021'] [ANY]
-status: CONTINUE
---- state (continuation job 1030)
+status: RUNNING
+--- state revision 5, RUNNING (continuation job 1030)
 front[0]:
   statistics_foo_bar[date=2026-01-01T00:00:00+00:00] (1018)
   statistics_foo[date=2026-07-01T00:00:00+00:00, bar=3.0] (1019)
@@ -391,8 +393,8 @@ export SIROCCO_STOP_DATE=2028-01-01T00:00:00+00:00
 python statistics.py <ROOTDIR>/run/statistics_foo__date_2027-07-01T00-00-00__bar_3.0/analysis
 ---
 submit Sirocco_continue (1032) after ['1022', '1023', '1024', '1025'] [ANY]
-status: CONTINUE
---- state (continuation job 1032)
+status: RUNNING
+--- state revision 6, RUNNING (continuation job 1032)
 front[0]:
   statistics_foo_bar[date=2026-07-01T00:00:00+00:00] (1022)
   statistics_foo[date=2027-01-01T00:00:00+00:00, bar=3.0] (1023)
@@ -436,8 +438,8 @@ export SIROCCO_STOP_DATE=2028-01-01T00:00:00+00:00
 python merge.py <ROOTDIR>/run/statistics_foo_bar__date_2027-01-01T00-00-00/analysis <ROOTDIR>/run/statistics_foo_bar__date_2027-07-01T00-00-00/analysis
 ---
 submit Sirocco_continue (1034) after ['1027', '1028', '1029'] [ANY]
-status: CONTINUE
---- state (continuation job 1034)
+status: RUNNING
+--- state revision 7, RUNNING (continuation job 1034)
 front[0]:
   merge[date=2026-01-01T00:00:00+00:00] (1027)
   statistics_foo_bar[date=2027-01-01T00:00:00+00:00] (1028)
@@ -468,8 +470,8 @@ completed_tasks:
 
 === sirocco continue
 submit Sirocco_continue (1035) after ['1031'] [ANY]
-status: CONTINUE
---- state (continuation job 1035)
+status: RUNNING
+--- state revision 8, RUNNING (continuation job 1035)
 front[0]:
   statistics_foo_bar[date=2027-07-01T00:00:00+00:00] (1031)
 front[1]:
@@ -498,8 +500,8 @@ completed_tasks:
 
 === sirocco continue
 submit Sirocco_continue (1036) after ['1033'] [ANY]
-status: CONTINUE
---- state (continuation job 1036)
+status: RUNNING
+--- state revision 9, RUNNING (continuation job 1036)
 front[0]:
   merge[date=2027-01-01T00:00:00+00:00] (1033)
 front[1]:
@@ -528,7 +530,7 @@ completed_tasks:
 
 === sirocco continue
 status: COMPLETED
---- state (continuation job _NO_ID_)
+--- state revision 10, COMPLETED (continuation job _NO_ID_)
 front[0]:
 front[1]:
 front[2]:

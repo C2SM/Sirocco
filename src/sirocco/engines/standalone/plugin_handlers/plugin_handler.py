@@ -42,6 +42,7 @@ class PluginHandler[T: core.Task](ABC):
     stdouterr_filename: ClassVar[str] = "run_script.%j.o"
     clean_up_rundir: ClassVar[bool] = True  # Wipe the run directory before preparing it
     scheduler_uenv: ClassVar[bool] = True  # Let the scheduler start the job in the task uenv and view
+    sirocco_job: ClassVar[bool] = False  # Job running a sirocco command, which must know its job id
 
     task: T
     run_root: Path  # Root of all task run directories
